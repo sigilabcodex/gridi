@@ -1,0 +1,47 @@
+:root {
+  color-scheme: dark;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  background: #0b0f12;
+  color: #cfd6dd;
+}
+
+body { margin: 0; padding: 24px; }
+
+h1 { margin: 0 0 12px; font-size: 18px; letter-spacing: 0.5px; }
+
+button {
+  background: #1a222a;
+  border: 1px solid #2a343f;
+  color: #cfd6dd;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+button:hover { background: #202a33; }
+
+.top { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.status { opacity: 0.8; margin-left: 10px; }
+
+.master { display: flex; gap: 18px; margin-bottom: 14px; flex-wrap: wrap; }
+
+.grid { display: flex; flex-direction: column; gap: 10px; }
+
+.row {
+  display: grid;
+  grid-template-columns: 80px 60px 120px repeat(10, 170px);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #1a222a;
+  border-radius: 10px;
+  background: #0f151b;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.vtitle { font-weight: 700; letter-spacing: 1px; }
+
+.ctl { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.ctl label { opacity: 0.85; }
+.ctl input[type="range"] { width: 160px; }
+.ctl .val { font-size: 10px; opacity: 0.7; }
+select { background: #0b0f12; color: #cfd6dd; border: 1px solid #2a343f; border-radius: 6px; padding: 4px 6px; }
