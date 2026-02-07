@@ -1,4 +1,4 @@
-// Glitch Groovebox (WebAudio) v0.1
+// GRIDI (WebAudio) v0.1
 // vanilla-ts, no frameworks
 
 type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
@@ -726,7 +726,7 @@ function render() {
   app.innerHTML = "";
 
   const h = el("h1");
-  h.textContent = "Glitch Groovebox — WebAudio";
+  h.textContent = "GRIDI — WebAudio";
 
   const top = el("div", "top");
   const status = el("div", "status");
