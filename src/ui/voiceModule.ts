@@ -1,27 +1,39 @@
 // src/ui/voiceModule.ts
-import type { Patch, Mode } from "../patch";
+import type { Patch, Mode, VoiceModule } from "../patch";
 import { clamp } from "../patch";
+import { knob } from "./knob";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
+
+type UiState = {
+  advOpen: boolean;
+  setAdvOpen: (v: boolean) => void;
+};
 
 export function renderVoiceModule(
   root: HTMLElement,
   patch: Patch,
-  i: number,
-  getLedState: (i: number) => { active: boolean; hit: boolean },
-  onPatchChange: (fn: (p: Patch) => void) => void
+  v: VoiceModule,
+  voiceIndex: number,
+  getLedState: (voiceIndex: number) => { active: boolean; hit: boolean },
+  onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
+  ui: UiState,
+  onRemove?: () => void
 ) {
-  const v = patch.voices[i];
-
   const card = document.createElement("div");
   card.className = "card";
+  card.dataset.type = "voice";
+  card.dataset.kind = v.kind;
 
-  // ---- header / title row ----
   const header = document.createElement("div");
   header.className = "cardHeader";
 
   const titleRow = document.createElement("div");
   titleRow.className = "titleRow";
+
+  const badge = document.createElement("div");
+  badge.className = "badge";
+  badge.textContent = v.kind === "drum" ? "DRUM" : "TONAL";
 
   const ledA = document.createElement("div");
   ledA.className = "led";
@@ -31,26 +43,42 @@ export function renderVoiceModule(
 
   const name = document.createElement("div");
   name.className = "name";
-  name.textContent = v?.name ?? `V${i + 1}`;
+  name.textContent = v.name;
 
-  titleRow.append(ledA, ledHit, name);
+  titleRow.append(badge, ledA, ledHit, name);
+
+  const right = document.createElement("div");
+  right.className = "rightControls";
+
+  // Adv button moved to bottom row as smaller toggle
+  const btnX = document.createElement("button");
+  btnX.textContent = "✕";
+  btnX.className = "danger";
+  btnX.title = "Remove module";
+  btnX.onclick = () => onRemove?.();
 
   const toggle = document.createElement("button");
-  toggle.textContent = v?.enabled ? "On" : "Off";
-  toggle.className = v?.enabled ? "primary" : "";
+  const syncToggle = () => {
+    toggle.textContent = v.enabled ? "On" : "Off";
+    toggle.className = v.enabled ? "primary" : "";
+  };
+  syncToggle();
+
   toggle.onclick = () => {
     onPatchChange((p) => {
-      p.voices[i].enabled = !p.voices[i].enabled;
-    });
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m && m.type === "voice") m.enabled = !m.enabled;
+    }, { regen: false });
   };
 
-  header.append(titleRow, toggle);
+  right.append(toggle, btnX);
+  header.append(titleRow, right);
 
-  // ---- controls row ----
+  // --- compact controls
   const row = document.createElement("div");
-  row.className = "row";
+  row.className = "row compactRow";
 
-  // Mode
+  // Mode (for now select; next step we convert to stepped knob)
   row.append(labelEl("Mode"));
   const sel = document.createElement("select");
   for (const m of MODES) {
@@ -62,47 +90,153 @@ export function renderVoiceModule(
   }
   sel.onchange = () =>
     onPatchChange((p) => {
-      p.voices[i].mode = sel.value as Mode;
-    });
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m && m.type === "voice") m.mode = sel.value as Mode;
+    }, { regen: true });
   row.appendChild(sel);
 
-  // Seed
+  // Seed (keep as number; later we can add slider in Adv)
   row.append(labelEl("Seed"));
   const seed = numBox(v.seed, 0, 999999);
   seed.onchange = () =>
     onPatchChange((p) => {
-      p.voices[i].seed = seed.valueAsNumber | 0;
-    });
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m && m.type === "voice") m.seed = seed.valueAsNumber | 0;
+    }, { regen: true });
   row.append(seed);
 
-  // Amp
-  row.append(labelEl("Amp"));
-  row.append(
-    range(v.amp, 0, 0.6, 0.001, (x) =>
+  // Amp knob (color-coded via CSS by module kind)
+  const kAmp = knob({
+    label: "Amp",
+    value: v.amp,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    format: (x) => x.toFixed(3),
+    onChange: (x) =>
       onPatchChange((p) => {
-        p.voices[i].amp = x;
-      })
-    )
-  );
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m && m.type === "voice") m.amp = x;
+      }, { regen: false }),
+  });
+  kAmp.el.classList.add("knobAmp");
+  row.append(kAmp.el);
 
-  // Timbre
-  row.append(labelEl("Timbre"));
-  row.append(
-    range(v.timbre, 0, 1, 0.001, (x) =>
+  const kT = knob({
+    label: "Timbre",
+    value: v.timbre,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    format: (x) => x.toFixed(3),
+    onChange: (x) =>
       onPatchChange((p) => {
-        p.voices[i].timbre = x;
-      })
-    )
-  );
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m && m.type === "voice") m.timbre = x;
+      }, { regen: false }),
+  });
+  kT.el.classList.add("knobTimbre");
+  row.append(kT.el);
 
-  card.append(header, row);
+  // bottom mini row: Adv toggle
+  const bottom = document.createElement("div");
+  bottom.className = "miniRow";
+
+  const btnAdv = document.createElement("button");
+  const syncAdv = () => (btnAdv.textContent = ui.advOpen ? "Advanced ▾" : "Advanced ▸");
+  syncAdv();
+  btnAdv.onclick = () => {
+    ui.setAdvOpen(!ui.advOpen);
+    onPatchChange((p) => p, { regen: false });
+  };
+
+  bottom.append(btnAdv);
+  card.append(header, row, bottom);
+
+  // --- advanced panel
+  const adv = document.createElement("div");
+  adv.className = "adv";
+
+  if (ui.advOpen) {
+    adv.append(
+      ctlRange("Subdiv", v.subdiv, 1, 8, 1, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.subdiv = (Math.max(1, Math.min(8, Math.round(x))) as any);
+        }, { regen: false })
+      ),
+      ctlRange("Length", v.length, 1, 128, 1, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.length = Math.max(1, Math.min(128, Math.round(x)));
+        }, { regen: true })
+      ),
+      ctlRange("Density", v.density, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.density = x;
+        }, { regen: true })
+      ),
+      ctlRange("Drop", v.drop, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.drop = x;
+        }, { regen: true })
+      ),
+      ctlRange("Det", v.determinism, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.determinism = x;
+        }, { regen: true })
+      ),
+      ctlRange("Grav", v.gravity, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.gravity = x;
+        }, { regen: true })
+      ),
+      ctlRange("Weird", v.weird, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.weird = x;
+        }, { regen: true })
+      ),
+      ctlRange("Pan", v.pan, -1, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.pan = x;
+        }, { regen: false })
+      ),
+      ctlRange("Rot", v.euclidRot, -32, 32, 1, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.euclidRot = Math.round(x);
+        }, { regen: true })
+      ),
+      ctlRange("CA Rule", v.caRule, 0, 255, 1, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.caRule = Math.max(0, Math.min(255, Math.round(x)));
+        }, { regen: true })
+      ),
+      ctlRange("CA Init", v.caInit, 0, 1, 0.001, (x) =>
+        onPatchChange((p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.caInit = x;
+        }, { regen: true })
+      )
+    );
+    card.appendChild(adv);
+  }
+
   root.appendChild(card);
 
-  // ---- LED updater (called from UI loop) ----
   return () => {
-    const st = getLedState(i);
+    const st = getLedState(voiceIndex);
     ledA.className = "led" + (st.active ? " on" : "");
     ledHit.className = "led" + (st.hit ? " on hit" : "");
+    syncToggle();
+    syncAdv();
   };
 }
 
@@ -112,7 +246,7 @@ function labelEl(t: string) {
   return l;
 }
 
-function range(
+function rangeInput(
   value: number,
   min: number,
   max: number,
@@ -124,11 +258,7 @@ function range(
   r.min = String(min);
   r.max = String(max);
   r.step = String(step);
-
-  // importante: evita NaN si value viene mal por algún bug upstream
-  const safe = Number.isFinite(value) ? value : min;
-  r.value = String(clamp(safe, min, max));
-
+  r.value = String(clamp(value, min, max));
   r.oninput = () => on(parseFloat(r.value));
   return r;
 }
@@ -140,4 +270,34 @@ function numBox(value: number, min: number, max: number) {
   n.min = String(min);
   n.max = String(max);
   return n;
+}
+
+function ctlRange(
+  title: string,
+  value: number,
+  min: number,
+  max: number,
+  step: number,
+  on: (v: number) => void
+) {
+  const wrap = document.createElement("div");
+  wrap.className = "ctl";
+
+  const lab = document.createElement("label");
+  lab.textContent = title;
+
+  const r = rangeInput(value, min, max, step, on);
+
+  const val = document.createElement("div");
+  val.className = "val";
+  val.textContent = Number.isFinite(value) ? String(value) : "";
+
+  r.oninput = () => {
+    const v = parseFloat(r.value);
+    val.textContent = step < 1 ? v.toFixed(3) : String(Math.round(v));
+    on(v);
+  };
+
+  wrap.append(lab, r, val);
+  return wrap;
 }
