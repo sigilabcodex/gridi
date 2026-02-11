@@ -12,7 +12,7 @@ type UiState = {
 
 export function renderVoiceModule(
   root: HTMLElement,
-  patch: Patch,
+  _patch: Patch,
   v: VoiceModule,
   voiceIndex: number,
   getLedState: (voiceIndex: number) => { active: boolean; hit: boolean },
@@ -20,11 +20,12 @@ export function renderVoiceModule(
   ui: UiState,
   onRemove?: () => void
 ) {
-  const card = document.createElement("div");
+  const card = document.createElement("section");
   card.className = "card";
   card.dataset.type = "voice";
   card.dataset.kind = v.kind;
 
+  // ---- header
   const header = document.createElement("div");
   header.className = "cardHeader";
 
@@ -50,13 +51,6 @@ export function renderVoiceModule(
   const right = document.createElement("div");
   right.className = "rightControls";
 
-  // Adv button moved to bottom row as smaller toggle
-  const btnX = document.createElement("button");
-  btnX.textContent = "✕";
-  btnX.className = "danger";
-  btnX.title = "Remove module";
-  btnX.onclick = () => onRemove?.();
-
   const toggle = document.createElement("button");
   const syncToggle = () => {
     toggle.textContent = v.enabled ? "On" : "Off";
@@ -65,20 +59,29 @@ export function renderVoiceModule(
   syncToggle();
 
   toggle.onclick = () => {
-    onPatchChange((p) => {
-      const m = p.modules.find((x) => x.id === v.id);
-      if (m && m.type === "voice") m.enabled = !m.enabled;
-    }, { regen: false });
+    onPatchChange(
+      (p) => {
+        const m = p.modules.find((x) => x.id === v.id);
+        if (m && m.type === "voice") m.enabled = !m.enabled;
+      },
+      { regen: false }
+    );
   };
+
+  const btnX = document.createElement("button");
+  btnX.textContent = "×";
+  btnX.className = "danger";
+  btnX.title = "Remove module";
+  btnX.onclick = () => onRemove?.();
 
   right.append(toggle, btnX);
   header.append(titleRow, right);
 
-  // --- compact controls
+  // ---- compact row
   const row = document.createElement("div");
   row.className = "row compactRow";
 
-  // Mode (for now select; next step we convert to stepped knob)
+  // Mode
   row.append(labelEl("Mode"));
   const sel = document.createElement("select");
   for (const m of MODES) {
@@ -89,23 +92,29 @@ export function renderVoiceModule(
     sel.appendChild(o);
   }
   sel.onchange = () =>
-    onPatchChange((p) => {
-      const m = p.modules.find((x) => x.id === v.id);
-      if (m && m.type === "voice") m.mode = sel.value as Mode;
-    }, { regen: true });
+    onPatchChange(
+      (p) => {
+        const m = p.modules.find((x) => x.id === v.id);
+        if (m && m.type === "voice") m.mode = sel.value as Mode;
+      },
+      { regen: true }
+    );
   row.appendChild(sel);
 
-  // Seed (keep as number; later we can add slider in Adv)
+  // Seed
   row.append(labelEl("Seed"));
   const seed = numBox(v.seed, 0, 999999);
   seed.onchange = () =>
-    onPatchChange((p) => {
-      const m = p.modules.find((x) => x.id === v.id);
-      if (m && m.type === "voice") m.seed = seed.valueAsNumber | 0;
-    }, { regen: true });
+    onPatchChange(
+      (p) => {
+        const m = p.modules.find((x) => x.id === v.id);
+        if (m && m.type === "voice") m.seed = seed.valueAsNumber | 0;
+      },
+      { regen: true }
+    );
   row.append(seed);
 
-  // Amp knob (color-coded via CSS by module kind)
+  // Amp knob
   const kAmp = knob({
     label: "Amp",
     value: v.amp,
@@ -114,14 +123,17 @@ export function renderVoiceModule(
     step: 0.001,
     format: (x) => x.toFixed(3),
     onChange: (x) =>
-      onPatchChange((p) => {
-        const m = p.modules.find((z) => z.id === v.id);
-        if (m && m.type === "voice") m.amp = x;
-      }, { regen: false }),
+      onPatchChange(
+        (p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.amp = x;
+        },
+        { regen: false }
+      ),
   });
-  kAmp.el.classList.add("knobAmp");
   row.append(kAmp.el);
 
+  // Timbre knob
   const kT = knob({
     label: "Timbre",
     value: v.timbre,
@@ -130,102 +142,136 @@ export function renderVoiceModule(
     step: 0.001,
     format: (x) => x.toFixed(3),
     onChange: (x) =>
-      onPatchChange((p) => {
-        const m = p.modules.find((z) => z.id === v.id);
-        if (m && m.type === "voice") m.timbre = x;
-      }, { regen: false }),
+      onPatchChange(
+        (p) => {
+          const m = p.modules.find((z) => z.id === v.id);
+          if (m && m.type === "voice") m.timbre = x;
+        },
+        { regen: false }
+      ),
   });
-  kT.el.classList.add("knobTimbre");
   row.append(kT.el);
 
-  // bottom mini row: Adv toggle
+  // bottom mini row (Advanced)
   const bottom = document.createElement("div");
   bottom.className = "miniRow";
 
   const btnAdv = document.createElement("button");
   const syncAdv = () => (btnAdv.textContent = ui.advOpen ? "Advanced ▾" : "Advanced ▸");
   syncAdv();
-  btnAdv.onclick = () => {
-    ui.setAdvOpen(!ui.advOpen);
-    onPatchChange((p) => p, { regen: false });
-  };
+  btnAdv.onclick = () => ui.setAdvOpen(!ui.advOpen);
 
   bottom.append(btnAdv);
+
   card.append(header, row, bottom);
 
-  // --- advanced panel
-  const adv = document.createElement("div");
-  adv.className = "adv";
-
+  // ---- advanced panel
   if (ui.advOpen) {
+    const adv = document.createElement("div");
+    adv.className = "adv";
+
     adv.append(
       ctlRange("Subdiv", v.subdiv, 1, 8, 1, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.subdiv = (Math.max(1, Math.min(8, Math.round(x))) as any);
-        }, { regen: false })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.subdiv = (Math.max(1, Math.min(8, Math.round(x))) as any);
+          },
+          { regen: false }
+        )
       ),
       ctlRange("Length", v.length, 1, 128, 1, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.length = Math.max(1, Math.min(128, Math.round(x)));
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.length = Math.max(1, Math.min(128, Math.round(x)));
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Density", v.density, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.density = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.density = x;
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Drop", v.drop, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.drop = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.drop = x;
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Det", v.determinism, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.determinism = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.determinism = x;
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Grav", v.gravity, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.gravity = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.gravity = x;
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Weird", v.weird, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.weird = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.weird = x;
+          },
+          { regen: true }
+        )
       ),
       ctlRange("Pan", v.pan, -1, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.pan = x;
-        }, { regen: false })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.pan = x;
+          },
+          { regen: false }
+        )
       ),
       ctlRange("Rot", v.euclidRot, -32, 32, 1, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.euclidRot = Math.round(x);
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.euclidRot = Math.round(x);
+          },
+          { regen: true }
+        )
       ),
       ctlRange("CA Rule", v.caRule, 0, 255, 1, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.caRule = Math.max(0, Math.min(255, Math.round(x)));
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.caRule = Math.max(0, Math.min(255, Math.round(x)));
+          },
+          { regen: true }
+        )
       ),
       ctlRange("CA Init", v.caInit, 0, 1, 0.001, (x) =>
-        onPatchChange((p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.caInit = x;
-        }, { regen: true })
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.caInit = x;
+          },
+          { regen: true }
+        )
       )
     );
+
     card.appendChild(adv);
   }
 
@@ -246,13 +292,7 @@ function labelEl(t: string) {
   return l;
 }
 
-function rangeInput(
-  value: number,
-  min: number,
-  max: number,
-  step: number,
-  on: (v: number) => void
-) {
+function rangeInput(value: number, min: number, max: number, step: number, on: (v: number) => void) {
   const r = document.createElement("input");
   r.type = "range";
   r.min = String(min);
@@ -272,14 +312,7 @@ function numBox(value: number, min: number, max: number) {
   return n;
 }
 
-function ctlRange(
-  title: string,
-  value: number,
-  min: number,
-  max: number,
-  step: number,
-  on: (v: number) => void
-) {
+function ctlRange(title: string, value: number, min: number, max: number, step: number, on: (v: number) => void) {
   const wrap = document.createElement("div");
   wrap.className = "ctl";
 

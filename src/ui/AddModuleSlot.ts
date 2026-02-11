@@ -1,57 +1,91 @@
 // src/ui/AddModuleSlot.ts
-import type { ModuleType, VoiceKind, VisualKind } from "../patch";
+import type { VisualKind } from "../patch";
 
-export type AddModuleChoice =
-  | { type: "voice"; kind: VoiceKind; template?: string }
-  | { type: "visual"; kind: VisualKind }
-  | { type: "terminal" }
-  | { type: "effect" };
+type Pick = "drum" | "tonal" | VisualKind;
 
-export function AddModuleSlot(props: {
-  onChoose: (c: AddModuleChoice) => void;
-}) {
-  function pick() {
-    // ultra-simple v0.3: prompt-based menu (no UI dependencies)
-    // luego lo cambiamos a popover bonito.
-    const t = prompt("Add module: voice / visual / terminal", "voice");
-    if (!t) return;
-    const type = t.trim().toLowerCase() as ModuleType;
+export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
+  const wrap = document.createElement("div");
+  wrap.className = "card add-slot-card";
+  wrap.dataset.type = "visual";
 
-    if (type === "voice") {
-      const k = prompt("Voice kind: drum / tonal", "drum");
-      if (!k) return;
-      const kind = (k.trim().toLowerCase() === "tonal" ? "tonal" : "drum") as VoiceKind;
+  const header = document.createElement("div");
+  header.className = "cardHeader";
 
-      if (kind === "drum") {
-        const tpl = prompt("Drum template: kick/snare/hat/blank", "blank") || "blank";
-        props.onChoose({ type: "voice", kind, template: tpl.trim().toLowerCase() });
-      } else {
-        const tpl = prompt("Tonal template: fm/drone/blank", "fm") || "fm";
-        props.onChoose({ type: "voice", kind, template: tpl.trim().toLowerCase() });
-      }
-      return;
+  const titleRow = document.createElement("div");
+  titleRow.className = "titleRow";
+
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.textContent = "+";
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = "Add module";
+
+  titleRow.append(badge, name);
+
+  const right = document.createElement("div");
+  right.className = "rightControls";
+
+  header.append(titleRow, right);
+  wrap.appendChild(header);
+
+  const body = document.createElement("div");
+  body.className = "add-slot-body";
+  wrap.appendChild(body);
+
+  let mode: "root" | "visual" = "root";
+
+  const mkBtn = (label: string, onClick: () => void, primary = false) => {
+    const b = document.createElement("button");
+    b.textContent = label;
+    if (primary) b.className = "primary";
+    b.onclick = (e) => {
+      e.preventDefault();
+      onClick();
+    };
+    return b;
+  };
+
+  function render() {
+    body.innerHTML = "";
+
+    const hint = document.createElement("div");
+    hint.className = "small";
+    hint.textContent = mode === "root" ? "Choose type" : "Choose visual";
+    body.appendChild(hint);
+
+    const row = document.createElement("div");
+    row.className = "add-slot-row";
+
+    if (mode === "root") {
+      row.append(
+        mkBtn("Drum", () => opts.onPick("drum"), true),
+        mkBtn("Tonal", () => opts.onPick("tonal")),
+        mkBtn("Visual", () => {
+          mode = "visual";
+          render();
+        })
+      );
+    } else {
+      row.append(
+        mkBtn("Scope", () => opts.onPick("scope"), true),
+        mkBtn("Spectrum", () => opts.onPick("spectrum")),
+        mkBtn("Back", () => {
+          mode = "root";
+          render();
+        })
+      );
     }
 
-    if (type === "visual") {
-      const k = prompt("Visual: scope / spectrum / pattern", "scope");
-      if (!k) return;
-      const kind = (k.trim().toLowerCase() as VisualKind) || "scope";
-      props.onChoose({ type: "visual", kind });
-      return;
-    }
+    body.appendChild(row);
 
-    if (type === "terminal") {
-      props.onChoose({ type: "terminal" });
-      return;
-    }
-
-    alert("Not implemented yet.");
+    const sub = document.createElement("div");
+    sub.className = "small add-slot-sub";
+    sub.textContent = mode === "root" ? "Drum / Tonal / Visual" : "Scope / Spectrum";
+    body.appendChild(sub);
   }
 
-  return (
-    <div className="module add-slot" onClick={pick} title="Add module">
-      <div className="add-slot-plus">+</div>
-      <div className="add-slot-text">Add module</div>
-    </div>
-  );
+  render();
+  return wrap;
 }

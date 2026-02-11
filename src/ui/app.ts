@@ -1,18 +1,91 @@
 // src/ui/app.ts
 import type { Patch, VisualKind } from "../patch";
-import { defaultPatch, getVoices, isVisual, makeNewVoice, makeVisual } from "../patch";
+import { clamp, defaultPatch, getVoices, isVisual, makeNewVoice, makeVisual } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { renderVoiceModule } from "./voiceModule";
 import { renderVisualModule } from "./visualModule";
-import { clamp } from "../patch";
+import { renderAddModuleSlot } from "./AddModuleSlot";
 
 const BANK_COUNT = 4;
+
+function randInt(min: number, max: number) {
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+function rand01() {
+  return Math.random();
+}
 
 export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   let bank = 0;
   const banks: Patch[] = Array.from({ length: BANK_COUNT }, () => defaultPatch());
   let patch: Patch = banks[bank];
+
+    // === Undo/Redo history (UI-only) ===
+  const undoStack: Patch[] = [];
+  const redoStack: Patch[] = [];
+  let historyLock = false;
+
+  const clonePatch = (p: Patch): Patch => structuredClone(p);
+
+  function pushHistory(prev: Patch) {
+    if (historyLock) return;
+    undoStack.push(clonePatch(prev));
+    if (undoStack.length > 80) undoStack.shift();
+    redoStack.length = 0;
+  }
+
+  function doUndo() {
+    if (!undoStack.length) return;
+    const prev = undoStack.pop()!;
+    redoStack.push(clonePatch(patch));
+    patch = prev;
+    banks[bank] = patch;
+    sched.setBpm(patch.bpm);
+    sched.setPatch(patch, { regen: true });
+    engine.setMasterMute(patch.masterMute);
+    engine.setMasterGain(patch.masterGain);
+    rerender();
+    updateMuteBtn();
+    updateStatus();
+  }
+
+  function doRedo() {
+    if (!redoStack.length) return;
+    const next = redoStack.pop()!;
+    undoStack.push(clonePatch(patch));
+    patch = next;
+    banks[bank] = patch;
+    sched.setBpm(patch.bpm);
+    sched.setPatch(patch, { regen: true });
+    engine.setMasterMute(patch.masterMute);
+    engine.setMasterGain(patch.masterGain);
+    rerender();
+    updateMuteBtn();
+    updateStatus();
+  }
+
+  window.addEventListener("keydown", (e) => {
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (!mod) return;
+
+    // ignore if typing in an input/select/textarea
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName?.toLowerCase();
+    const typing = tag === "input" || tag === "textarea" || tag === "select" || (t as any)?.isContentEditable;
+    if (typing) return;
+
+    if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+      e.preventDefault();
+      doUndo();
+    } else if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") {
+      e.preventDefault();
+      doRedo();
+    }
+  });
+
+
 
   // UI-only Adv state per module id
   const advOpen = new Map<string, boolean>();
@@ -30,11 +103,11 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   const status = document.createElement("div");
   status.className = "small";
-
   const updateStatus = () => {
     status.textContent = `status: ${sched.running ? "playing" : "stopped"} | audio: ${engine.ctx.state}`;
   };
 
+  // --- Audio / transport ---
   const btnAudio = document.createElement("button");
   btnAudio.className = "primary";
   const updateAudioBtn = () => (btnAudio.textContent = engine.ctx.state === "running" ? "Audio ON" : "Audio OFF");
@@ -85,7 +158,48 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     updateStatus();
   };
 
-  // banks
+  // --- Reseed / Randomize / Regen ---
+  const btnReseed = document.createElement("button");
+  btnReseed.textContent = "Re-seed";
+  btnReseed.onclick = () => {
+    const voices = getVoices(patch);
+    for (const v of voices) v.seed = randInt(1, 999999);
+    sched.setPatch(patch, { regen: true });
+    rerender();
+  };
+
+  const btnRandom = document.createElement("button");
+  btnRandom.textContent = "Randomize";
+  btnRandom.onclick = () => {
+    const voices = getVoices(patch);
+    for (const v of voices) {
+      // keep musical-ish ranges
+      v.subdiv = [1, 2, 4, 8][randInt(0, 3)];
+      v.length = randInt(8, 32);
+      v.density = clamp(0.05 + rand01() * 0.9, 0, 1);
+      v.drop = clamp(rand01() * 0.35, 0, 1);
+      v.determinism = clamp(rand01(), 0, 1);
+      v.weird = clamp(rand01(), 0, 1);
+
+      v.euclidRot = randInt(-16, 16);
+      v.caRule = randInt(0, 255);
+      v.caInit = clamp(rand01(), 0, 1);
+      v.gravity = clamp(rand01(), 0, 1);
+      v.rot = randInt(-16, 16);
+      v.pan = clamp((rand01() - 0.5) * 2, -1, 1);
+    }
+    sched.setPatch(patch, { regen: true });
+    rerender();
+  };
+
+  const btnRegen = document.createElement("button");
+  btnRegen.textContent = "Regen";
+  btnRegen.onclick = () => {
+    sched.setPatch(patch, { regen: true });
+    sched.regenAll();
+  };
+
+  // --- banks ---
   const bankWrap = document.createElement("div");
   bankWrap.className = "bankWrap";
 
@@ -122,44 +236,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     updateMuteBtn();
     updateStatus();
   };
+
   bankWrap.append(btnBankPrev, bankLabel, btnBankNext);
 
-  // module add buttons
-  const addWrap = document.createElement("div");
-  addWrap.className = "bankWrap";
-
-  const btnAddDrum = document.createElement("button");
-  btnAddDrum.textContent = "+ Drum";
-  btnAddDrum.onclick = () => {
-    patch.modules.push(makeNewVoice("drum"));
-    sched.setPatch(patch, { regen: true });
-    rerender();
-  };
-
-  const btnAddTonal = document.createElement("button");
-  btnAddTonal.textContent = "+ Tonal";
-  btnAddTonal.onclick = () => {
-    patch.modules.push(makeNewVoice("tonal"));
-    sched.setPatch(patch, { regen: true });
-    rerender();
-  };
-
-  const btnAddScope = document.createElement("button");
-  btnAddScope.textContent = "+ Scope";
-  btnAddScope.onclick = () => addVisual("scope");
-
-  const btnAddSpec = document.createElement("button");
-  btnAddSpec.textContent = "+ Spectrum";
-  btnAddSpec.onclick = () => addVisual("spectrum");
-
-  function addVisual(kind: VisualKind) {
-    patch.modules.push(makeVisual(kind));
-    rerender();
-  }
-
-  addWrap.append(btnAddDrum, btnAddTonal, btnAddScope, btnAddSpec);
-
-  // BPM
+  // --- BPM ---
   const bpmWrap = document.createElement("div");
   bpmWrap.className = "bpmWrap";
 
@@ -190,7 +270,19 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   bpmNum.onchange = () => setBpmUI(clamp(parseInt(bpmNum.value, 10), 40, 240));
   bpmWrap.append(bpmLabel, bpm, bpmNum);
 
-  header.append(h1, btnAudio, btnPlay, btnMute, btnReset, addWrap, bankWrap, bpmWrap, status);
+  header.append(
+    h1,
+    btnAudio,
+    btnPlay,
+    btnMute,
+    btnReset,
+    btnReseed,
+    btnRandom,
+    btnRegen,
+    bankWrap,
+    bpmWrap,
+    status
+  );
   root.appendChild(header);
 
   const main = document.createElement("main");
@@ -206,11 +298,15 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   let updaters: Array<() => void> = [];
 
-  function onPatchChange(fn: (p: Patch) => void, opts?: { regen?: boolean }) {
+    function onPatchChange(fn: (p: Patch) => void, opts?: { regen?: boolean }) {
+    const prev = structuredClone(patch);
     fn(patch);
+    pushHistory(prev);
+
     sched.setPatch(patch, { regen: opts?.regen ?? false });
     if (opts?.regen) sched.regenAll();
   }
+
 
   function rerender() {
     main.innerHTML = "";
@@ -238,7 +334,6 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
           },
         },
         () => {
-          // remove by id
           patch.modules = patch.modules.filter((m) => m.id !== v.id);
           sched.setPatch(patch, { regen: true });
           rerender();
@@ -255,6 +350,21 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       });
       updaters.push(upd);
     }
+
+    // --- add-slot ghost tile (always last) ---
+    const slot = renderAddModuleSlot({
+      onPick: (what: "drum" | "tonal" | VisualKind) => {
+        if (what === "drum" || what === "tonal") {
+          patch.modules.push(makeNewVoice(what));
+          sched.setPatch(patch, { regen: true });
+          rerender();
+          return;
+        }
+        patch.modules.push(makeVisual(what));
+        rerender();
+      },
+    });
+    grid.appendChild(slot);
   }
 
   rerender();

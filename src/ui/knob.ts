@@ -1,204 +1,182 @@
 // src/ui/knob.ts
-import { clamp } from "../patch";
-
-type KnobOpts = {
-  label: string;
-  value: number;
+export type KnobOpts = {
   min: number;
   max: number;
+  value: number;
   step?: number;
-  onChange: (v: number) => void;
+  label?: string;
   format?: (v: number) => string;
+  onChange: (v: number) => void;
 };
 
-function quantize(v: number, step?: number) {
-  if (!step || step <= 0) return v;
-  return Math.round(v / step) * step;
-}
-
-export function knob(opts: KnobOpts) {
+export function knob(opts: KnobOpts): { el: HTMLElement; setValue: (v: number, emit?: boolean) => void; getValue: () => number } {
   const wrap = document.createElement("div");
-  wrap.className = "ctl knobCtl";
+  wrap.className = "knobCtl";
 
-  const lab = document.createElement("label");
-  lab.textContent = opts.label;
+  if (opts.label) {
+    const lab = document.createElement("label");
+    lab.textContent = opts.label;
+    wrap.appendChild(lab);
+  }
 
-  const k = document.createElement("div");
-  k.className = "knob";
-  k.tabIndex = 0;
-
-  const svgNS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(svgNS, "svg");
-  svg.setAttribute("viewBox", "0 0 64 64");
-  svg.setAttribute("width", "48");
-  svg.setAttribute("height", "48");
-
-  const bg = document.createElementNS(svgNS, "circle");
-  bg.setAttribute("cx", "32");
-  bg.setAttribute("cy", "32");
-  bg.setAttribute("r", "22");
-  bg.setAttribute("class", "knobBg");
-
-  // ring arc (progress)
-  const arc = document.createElementNS(svgNS, "path");
-  arc.setAttribute("class", "knobArc");
-
-  // indicator needle
-  const needle = document.createElementNS(svgNS, "line");
-  needle.setAttribute("x1", "32");
-  needle.setAttribute("y1", "32");
-  needle.setAttribute("x2", "32");
-  needle.setAttribute("y2", "12");
-  needle.setAttribute("class", "knobNeedle");
-
-  // end dot
-  const dot = document.createElementNS(svgNS, "circle");
-  dot.setAttribute("cx", "32");
-  dot.setAttribute("cy", "12");
-  dot.setAttribute("r", "2.6");
-  dot.setAttribute("class", "knobDot");
-
-  // center cap
-  const cap = document.createElementNS(svgNS, "circle");
-  cap.setAttribute("cx", "32");
-  cap.setAttribute("cy", "32");
-  cap.setAttribute("r", "3.2");
-  cap.setAttribute("class", "knobCap");
-
-  svg.append(bg, arc, needle, dot, cap);
+  const knobEl = document.createElement("div");
+  knobEl.className = "knob";
+  knobEl.tabIndex = 0;
 
   const valEl = document.createElement("div");
   valEl.className = "knobVal";
 
-  // usable sweep: -135° .. +135° (270°)
-  const A0 = (-135 * Math.PI) / 180;
-  const A1 = (135 * Math.PI) / 180;
+  wrap.append(knobEl, valEl);
 
-  const fmt = opts.format ?? ((v) => String(v));
-  let value = clamp(opts.value, opts.min, opts.max);
+  const size = 54;
+  const r = 20;
+  const cx = 27, cy = 27;
+  const startA = (-135 * Math.PI) / 180;
+  const endA = (135 * Math.PI) / 180;
 
-  function setValue(v: number, emit = true) {
-    v = clamp(v, opts.min, opts.max);
-    v = quantize(v, opts.step);
-    value = v;
-    valEl.textContent = fmt(value);
-    draw();
+  const svgNS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(svgNS, "svg");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("viewBox", "0 0 54 54");
+
+  const bg = document.createElementNS(svgNS, "circle");
+  bg.setAttribute("class", "knobBg");
+  bg.setAttribute("cx", String(cx));
+  bg.setAttribute("cy", String(cy));
+  bg.setAttribute("r", String(r));
+
+  const arc = document.createElementNS(svgNS, "path");
+  arc.setAttribute("class", "knobArc");
+
+  const needle = document.createElementNS(svgNS, "line");
+  needle.setAttribute("class", "knobNeedle");
+  needle.setAttribute("x1", String(cx));
+  needle.setAttribute("y1", String(cy));
+  needle.setAttribute("x2", String(cx));
+  needle.setAttribute("y2", String(cy - r + 5));
+
+  const cap = document.createElementNS(svgNS, "circle");
+  cap.setAttribute("class", "knobCap");
+  cap.setAttribute("cx", String(cx));
+  cap.setAttribute("cy", String(cy));
+  cap.setAttribute("r", "7.5");
+
+  const dot = document.createElementNS(svgNS, "circle");
+  dot.setAttribute("class", "knobDot");
+  dot.setAttribute("cx", String(cx));
+  dot.setAttribute("cy", String(cy));
+  dot.setAttribute("r", "2.2");
+
+  svg.append(bg, arc, needle, cap, dot);
+  knobEl.appendChild(svg);
+
+  const clamp = (v: number) => Math.min(opts.max, Math.max(opts.min, v));
+  const step = opts.step ?? 0;
+
+  const quant = (v: number) => {
+    if (!step) return v;
+    return Math.round(v / step) * step;
+  };
+
+  const polarToXY = (a: number) => ({
+    x: cx + r * Math.cos(a),
+    y: cy + r * Math.sin(a),
+  });
+
+  const arcPath = (a0: number, a1: number) => {
+    const p0 = polarToXY(a0);
+    const p1 = polarToXY(a1);
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`;
+  };
+
+  let value = clamp(opts.value);
+
+  const render = () => {
+    const t = (value - opts.min) / (opts.max - opts.min || 1);
+    const a = startA + (endA - startA) * t;
+
+    arc.setAttribute("d", arcPath(startA, a));
+
+    const nx = cx + (r - 6) * Math.cos(a);
+    const ny = cy + (r - 6) * Math.sin(a);
+    needle.setAttribute("x2", String(nx));
+    needle.setAttribute("y2", String(ny));
+
+    valEl.textContent = opts.format ? opts.format(value) : value.toFixed(3);
+  };
+
+  const setValue = (v: number, emit = true) => {
+    value = clamp(quant(v));
+    render();
     if (emit) opts.onChange(value);
-  }
+  };
 
-  function arcPath(a0: number, a1: number) {
-    const r = 22;
-    const cx = 32;
-    const cy = 32;
+  const getValue = () => value;
 
-    const x0 = cx + r * Math.cos(a0);
-    const y0 = cy + r * Math.sin(a0);
-    const x1 = cx + r * Math.cos(a1);
-    const y1 = cy + r * Math.sin(a1);
-
-    const large = Math.abs(a1 - a0) > Math.PI ? 1 : 0;
-    const sweep = a1 > a0 ? 1 : 0;
-
-    return `M ${x0.toFixed(3)} ${y0.toFixed(3)} A ${r} ${r} 0 ${large} ${sweep} ${x1.toFixed(
-      3
-    )} ${y1.toFixed(3)}`;
-  }
-
-  function draw() {
-    const t = (value - opts.min) / (opts.max - opts.min);
-    const ang = A0 + (A1 - A0) * clamp(t, 0, 1);
-
-    arc.setAttribute("d", arcPath(A0, ang));
-
-    const deg = (ang * 180) / Math.PI;
-    needle.setAttribute("transform", `rotate(${deg} 32 32)`);
-    dot.setAttribute("transform", `rotate(${deg} 32 32)`);
-  }
-
-  // --- interaction ---
+  // pointer drag
   let dragging = false;
   let startY = 0;
-  let startVal = 0;
+  let startV = value;
 
-  function beginDrag(clientY: number) {
+  knobEl.addEventListener("pointerdown", (e) => {
     dragging = true;
-    startY = clientY;
-    startVal = value;
-    k.classList.add("drag");
-  }
+    knobEl.classList.add("drag");
+    knobEl.setPointerCapture(e.pointerId);
+    startY = e.clientY;
+    startV = value;
+    e.preventDefault();
+  });
 
-  function dragTo(clientY: number) {
+  knobEl.addEventListener("pointermove", (e) => {
     if (!dragging) return;
-    const dy = startY - clientY; // up = positive
+    const dy = startY - e.clientY;
     const range = opts.max - opts.min;
-    const delta = (dy / 220) * range; // a bit more sensitive
-    setValue(startVal + delta, true);
-  }
+    const fine = e.shiftKey ? 0.25 : 1;
+    const delta = (dy / 120) * range * 0.35 * fine;
+    setValue(startV + delta, true);
+  });
 
-  function endDrag() {
+  const stopDrag = () => {
     dragging = false;
-    k.classList.remove("drag");
-  }
+    knobEl.classList.remove("drag");
+  };
+  knobEl.addEventListener("pointerup", stopDrag);
+  knobEl.addEventListener("pointercancel", stopDrag);
 
-  k.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    beginDrag(e.clientY);
-  });
+  // wheel
+  knobEl.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      const dir = Math.sign(e.deltaY || 0);
+      if (!dir) return;
 
-  k.addEventListener("pointermove", (e) => {
-    if (!dragging) return;
-    e.preventDefault();
-    dragTo(e.clientY);
-  });
+      const range = opts.max - opts.min;
+      const base = step || range / 200;
+      const fine = e.shiftKey ? 0.25 : 1;
+      const delta = -dir * base * 4 * fine;
+      setValue(value + delta, true);
+    },
+    { passive: false }
+  );
 
-  k.addEventListener("pointerup", (e) => {
-    e.preventDefault();
-    endDrag();
-  });
+  // keyboard
+  knobEl.addEventListener("keydown", (e) => {
+    const range = opts.max - opts.min;
+    const base = step || range / 200;
+    const fine = e.shiftKey ? 0.25 : 1;
 
-  k.addEventListener("pointercancel", () => endDrag());
-
-  function promptValue() {
-    const s = prompt(`${opts.label} [${opts.min}..${opts.max}]`, String(value));
-    if (s == null) return;
-    const n = Number(s);
-    if (!Number.isFinite(n)) return;
-    setValue(n, true);
-  }
-
-  k.addEventListener("dblclick", (e) => {
-    e.preventDefault();
-    promptValue();
-  });
-
-  k.addEventListener("contextmenu", (e) => {
-    e.preventDefault();
-    promptValue();
-  });
-
-  k.addEventListener("keydown", (e) => {
-    const step = opts.step ?? (opts.max - opts.min) / 200;
     if (e.key === "ArrowUp" || e.key === "ArrowRight") {
       e.preventDefault();
-      setValue(value + step, true);
+      setValue(value + base * fine, true);
     } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
       e.preventDefault();
-      setValue(value - step, true);
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      promptValue();
+      setValue(value - base * fine, true);
     }
   });
 
-  k.append(svg);
-  wrap.append(lab, k, valEl);
-
   setValue(value, false);
-
-  return {
-    el: wrap,
-    set: (v: number) => setValue(v, false),
-    get: () => value,
-  };
+  return { el: wrap, setValue, getValue };
 }

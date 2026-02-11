@@ -1,3 +1,4 @@
+// src/main.ts
 import "./ui/style.css";
 import { createEngine } from "./engine/audio";
 import { createScheduler } from "./engine/scheduler";

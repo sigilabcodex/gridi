@@ -2,178 +2,167 @@
 import type { Engine } from "../engine/audio";
 import type { Patch, VisualModule } from "../patch";
 
-function cssVar(root: HTMLElement, name: string, fallback: string) {
-  const v = getComputedStyle(root).getPropertyValue(name).trim();
-  return v || fallback;
+function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  return n;
 }
 
 export function renderVisualModule(
-  root: HTMLElement,
+  parent: HTMLElement,
   engine: Engine,
   _patch: Patch,
-  m: VisualModule,
-  onRemove?: () => void
+  vm: VisualModule,
+  onRemove: () => void
 ) {
-  const card = document.createElement("div");
-  card.className = "card";
+  const card = el("section", "card");
   card.dataset.type = "visual";
-  card.dataset.kind = m.kind;
+  card.dataset.kind = vm.kind; // <-- para CSS por tipo si luego quieres
 
-  const header = document.createElement("div");
-  header.className = "cardHeader";
+  const header = el("div", "cardHeader");
+  const titleRow = el("div", "titleRow");
+  const badge = el("span", "badge");
+  badge.textContent = "VIS";
+  const name = el("div", "name");
+  name.textContent = `${vm.kind.toUpperCase()}`;
 
-  const title = document.createElement("div");
-  title.className = "titleRow";
+  titleRow.append(badge, name);
 
-  const badge = document.createElement("div");
-  badge.className = "badge";
-  badge.textContent = m.kind === "scope" ? "VIS • SCOPE" : m.kind === "spectrum" ? "VIS • SPEC" : "VIS";
+  const right = el("div", "rightControls");
 
-  const name = document.createElement("div");
-  name.className = "name";
-  name.textContent = m.name || "VISUAL";
-
-  title.append(badge, name);
-
-  const right = document.createElement("div");
-  right.className = "rightControls";
-
-  const toggle = document.createElement("button");
-  const syncToggle = () => {
-    toggle.textContent = m.enabled ? "On" : "Off";
-    toggle.className = m.enabled ? "primary" : "";
+  const btnOn = el("button");
+  const updateOn = () => {
+    btnOn.textContent = vm.enabled ? "On" : "Off";
+    btnOn.className = vm.enabled ? "primary" : "";
   };
-  syncToggle();
-  toggle.onclick = () => {
-    m.enabled = !m.enabled;
-    syncToggle();
+  btnOn.onclick = () => {
+    vm.enabled = !vm.enabled;
+    updateOn();
   };
 
-  const btnX = document.createElement("button");
-  btnX.textContent = "✕";
-  btnX.className = "danger";
-  btnX.title = "Remove module";
-  btnX.onclick = () => onRemove?.();
+  const btnX = el("button", "danger");
+  btnX.textContent = "×";
+  btnX.title = "Remove";
+  btnX.onclick = onRemove;
 
-  right.append(toggle, btnX);
+  right.append(btnOn, btnX);
 
-  header.append(title, right);
+  header.append(titleRow, right);
+  card.appendChild(header);
 
-  const body = document.createElement("div");
-  body.className = "visualBody";
+  const body = el("div", "visualBody");
 
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
-  canvas.width = 640;
-  canvas.height = 180;
+  // tamaño inicial razonable (se ajusta luego)
+  canvas.width = 800;
+  canvas.height = 260;
+
   body.appendChild(canvas);
+  card.appendChild(body);
+  parent.appendChild(card);
 
-  card.append(header, body);
-  root.appendChild(card);
+  updateOn();
 
-  const g = canvas.getContext("2d")!;
+  const ctx2d = canvas.getContext("2d")!;
+  const scopeBuf = new Float32Array(engine.analyser.fftSize);
+  const specBuf = new Float32Array(engine.analyser.frequencyBinCount);
 
-  const timeData = new Uint8Array(engine.analyser.fftSize);
-  const freqData = new Uint8Array(engine.analyser.frequencyBinCount);
+  function resizeIfNeeded() {
+    const r = canvas.getBoundingClientRect();
 
-  // FIX: initial resize glitch -> ResizeObserver + immediate sync
-  const ro = new ResizeObserver(() => syncSize());
-  ro.observe(body);
+    // GUARD: si está colapsado por layout un frame, NO lo reduzcas a 1×1
+    if (r.width < 2 || r.height < 2) return;
 
-  function syncSize() {
-    const rect = canvas.getBoundingClientRect();
-    const pxW = Math.max(200, Math.floor(rect.width));
-    const pxH = Math.max(120, Math.floor(rect.height));
-    if (canvas.width !== pxW || canvas.height !== pxH) {
-      canvas.width = pxW;
-      canvas.height = pxH;
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const w = Math.max(2, Math.floor(r.width * dpr));
+    const h = Math.max(2, Math.floor(r.height * dpr));
+
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
     }
   }
-  // immediate
-  queueMicrotask(syncSize);
 
-  function drawScope() {
+  function drawGrid() {
     const w = canvas.width;
     const h = canvas.height;
 
-    const bg = cssVar(root, "--scope-bg", "rgba(0,0,0,0)");
-    const stroke = cssVar(root, "--scope-stroke", "#cfd6dd");
-    const grid = cssVar(root, "--scope-grid", "rgba(207,214,221,0.18)");
+    ctx2d.clearRect(0, 0, w, h);
 
-    g.clearRect(0, 0, w, h);
-    if (bg && bg !== "transparent") {
-      g.fillStyle = bg;
-      g.fillRect(0, 0, w, h);
+    ctx2d.lineWidth = 1;
+    ctx2d.strokeStyle = "rgba(207,214,221,0.12)";
+
+    const cols = 10;
+    const rows = 4;
+
+    for (let i = 1; i < cols; i++) {
+      const x = (w * i) / cols;
+      ctx2d.beginPath();
+      ctx2d.moveTo(x, 0);
+      ctx2d.lineTo(x, h);
+      ctx2d.stroke();
     }
 
-    g.lineWidth = 1;
-    g.strokeStyle = grid;
-    g.beginPath();
-    g.moveTo(0, h / 2);
-    g.lineTo(w, h / 2);
-    g.stroke();
-
-    engine.analyser.getByteTimeDomainData(timeData);
-
-    g.lineWidth = 2;
-    g.strokeStyle = stroke;
-    g.beginPath();
-
-    for (let i = 0; i < timeData.length; i++) {
-      const x = (i / (timeData.length - 1)) * w;
-      const v = timeData[i] / 255;
-      const y = (1 - v) * h;
-      if (i === 0) g.moveTo(x, y);
-      else g.lineTo(x, y);
+    for (let j = 1; j < rows; j++) {
+      const y = (h * j) / rows;
+      ctx2d.beginPath();
+      ctx2d.moveTo(0, y);
+      ctx2d.lineTo(w, y);
+      ctx2d.stroke();
     }
-    g.stroke();
+  }
+
+  function drawScope() {
+    engine.getScopeData(scopeBuf);
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const mid = h * 0.5;
+
+    ctx2d.lineWidth = 2;
+    ctx2d.strokeStyle = "rgba(235,240,245,0.95)";
+    ctx2d.beginPath();
+
+    const n = scopeBuf.length;
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * w;
+      const y = mid - scopeBuf[i] * (h * 0.42);
+      if (i === 0) ctx2d.moveTo(x, y);
+      else ctx2d.lineTo(x, y);
+    }
+    ctx2d.stroke();
   }
 
   function drawSpectrum() {
+    engine.getSpectrumData(specBuf);
+
     const w = canvas.width;
     const h = canvas.height;
 
-    const bg = cssVar(root, "--scope-bg", "rgba(0,0,0,0)");
-    const stroke = cssVar(root, "--scope-stroke", "#cfd6dd");
-    const grid = cssVar(root, "--scope-grid", "rgba(207,214,221,0.18)");
+    const n = specBuf.length;
+    const barW = Math.max(1, Math.floor(w / n));
 
-    g.clearRect(0, 0, w, h);
-    if (bg && bg !== "transparent") {
-      g.fillStyle = bg;
-      g.fillRect(0, 0, w, h);
+    ctx2d.fillStyle = "rgba(74,163,255,0.55)";
+    for (let i = 0; i < n; i++) {
+      const v = specBuf[i]; // 0..1
+      const x = i * barW;
+      const bh = v * (h * 0.92);
+      ctx2d.fillRect(x, h - bh, barW, bh);
     }
 
-    // horizontal grid
-    g.lineWidth = 1;
-    g.strokeStyle = grid;
-    for (let i = 1; i < 4; i++) {
-      const y = (h * i) / 4;
-      g.beginPath();
-      g.moveTo(0, y);
-      g.lineTo(w, y);
-      g.stroke();
-    }
-
-    engine.analyser.getByteFrequencyData(freqData);
-
-    g.lineWidth = 2;
-    g.strokeStyle = stroke;
-    g.beginPath();
-
-    for (let i = 0; i < freqData.length; i++) {
-      const x = (i / (freqData.length - 1)) * w;
-      const v = freqData[i] / 255;
-      const y = h - v * h;
-      if (i === 0) g.moveTo(x, y);
-      else g.lineTo(x, y);
-    }
-    g.stroke();
+    ctx2d.strokeStyle = "rgba(235,240,245,0.35)";
+    ctx2d.beginPath();
+    ctx2d.moveTo(0, h - 1);
+    ctx2d.lineTo(w, h - 1);
+    ctx2d.stroke();
   }
 
-  return () => {
-    syncSize();
-    if (!m.enabled) return;
-    if (m.kind === "spectrum") drawSpectrum();
-    else drawScope();
+  return function update() {
+    if (!vm.enabled) return;
+    resizeIfNeeded();
+    drawGrid();
+    if (vm.kind === "scope") drawScope();
+    else drawSpectrum();
   };
 }

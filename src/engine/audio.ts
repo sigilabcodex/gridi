@@ -14,6 +14,10 @@ export type Engine = {
 
   // i = voice index inside getVoices(patch)
   triggerVoice(i: number, patch: Patch): void;
+
+  // === visual data ===
+  getScopeData(out?: Float32Array): Float32Array;      // -1..+1
+  getSpectrumData(out?: Float32Array): Float32Array;   // 0..1 (normalized)
 };
 
 const EPS = 1e-5;
@@ -115,6 +119,12 @@ export function createEngine(): Engine {
   sat.connect(analyser);
   analyser.connect(ctx.destination);
 
+  // visual buffers (reused)
+  const scopeBuf = new Float32Array(analyser.fftSize);
+  const scopeByte = new Uint8Array(analyser.fftSize);
+  const specFloat = new Float32Array(analyser.frequencyBinCount);
+  const specByte = new Uint8Array(analyser.frequencyBinCount);
+
   // now that voices are “modular”, allow more than 8
   const voiceLastTrigMs = new Float64Array(64);
   const noiseBuf = makeNoiseBuffer(ctx, 1.0);
@@ -148,6 +158,44 @@ export function createEngine(): Engine {
     g.gain.setValueAtTime(EPS, now);
     g.gain.exponentialRampToValueAtTime(pk, now + attack);
     g.gain.exponentialRampToValueAtTime(EPS, now + attack + decay);
+  }
+
+  // === visuals API ===
+  function getScopeData(out?: Float32Array) {
+    const buf = out && out.length === scopeBuf.length ? out : scopeBuf;
+    const anyAnalyser = analyser as any;
+
+    if (typeof anyAnalyser.getFloatTimeDomainData === "function") {
+      anyAnalyser.getFloatTimeDomainData(buf);
+      return buf;
+    }
+
+    analyser.getByteTimeDomainData(scopeByte);
+    for (let i = 0; i < buf.length; i++) {
+      buf[i] = (scopeByte[i] - 128) / 128; // ~ -1..1
+    }
+    return buf;
+  }
+
+  function getSpectrumData(out?: Float32Array) {
+    const buf = out && out.length === specFloat.length ? out : specFloat;
+    const anyAnalyser = analyser as any;
+
+    if (typeof anyAnalyser.getFloatFrequencyData === "function") {
+      anyAnalyser.getFloatFrequencyData(buf); // dBFS-ish (negative)
+      // normalize to 0..1
+      const minDb = -100;
+      const maxDb = -20;
+      for (let i = 0; i < buf.length; i++) {
+        const db = buf[i];
+        buf[i] = clamp01((db - minDb) / (maxDb - minDb));
+      }
+      return buf;
+    }
+
+    analyser.getByteFrequencyData(specByte);
+    for (let i = 0; i < buf.length; i++) buf[i] = specByte[i] / 255;
+    return buf;
   }
 
   function triggerVoice(i: number, patch: Patch) {
@@ -467,5 +515,7 @@ export function createEngine(): Engine {
     setMasterMute,
     setMasterGain,
     triggerVoice,
+    getScopeData,
+    getSpectrumData,
   };
 }
