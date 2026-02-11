@@ -16,8 +16,8 @@ export type Engine = {
   triggerVoice(i: number, patch: Patch): void;
 
   // === visual data ===
-  getScopeData(out?: Float32Array): Float32Array;      // -1..+1
-  getSpectrumData(out?: Float32Array): Float32Array;   // 0..1 (normalized)
+  getScopeData(out?: Float32Array): Float32Array; // -1..+1
+  getSpectrumData(out?: Float32Array): Float32Array; // 0..1 (normalized)
 };
 
 const EPS = 1e-5;
@@ -109,7 +109,11 @@ export function createEngine(): Engine {
   const ctx = new AudioContext();
 
   const master = ctx.createGain();
-  master.gain.value = 0.9;
+
+  // NEW: masterTarget = gain “real” cuando NO está muteado.
+  //      Esto evita que el unmute vuelva a 0.9 fijo.
+  let masterTarget = 0.8; // alínea con defaultPatch.masterGain
+  master.gain.value = masterTarget;
 
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
@@ -132,11 +136,14 @@ export function createEngine(): Engine {
   function setMasterMute(muted: boolean) {
     const now = ctx.currentTime;
     master.gain.cancelScheduledValues(now);
-    master.gain.setTargetAtTime(muted ? 0 : 0.9, now, 0.01);
+    master.gain.setTargetAtTime(muted ? 0 : masterTarget, now, 0.01);
   }
 
   function setMasterGain(g: number) {
-    master.gain.value = clamp(safe(g, 0.8), 0, 1);
+    masterTarget = clamp(safe(g, 0.8), 0, 1);
+    // si estamos muteados “por patch”, esto igual actualiza el target,
+    // pero el gain audible quedará en 0 hasta que unmute.
+    master.gain.value = masterTarget;
   }
 
   async function start() {
@@ -519,3 +526,4 @@ export function createEngine(): Engine {
     getSpectrumData,
   };
 }
+
