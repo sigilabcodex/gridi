@@ -36,12 +36,51 @@ body {
 }
 
 header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+
   display: flex;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+
+  padding: 10px 12px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(15, 21, 27, 0.85),
+    rgba(15, 21, 27, 0.65)
+  );
+
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  border-bottom: 1px solid rgba(42, 52, 63, 0.5);
 }
+
+
+header {
+  transition: background 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(74,163,255,0.6),
+    transparent
+  );
+  opacity: 0.3;
+}
+
 
 h1 { margin: 0 10px 0 0; font-size: 16px; letter-spacing: 0.6px; opacity: 0.95; }
 .small { font-size: 12px; opacity: 0.82; }
@@ -76,6 +115,8 @@ button.danger:hover { background: rgba(60,18,18,0.55); }
 }
 
 .bankWrap, .bpmWrap { display: flex; gap: 8px; align-items: center; }
+
+.spacer { flex: 1 1 auto; }
 
 input, select, textarea {
   background: rgba(10, 14, 18, 0.7);
@@ -186,6 +227,55 @@ main { margin-top: 8px; }
 .card[data-type="voice"][data-kind="drum"]  .knobArc { stroke: var(--acc-blue); }
 .card[data-type="voice"][data-kind="tonal"] .knobArc { stroke: var(--acc-green); }
 .card[data-type="visual"]                 .knobArc { stroke: var(--acc-amber); }
+
+
+/* === Switch === */
+.switchRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(42,52,63,0.35);
+}
+.switchRow:first-child{ border-top: none; }
+
+.switchLabel{
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.switch{
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(42,52,63,0.9);
+  background: rgba(0,0,0,0.25);
+  cursor: pointer;
+  user-select:none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.switch.on{
+  background: rgba(74,163,255,0.18);
+  border-color: rgba(74,163,255,0.55);
+}
+.switchKnob{
+  position:absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(235,240,245,0.92);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  transition: transform 140ms ease;
+}
+.switch.on .switchKnob{
+  transform: translateX(20px);
+}
+
+
 
 /* ADV panel */
 .adv {
