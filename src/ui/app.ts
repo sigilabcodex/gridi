@@ -103,6 +103,34 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return n;
 }
 
+// UI switch helper (uses .switchRow/.switch/.switchKnob styles)
+function makeSwitch(labelText: string, value: boolean, onChange: (v: boolean) => void) {
+  const row = el("div", "switchRow");
+  const label = el("div", "switchLabel", labelText);
+
+  const sw = el("button", "switch" + (value ? " on" : "")) as HTMLButtonElement;
+  sw.type = "button";
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-checked", value ? "true" : "false");
+
+  const knob = el("div", "switchKnob");
+  sw.appendChild(knob);
+
+  const set = (v: boolean) => {
+    value = v;
+    sw.className = "switch" + (value ? " on" : "");
+    sw.setAttribute("aria-checked", value ? "true" : "false");
+  };
+
+  sw.onclick = () => {
+    set(!value);
+    onChange(value);
+  };
+
+  row.append(label, sw);
+  return { row, set };
+}
+
 // modal helper
 function makeModal(title: string) {
   const overlay = el("div", "modalOverlay");
@@ -128,6 +156,7 @@ function makeModal(title: string) {
 
   return { overlay, modal, body, open, destroy };
 }
+
 
 async function copyToClipboard(text: string) {
   try {
@@ -465,21 +494,27 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   bpmNum.onchange = () => setBpmUI(clamp(parseInt(bpmNum.value, 10), 40, 240));
   bpmWrap.append(bpmLabel, bpm, bpmNum);
 
+  const spacer = document.createElement("div");
+  spacer.className = "spacer";
+
   header.append(
     h1,
-    btnSettings,
     btnAudio,
     btnPlay,
     btnMute,
-    masterWrap,
     btnReset,
     btnReseed,
     btnRandom,
     btnRegen,
     bankWrap,
     bpmWrap,
-    status
+    masterWrap,
+    spacer,
+    status,
+    btnSettings
   );
+
+
   root.appendChild(header);
 
   const main = document.createElement("main");
@@ -581,22 +616,19 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     const m = makeModal("Settings");
     const body = m.body;
 
-    // Experimental toggle
-    const rowExp = el("div", "settingsRow");
-    const expLab = el("div", "small", "Experimental mode");
-    const expToggle = document.createElement("button");
-    const syncExp = () => {
-      expToggle.textContent = uiSettings.experimental ? "ON" : "OFF";
-      expToggle.className = uiSettings.experimental ? "primary" : "";
-    };
-    syncExp();
-    expToggle.onclick = () => {
-      uiSettings.experimental = !uiSettings.experimental;
-      saveUiSettings(uiSettings);
-      syncExp();
-      updateStatus();
-    };
-    rowExp.append(expLab, expToggle);
+  // Experimental toggle
+  const swExp = makeSwitch("Experimental mode", uiSettings.experimental, (v) => {
+    uiSettings.experimental = v;
+    saveUiSettings(uiSettings);
+    updateStatus(); 
+  });
+
+  // Welcome toggle
+  const swWel = makeSwitch("Show welcome screen on load", !uiSettings.hideWelcome, (v) => {
+    uiSettings.hideWelcome = !v;
+    saveUiSettings(uiSettings);
+  });
+
 
     // Custom CSS
     const cssWrap = el("div", "settingsBlock");
@@ -705,23 +737,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     ieBtns.append(btnCopyPatch, btnCopyBanks, btnImportPatch, btnImportBanks);
     ieWrap.append(ieLab, ieTA, ieBtns);
 
-    // Welcome toggle
-    const rowWel = el("div", "settingsRow");
-    const welLab = el("div", "small", "Show welcome screen on load");
-    const welToggle = el("button");
-    const syncWel = () => {
-      welToggle.textContent = uiSettings.hideWelcome ? "NO" : "YES";
-      welToggle.className = uiSettings.hideWelcome ? "" : "primary";
-    };
-    syncWel();
-    welToggle.onclick = () => {
-      uiSettings.hideWelcome = !uiSettings.hideWelcome;
-      saveUiSettings(uiSettings);
-      syncWel();
-    };
-    rowWel.append(welLab, welToggle);
-
-    body.append(rowExp, rowWel, cssWrap, ieWrap);
+    body.append(swExp.row, swWel.row, cssWrap, ieWrap);
 
     m.open();
   }
