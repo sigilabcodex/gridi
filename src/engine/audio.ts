@@ -13,7 +13,7 @@ export type Engine = {
   setMasterGain(g: number): void;
 
   // i = voice index inside getVoices(patch)
-  triggerVoice(i: number, patch: Patch): void;
+  triggerVoice(i: number, patch: Patch, when?: number): void;
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
@@ -113,6 +113,7 @@ export function createEngine(): Engine {
   // NEW: masterTarget = gain “real” cuando NO está muteado.
   //      Esto evita que el unmute vuelva a 0.9 fijo.
   let masterTarget = 0.8; // alínea con defaultPatch.masterGain
+  let masterMuted = false; 
   master.gain.value = masterTarget;
 
   const analyser = ctx.createAnalyser();
@@ -134,19 +135,20 @@ export function createEngine(): Engine {
   const noiseBuf = makeNoiseBuffer(ctx, 1.0);
 
   function setMasterMute(muted: boolean) {
+    masterMuted = !!muted;
     const now = ctx.currentTime;
     master.gain.cancelScheduledValues(now);
-    master.gain.setTargetAtTime(muted ? 0 : masterTarget, now, 0.01);
+    master.gain.setTargetAtTime(masterMuted ? 0 : masterTarget, now, 0.01);
   }
 
   function setMasterGain(g: number) {
     masterTarget = clamp(safe(g, 0.8), 0, 1);
-    // si estamos muteados “por patch”, esto igual actualiza el target,
-    // pero el gain audible quedará en 0 hasta que unmute.
-    master.gain.value = masterTarget;
+    // Si está muteado, NO tocamos el gain audible (debe quedarse en 0).
+    // Solo actualizamos el target para que al unmute vuelva correctamente.
+    if (!masterMuted) master.gain.value = masterTarget;
   }
 
-  async function start() {
+ async function start() {
     if (ctx.state !== "running") await ctx.resume();
   }
 
@@ -205,14 +207,14 @@ export function createEngine(): Engine {
     return buf;
   }
 
-  function triggerVoice(i: number, patch: Patch) {
+  function triggerVoice(i: number, patch: Patch, when?: number) {
     voiceLastTrigMs[i] = performance.now();
 
     const voices = getVoices(patch);
     const v: VoiceModule | undefined = voices[i];
     if (!v || !v.enabled) return;
 
-    const now = ctx.currentTime;
+    const now = (typeof when === "number" && isFinite(when)) ? when : ctx.currentTime;
 
     const amp = clamp(safe(v.amp, 0.1), 0, 1);
     const timbre = clamp01(safe(v.timbre, 0.5));

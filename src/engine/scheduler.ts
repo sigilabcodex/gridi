@@ -31,12 +31,23 @@ export function createScheduler(engine: Engine): Scheduler {
   let bpm = 124;
   let patch: Patch | null = null;
 
-  // states by VOICE INDEX (order in getVoices(patch))
-  const states: VoiceState[] = Array.from({ length: 64 }, () => ({
-    step: 0,
-    nextTime: 0,
-    pattern: new Uint8Array([1]),
-  }));
+  // states by VOICE ID (stable across reordering)
+  const states = new Map<string, VoiceState>();
+
+  function getVoiceId(v: VoiceModule, i: number) {
+    // Prefer stable id. Fallback to index-based (only if id missing).
+    // (Ideally VoiceModule.id is always present.)
+    return (v as any).id ? String((v as any).id) : `idx:${i}`;
+  }
+
+  function getState(voiceId: string): VoiceState {
+    let st = states.get(voiceId);
+    if (!st) {
+      st = { step: 0, nextTime: 0, pattern: new Uint8Array([1]) };
+      states.set(voiceId, st);
+    }
+    return st;
+  }
 
   function setBpm(next: number) {
     bpm = Math.max(20, Math.min(400, next | 0));
@@ -176,7 +187,7 @@ export function createScheduler(engine: Engine): Scheduler {
     return out;
   }
 
-  function regenVoice(i: number, v: VoiceModule) {
+  function regenVoice(voiceId: string, v: VoiceModule) {
     let p: Uint8Array;
 
     switch (v.mode) {
@@ -200,14 +211,20 @@ export function createScheduler(engine: Engine): Scheduler {
       p = out;
     }
 
-    states[i].pattern = p;
-    states[i].step = 0;
+    const st = getState(voiceId);
+    st.pattern = p;
+    st.step = 0;
+    // st.nextTime intentionally NOT forced here; start()/stop() handle timing reset
   }
 
   function regenAll() {
     if (!patch) return;
     const voices = getVoices(patch);
-    for (let i = 0; i < voices.length; i++) regenVoice(i, voices[i]);
+    for (let i = 0; i < voices.length; i++) {
+      const v = voices[i];
+      const id = getVoiceId(v, i);
+      regenVoice(id, v);
+    }
   }
 
   function setPatch(next: Patch, opts?: { regen?: boolean }) {
@@ -226,7 +243,9 @@ export function createScheduler(engine: Engine): Scheduler {
       const v = voices[i];
       if (!v || !v.enabled) continue;
 
-      const st = states[i];
+      const voiceId = getVoiceId(v, i);
+      const st = getState(voiceId);
+
       const stepDur = voiceStepDur(v);
 
       if (st.nextTime === 0) st.nextTime = now;
@@ -235,7 +254,9 @@ export function createScheduler(engine: Engine): Scheduler {
         const pat = st.pattern;
         const idx = pat.length > 0 ? (st.step % pat.length) : 0;
 
-        if (pat[idx]) engine.triggerVoice(i, patch); // engine uses voice index
+        // ✅ schedule with lookahead time (tight timing)
+        if (pat[idx]) engine.triggerVoice(i, patch, st.nextTime);
+
         st.step++;
         st.nextTime += stepDur;
       }
@@ -247,9 +268,23 @@ export function createScheduler(engine: Engine): Scheduler {
     running = true;
 
     const now = engine.ctx.currentTime;
-    for (let i = 0; i < states.length; i++) {
-      states[i].step = 0;
-      states[i].nextTime = now;
+
+    // Reset timing for all current voices (stable by id)
+    if (patch) {
+      const voices = getVoices(patch);
+      for (let i = 0; i < voices.length; i++) {
+        const v = voices[i];
+        const id = getVoiceId(v, i);
+        const st = getState(id);
+        st.step = 0;
+        st.nextTime = now;
+      }
+    } else {
+      // If no patch yet, just reset any existing states
+      for (const st of states.values()) {
+        st.step = 0;
+        st.nextTime = now;
+      }
     }
 
     timer = window.setInterval(scheduleLoop, intervalMs);
@@ -261,9 +296,10 @@ export function createScheduler(engine: Engine): Scheduler {
     if (timer !== null) window.clearInterval(timer);
     timer = null;
 
-    for (let i = 0; i < states.length; i++) {
-      states[i].nextTime = 0;
-      states[i].step = 0;
+    // Reset scheduler timing state
+    for (const st of states.values()) {
+      st.nextTime = 0;
+      st.step = 0;
     }
   }
 
