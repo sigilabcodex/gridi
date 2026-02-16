@@ -1,13 +1,14 @@
 // src/ui/voiceModule.ts
 import type { Patch, Mode, VoiceModule } from "../patch";
-import { clamp } from "../patch";
-import { knob } from "./knob";
+import { ctlFloat } from "./ctl";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
 
+export type VoiceTab = "MAIN" | "SEQ" | "MIDI";
+
 type UiState = {
-  advOpen: boolean;
-  setAdvOpen: (v: boolean) => void;
+  tab: VoiceTab;
+  setTab: (t: VoiceTab) => void;
 };
 
 export function renderVoiceModule(
@@ -77,18 +78,87 @@ export function renderVoiceModule(
   right.append(toggle, btnX);
   header.append(titleRow, right);
 
-  // ---- compact row
-  const row = document.createElement("div");
-  row.className = "row compactRow";
+  // ---- MAIN panel content
+  const mainRow = document.createElement("div");
+  mainRow.className = "row compactRow";
 
-  // Mode
-  row.append(labelEl("Mode"));
+  // Amp
+  mainRow.append(
+    ctlFloat({
+      label: "Amp",
+      value: v.amp,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.amp = x;
+          },
+          { regen: false }
+        ),
+    })
+  );
+
+  // Timbre
+  mainRow.append(
+    ctlFloat({
+      label: "Timbre",
+      value: v.timbre,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
+        onPatchChange(
+          (p) => {
+            const m = p.modules.find((z) => z.id === v.id);
+            if (m && m.type === "voice") m.timbre = x;
+          },
+          { regen: false }
+        ),
+    })
+  );
+
+  // --- tabs
+  const tabs = document.createElement("div");
+  tabs.className = "modTabs";
+
+  const btnMain = document.createElement("button");
+  btnMain.className = "modTab";
+  btnMain.textContent = "MAIN";
+
+  const btnSeq = document.createElement("button");
+  btnSeq.className = "modTab";
+  btnSeq.textContent = "SEQ";
+
+  const btnMidi = document.createElement("button");
+  btnMidi.className = "modTab";
+  btnMidi.textContent = "MIDI";
+
+  tabs.append(btnMain, btnSeq, btnMidi);
+
+  // --- panels
+  const panelMain = document.createElement("div");
+  panelMain.className = "modPanel";
+  panelMain.appendChild(mainRow);
+
+    const panelSeq = document.createElement("div");
+  panelSeq.className = "modPanel";
+
+  // --- top row: Mode | Seed | ↻
+  const seqTopRow = document.createElement("div");
+  seqTopRow.className = "seqTopRow";
+
+  // Mode select
   const sel = document.createElement("select");
-  for (const m of MODES) {
+  for (const mm of MODES) {
     const o = document.createElement("option");
-    o.value = m;
-    o.textContent = m;
-    if (m === v.mode) o.selected = true;
+    o.value = mm;
+    o.textContent = mm;
+    if (mm === v.mode) o.selected = true;
     sel.appendChild(o);
   }
   sel.onchange = () =>
@@ -99,11 +169,15 @@ export function renderVoiceModule(
       },
       { regen: true }
     );
-  row.appendChild(sel);
 
-  // Seed
-  row.append(labelEl("Seed"));
-  const seed = numBox(v.seed, 0, 999999);
+  // Seed input
+  const seed = document.createElement("input");
+  seed.type = "number";
+  seed.value = String(v.seed);
+  seed.min = "0";
+  seed.max = "999999";
+  seed.className = "seedInput";
+
   seed.onchange = () =>
     onPatchChange(
       (p) => {
@@ -112,168 +186,245 @@ export function renderVoiceModule(
       },
       { regen: true }
     );
-  row.append(seed);
 
-  // Amp knob
-  const kAmp = knob({
-    label: "Amp",
-    value: v.amp,
-    min: 0,
-    max: 1,
-    step: 0.001,
-    format: (x) => x.toFixed(3),
-    onChange: (x) =>
-      onPatchChange(
-        (p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.amp = x;
-        },
-        { regen: false }
-      ),
-  });
-  row.append(kAmp.el);
+  // Seed regen button
+  const seedBtn = document.createElement("button");
+  seedBtn.textContent = "↻";
+  seedBtn.className = "seedBtn";
+  seedBtn.title = "Generate new random seed";
 
-  // Timbre knob
-  const kT = knob({
-    label: "Timbre",
-    value: v.timbre,
-    min: 0,
-    max: 1,
-    step: 0.001,
-    format: (x) => x.toFixed(3),
-    onChange: (x) =>
-      onPatchChange(
-        (p) => {
-          const m = p.modules.find((z) => z.id === v.id);
-          if (m && m.type === "voice") m.timbre = x;
-        },
-        { regen: false }
-      ),
-  });
-  row.append(kT.el);
+  seedBtn.onclick = (e) => {
+    const newSeed = (Math.random() * 1_000_000) | 0;
+    seed.value = String(newSeed); // update UI immediately
 
-  // bottom mini row (Advanced)
-  const bottom = document.createElement("div");
-  bottom.className = "miniRow";
+    onPatchChange(
+      (p) => {
+        const m = p.modules.find((x) => x.id === v.id);
+        if (m && m.type === "voice") m.seed = newSeed;
+      },
+      { regen: !e.shiftKey }
+    );
+  };
 
-  const btnAdv = document.createElement("button");
-  const syncAdv = () => (btnAdv.textContent = ui.advOpen ? "Advanced ▾" : "Advanced ▸");
-  syncAdv();
-  btnAdv.onclick = () => ui.setAdvOpen(!ui.advOpen);
+  // assemble top row
+  seqTopRow.append(sel, seed, seedBtn);
 
-  bottom.append(btnAdv);
+  // ---- SEQ controls
+  const adv = document.createElement("div");
+  adv.className = "adv";
 
-  card.append(header, row, bottom);
-
-  // ---- advanced panel
-  if (ui.advOpen) {
-    const adv = document.createElement("div");
-    adv.className = "adv";
-
-    adv.append(
-      ctlRange("Subdiv", v.subdiv, 1, 8, 1, (x) =>
+  adv.append(
+    ctlFloat({
+      label: "Subdiv",
+      value: v.subdiv,
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
-            if (m && m.type === "voice") m.subdiv = (Math.max(1, Math.min(8, Math.round(x))) as any);
+            if (m && m.type === "voice") m.subdiv = x as any;
           },
           { regen: false }
-        )
-      ),
-      ctlRange("Length", v.length, 1, 128, 1, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Length",
+      value: v.length,
+      min: 1,
+      max: 128,
+      step: 1,
+      integer: true,
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
-            if (m && m.type === "voice") m.length = Math.max(1, Math.min(128, Math.round(x)));
+            if (m && m.type === "voice") m.length = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Density", v.density, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Density",
+      value: v.density,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.density = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Drop", v.drop, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Drop",
+      value: v.drop,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.drop = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Det", v.determinism, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Det",
+      value: v.determinism,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.determinism = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Grav", v.gravity, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Grav",
+      value: v.gravity,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.gravity = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Weird", v.weird, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Weird",
+      value: v.weird,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.weird = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("Pan", v.pan, -1, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Pan",
+      value: v.pan,
+      min: -1,
+      max: 1,
+      step: 0.001,
+      center: 0,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.pan = x;
           },
           { regen: false }
-        )
-      ),
-      ctlRange("Rot", v.euclidRot, -32, 32, 1, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "Rot",
+      value: v.euclidRot,
+      min: -32,
+      max: 32,
+      step: 1,
+      integer: true,
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
-            if (m && m.type === "voice") m.euclidRot = Math.round(x);
+            if (m && m.type === "voice") m.euclidRot = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("CA Rule", v.caRule, 0, 255, 1, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "CA Rule",
+      value: v.caRule,
+      min: 0,
+      max: 255,
+      step: 1,
+      integer: true,
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
-            if (m && m.type === "voice") m.caRule = Math.max(0, Math.min(255, Math.round(x)));
+            if (m && m.type === "voice") m.caRule = x;
           },
           { regen: true }
-        )
-      ),
-      ctlRange("CA Init", v.caInit, 0, 1, 0.001, (x) =>
+        ),
+    }),
+    ctlFloat({
+      label: "CA Init",
+      value: v.caInit,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (x) => x.toFixed(3),
+      onChange: (x) =>
         onPatchChange(
           (p) => {
             const m = p.modules.find((z) => z.id === v.id);
             if (m && m.type === "voice") m.caInit = x;
           },
           { regen: true }
-        )
-      )
-    );
+        ),
+    })
+  );
 
-    card.appendChild(adv);
-  }
+  const spacer = document.createElement("div");
+  spacer.className = "spacer";
+  panelSeq.append(seqTopRow, spacer, adv);
+
+
+  // --- MIDI placeholder
+  const panelMidi = document.createElement("div");
+  panelMidi.className = "modPanel";
+  panelMidi.textContent = "MIDI (coming soon)";
+
+  // --- tab switching (sin re-render)
+  const setActiveTab = (t: VoiceTab) => {
+    ui.setTab(t);
+
+    btnMain.classList.toggle("active", t === "MAIN");
+    btnSeq.classList.toggle("active", t === "SEQ");
+    btnMidi.classList.toggle("active", t === "MIDI");
+
+    panelMain.classList.toggle("hidden", t !== "MAIN");
+    panelSeq.classList.toggle("hidden", t !== "SEQ");
+    panelMidi.classList.toggle("hidden", t !== "MIDI");
+  };
+
+  btnMain.onclick = () => setActiveTab("MAIN");
+  btnSeq.onclick = () => setActiveTab("SEQ");
+  btnMidi.onclick = () => setActiveTab("MIDI");
+
+  // --- ensamblado final del card
+  card.append(header, tabs, panelMain, panelSeq, panelMidi);
+
+  // inicializa el tab guardado
+  setActiveTab(ui.tab);
 
   root.appendChild(card);
 
@@ -282,7 +433,6 @@ export function renderVoiceModule(
     ledA.className = "led" + (st.active ? " on" : "");
     ledHit.className = "led" + (st.hit ? " on hit" : "");
     syncToggle();
-    syncAdv();
   };
 }
 
@@ -292,17 +442,6 @@ function labelEl(t: string) {
   return l;
 }
 
-function rangeInput(value: number, min: number, max: number, step: number, on: (v: number) => void) {
-  const r = document.createElement("input");
-  r.type = "range";
-  r.min = String(min);
-  r.max = String(max);
-  r.step = String(step);
-  r.value = String(clamp(value, min, max));
-  r.oninput = () => on(parseFloat(r.value));
-  return r;
-}
-
 function numBox(value: number, min: number, max: number) {
   const n = document.createElement("input");
   n.type = "number";
@@ -310,27 +449,4 @@ function numBox(value: number, min: number, max: number) {
   n.min = String(min);
   n.max = String(max);
   return n;
-}
-
-function ctlRange(title: string, value: number, min: number, max: number, step: number, on: (v: number) => void) {
-  const wrap = document.createElement("div");
-  wrap.className = "ctl";
-
-  const lab = document.createElement("label");
-  lab.textContent = title;
-
-  const r = rangeInput(value, min, max, step, on);
-
-  const val = document.createElement("div");
-  val.className = "val";
-  val.textContent = Number.isFinite(value) ? String(value) : "";
-
-  r.oninput = () => {
-    const v = parseFloat(r.value);
-    val.textContent = step < 1 ? v.toFixed(3) : String(Math.round(v));
-    on(v);
-  };
-
-  wrap.append(lab, r, val);
-  return wrap;
 }

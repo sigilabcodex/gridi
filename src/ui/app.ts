@@ -266,9 +266,12 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   });
 
   // UI-only Adv state per module id
-  const advOpen = new Map<string, boolean>();
-  const getAdvOpen = (id: string) => advOpen.get(id) ?? false;
-  const setAdvOpen = (id: string, v: boolean) => advOpen.set(id, v);
+  type VoiceTab = "MAIN" | "GEN" | "MIDI";
+
+const voiceTabs = new Map<string, VoiceTab>();
+const getVoiceTab = (id: string): VoiceTab => voiceTabs.get(id) ?? "MAIN";
+const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
+
 
   // initial engine sync
   syncEngineFromPatch(patch, true);
@@ -561,12 +564,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         led,
         onPatchChange,
         {
-          advOpen: getAdvOpen(v.id),
-          setAdvOpen: (vv) => {
-            setAdvOpen(v.id, vv);
-            rerender();
-          },
-        },
+         tab: getVoiceTab(v.id),
+         setTab: (t) => setVoiceTab(v.id, t),
+      },
+
         () => {
           const prev = clonePatch(patch);
           patch.modules = patch.modules.filter((m) => m.id !== v.id);

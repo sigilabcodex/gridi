@@ -7,9 +7,17 @@ export type KnobOpts = {
   label?: string;
   format?: (v: number) => string;
   onChange: (v: number) => void;
+
+  /**
+   * If provided, value==center maps to the middle of the travel (12 o'clock).
+   * Example: min=-1 max=1 center=0 -> 0 is exactly centered.
+   */
+  center?: number;
 };
 
-export function knob(opts: KnobOpts): { el: HTMLElement; setValue: (v: number, emit?: boolean) => void; getValue: () => number } {
+export function knob(
+  opts: KnobOpts
+): { el: HTMLElement; setValue: (v: number, emit?: boolean) => void; getValue: () => number } {
   const wrap = document.createElement("div");
   wrap.className = "knobCtl";
 
@@ -30,9 +38,10 @@ export function knob(opts: KnobOpts): { el: HTMLElement; setValue: (v: number, e
 
   const size = 54;
   const r = 20;
-  const cx = 27, cy = 27;
-  const startA = (-135 * Math.PI) / 180;
-  const endA = (135 * Math.PI) / 180;
+  const cx = 27,
+    cy = 27;
+const startA = (-225 * Math.PI) / 180;
+const endA   = (  45 * Math.PI) / 180;
 
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
@@ -91,10 +100,30 @@ export function knob(opts: KnobOpts): { el: HTMLElement; setValue: (v: number, e
     return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`;
   };
 
+  // value -> normalized t in [0..1]
+  const valueToT = (v: number) => {
+    const min = opts.min;
+    const max = opts.max;
+    const c = opts.center;
+
+    if (c === undefined) return (v - min) / (max - min || 1);
+
+    // avoid weird division if center equals bounds
+    if (c <= min || c >= max) return (v - min) / (max - min || 1);
+
+    if (v <= c) {
+      const a = (v - min) / (c - min); // 0..1
+      return 0.5 * a; // 0..0.5
+    } else {
+      const b = (v - c) / (max - c); // 0..1
+      return 0.5 + 0.5 * b; // 0.5..1
+    }
+  };
+
   let value = clamp(opts.value);
 
   const render = () => {
-    const t = (value - opts.min) / (opts.max - opts.min || 1);
+    const t = valueToT(value);
     const a = startA + (endA - startA) * t;
 
     arc.setAttribute("d", arcPath(startA, a));
