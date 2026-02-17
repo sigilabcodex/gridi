@@ -743,6 +743,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
       <p><b>GRIDI</b> is a generative rhythmic instrument.</p>
       <p>To start audio, the browser requires a user gesture.</p>
       <p class="small">Tips: Space = Play/Stop. Ctrl/Cmd+Z/Y = Undo/Redo. ⚙ has export/import and custom CSS.</p>
+      <p class="small welcomeDedication">Dedicated to Taniel Morales (1970–2026) — artist, teacher, friend.</p>
     `;
 
     const row = el("div", "settingsBtnRow");
