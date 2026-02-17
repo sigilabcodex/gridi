@@ -15,6 +15,7 @@ export type Scheduler = {
   stop(): void;
 };
 
+// PR-1 ownership note: scheduler currently mutates sequencing state (step/nextTime/pattern).
 type VoiceState = {
   step: number;
   nextTime: number;
@@ -64,6 +65,8 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   // ---------- pattern generation helpers ----------
+  // PR-1 ownership note: pattern generation currently lives in scheduler (legacy path).
+  // Pilot RFC target is to move step-mode generation behind a PatternModule contract.
   function xorshift32(seed: number) {
     let x = seed | 0;
     return () => {
@@ -233,6 +236,8 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   function scheduleLoop() {
+    // PR-1 ownership note: scheduler currently performs legacy pattern read + state mutation
+    // and dispatches exact timestamps to engine.triggerVoice().
     if (!running || !patch) return;
 
     const voices = getVoices(patch);
