@@ -6,6 +6,8 @@
 
 ---
 
+**Current version: 0.32.4**
+
 ## What is GRIDI?
 
 > GRIDI is a generative rhythmic instrument built around controlled indeterminism, non-musical mathematics, and human interaction.
@@ -46,7 +48,7 @@ GRIDi explores the tension between structure and indeterminacy through modular s
 
 - v0.31 — Core Reinforcement (in progress)
 
-- v0.32 — SEQ structural separation (current)
+- v0.32.4 — SEQ structural separation (current)
 
 - v0.4 — Performance routing
 
