@@ -6,12 +6,13 @@ import type { Scheduler } from "../engine/scheduler";
 import { renderVoiceModule } from "./voiceModule";
 import { renderVisualModule } from "./visualModule";
 import { renderAddModuleSlot } from "./AddModuleSlot";
+import { loadSettings, saveSettings } from "../settings/store";
+
 
 const BANK_COUNT = 4;
 
 // --- storage keys (v0.30)
 const LS_STATE = "gridi.state.v0_30";
-const LS_UI = "gridi.ui.v0_30";
 
 // --- types
 type PersistedState = {
@@ -19,11 +20,11 @@ type PersistedState = {
   banks: Patch[];
 };
 
-type UiSettings = {
-  hideWelcome: boolean;     // if true, skip welcome on load
-  experimental: boolean;    // feature flags
-  customCss: string;        // user CSS
-};
+// type UiSettings = {
+//  hideWelcome: boolean;     // if true, skip welcome on load
+//  experimental: boolean;    // feature flags
+//  customCss: string;        // user CSS
+// };
 
 function randInt(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
@@ -48,20 +49,6 @@ function ensureBankCount(banks: Patch[], count: number) {
   const out = banks.slice(0, count);
   while (out.length < count) out.push(defaultPatch());
   return out;
-}
-
-function loadUiSettings(): UiSettings {
-  const raw = localStorage.getItem(LS_UI);
-  const p = raw ? safeParseJSON<Partial<UiSettings>>(raw) : null;
-  return {
-    hideWelcome: Boolean(p?.hideWelcome ?? false),
-    experimental: Boolean(p?.experimental ?? false),
-    customCss: String(p?.customCss ?? ""),
-  };
-}
-
-function saveUiSettings(s: UiSettings) {
-  localStorage.setItem(LS_UI, JSON.stringify(s));
 }
 
 function loadState(): PersistedState | null {
@@ -182,8 +169,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   let patch: Patch = banks[bank];
 
   // --- UI settings (welcome/settings/custom css)
-  const uiSettings = loadUiSettings();
-  applyUserCss(uiSettings.customCss);
+  const settings = loadSettings();
+applyUserCss(settings.ui.customCss);
+
 
   // === Undo/Redo history (UI-only) ===
   const undoStack: Patch[] = [];
@@ -287,7 +275,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
   status.className = "small";
   const updateStatus = () => {
     status.textContent = `status: ${sched.running ? "playing" : "stopped"} | audio: ${engine.ctx.state}${
-      uiSettings.experimental ? " | experimental: ON" : ""
+      settings.ui.experimental ? " | experimental: ON" : ""
     }`;
   };
 
@@ -618,39 +606,41 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
     const body = m.body;
 
   // Experimental toggle
-  const swExp = makeSwitch("Experimental mode", uiSettings.experimental, (v) => {
-    uiSettings.experimental = v;
-    saveUiSettings(uiSettings);
-    updateStatus(); 
-  });
+  const swExp = makeSwitch("Experimental mode", settings.ui.experimental, (v) => {
+  settings.ui.experimental = v;
+  saveSettings(settings);
+  updateStatus();
+ });
 
   // Welcome toggle
-  const swWel = makeSwitch("Show welcome screen on load", !uiSettings.hideWelcome, (v) => {
-    uiSettings.hideWelcome = !v;
-    saveUiSettings(uiSettings);
-  });
-
+  const swWel = makeSwitch("Show welcome screen on load", !settings.ui.hideWelcome, (v) => {
+  settings.ui.hideWelcome = !v;
+  saveSettings(settings);
+ });
 
     // Custom CSS
     const cssWrap = el("div", "settingsBlock");
     const cssLab = el("div", "small", "Custom CSS (saved locally)");
     const cssTA = document.createElement("textarea");
     cssTA.className = "cssBox";
-    cssTA.value = uiSettings.customCss;
+    cssTA.value = settings.ui.customCss;
     const cssBtns = el("div", "settingsBtnRow");
     const btnApply = el("button", "primary", "Apply CSS");
     const btnClear = el("button", "", "Clear");
     btnApply.onclick = () => {
-      uiSettings.customCss = cssTA.value;
-      saveUiSettings(uiSettings);
-      applyUserCss(uiSettings.customCss);
+    settings.ui.customCss = cssTA.value;
+    saveSettings(settings);
+    applyUserCss(settings.ui.customCss);
     };
+
     btnClear.onclick = () => {
-      cssTA.value = "";
-      uiSettings.customCss = "";
-      saveUiSettings(uiSettings);
-      applyUserCss("");
-    };
+  cssTA.value = "";
+  settings.ui.customCss = "";
+  saveSettings(settings);
+  applyUserCss("");
+ };
+
+
     cssBtns.append(btnApply, btnClear);
     cssWrap.append(cssLab, cssTA, cssBtns);
 
@@ -745,7 +735,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
   // ===== Welcome modal =====
   function maybeShowWelcome() {
-    if (uiSettings.hideWelcome) return;
+    if (settings.ui.hideWelcome) return;
 
     const w = makeModal("Welcome to GRIDI");
     const body = w.body;
@@ -771,16 +761,17 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
       updateAudioBtn();
       updateStatus();
       if (chk.checked) {
-        uiSettings.hideWelcome = true;
-        saveUiSettings(uiSettings);
-      }
+    settings.ui.hideWelcome = true;
+    saveSettings(settings);
+    }
+
       w.destroy();
     };
     btnLater.onclick = () => {
       if (chk.checked) {
-        uiSettings.hideWelcome = true;
-        saveUiSettings(uiSettings);
-      }
+   settings.ui.hideWelcome = true;
+   saveSettings(settings);
+   }
       w.destroy();
     };
 

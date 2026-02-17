@@ -1,345 +1,351 @@
-# GRIDI — Roadmap completo (reconciliado) + Pilares de Arquitectura
+# GRIDI — Complete Roadmap
 
-## North Star (identidad)
+## + Architectural Pillars
 
-GRIDI = **instrumento rítmico generativo** (indeterminación controlada + matemáticas no-musicales + interacción humana).  
-Todo lo demás (síntesis, visuales, FX) está **al servicio del ritmo**.
-
----
-
-## Estado real hoy (YA está)
-
-### Motor / Patch
-
-- Scheduler por voz ✅
-
-- Modos: hybrid / step / euclid / CA / fractal (proto) ✅
-
-- Seed separado del pitch en percusiones ✅
-
-- Params principales (determinism/density/gravity/drop/weird/rot/ca…) ✅
-
-- Patch v0.3 con `modules[]` ✅
-
-- Creación dinámica de voces + visual ✅ (makeNewVoice + add-slot) ✅
-
-- Master gain / mute en patch ✅ (engine + UI) ✅
-
-### UI / UX
-
-- Grid modular (ya no 8 fijas) ✅
-
-- Add-slot ghost tile ✅
-
-- Undo/Redo ✅
-
-- Visual modules funcionando ✅
-
-- CSS estabilizado ✅
-
-- Settings + Welcome + switches ✅
-
-**Conclusión:** estamos dentro del corazón de “v0.3 Modular Awakening”.  
-Lo que falta ahora es **cerrar v0.3 como release estable** y abrir la puerta a **módulos enchufables** (interfaces + patching) sin explotar el scope.
+*(Checkpoint: v0.32-dev)*
 
 ---
 
-# Los 3 Pilares (arquitectura escalable)
+# 🧭 North Star (Identity)
 
-Estos pilares no son “features”; son **reglas de diseño** para que GRIDI crezca sin romperse.
+**GRIDI = a generative rhythmic instrument**  
+(controlled indeterminacy + non-musical mathematics + human interaction)
 
-## Pilar 1 — Anatomía de un módulo (contrato enchufable)
+Everything else (synthesis, visuals, FX) serves rhythm.
 
-Definimos una interfaz común para módulos de audio (voice/fx/bus).  
-La idea: encadenar como pedales: `src.connect(dst).connect(dst2)`.
-
-**Regla:** módulo = *unidad conectable* (input/output + connect/disconnect).
-
-**Sugerencia (TypeScript):**
-
-- `GridiAudioModule` para módulos que viven en AudioContext (voices/fx/buses)
-
-- `GridiControlModule` para módulos “no-audio” (pattern/terminal/visual)
-
-> Importante: esto NO obliga a que todo sea audio. Solo evita que mezclemos responsabilidades.
+This is not a drum machine.  
+It is an instrument.
 
 ---
 
-## Pilar 2 — Reloj preciso (Look-ahead scheduler)
+# 📍 Current State (Already Implemented)
 
-En drum machines el enemigo es el lag.  
-**Regla:** nunca dispares eventos con “cuando llegue el momento” desde UI; se programan *por adelantado* con `AudioContext.currentTime`.
+## Engine / Patch
 
-Modelo estándar:
+- Per-voice look-ahead scheduler ✅
 
-- loop rápido (ej. cada 25ms)
+- Modes: hybrid / step / euclid / CA / fractal (proto) ✅
 
-- agenda eventos para los próximos ~100ms
+- Seed separated from pitch in percussive voices ✅
 
-- programa con `node.start(exactTime)` y ramps.
+- Core generative parameters  
+  (determinism / density / gravity / drop / weird / rot / ca...) ✅
 
-> Si ya lo tienes “por voz”, perfecto: el siguiente paso es formalizarlo como `Clock` + `Transport`, para que MIDI clock y polirritmia entren sin reescribir todo.
+- Patch v0.3 using dynamic `modules[]` architecture ✅
 
----
+- Dynamic voice creation + visual modules (add-slot ghost tile) ✅
 
-## Pilar 3 — Envolventes ADSR (y pitch env para kicks)
+- Master gain / mute integrated (engine + UI) ✅
 
-**Regla:** toda voz percusiva debe sonar “instrumental”, no “beep”.
-
-- Gain envelope (A/D/S/R o A/D/R para percusivo)
-
-- Pitch envelope para kick (de ~150Hz a ~50Hz rápido)
-
-- Usar `linearRampToValueAtTime` / `exponentialRampToValueAtTime` y `cancelScheduledValues`.
-
-> Tu `clamp` y `lerp` ayudan, pero WebAudio ya te da rampas perfectas; tu math sirve para curvas custom (exp, pow, sigmoid).
+- Bank persistence (import/export JSON) ✅
 
 ---
 
-# Roadmap por versiones
+## UI / UX
 
-## v0.3 — Modular Awakening (tag estable)
+- Fully dynamic modular grid (no fixed 8 voices) ✅
 
-**Objetivo:** sistema modular usable + reproducible (patch compartible).
+- Add-slot ghost tile working ✅
 
-### A) Core UX (alta)
+- Undo / Redo system ✅
 
-- **Header sticky + blur** (regresión a corregir)
+- Visual modules (Scope / Spectrum) functional ✅
 
-- **Gear a extremo derecho** (polish)
+- Stabilized CSS + coherent aesthetic ✅
 
-- Add-slot pulido: iconos + labels + tooltips
-  
-  - click = menú
-  
-  - shift+click = añade “último tipo” directo
+- Sticky glass header with global controls ✅
 
-- Atajos base (si falta alguno):  
-  Space Play/Stop, R regen, Shift+R randomize, S reseed
+- Settings + Welcome modal functional ✅
 
-### B) Patch reproducible (alta)
+- Unified control system (`ctlFloat`) ✅
 
-- Import/Export Patch JSON ✅ (ya)
+- Responsive controls (desktop knobs / mobile sliders) ✅
 
-- Import/Export Banks ✅ (ya)
+- Centered pan control (0 at 12 o’clock) ✅
 
-- Producto “Banks”:
-  
-  - rename bank
-  
-  - copy/paste bank
-  
-  - reset bank
-  
-  - (persistencia ya existe)
+- Per-voice seed regeneration button (↻) ✅
 
-✅ **Criterio “Done v0.3”:** UX sin regresiones + settings/welcome + reproducibilidad + banks “producto”.
+- UI tab separation: MAIN / SEQ / MIDI ✅
 
 ---
 
-## v0.31 — “Plug & Clock” (fundaciones de modularidad)
+# 🧠 Strategic Position
 
-**Objetivo:** preparar modularidad real sin meter routing complejo.
+We are currently transitioning from:
 
-### A) Contratos de módulo (alta) ✅ (pilar 1)
+**v0.31 → v0.32 (Structural Evolution)**
 
-- Introducir interfaces:
-  
-  - `GridiAudioModule` (input/output/connect)
-  
-  - `GridiControlModule` (tick/update, bindings, etc.)
+The conceptual separation between:
 
-- Un “ModuleHost” mínimo que:
-  
-  - crea/destruye módulos
-  
-  - gestiona conexiones simples (por ahora: voice→master)
-  
-  - mantiene un registry por id
+- Timbre (MAIN)
 
-### B) Clock / Transport formal (alta) ✅ (pilar 2)
+- Sequencing / Generation (SEQ)
 
-- Extraer el scheduler/lookahead a `Clock`
+- Connectivity (MIDI)
 
-- `Transport` con:
-  
-  - play/stop
-  
-  - bpm
-  
-  - (futuro) external clock follow
+is now active at the UI level.
 
-- Esto hace trivial:
-  
-  - MIDI clock in/out después
-  
-  - polirritmia sin hacks
-
-### C) Envelopes utilitarias (media-alta) ✅ (pilar 3)
-
-- `env.ts`: helpers para gain env y pitch env (kick)
-
-- Reutilizable en voices nuevas
-
-### D) MIDI Manager v0 (media)
-
-- `MidiManager`:
-  
-  - mapea 0..127 → rangos internos (0..1 / Hz / ms)
-  
-  - nota→frecuencia: `440 * 2^((n-69)/12)`
-  
-  - CC learn simple (8 macros globales)
+This is an architectural milestone.
 
 ---
 
-## v0.32 — Pattern Modules (separación UI de secuencia vs timbre)
+# 🏗 The 3 Architectural Pillars
 
-**Objetivo:** bajar densidad de controles por voz y volver el instrumento más educativo.
-
-- Nuevo `PatternModule` (step/euclid/CA/hybrid)
-
-- VoiceModule puede usar:
-  
-  - `patternSource: "self" | moduleId`
-
-- Visualizadores ligados a PatternModule:
-  
-  - euclid ring
-  
-  - CA evolution
-  
-  - heatmap
-
-- Aquí encaja perfecto tu idea:
-  
-  - **bancos por timbre** (drum/synth presets)
-  
-  - bancos por secuencia (patterns)
-
-> Regla anti-Cardinal: sin cables aún, solo “source selector”.
+These are not features.  
+They are design rules that prevent future architectural collapse.
 
 ---
 
-## v0.4 — Performance & Routing
+## Pillar 1 — Module Anatomy (Pluggable Contract)
 
-- `connections[]` en patch (voice→fx→master, sends, buses)
+Rule:
 
-- FX Modules (drive/delay/filter/bitcrush)
+> A module is a connectable unit.
 
-- MIDI OUT + clock
+Inspired by audio modules or "guitar pedals".
 
-- Visuals performativos (follow selected, etc.)
+Proposed TypeScript interface:
 
----
+`interface GridiAudioModule {  input?: AudioNode;  output?: AudioNode;  connect(dst: GridiAudioModule | AudioNode): void;  disconnect(): void;  dispose(): void; }`
 
-## v0.5 — Generative Beast
+Separation principle:
 
-- Markov real, mutation/breeding, morph A→B, auto-evolving sessions
+- `GridiAudioModule` → lives inside AudioContext
 
-- terminal/live coding avanzado
+- `GridiControlModule` → UI / Pattern / Terminal / Visual logic
 
-- preset library comunitaria
+Status:
 
----
+- Dynamic `modules[]` implemented ✅
 
-# Backlog (no perder)
+- Conceptual separation underway
 
-- OSC (con bridge Node/WebSocket)
-
-- Terminal como performance (macros/scripts)
-
-- “GRIDI educativo”: visuales explicando probabilidades
-
-- Idioma, temas UI, fondo reactivo ON/OFF, export de datos/caché, licencia, etc.
+- Complex routing not yet introduced
 
 ---
 
-# Decisión clave (documentada): separar “Seq” de “Voice”
+## Pillar 2 — Precise Clock (Look-Ahead Scheduling)
 
-### Ahora (v0.31): separación interna
+Rule:
 
-- `VoiceEngine` consume `PatternEngine`, pero el patch no cambia.
+> Never trigger sound directly from UI timing.
 
-### Después (v0.32): separación UI opcional
+Model:
 
-- aparece `PatternModule` y `patternSourceId`
+- Fast loop (~25ms)
 
-Esto te da:
+- Schedule ~100ms ahead
 
-- menos controles por voz
+- Use `AudioContext.currentTime`
 
-- más espacio para timbre/presets
+- Program with `start(exactTime)` + ramps
 
-- visualizadores “con sentido” por secuencia
+Status:
 
-- sin entrar a routing complejo aún
+- Per-voice scheduler working ✅
 
+- Dedicated `Clock + Transport` abstraction pending
 
+Future unlocks:
+
+- MIDI clock in/out
+
+- Polyrhythmic structures
+
+- External clock follow
+
+---
+
+## Pillar 3 — Instrumental Envelopes
+
+Rule:
+
+> No the usual drumbox sounds.
+
+- Gain envelope (ADSR or ADR)
+
+- Pitch envelope for kicks
+
+- Native WebAudio ramps
+
+- Centralized envelope helpers (`env.ts`) ✅
+
+Status:
+
+- Utility layer created
+
+- Expansion planned for tonal synthesis
+
+---
+
+# 🚀 Version Roadmap
+
+---
 
 ## v0.30 — Modular Awakening ✅
 
-UI estable  
-Patch reproducible  
-Settings + Welcome  
-Undo/Redo  
-Banks  
-Sticky glass header
+- Stable modular UI
+
+- Reproducible patch system
+
+- Settings + Welcome
+
+- Undo / Redo
+
+- Bank management
+
+- Sticky glass header
+
+- Visual modules
+
+Foundation complete.
 
 ---
 
-## v0.31 — Core Reinforcement
+## v0.31 — Core Reinforcement (in progress)
 
-- Module lifecycle (dispose)
+Goal: reinforce internal structure.
+
+### Architecture
+
+- Module lifecycle management
 
 - GenericParam system
 
-- Clock service separado
+- Dedicated Clock service
 
-- Look-ahead formalizado
+- Formalized look-ahead scheduler
 
 - Envelope utility class
 
 - MIDI Manager v0
 
-- Keyboard refinement
+### UI Refinement
+
+- Keyboard shortcuts
+
+- Settings restructuring
+
+- Responsibility cleanup
 
 ---
 
-## v0.32 — Structural Evolution
+## v0.32 — Structural Evolution (Current Phase)
 
-- Pattern modules separados de Voice
+Goal: Separate sequencing from timbre.
 
-- connections[] explícito
+### Implemented
 
-- UI tabs per module
+- MAIN / SEQ / MIDI tab structure ✅
 
-- Visual modules ligados a Pattern
+- Per-voice seed regeneration ✅
+
+- Responsive control system ✅
+
+- Reduced visual density per module ✅
+
+### In Progress
+
+- Formal PatternModule
+
+- `patternSource: "self" | moduleId`
+
+- Visualizers linked to SEQ logic
+
+- Future drag & drop extraction of SEQ
+
+Embracing digital over simulated controls rule:
+
+> No patch cables yet. Only source selection.
 
 ---
 
-## v0.4 — Performance Routing
+## v0.4 — Performance & Routing
 
-- Buses
+- Explicit `connections[]` in patch
 
-- FX modules
+- Voice → FX → Bus → Master routing
+
+- Send architecture
+
+- FX modules (drive / delay / filter / bitcrush)
 
 - MIDI OUT
 
-- Clock out
+- Clock OUT
+
+- Performance visuals
 
 ---
 
 ## v0.5 — Generative Ecosystem
 
-- Markov real
+- True Markov engine
 
-- Patch morph
+- Patch morphing A → B
 
 - Mutation / breeding
 
-- Terminal avanzado
+- Self-evolving sessions
 
-- Comunidad + preset exchange
+- Advanced live terminal
+
+- Community preset exchange
 
 - Algorave mode
+
+---
+
+# 📌 Key Decision
+
+## Separation of SEQ from Voice
+
+Phase 1 (now):
+
+- Visual separation in UI
+
+- Voice consumes its own generator internally
+
+Phase 2 (v0.32 formalization):
+
+- Independent PatternModule
+
+- `patternSourceId`
+
+- Drag & drop extraction possible
+
+Benefits:
+
+- Cleaner voices
+
+- More space for synthesis
+
+- Meaningful visualizations
+
+- Future scalability without immediate routing complexity
+
+---
+
+# 📦 Backlog
+
+- OSC (Node/WebSocket bridge)
+
+- Performance terminal
+
+- Educational visualizations
+
+- Themes
+
+- Localization
+
+- Reactive background toggle
+
+- Data export
+
+- Licensing
+
+- Dedicated README
+
+- Formal dedication section
+
+- Settings redesign
