@@ -50,9 +50,6 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
       step: o.step,
       format: (x) => fmt(x),
       onChange: (x) => o.onChange(normalize(x)),
-      // Si tu knob soporta "center", pásalo. Si NO lo soporta aún,
-      // lo implementamos en knob.ts (ver sección 3).
-      // @ts-expect-error - lo agregaremos si falta
       center: o.center,
     });
     return k.el;

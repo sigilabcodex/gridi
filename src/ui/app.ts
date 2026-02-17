@@ -3,7 +3,7 @@ import type { Patch, VisualKind } from "../patch";
 import { clamp, defaultPatch, getVoices, isVisual, makeNewVoice, makeVisual } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
-import { renderVoiceModule } from "./voiceModule";
+import { renderVoiceModule, type VoiceTab } from "./voiceModule";
 import { renderVisualModule } from "./visualModule";
 import { renderAddModuleSlot } from "./AddModuleSlot";
 import { loadSettings, saveSettings } from "../settings/store";
@@ -254,7 +254,6 @@ applyUserCss(settings.ui.customCss);
   });
 
   // UI-only Adv state per module id
-  type VoiceTab = "MAIN" | "GEN" | "MIDI";
 
 const voiceTabs = new Map<string, VoiceTab>();
 const getVoiceTab = (id: string): VoiceTab => voiceTabs.get(id) ?? "MAIN";

@@ -436,17 +436,4 @@ export function renderVoiceModule(
   };
 }
 
-function labelEl(t: string) {
-  const l = document.createElement("label");
-  l.textContent = t;
-  return l;
-}
 
-function numBox(value: number, min: number, max: number) {
-  const n = document.createElement("input");
-  n.type = "number";
-  n.value = String(value);
-  n.min = String(min);
-  n.max = String(max);
-  return n;
-}
