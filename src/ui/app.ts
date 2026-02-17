@@ -8,7 +8,6 @@ import { renderVisualModule } from "./visualModule";
 import { renderAddModuleSlot } from "./AddModuleSlot";
 import { loadSettings, saveSettings } from "../settings/store";
 
-
 const BANK_COUNT = 4;
 
 // --- storage keys (v0.30)
