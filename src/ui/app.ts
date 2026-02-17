@@ -6,7 +6,10 @@ import type { Scheduler } from "../engine/scheduler";
 import { renderVoiceModule, type VoiceTab } from "./voiceModule";
 import { renderVisualModule } from "./visualModule";
 import { renderAddModuleSlot } from "./AddModuleSlot";
+import { settingsSchema } from "../settings/schema";
 import { loadSettings, saveSettings } from "../settings/store";
+import type { AppSettings } from "../settings/types";
+import { APP_DISPLAY_NAME } from "../version";
 
 const BANK_COUNT = 4;
 
@@ -89,32 +92,20 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return n;
 }
 
-// UI switch helper (uses .switchRow/.switch/.switchKnob styles)
-function makeSwitch(labelText: string, value: boolean, onChange: (v: boolean) => void) {
-  const row = el("div", "switchRow");
-  const label = el("div", "switchLabel", labelText);
+function getSettingValue(settings: AppSettings, key: string): any {
+  return key.split(".").reduce<any>((acc, part) => acc?.[part], settings);
+}
 
-  const sw = el("button", "switch" + (value ? " on" : "")) as HTMLButtonElement;
-  sw.type = "button";
-  sw.setAttribute("role", "switch");
-  sw.setAttribute("aria-checked", value ? "true" : "false");
+function setSettingValue(settings: AppSettings, key: string, value: any) {
+  const parts = key.split(".");
+  let ref: any = settings;
 
-  const knob = el("div", "switchKnob");
-  sw.appendChild(knob);
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!ref[parts[i]]) ref[parts[i]] = {};
+    ref = ref[parts[i]];
+  }
 
-  const set = (v: boolean) => {
-    value = v;
-    sw.className = "switch" + (value ? " on" : "");
-    sw.setAttribute("aria-checked", value ? "true" : "false");
-  };
-
-  sw.onclick = () => {
-    set(!value);
-    onChange(value);
-  };
-
-  row.append(label, sw);
-  return { row, set };
+  ref[parts[parts.length - 1]] = value;
 }
 
 // modal helper
@@ -267,7 +258,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
   // ===== header =====
   const header = document.createElement("header");
   const h1 = document.createElement("h1");
-  h1.textContent = "GRIDI 0.30";
+  h1.textContent = APP_DISPLAY_NAME;
 
   const status = document.createElement("div");
   status.className = "small";
@@ -603,44 +594,97 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
     const m = makeModal("Settings");
     const body = m.body;
 
-  // Experimental toggle
-  const swExp = makeSwitch("Experimental mode", settings.ui.experimental, (v) => {
-  settings.ui.experimental = v;
-  saveSettings(settings);
-  updateStatus();
- });
+    const grouped = new Map<string, typeof settingsSchema>();
+    for (const def of settingsSchema) {
+      const list = grouped.get(def.section) ?? [];
+      list.push(def);
+      grouped.set(def.section, list);
+    }
 
-  // Welcome toggle
-  const swWel = makeSwitch("Show welcome screen on load", !settings.ui.hideWelcome, (v) => {
-  settings.ui.hideWelcome = !v;
-  saveSettings(settings);
- });
+    for (const [section, defs] of grouped) {
+      const sectionWrap = el("div", "settingsBlock");
+      sectionWrap.appendChild(el("div", "small", section));
 
-    // Custom CSS
-    const cssWrap = el("div", "settingsBlock");
-    const cssLab = el("div", "small", "Custom CSS (saved locally)");
-    const cssTA = document.createElement("textarea");
-    cssTA.className = "cssBox";
-    cssTA.value = settings.ui.customCss;
-    const cssBtns = el("div", "settingsBtnRow");
-    const btnApply = el("button", "primary", "Apply CSS");
-    const btnClear = el("button", "", "Clear");
-    btnApply.onclick = () => {
-    settings.ui.customCss = cssTA.value;
-    saveSettings(settings);
-    applyUserCss(settings.ui.customCss);
-    };
+      for (const def of defs) {
+        const row = el("div", "settingsBlock");
+        const currentValue = getSettingValue(settings, def.key);
 
-    btnClear.onclick = () => {
-  cssTA.value = "";
-  settings.ui.customCss = "";
-  saveSettings(settings);
-  applyUserCss("");
- };
+        if (def.type === "boolean") {
+          const label = el("label", "chkRow");
+          const input = document.createElement("input");
+          input.type = "checkbox";
+          input.checked = Boolean(currentValue);
+          input.onchange = () => {
+            setSettingValue(settings, def.key, input.checked);
+            saveSettings(settings);
+            if (def.key === "ui.experimental") updateStatus();
+            if (def.key === "ui.customCss") applyUserCss(String(getSettingValue(settings, def.key) ?? ""));
+          };
+          label.append(input, el("span", "small", def.label));
+          row.appendChild(label);
+        } else if (def.type === "number") {
+          const label = el("div", "small", def.label);
+          const input = document.createElement("input");
+          input.type = "number";
+          if (def.min != null) input.min = String(def.min);
+          if (def.max != null) input.max = String(def.max);
+          if (def.step != null) input.step = String(def.step);
+          input.value = String(currentValue ?? def.default);
+          input.onchange = () => {
+            const parsed = Number.parseFloat(input.value);
+            const next = Number.isFinite(parsed) ? parsed : def.default;
+            setSettingValue(settings, def.key, next);
+            saveSettings(settings);
+            input.value = String(next);
+          };
+          row.append(label, input);
+        } else if (def.type === "select") {
+          const label = el("div", "small", def.label);
+          const input = document.createElement("select");
+          for (const opt of def.options ?? []) {
+            const option = document.createElement("option");
+            option.value = String(opt.value);
+            option.textContent = opt.label;
+            input.appendChild(option);
+          }
+          input.value = String(currentValue ?? def.default);
+          input.onchange = () => {
+            setSettingValue(settings, def.key, input.value);
+            saveSettings(settings);
+          };
+          row.append(label, input);
+        } else if (def.type === "textarea") {
+          const label = el("div", "small", def.label);
+          const input = document.createElement("textarea");
+          input.className = def.key === "ui.customCss" ? "cssBox" : "jsonBox";
+          input.value = String(currentValue ?? def.default ?? "");
 
+          const btns = el("div", "settingsBtnRow");
+          const btnSave = el("button", "primary", "Save");
+          const btnClear = el("button", "", "Clear");
 
-    cssBtns.append(btnApply, btnClear);
-    cssWrap.append(cssLab, cssTA, cssBtns);
+          btnSave.onclick = () => {
+            setSettingValue(settings, def.key, input.value);
+            saveSettings(settings);
+            if (def.key === "ui.customCss") applyUserCss(input.value);
+          };
+
+          btnClear.onclick = () => {
+            input.value = "";
+            setSettingValue(settings, def.key, "");
+            saveSettings(settings);
+            if (def.key === "ui.customCss") applyUserCss("");
+          };
+
+          btns.append(btnSave, btnClear);
+          row.append(label, input, btns);
+        }
+
+        sectionWrap.appendChild(row);
+      }
+
+      body.appendChild(sectionWrap);
+    }
 
     // Import / Export
     const ieWrap = el("div", "settingsBlock");
@@ -725,22 +769,22 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
     ieBtns.append(btnCopyPatch, btnCopyBanks, btnImportPatch, btnImportBanks);
     ieWrap.append(ieLab, ieTA, ieBtns);
-
-    body.append(swExp.row, swWel.row, cssWrap, ieWrap);
+    body.appendChild(ieWrap);
 
     m.open();
   }
+
 
   // ===== Welcome modal =====
   function maybeShowWelcome() {
     if (settings.ui.hideWelcome) return;
 
-    const w = makeModal("Welcome to GRIDI");
+    const w = makeModal(`Welcome to ${APP_DISPLAY_NAME}`);
     const body = w.body;
 
     const p = el("div", "welcomeText");
     p.innerHTML = `
-      <p><b>GRIDI</b> is a generative rhythmic instrument.</p>
+      <p><b>${APP_DISPLAY_NAME}</b> is a generative rhythmic instrument.</p>
       <p>To start audio, the browser requires a user gesture.</p>
       <p class="small">Tips: Space = Play/Stop. Ctrl/Cmd+Z/Y = Undo/Redo. ⚙ has export/import and custom CSS.</p>
     `;

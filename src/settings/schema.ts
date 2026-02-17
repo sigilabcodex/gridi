@@ -1,4 +1,3 @@
- 
 // src/settings/schema.ts
 
 import type { SettingDef } from "./types"
@@ -18,7 +17,7 @@ export const settingsSchema: SettingDef[] = [
     ]
   },
   {
-    key: "ui.customCSS",
+    key: "ui.customCss",
     section: "General",
     label: "Custom CSS",
     type: "textarea",
@@ -28,6 +27,20 @@ export const settingsSchema: SettingDef[] = [
     key: "ui.reduceMotion",
     section: "General",
     label: "Reduce Motion",
+    type: "boolean",
+    default: false
+  },
+  {
+    key: "ui.experimental",
+    section: "General",
+    label: "Experimental mode",
+    type: "boolean",
+    default: false
+  },
+  {
+    key: "ui.hideWelcome",
+    section: "General",
+    label: "Hide welcome screen on load",
     type: "boolean",
     default: false
   },
@@ -61,27 +74,5 @@ export const settingsSchema: SettingDef[] = [
     label: "Tooltips",
     type: "boolean",
     default: true
-  },
-  {
-  key: "ui.experimental",
-  section: "General",
-  label: "Experimental mode",
-  type: "boolean",
-  default: false
-},
-{
-  key: "ui.hideWelcome",
-  section: "General",
-  label: "Hide welcome screen on load",
-  type: "boolean",
-  default: false
-},
-{
-  key: "ui.customCss",
-  section: "General",
-  label: "Custom CSS",
-  type: "textarea",
-  default: ""
-}
-
+  }
 ]
