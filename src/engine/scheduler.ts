@@ -2,6 +2,7 @@
 import type { Patch, VoiceModule } from "../patch";
 import { getVoices } from "../patch";
 import type { Engine } from "./audio";
+import { genStepPattern } from "./pattern/stepPatternModule";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -124,15 +125,6 @@ export function createScheduler(engine: Engine): Scheduler {
     if (rot === 0) return p;
     const out = new Uint8Array(n);
     for (let i = 0; i < n; i++) out[i] = p[(i - rot + n) % n];
-    return out;
-  }
-
-  function genStepPattern(v: VoiceModule) {
-    const n = Math.max(1, Math.min(128, v.length | 0));
-    const rnd = xorshift32(v.seed | 0);
-    const prob = clamp01(v.density);
-    const out = new Uint8Array(n);
-    for (let i = 0; i < n; i++) out[i] = rnd() < prob ? 1 : 0;
     return out;
   }
 
