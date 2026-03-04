@@ -286,8 +286,12 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
   const btnPlay = document.createElement("button");
   const updatePlayBtn = () => (btnPlay.textContent = sched.running ? "Stop" : "Play");
-  btnPlay.onclick = () => {
+  btnPlay.onclick = async () => {
     if (!sched.running) {
+      if (engine.ctx.state !== "running") {
+        await engine.start();
+        updateAudioBtn();
+      }
       sched.setBpm(patch.bpm);
       sched.setPatch(patch, { regen: false });
       sched.start();
