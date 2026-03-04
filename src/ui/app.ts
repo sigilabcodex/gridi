@@ -594,6 +594,11 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
     const m = makeModal("Settings");
     const body = m.body;
 
+    const settingsIntro = el("div", "small settingsIntro");
+    settingsIntro.textContent =
+      "Tip: Audio can only start after a tap/click in this tab. Shortcuts: Space = Play/Stop, Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y = Redo.";
+    body.appendChild(settingsIntro);
+
     const grouped = new Map<string, typeof settingsSchema>();
     for (const def of settingsSchema) {
       const list = grouped.get(def.section) ?? [];
@@ -784,10 +789,11 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
     const p = el("div", "welcomeText");
     p.innerHTML = `
-      <p><b>${APP_DISPLAY_NAME}</b> is a generative rhythmic instrument.</p>
-      <p>To start audio, the browser requires a user gesture.</p>
-      <p class="small">Tips: Space = Play/Stop. Ctrl/Cmd+Z/Y = Undo/Redo. ⚙ has export/import and custom CSS.</p>
-      <p class="small welcomeDedication">Dedicated to Taniel Morales (1970–2026) — artist, teacher, friend.</p>
+      <p><b>${APP_DISPLAY_NAME}</b> is a generative rhythm instrument for touch and desktop play.</p>
+      <p>Audio starts only after a tap or click in this browser tab.</p>
+      <p class="small">Shortcuts: Space = Play/Stop. Ctrl/Cmd+Z = Undo. Ctrl/Cmd+Shift+Z (or Ctrl/Cmd+Y) = Redo.</p>
+      <p class="small">Open <b>⚙ Settings</b> for import/export and custom CSS.</p>
+      <p class="small welcomeDedication"><span>Dedicated to Taniel Morales</span><span>1970–2026 · artist, teacher, friend.</span></p>
     `;
 
     const row = el("div", "settingsBtnRow");
