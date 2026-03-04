@@ -288,16 +288,19 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
   const updatePlayBtn = () => (btnPlay.textContent = sched.running ? "Stop" : "Play");
   btnPlay.onclick = async () => {
     if (!sched.running) {
+      // Ensure AudioContext resumes from explicit user gesture
       if (engine.ctx.state !== "running") {
         await engine.start();
         updateAudioBtn();
       }
+
       sched.setBpm(patch.bpm);
       sched.setPatch(patch, { regen: false });
       sched.start();
     } else {
       sched.stop();
     }
+
     updatePlayBtn();
     updateStatus();
   };
