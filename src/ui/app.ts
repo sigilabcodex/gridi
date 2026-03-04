@@ -286,8 +286,10 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
   const btnPlay = document.createElement("button");
   const updatePlayBtn = () => (btnPlay.textContent = sched.running ? "Stop" : "Play");
-  btnPlay.onclick = () => {
+  btnPlay.onclick = async () => {
     if (!sched.running) {
+      // Resume audio context from an explicit user gesture before transport starts.
+      await engine.start();
       sched.setBpm(patch.bpm);
       sched.setPatch(patch, { regen: false });
       sched.start();
