@@ -79,4 +79,38 @@ function eventBeats(window) {
   assert.equal(uniqueCount, scheduled.length, 'scheduled beats should contain no duplicates');
 })();
 
+(function testDeterministicDropPerStepAcrossWindows() {
+  const voice = makeVoice({ seed: 901, length: 16, density: 1, subdiv: 4, drop: 0.5 });
+  const a = renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 2.0, endBeat: 3.0 });
+  const b = renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 2.0, endBeat: 3.0 });
+  assert.deepEqual(a, b, 'drop decisions should be deterministic for same window');
+
+  const windows = [
+    renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 2.0, endBeat: 2.7 }),
+    renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 2.3, endBeat: 3.0 }),
+  ];
+
+  const eps = 1e-9;
+  let lastScheduledBeat = Number.NEGATIVE_INFINITY;
+  const scheduled = [];
+
+  for (const window of windows) {
+    for (const ev of window.events) {
+      const beat = window.startBeat + ev.beatOffset;
+      if (beat <= lastScheduledBeat + eps) continue;
+      scheduled.push(beat);
+      lastScheduledBeat = beat;
+    }
+  }
+
+  const reference = renderStepWindow({
+    voice,
+    voiceId: voice.id,
+    voiceIndex: 0,
+    startBeat: 2.0,
+    endBeat: 3.0,
+  });
+  assert.deepEqual(scheduled, eventBeats(reference), 'overlap + dedupe should match single-pass dropped window');
+})();
+
 console.log('stepEventWindow tests passed');

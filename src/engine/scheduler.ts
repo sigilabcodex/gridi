@@ -22,7 +22,6 @@ type VoiceState = {
   step: number;
   nextTime: number;
   pattern: Uint8Array; // 0/1 steps
-  stepOriginBeat: number;
   lastScheduledBeat: number;
 };
 
@@ -35,6 +34,8 @@ export function createScheduler(engine: Engine): Scheduler {
 
   let bpm = 124;
   let patch: Patch | null = null;
+  let transportStartTimeSec = 0;
+  let transportStartBeatAbs = 0;
 
   // states by VOICE ID (stable across reordering)
   const states = new Map<string, VoiceState>();
@@ -52,7 +53,6 @@ export function createScheduler(engine: Engine): Scheduler {
         step: 0,
         nextTime: 0,
         pattern: new Uint8Array([1]),
-        stepOriginBeat: 0,
         lastScheduledBeat: Number.NEGATIVE_INFINITY,
       };
       states.set(voiceId, st);
@@ -61,7 +61,13 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   function setBpm(next: number) {
-    bpm = Math.max(20, Math.min(400, next | 0));
+    const clamped = Math.max(20, Math.min(400, next | 0));
+    if (running) {
+      const nowSec = engine.ctx.currentTime;
+      transportStartBeatAbs = getBeatAbs(nowSec);
+      transportStartTimeSec = nowSec;
+    }
+    bpm = clamped;
   }
 
   function secondsPerBeat() {
@@ -72,6 +78,10 @@ export function createScheduler(engine: Engine): Scheduler {
     const beat = secondsPerBeat();
     const denom = 2 * v.subdiv; // 1->2,2->4,4->8,8->16
     return beat / denom;
+  }
+
+  function getBeatAbs(nowSec: number) {
+    return transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
   }
 
   // ---------- pattern generation helpers ----------
@@ -256,15 +266,15 @@ export function createScheduler(engine: Engine): Scheduler {
       if (v.mode === "step") {
         const secPerBeat = secondsPerBeat();
         const windowStartSec = now;
-        const windowStartBeatAbs = windowStartSec / secPerBeat;
-        const windowEndBeatAbs = (windowStartSec + lookaheadSec) / secPerBeat;
+        const windowStartBeatAbs = getBeatAbs(windowStartSec);
+        const windowEndBeatAbs = getBeatAbs(windowStartSec + lookaheadSec);
 
         const window = renderStepWindow({
           voice: v,
           voiceId,
           voiceIndex: i,
-          startBeat: windowStartBeatAbs - st.stepOriginBeat,
-          endBeat: windowEndBeatAbs - st.stepOriginBeat,
+          startBeat: windowStartBeatAbs,
+          endBeat: windowEndBeatAbs,
         });
 
         const eps = 1e-9;
@@ -311,7 +321,6 @@ export function createScheduler(engine: Engine): Scheduler {
         const st = getState(id);
         st.step = 0;
         st.nextTime = now;
-        st.stepOriginBeat = now / secondsPerBeat();
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     } else {
@@ -319,10 +328,12 @@ export function createScheduler(engine: Engine): Scheduler {
       for (const st of states.values()) {
         st.step = 0;
         st.nextTime = now;
-        st.stepOriginBeat = now / secondsPerBeat();
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     }
+
+    transportStartTimeSec = now;
+    transportStartBeatAbs = 0;
 
     timer = window.setInterval(scheduleLoop, intervalMs);
   }
@@ -337,9 +348,10 @@ export function createScheduler(engine: Engine): Scheduler {
     for (const st of states.values()) {
       st.nextTime = 0;
       st.step = 0;
-      st.stepOriginBeat = 0;
       st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
+    transportStartTimeSec = 0;
+    transportStartBeatAbs = 0;
   }
 
   return {
