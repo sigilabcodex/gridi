@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "build:gh": "tsc && vite build --mode gh"
+    "build:gh": "tsc && vite build --mode gh",
+    "test:step": "tsx tests/stepEventWindow.test.mjs"
   },
   "devDependencies": {
     "typescript": "~5.9.3",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "tsx": "^4.20.5"
   }
 }
