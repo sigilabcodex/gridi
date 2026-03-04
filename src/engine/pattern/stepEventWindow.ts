@@ -29,7 +29,8 @@ export function renderStepWindow(params: {
 }): EventWindow {
   const { voice, voiceId, voiceIndex, startBeat, endBeat } = params;
   const pattern = genStepPattern(voice);
-  const stepsPerBeat = 2 * voice.subdiv;
+  const subdiv = Math.max(1, voice.subdiv | 0);
+  const stepsPerBeat = 2 * subdiv;
   const drop = clamp01(voice.drop);
   const eps = 1e-9;
 

@@ -76,7 +76,8 @@ export function createScheduler(engine: Engine): Scheduler {
 
   function voiceStepDur(v: VoiceModule) {
     const beat = secondsPerBeat();
-    const denom = 2 * v.subdiv; // 1->2,2->4,4->8,8->16
+    const subdiv = Math.max(1, v.subdiv | 0);
+    const denom = 2 * subdiv; // 1->2,2->4,4->8,8->16
     return beat / denom;
   }
 
