@@ -219,7 +219,7 @@ export function createScheduler(engine: Engine): Scheduler {
     }
 
     const drop = clamp01(v.drop);
-    if (drop > 0) {
+    if (drop > 0 && v.mode !== "step") {
       const rnd = xorshift32(v.seed ^ 0x1234567);
       const out = new Uint8Array(p.length);
       for (let k = 0; k < p.length; k++) out[k] = p[k] && rnd() >= drop ? 1 : 0;
