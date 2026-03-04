@@ -2,6 +2,7 @@
 import type { Patch, VoiceModule } from "../patch";
 import { getVoices } from "../patch";
 import type { Engine } from "./audio";
+import { renderStepWindow } from "./pattern/stepEventWindow";
 import { genStepPattern } from "./pattern/stepPatternModule";
 
 export type Scheduler = {
@@ -21,6 +22,7 @@ type VoiceState = {
   step: number;
   nextTime: number;
   pattern: Uint8Array; // 0/1 steps
+  lastScheduledBeat: number;
 };
 
 export function createScheduler(engine: Engine): Scheduler {
@@ -32,6 +34,8 @@ export function createScheduler(engine: Engine): Scheduler {
 
   let bpm = 124;
   let patch: Patch | null = null;
+  let transportStartTimeSec = 0;
+  let transportStartBeatAbs = 0;
 
   // states by VOICE ID (stable across reordering)
   const states = new Map<string, VoiceState>();
@@ -45,14 +49,25 @@ export function createScheduler(engine: Engine): Scheduler {
   function getState(voiceId: string): VoiceState {
     let st = states.get(voiceId);
     if (!st) {
-      st = { step: 0, nextTime: 0, pattern: new Uint8Array([1]) };
+      st = {
+        step: 0,
+        nextTime: 0,
+        pattern: new Uint8Array([1]),
+        lastScheduledBeat: Number.NEGATIVE_INFINITY,
+      };
       states.set(voiceId, st);
     }
     return st;
   }
 
   function setBpm(next: number) {
-    bpm = Math.max(20, Math.min(400, next | 0));
+    const clamped = Math.max(20, Math.min(400, next | 0));
+    if (running) {
+      const nowSec = engine.ctx.currentTime;
+      transportStartBeatAbs = getBeatAbs(nowSec);
+      transportStartTimeSec = nowSec;
+    }
+    bpm = clamped;
   }
 
   function secondsPerBeat() {
@@ -61,8 +76,13 @@ export function createScheduler(engine: Engine): Scheduler {
 
   function voiceStepDur(v: VoiceModule) {
     const beat = secondsPerBeat();
-    const denom = 2 * v.subdiv; // 1->2,2->4,4->8,8->16
+    const subdiv = Math.max(1, v.subdiv | 0);
+    const denom = 2 * subdiv; // 1->2,2->4,4->8,8->16
     return beat / denom;
+  }
+
+  function getBeatAbs(nowSec: number) {
+    return transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
   }
 
   // ---------- pattern generation helpers ----------
@@ -199,7 +219,7 @@ export function createScheduler(engine: Engine): Scheduler {
     }
 
     const drop = clamp01(v.drop);
-    if (drop > 0) {
+    if (drop > 0 && v.mode !== "step") {
       const rnd = xorshift32(v.seed ^ 0x1234567);
       const out = new Uint8Array(p.length);
       for (let k = 0; k < p.length; k++) out[k] = p[k] && rnd() >= drop ? 1 : 0;
@@ -209,6 +229,7 @@ export function createScheduler(engine: Engine): Scheduler {
     const st = getState(voiceId);
     st.pattern = p;
     st.step = 0;
+    st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     // st.nextTime intentionally NOT forced here; start()/stop() handle timing reset
   }
 
@@ -243,6 +264,32 @@ export function createScheduler(engine: Engine): Scheduler {
       const voiceId = getVoiceId(v, i);
       const st = getState(voiceId);
 
+      if (v.mode === "step") {
+        const secPerBeat = secondsPerBeat();
+        const windowStartSec = now;
+        const windowStartBeatAbs = getBeatAbs(windowStartSec);
+        const windowEndBeatAbs = getBeatAbs(windowStartSec + lookaheadSec);
+
+        const window = renderStepWindow({
+          voice: v,
+          voiceId,
+          voiceIndex: i,
+          startBeat: windowStartBeatAbs,
+          endBeat: windowEndBeatAbs,
+        });
+
+        const eps = 1e-9;
+        for (const ev of window.events) {
+          const eventBeat = window.startBeat + ev.beatOffset;
+          if (eventBeat <= st.lastScheduledBeat + eps) continue;
+
+          const eventSec = windowStartSec + ev.beatOffset * secPerBeat;
+          engine.triggerVoice(i, patch, eventSec);
+          st.lastScheduledBeat = eventBeat;
+        }
+        continue;
+      }
+
       const stepDur = voiceStepDur(v);
 
       if (st.nextTime === 0) st.nextTime = now;
@@ -275,14 +322,19 @@ export function createScheduler(engine: Engine): Scheduler {
         const st = getState(id);
         st.step = 0;
         st.nextTime = now;
+        st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     } else {
       // If no patch yet, just reset any existing states
       for (const st of states.values()) {
         st.step = 0;
         st.nextTime = now;
+        st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     }
+
+    transportStartTimeSec = now;
+    transportStartBeatAbs = 0;
 
     timer = window.setInterval(scheduleLoop, intervalMs);
   }
@@ -297,7 +349,10 @@ export function createScheduler(engine: Engine): Scheduler {
     for (const st of states.values()) {
       st.nextTime = 0;
       st.step = 0;
+      st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
+    transportStartTimeSec = 0;
+    transportStartBeatAbs = 0;
   }
 
   return {
