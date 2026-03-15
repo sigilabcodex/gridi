@@ -10,6 +10,7 @@ function makeVoice(overrides = {}) {
     enabled: true,
     kind: 'drum',
     mode: 'step',
+    patternSource: 'self',
     seed: 12345,
     determinism: 0.8,
     gravity: 0.6,
@@ -216,6 +217,90 @@ function absoluteBeats(window) {
 
   const unique = new Set(beats);
   assert.equal(unique.size, beats.length, 'scheduler should not duplicate events across overlap windows');
+})();
+
+(function testSchedulerUsesExternalPatternSourceDeterministically() {
+  const source = makeVoice({ id: 'source-voice', mode: 'euclid', length: 16, density: 0.25, drop: 0, seed: 7, patternSource: 'self' });
+  const follower = makeVoice({ id: 'follower-voice', mode: 'step', seed: 123, density: 1, drop: 0, patternSource: source.id });
+
+  const patch = {
+    ...makePatch(follower),
+    modules: [follower, source],
+  };
+
+  const triggered = [];
+  const engine = {
+    ctx: { currentTime: 0 },
+    triggerVoice: (i, _patch, when) => {
+      triggered.push({ i, when });
+    },
+  };
+
+  let intervalFn = null;
+  globalThis.window = {
+    setInterval: (fn) => {
+      intervalFn = fn;
+      return 1;
+    },
+    clearInterval: () => {},
+  };
+
+  const scheduler = createScheduler(engine);
+  scheduler.setBpm(120);
+  scheduler.setPatch(patch);
+  scheduler.start();
+
+  for (const t of [0, 0.025, 0.05, 0.075]) {
+    engine.ctx.currentTime = t;
+    intervalFn();
+  }
+
+  scheduler.stop();
+
+  const secPerBeat = 60 / 120;
+  const beats = triggered.filter((x) => x.i === 0).map((x) => +(x.when / secPerBeat).toFixed(6));
+
+  const expected = createPatternModuleForVoice(source).renderWindow({
+    voice: source,
+    voiceId: follower.id,
+    source: { type: 'module', moduleId: source.id },
+    startBeat: 0,
+    endBeat: 0.48,
+  }).events.map((ev) => +ev.beatOffset.toFixed(6));
+
+  assert.deepEqual(beats, expected, 'follower voice should schedule using external source pattern deterministically');
+})();
+
+(function testSchedulerFallsBackToSelfForMissingSource() {
+  const voice = makeVoice({ id: 'lonely-voice', mode: 'step', patternSource: 'missing-source', density: 1, drop: 0, subdiv: 4, length: 8 });
+  const patch = makePatch(voice);
+
+  const triggered = [];
+  const engine = {
+    ctx: { currentTime: 0 },
+    triggerVoice: (_i, _patch, when) => triggered.push(when),
+  };
+
+  let intervalFn = null;
+  globalThis.window = {
+    setInterval: (fn) => {
+      intervalFn = fn;
+      return 1;
+    },
+    clearInterval: () => {},
+  };
+
+  const scheduler = createScheduler(engine);
+  scheduler.setBpm(120);
+  scheduler.setPatch(patch);
+  scheduler.start();
+  engine.ctx.currentTime = 0;
+  intervalFn();
+  scheduler.stop();
+
+  const secPerBeat = 60 / 120;
+  const beats = triggered.map((t) => +(t / secPerBeat).toFixed(6));
+  assert.deepEqual(beats, [0], 'missing external source should gracefully fall back to self pattern');
 })();
 
 console.log('pattern module + scheduler tests passed');

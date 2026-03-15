@@ -1,5 +1,5 @@
 // src/ui/voiceModule.ts
-import type { Patch, Mode, VoiceModule } from "../patch";
+import type { Patch, Mode, PatternSource, VoiceModule } from "../patch";
 import { ctlFloat } from "./ctl";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
@@ -11,6 +11,12 @@ type UiState = {
   setTab: (t: VoiceTab) => void;
 };
 
+
+type PatternSourceOption = {
+  id: string;
+  label: string;
+};
+
 export function renderVoiceModule(
   root: HTMLElement,
   _patch: Patch,
@@ -19,6 +25,7 @@ export function renderVoiceModule(
   getLedState: (voiceIndex: number) => { active: boolean; hit: boolean },
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   ui: UiState,
+  patternSources: PatternSourceOption[],
   onRemove?: () => void
 ) {
   const card = document.createElement("section");
@@ -209,6 +216,43 @@ export function renderVoiceModule(
   // assemble top row
   seqTopRow.append(sel, seed, seedBtn);
 
+  // Pattern source select
+  const sourceRow = document.createElement("div");
+  sourceRow.className = "seqSourceRow";
+
+  const sourceLabel = document.createElement("div");
+  sourceLabel.className = "small";
+  sourceLabel.textContent = "Pattern Source";
+
+  const sourceSel = document.createElement("select");
+  for (const opt of patternSources) {
+    const o = document.createElement("option");
+    o.value = opt.id;
+    o.textContent = opt.label;
+    if (opt.id === v.patternSource) o.selected = true;
+    sourceSel.appendChild(o);
+  }
+
+  const hasCurrent = patternSources.some((opt) => opt.id === v.patternSource);
+  if (!hasCurrent && v.patternSource !== "self") {
+    const missing = document.createElement("option");
+    missing.value = v.patternSource;
+    missing.textContent = `Missing (${v.patternSource})`;
+    missing.selected = true;
+    sourceSel.appendChild(missing);
+  }
+
+  sourceSel.onchange = () =>
+    onPatchChange(
+      (p) => {
+        const m = p.modules.find((x) => x.id === v.id);
+        if (m && m.type === "voice") m.patternSource = sourceSel.value as PatternSource;
+      },
+      { regen: true }
+    );
+
+  sourceRow.append(sourceLabel, sourceSel);
+
   // ---- SEQ controls
   const adv = document.createElement("div");
   adv.className = "adv";
@@ -395,7 +439,7 @@ export function renderVoiceModule(
 
   const spacer = document.createElement("div");
   spacer.className = "spacer";
-  panelSeq.append(seqTopRow, spacer, adv);
+  panelSeq.append(seqTopRow, sourceRow, spacer, adv);
 
 
   // --- MIDI placeholder

@@ -1,6 +1,6 @@
 // src/ui/app.ts
 import type { Patch, VisualKind } from "../patch";
-import { clamp, defaultPatch, getVoices, isVisual, makeNewVoice, makeVisual } from "../patch";
+import { clamp, defaultPatch, getVoices, isVisual, makeNewVoice, makeVisual, migratePatch } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { renderVoiceModule, type VoiceTab } from "./voiceModule";
@@ -64,7 +64,10 @@ function loadState(): PersistedState | null {
   const banks = banksRaw.filter(isPatchLike);
   if (!banks.length) return null;
 
-  return { bank: clamp(bank, 0, BANK_COUNT - 1), banks: ensureBankCount(banks, BANK_COUNT) };
+  return {
+    bank: clamp(bank, 0, BANK_COUNT - 1),
+    banks: ensureBankCount(banks, BANK_COUNT).map((p) => migratePatch(p)),
+  };
 }
 
 function saveState(bank: number, banks: Patch[]) {
@@ -533,8 +536,18 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
     updaters = [];
 
     const voices = getVoices(patch);
+    const patternSourceOptions = voices.map((voice) => ({
+      id: voice.id,
+      label: `${voice.name} (${voice.id.slice(-4)})`,
+    }));
+
     for (let i = 0; i < voices.length; i++) {
       const v = voices[i];
+      const sourceOptions = [
+        { id: "self", label: "Self" },
+        ...patternSourceOptions.filter((opt) => opt.id !== v.id),
+      ];
+
       const upd = renderVoiceModule(
         grid,
         patch,
@@ -546,6 +559,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
          tab: getVoiceTab(v.id),
          setTab: (t) => setVoiceTab(v.id, t),
       },
+        sourceOptions,
 
         () => {
           const prev = clonePatch(patch);
@@ -726,7 +740,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
         return;
       }
       const prev = clonePatch(patch);
-      patch = parsed;
+      patch = migratePatch(parsed);
       banks[bank] = patch;
       pushHistory(prev);
       syncEngineFromPatch(patch, true);
@@ -756,7 +770,7 @@ const setVoiceTab = (id: string, t: VoiceTab) => voiceTabs.set(id, t);
 
       const prev = clonePatch(patch);
 
-      const nextBanks = ensureBankCount(filtered, BANK_COUNT);
+      const nextBanks = ensureBankCount(filtered, BANK_COUNT).map((p) => migratePatch(p));
       const nextBank = typeof bankIn === "number" ? clamp(bankIn, 0, BANK_COUNT - 1) : 0;
 
       bank = nextBank;
