@@ -2,9 +2,15 @@ import type { VoiceModule } from "../../patch";
 import { genStepPattern } from "./stepPatternModule.ts";
 import type { EventWindow } from "./eventWindow.ts";
 
-function clamp01(x: number) {
-  return Math.max(0, Math.min(1, x));
-}
+type StepWindowRenderParams = {
+  voice: VoiceModule;
+  voiceId: string;
+  voiceIndex: number;
+  startBeat: number;
+  endBeat: number;
+};
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
 
 function hashString(s: string) {
   let h = 0;
@@ -20,13 +26,12 @@ function stepRandom01(seed: number, voiceId: string, stepIndex: number) {
   return (x >>> 0) / 4294967296;
 }
 
-export function renderStepWindow(params: {
-  voice: VoiceModule;
-  voiceId: string;
-  voiceIndex: number;
-  startBeat: number;
-  endBeat: number;
-}): EventWindow {
+function isStepActive(pattern: Uint8Array, stepIndex: number) {
+  const idx = pattern.length > 0 ? ((stepIndex % pattern.length) + pattern.length) % pattern.length : 0;
+  return pattern[idx] === 1;
+}
+
+export function renderStepWindow(params: StepWindowRenderParams): EventWindow {
   const { voice, voiceId, voiceIndex, startBeat, endBeat } = params;
   const pattern = genStepPattern(voice);
   const subdiv = Math.max(1, voice.subdiv | 0);
@@ -42,8 +47,7 @@ export function renderStepWindow(params: {
     if (beat >= endBeat - eps) break;
     if (beat < startBeat - eps) continue;
 
-    const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
-    if (!pattern[idx]) continue;
+    if (!isStepActive(pattern, step)) continue;
     if (drop > 0 && stepRandom01(voice.seed, voiceId, step) < drop) continue;
 
     events.push({
