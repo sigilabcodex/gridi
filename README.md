@@ -68,3 +68,8 @@ This is a rhythmic instrument (or toy).
 **Dedicated to Taniel Morales (1970–2026)**  
 Artist, teacher, friend, seeder of ideas and communities.  
 Who taught that structure and chaos are not opposites but different ways of listening.
+
+### Development
+
+- Run tests: `npm test`
+- Testing guide: `docs/testing.md`

@@ -1,1 +1,1 @@
-export type { PatternEvent as EventWindowEvent, PatternEventWindow as EventWindow } from "./module";
+export type { PatternEvent as EventWindowEvent, PatternEventWindow as EventWindow } from "./module.ts";
