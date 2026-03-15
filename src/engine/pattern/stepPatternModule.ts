@@ -1,4 +1,4 @@
-import type { VoiceModule } from "../../patch";
+import type { VoiceModule } from "../../patch.ts";
 
 export type StepPatternParams = Pick<VoiceModule, "length" | "seed" | "density">;
 

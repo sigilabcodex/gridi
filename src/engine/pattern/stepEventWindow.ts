@@ -1,6 +1,6 @@
-import type { VoiceModule } from "../../patch";
-import { createStepPatternModule } from "./module";
-import type { EventWindow } from "./eventWindow";
+import type { VoiceModule } from "../../patch.ts";
+import { createStepPatternModule } from "./module.ts";
+import type { EventWindow } from "./eventWindow.ts";
 
 type StepWindowRenderParams = {
   voice: VoiceModule;

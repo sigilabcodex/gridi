@@ -1,5 +1,5 @@
 import type { Mode, VoiceModule } from "../../patch";
-import { genStepPattern } from "./stepPatternModule";
+import { genStepPattern } from "./stepPatternModule.ts";
 
 const MAX_PATTERN_STEPS = 128;
 const EPS = 1e-9;

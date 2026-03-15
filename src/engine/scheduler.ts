@@ -1,8 +1,8 @@
 // src/engine/scheduler.ts
-import type { Patch, VoiceModule } from "../patch";
-import { getVoices, isVoice } from "../patch";
+import type { Patch, VoiceModule } from "../patch.ts";
+import { getVoices, isVoice } from "../patch.ts";
 import type { Engine } from "./audio";
-import { createPatternModuleForVoice } from "./pattern/module";
+import { createPatternModuleForVoice } from "./pattern/module.ts";
 
 export type Scheduler = {
   readonly running: boolean;
