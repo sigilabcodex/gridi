@@ -3,7 +3,7 @@ import type { Patch, VoiceModule } from "../patch";
 import { getVoices } from "../patch";
 import type { Engine } from "./audio";
 import { renderStepWindow } from "./pattern/stepEventWindow";
-import { genStepPattern } from "./pattern/stepPatternModule";
+import { renderLegacyVoicePattern } from "./pattern/legacyPatternRenderer";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -18,7 +18,7 @@ export type Scheduler = {
 };
 
 // PR-1 ownership note: scheduler currently mutates sequencing state (step/nextTime/pattern).
-type VoiceState = {
+type VoiceSequenceState = {
   step: number;
   nextTime: number;
   pattern: Uint8Array; // 0/1 steps
@@ -38,7 +38,10 @@ export function createScheduler(engine: Engine): Scheduler {
   let transportStartBeatAbs = 0;
 
   // states by VOICE ID (stable across reordering)
-  const states = new Map<string, VoiceState>();
+  const sequenceStates = new Map<string, VoiceSequenceState>();
+
+  // Invariant: sequence state is keyed by stable voice id, not transient array position.
+  // This keeps playback continuity when UI reorders modules.
 
   function getVoiceId(v: VoiceModule, i: number) {
     // Prefer stable id. Fallback to index-based (only if id missing).
@@ -46,8 +49,8 @@ export function createScheduler(engine: Engine): Scheduler {
     return (v as any).id ? String((v as any).id) : `idx:${i}`;
   }
 
-  function getState(voiceId: string): VoiceState {
-    let st = states.get(voiceId);
+  function getSequenceState(voiceId: string): VoiceSequenceState {
+    let st = sequenceStates.get(voiceId);
     if (!st) {
       st = {
         step: 0,
@@ -55,7 +58,7 @@ export function createScheduler(engine: Engine): Scheduler {
         pattern: new Uint8Array([1]),
         lastScheduledBeat: Number.NEGATIVE_INFINITY,
       };
-      states.set(voiceId, st);
+      sequenceStates.set(voiceId, st);
     }
     return st;
   }
@@ -85,148 +88,9 @@ export function createScheduler(engine: Engine): Scheduler {
     return transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
   }
 
-  // ---------- pattern generation helpers ----------
-  // PR-1 ownership note: pattern generation currently lives in scheduler (legacy path).
-  // Pilot RFC target is to move step-mode generation behind a PatternModule contract.
-  function xorshift32(seed: number) {
-    let x = seed | 0;
-    return () => {
-      x ^= x << 13;
-      x ^= x >>> 17;
-      x ^= x << 5;
-      return (x >>> 0) / 4294967296;
-    };
-  }
-
-  function clamp01(x: number) {
-    return Math.max(0, Math.min(1, x));
-  }
-
-  function bjorklund(steps: number, pulses: number) {
-    steps = Math.max(1, steps | 0);
-    pulses = Math.max(0, Math.min(steps, pulses | 0));
-    if (pulses === 0) return new Uint8Array(steps);
-    if (pulses === steps) return Uint8Array.from({ length: steps }, () => 1);
-
-    const pattern: number[] = [];
-    const counts: number[] = [];
-    const remainders: number[] = [];
-    let divisor = steps - pulses;
-    remainders.push(pulses);
-    let level = 0;
-
-    while (true) {
-      counts.push(Math.floor(divisor / remainders[level]));
-      remainders.push(divisor % remainders[level]);
-      divisor = remainders[level];
-      level++;
-      if (remainders[level] <= 1) break;
-    }
-    counts.push(divisor);
-
-    function build(l: number) {
-      if (l === -1) pattern.push(0);
-      else if (l === -2) pattern.push(1);
-      else {
-        for (let i = 0; i < counts[l]; i++) build(l - 1);
-        if (remainders[l] !== 0) build(l - 2);
-      }
-    }
-    build(level);
-
-    const out = pattern.slice(0, steps);
-    const firstOne = out.indexOf(1);
-    const rot = firstOne > 0 ? firstOne : 0;
-    const rotated = out.slice(rot).concat(out.slice(0, rot));
-    return Uint8Array.from(rotated);
-  }
-
-  function rotatePattern(p: Uint8Array, rot: number) {
-    const n = p.length;
-    if (n <= 1) return p;
-    rot = ((rot | 0) % n + n) % n;
-    if (rot === 0) return p;
-    const out = new Uint8Array(n);
-    for (let i = 0; i < n; i++) out[i] = p[(i - rot + n) % n];
-    return out;
-  }
-
-  function genEuclidPattern(v: VoiceModule) {
-    const n = Math.max(1, Math.min(128, v.length | 0));
-    const k = Math.round(clamp01(v.density) * n);
-    const base = bjorklund(n, k);
-    return rotatePattern(base, v.euclidRot | 0);
-  }
-
-  function genCAPattern(v: VoiceModule) {
-    const n = Math.max(1, Math.min(128, v.length | 0));
-    const rule = (v.caRule | 0) & 255;
-    const rnd = xorshift32(v.seed ^ 0x9e3779b9);
-
-    const row = new Uint8Array(n);
-    const initProb = clamp01(v.caInit);
-    for (let i = 0; i < n; i++) row[i] = rnd() < initProb ? 1 : 0;
-
-    const iters = 6 + Math.floor(clamp01(v.gravity) * 10);
-    let cur = row;
-    let next = new Uint8Array(n);
-
-    for (let t = 0; t < iters; t++) {
-      for (let i = 0; i < n; i++) {
-        const L = cur[(i - 1 + n) % n];
-        const C = cur[i];
-        const R = cur[(i + 1) % n];
-        const idx = (L << 2) | (C << 1) | R;
-        next[i] = (rule >> idx) & 1;
-      }
-      const tmp = cur;
-      cur = next;
-      next = tmp;
-    }
-    return cur;
-  }
-
-  function genHybridPattern(v: VoiceModule) {
-    const a = genEuclidPattern(v);
-    const b = genStepPattern(v);
-    const n = Math.min(a.length, b.length);
-    const out = new Uint8Array(n);
-    const det = clamp01(v.determinism);
-    const rnd = xorshift32((v.seed + 1337) | 0);
-
-    for (let i = 0; i < n; i++) {
-      const noise = (rnd() - 0.5) * 0.6 * clamp01(v.weird);
-      const w = clamp01(det + noise);
-      out[i] = (w >= 0.5 ? a[i] : b[i]) ? 1 : 0;
-    }
-    return out;
-  }
-
-  function regenVoice(voiceId: string, v: VoiceModule) {
-    let p: Uint8Array;
-
-    switch (v.mode) {
-      case "step": p = genStepPattern(v); break;
-      case "euclid": p = genEuclidPattern(v); break;
-      case "ca": p = genCAPattern(v); break;
-      case "fractal":
-        p = genCAPattern({ ...v, seed: v.seed ^ 0xabcdef });
-        break;
-      case "hybrid":
-      default:
-        p = genHybridPattern(v);
-        break;
-    }
-
-    const drop = clamp01(v.drop);
-    if (drop > 0 && v.mode !== "step") {
-      const rnd = xorshift32(v.seed ^ 0x1234567);
-      const out = new Uint8Array(p.length);
-      for (let k = 0; k < p.length; k++) out[k] = p[k] && rnd() >= drop ? 1 : 0;
-      p = out;
-    }
-
-    const st = getState(voiceId);
+  function regenVoicePattern(voiceId: string, v: VoiceModule) {
+    const st = getSequenceState(voiceId);
+    const p = renderLegacyVoicePattern(v);
     st.pattern = p;
     st.step = 0;
     st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
@@ -239,7 +103,7 @@ export function createScheduler(engine: Engine): Scheduler {
     for (let i = 0; i < voices.length; i++) {
       const v = voices[i];
       const id = getVoiceId(v, i);
-      regenVoice(id, v);
+      regenVoicePattern(id, v);
     }
   }
 
@@ -249,8 +113,8 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   function scheduleLoop() {
-    // PR-1 ownership note: scheduler currently performs legacy pattern read + state mutation
-    // and dispatches exact timestamps to engine.triggerVoice().
+    // Scheduler responsibility (current): advance transport cursors and dispatch exact audio times.
+    // TODO(v0.32): replace step-mode path with PatternModule windows for all sequencing modes.
     if (!running || !patch) return;
 
     const voices = getVoices(patch);
@@ -262,7 +126,7 @@ export function createScheduler(engine: Engine): Scheduler {
       if (!v || !v.enabled) continue;
 
       const voiceId = getVoiceId(v, i);
-      const st = getState(voiceId);
+      const st = getSequenceState(voiceId);
 
       if (v.mode === "step") {
         const secPerBeat = secondsPerBeat();
@@ -319,14 +183,14 @@ export function createScheduler(engine: Engine): Scheduler {
       for (let i = 0; i < voices.length; i++) {
         const v = voices[i];
         const id = getVoiceId(v, i);
-        const st = getState(id);
+        const st = getSequenceState(id);
         st.step = 0;
         st.nextTime = now;
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     } else {
       // If no patch yet, just reset any existing states
-      for (const st of states.values()) {
+      for (const st of sequenceStates.values()) {
         st.step = 0;
         st.nextTime = now;
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
@@ -346,7 +210,7 @@ export function createScheduler(engine: Engine): Scheduler {
     timer = null;
 
     // Reset scheduler timing state
-    for (const st of states.values()) {
+    for (const st of sequenceStates.values()) {
       st.nextTime = 0;
       st.step = 0;
       st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
