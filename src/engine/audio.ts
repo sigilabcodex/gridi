@@ -1,6 +1,9 @@
 // src/engine/audio.ts
 import type { Patch, VoiceModule } from "../patch";
-import { clamp, getVoices } from "../patch";
+import { clamp, getVoices, isEffect } from "../patch";
+import type { AudioModuleInstance } from "./audioModule";
+import { createEffectInstance } from "./effects";
+import { collectVoiceRoutes, validateConnections } from "./routing";
 
 export type Engine = {
   ctx: AudioContext;
@@ -11,6 +14,9 @@ export type Engine = {
   start(): Promise<void>;
   setMasterMute(muted: boolean): void;
   setMasterGain(g: number): void;
+  syncRouting(patch: Patch): void;
+  disconnectModule(moduleId: string): void;
+  dispose(): void;
 
   // i = voice index inside getVoices(patch)
   triggerVoice(i: number, patch: Patch, when?: number): void;
@@ -71,6 +77,9 @@ export function createEngine(): Engine {
   master.connect(analyser);
   analyser.connect(ctx.destination);
 
+  const effectModules = new Map<string, AudioModuleInstance>();
+  let activeConnections: Patch["connections"] = [];
+
   // visual buffers (reused)
   const scopeBuf = new Float32Array(analyser.fftSize);
   const scopeByte = new Uint8Array(analyser.fftSize);
@@ -100,6 +109,87 @@ export function createEngine(): Engine {
     const p = ctx.createStereoPanner();
     p.pan.value = clamp(safe(pan, 0), -1, 1);
     return p;
+  }
+
+  function syncRouting(patch: Patch) {
+    const nextEffects = patch.modules.filter(isEffect);
+    const nextIds = new Set(nextEffects.map((fx) => fx.id));
+
+    for (const fx of nextEffects) {
+      const existing = effectModules.get(fx.id);
+      if (existing) {
+        existing.update(fx);
+        continue;
+      }
+      effectModules.set(fx.id, createEffectInstance(ctx, fx));
+    }
+
+    for (const [id, module] of effectModules) {
+      if (nextIds.has(id)) continue;
+      module.dispose();
+      effectModules.delete(id);
+    }
+
+    for (const module of effectModules.values()) {
+      module.disconnect();
+    }
+
+    const validation = validateConnections(patch);
+    if (validation.warnings.length > 0) {
+      for (const warning of validation.warnings) console.warn(`[routing] ${warning}`);
+    }
+    activeConnections = validation.validConnections;
+
+    for (const conn of activeConnections) {
+      if (conn.to.type === "module" && conn.to.id) {
+        const source = effectModules.get(conn.fromModuleId);
+        const target = effectModules.get(conn.to.id);
+        if (source && target) source.connect(target.input);
+      }
+      if (conn.to.type === "master") {
+        const source = effectModules.get(conn.fromModuleId);
+        if (source) source.connect(master);
+      }
+    }
+
+    for (const [id, module] of effectModules) {
+      const hasOut = activeConnections.some((conn) => conn.fromModuleId === id);
+      if (!hasOut) module.connect(master);
+    }
+  }
+
+  function resolveVoiceDestinations(voiceId: string): { node: AudioNode; gain: number }[] {
+    const routes = collectVoiceRoutes(voiceId, activeConnections);
+    if (!routes.length) return [{ node: master, gain: 1 }];
+
+    const destinations: { node: AudioNode; gain: number }[] = [];
+    for (const route of routes) {
+      const gain = clamp(safe(route.gain, 1), 0, 2);
+      if (route.to.type === "master") destinations.push({ node: master, gain });
+      if (route.to.type === "module" && route.to.id) {
+        const fx = effectModules.get(route.to.id);
+        if (fx) destinations.push({ node: fx.input, gain });
+      }
+    }
+
+    return destinations.length ? destinations : [{ node: master, gain: 1 }];
+  }
+
+  function disconnectModule(moduleId: string) {
+    const module = effectModules.get(moduleId);
+    if (!module) return;
+    module.dispose();
+    effectModules.delete(moduleId);
+  }
+
+  function dispose() {
+    for (const module of effectModules.values()) {
+      module.dispose();
+    }
+    effectModules.clear();
+    master.disconnect();
+    analyser.disconnect();
+    void ctx.close();
   }
 
   // === visuals API ===
@@ -163,7 +253,26 @@ export function createEngine(): Engine {
 
     osc.connect(voiceGain);
     voiceGain.connect(panNode);
-    panNode.connect(master);
+
+    const destinations = resolveVoiceDestinations(v.id);
+    const sendGains: GainNode[] = [];
+    for (const route of destinations) {
+      if (route.gain === 1) {
+        panNode.connect(route.node);
+      } else {
+        const send = ctx.createGain();
+        send.gain.value = route.gain;
+        panNode.connect(send);
+        send.connect(route.node);
+        sendGains.push(send);
+      }
+    }
+
+    osc.onended = () => {
+      for (const send of sendGains) send.disconnect();
+      panNode.disconnect();
+      voiceGain.disconnect();
+    };
 
     const freq = voiceFreqHz(v, i, patch.macro);
     osc.frequency.cancelScheduledValues(now);
@@ -184,6 +293,9 @@ export function createEngine(): Engine {
     start,
     setMasterMute,
     setMasterGain,
+    syncRouting,
+    disconnectModule,
+    dispose,
     triggerVoice,
     getScopeData,
     getSpectrumData,

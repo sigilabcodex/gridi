@@ -37,6 +37,8 @@ function makePatch(voice) {
     masterGain: 0.8,
     masterMute: false,
     modules: [voice],
+    buses: [],
+    connections: [],
   };
 }
 
@@ -226,6 +228,8 @@ function absoluteBeats(window) {
   const patch = {
     ...makePatch(follower),
     modules: [follower, source],
+    buses: [],
+    connections: [],
   };
 
   const triggered = [];

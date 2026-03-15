@@ -48,6 +48,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     if (regen) sched.regenAll();
     engine.setMasterMute(nextPatch.masterMute);
     engine.setMasterGain(nextPatch.masterGain);
+    engine.syncRouting(nextPatch);
   };
 
   const saveAndPersist = () => {
@@ -83,6 +84,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
     sched.setPatch(patch, { regen: opts?.regen ?? false });
     if (opts?.regen) sched.regenAll();
+    engine.syncRouting(patch);
 
     saveAndPersist();
   };

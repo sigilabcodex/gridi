@@ -51,9 +51,39 @@ export type VisualModule = ModuleBase & {
 };
 
 export type TerminalModule = ModuleBase & { type: "terminal" };
-export type EffectModule = ModuleBase & { type: "effect" };
+
+export type EffectKind = "gain";
+
+export type EffectModule = ModuleBase & {
+  type: "effect";
+  kind: EffectKind;
+  bypass: boolean;
+  gain: number;
+};
 
 export type Module = VoiceModule | VisualModule | TerminalModule | EffectModule;
+
+export type Bus = {
+  id: string;
+  name: string;
+  gain: number;
+  mute: boolean;
+};
+
+export type ConnectionTarget = {
+  type: "module" | "bus" | "master";
+  id?: string;
+  port?: string;
+};
+
+export type Connection = {
+  id: string;
+  fromModuleId: string;
+  fromPort: string;
+  to: ConnectionTarget;
+  gain: number;
+  enabled: boolean;
+};
 
 export type Patch = {
   version: "0.3";
@@ -64,6 +94,8 @@ export type Patch = {
   masterMute: boolean;
 
   modules: Module[];
+  buses: Bus[];
+  connections: Connection[];
 };
 
 let _id = 0;
@@ -75,6 +107,11 @@ export function uid(prefix = "m") {
 export function isVoice(m: Module): m is VoiceModule {
   return m.type === "voice";
 }
+
+export function isEffect(m: Module): m is EffectModule {
+  return m.type === "effect";
+}
+
 export function isVisual(m: Module): m is VisualModule {
   return m.type === "visual";
 }
@@ -145,6 +182,18 @@ export function makeVisual(kind: VisualKind): VisualModule {
   };
 }
 
+export function makeEffect(kind: EffectKind = "gain"): EffectModule {
+  return {
+    id: uid("fx"),
+    type: "effect",
+    name: kind === "gain" ? "GAIN FX" : "EFFECT",
+    enabled: true,
+    kind,
+    bypass: true,
+    gain: 1,
+  };
+}
+
 export const defaultPatch = (): Patch => ({
   version: "0.3",
   bpm: 124,
@@ -155,23 +204,85 @@ export const defaultPatch = (): Patch => ({
     ...Array.from({ length: 8 }, (_, i) => makeDefaultVoice(i)),
     makeVisual("scope"),
   ],
+  buses: [],
+  connections: [],
 });
 
 function normalizePatternSource(raw: unknown): PatternSource {
   return typeof raw === "string" && raw.trim() ? raw : "self";
 }
 
+function migrateEffectModule(m: Module): Module {
+  if (m.type !== "effect") return m;
+
+  const kind = (m as any).kind === "gain" ? "gain" : "gain";
+  const bypass = typeof (m as any).bypass === "boolean" ? (m as any).bypass : true;
+  const gain = clamp(typeof (m as any).gain === "number" ? (m as any).gain : 1, 0, 2);
+
+  return {
+    ...m,
+    kind,
+    bypass,
+    gain,
+  } satisfies EffectModule;
+}
+
+function normalizeConnection(raw: unknown): Connection | null {
+  if (!raw || typeof raw !== "object") return null;
+  const conn = raw as Partial<Connection> & { to?: ConnectionTarget };
+  if (typeof conn.fromModuleId !== "string" || !conn.fromModuleId.trim()) return null;
+
+  const targetType = conn.to?.type;
+  if (targetType !== "module" && targetType !== "bus" && targetType !== "master") return null;
+
+  const target: ConnectionTarget = {
+    type: targetType,
+    id: typeof conn.to?.id === "string" ? conn.to.id : undefined,
+    port: typeof conn.to?.port === "string" ? conn.to.port : "in",
+  };
+
+  if (target.type !== "master" && (!target.id || !target.id.trim())) return null;
+
+  return {
+    id: typeof conn.id === "string" && conn.id.trim() ? conn.id : uid("conn"),
+    fromModuleId: conn.fromModuleId,
+    fromPort: typeof conn.fromPort === "string" && conn.fromPort.trim() ? conn.fromPort : "main",
+    to: target,
+    gain: clamp(typeof conn.gain === "number" ? conn.gain : 1, 0, 2),
+    enabled: conn.enabled !== false,
+  };
+}
+
 export function migratePatch(patch: Patch): Patch {
   const modules = patch.modules.map((m) => {
-    if (m.type !== "voice") return m;
+    if (m.type !== "voice") return migrateEffectModule(m);
     return {
       ...m,
       patternSource: normalizePatternSource((m as any).patternSource),
     } satisfies VoiceModule;
   });
 
+  const buses = Array.isArray((patch as any).buses)
+    ? ((patch as any).buses as any[])
+      .filter((bus) => bus && typeof bus.id === "string")
+      .map((bus) => ({
+        id: bus.id,
+        name: typeof bus.name === "string" && bus.name.trim() ? bus.name : "BUS",
+        gain: clamp(typeof bus.gain === "number" ? bus.gain : 1, 0, 2),
+        mute: !!bus.mute,
+      }))
+    : [];
+
+  const connections = Array.isArray((patch as any).connections)
+    ? ((patch as any).connections as unknown[])
+      .map((raw) => normalizeConnection(raw))
+      .filter((c): c is Connection => !!c)
+    : [];
+
   return {
     ...patch,
     modules,
+    buses,
+    connections,
   };
 }

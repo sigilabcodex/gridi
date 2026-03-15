@@ -32,6 +32,8 @@ import { migratePatch } from '../src/patch.ts';
         caInit: 0.25,
       },
     ],
+    buses: [],
+    connections: [],
   };
 
   const migrated = migratePatch(legacyPatch);
