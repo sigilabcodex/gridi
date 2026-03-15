@@ -345,6 +345,15 @@ main { margin-top: 8px; }
 }
 
 
+.seqSourceRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+
 /* ADV panel */
 .adv {
   display: grid;

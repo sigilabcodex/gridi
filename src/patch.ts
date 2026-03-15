@@ -16,11 +16,13 @@ export type ModuleBase = {
 };
 
 export type VoiceKind = "drum" | "tonal";
+export type PatternSource = "self" | string;
 
 export type VoiceModule = ModuleBase & {
   type: "voice";
   kind: VoiceKind;
   mode: Mode;
+  patternSource: PatternSource;
 
   seed: number;
   determinism: number;
@@ -92,6 +94,7 @@ export function makeDefaultVoice(i: number): VoiceModule {
     enabled: true,
     kind: VOICE_KINDS[i] ?? "drum",
     mode: "hybrid",
+    patternSource: "self",
 
     seed: 1000 + i * 77,
     determinism: 0.8,
@@ -153,3 +156,22 @@ export const defaultPatch = (): Patch => ({
     makeVisual("scope"),
   ],
 });
+
+function normalizePatternSource(raw: unknown): PatternSource {
+  return typeof raw === "string" && raw.trim() ? raw : "self";
+}
+
+export function migratePatch(patch: Patch): Patch {
+  const modules = patch.modules.map((m) => {
+    if (m.type !== "voice") return m;
+    return {
+      ...m,
+      patternSource: normalizePatternSource((m as any).patternSource),
+    } satisfies VoiceModule;
+  });
+
+  return {
+    ...patch,
+    modules,
+  };
+}

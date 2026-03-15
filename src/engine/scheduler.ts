@@ -1,8 +1,8 @@
 // src/engine/scheduler.ts
 import type { Patch, VoiceModule } from "../patch";
-import { getVoices } from "../patch";
+import { getVoices, isVoice } from "../patch";
 import type { Engine } from "./audio";
-import { createPatternModuleForVoice, createStepPatternModule, type PatternModule } from "./pattern/module";
+import { createPatternModuleForVoice } from "./pattern/module";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -17,7 +17,6 @@ export type Scheduler = {
 };
 
 type VoiceSequenceState = {
-  module: PatternModule;
   lastScheduledBeat: number;
 };
 
@@ -36,12 +35,7 @@ export function createScheduler(engine: Engine): Scheduler {
   // states by VOICE ID (stable across reordering)
   const sequenceStates = new Map<string, VoiceSequenceState>();
 
-  // Invariant: sequence state is keyed by stable voice id, not transient array position.
-  // This keeps playback continuity when UI reorders modules.
-
   function getVoiceId(v: VoiceModule, i: number) {
-    // Prefer stable id. Fallback to index-based (only if id missing).
-    // (Ideally VoiceModule.id is always present.)
     return (v as any).id ? String((v as any).id) : `idx:${i}`;
   }
 
@@ -49,7 +43,6 @@ export function createScheduler(engine: Engine): Scheduler {
     let st = sequenceStates.get(voiceId);
     if (!st) {
       st = {
-        module: createStepPatternModule(),
         lastScheduledBeat: Number.NEGATIVE_INFINITY,
       };
       sequenceStates.set(voiceId, st);
@@ -75,20 +68,14 @@ export function createScheduler(engine: Engine): Scheduler {
     return transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
   }
 
-  function regenVoicePattern(voiceId: string, v: VoiceModule) {
-    const st = getSequenceState(voiceId);
-    st.module = createPatternModuleForVoice(v);
-    st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
-  }
-
-
   function regenAll() {
     if (!patch) return;
     const voices = getVoices(patch);
     for (let i = 0; i < voices.length; i++) {
       const v = voices[i];
       const id = getVoiceId(v, i);
-      regenVoicePattern(id, v);
+      const st = getSequenceState(id);
+      st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
   }
 
@@ -98,7 +85,6 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   function scheduleLoop() {
-    // Scheduler responsibility: map transport look-ahead windows to pattern modules and dispatch exact audio times.
     if (!running || !patch) return;
 
     const voices = getVoices(patch);
@@ -117,10 +103,18 @@ export function createScheduler(engine: Engine): Scheduler {
       const windowStartBeatAbs = getBeatAbs(windowStartSec);
       const windowEndBeatAbs = getBeatAbs(windowStartSec + lookaheadSec);
 
-      const window = st.module.renderWindow({
-        voice: v,
+      const sourceId = v.patternSource === "self" ? "self" : v.patternSource;
+      const sourceVoice = sourceId === "self"
+        ? v
+        : patch.modules.find((m) => m.id === sourceId && isVoice(m)) ?? v;
+      const sourceRef = sourceId === "self" || sourceVoice === v
+        ? { type: "self" as const }
+        : { type: "module" as const, moduleId: sourceId };
+
+      const window = createPatternModuleForVoice(sourceVoice).renderWindow({
+        voice: sourceVoice,
         voiceId,
-        source: { type: "self" },
+        source: sourceRef,
         startBeat: windowStartBeatAbs,
         endBeat: windowEndBeatAbs,
       });
@@ -143,7 +137,6 @@ export function createScheduler(engine: Engine): Scheduler {
 
     const now = engine.ctx.currentTime;
 
-    // Reset timing for all current voices (stable by id)
     if (patch) {
       const voices = getVoices(patch);
       for (let i = 0; i < voices.length; i++) {
@@ -153,7 +146,6 @@ export function createScheduler(engine: Engine): Scheduler {
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     } else {
-      // If no patch yet, just reset any existing states
       for (const st of sequenceStates.values()) {
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
@@ -171,7 +163,6 @@ export function createScheduler(engine: Engine): Scheduler {
     if (timer !== null) window.clearInterval(timer);
     timer = null;
 
-    // Reset scheduler timing state
     for (const st of sequenceStates.values()) {
       st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
