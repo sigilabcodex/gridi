@@ -2,8 +2,7 @@
 import type { Patch, VoiceModule } from "../patch";
 import { getVoices } from "../patch";
 import type { Engine } from "./audio";
-import { renderStepWindow } from "./pattern/stepEventWindow";
-import { renderLegacyVoicePattern } from "./pattern/legacyPatternRenderer";
+import { createPatternModuleForVoice, createStepPatternModule, type PatternModule } from "./pattern/module";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -17,11 +16,8 @@ export type Scheduler = {
   stop(): void;
 };
 
-// PR-1 ownership note: scheduler currently mutates sequencing state (step/nextTime/pattern).
 type VoiceSequenceState = {
-  step: number;
-  nextTime: number;
-  pattern: Uint8Array; // 0/1 steps
+  module: PatternModule;
   lastScheduledBeat: number;
 };
 
@@ -53,9 +49,7 @@ export function createScheduler(engine: Engine): Scheduler {
     let st = sequenceStates.get(voiceId);
     if (!st) {
       st = {
-        step: 0,
-        nextTime: 0,
-        pattern: new Uint8Array([1]),
+        module: createStepPatternModule(),
         lastScheduledBeat: Number.NEGATIVE_INFINITY,
       };
       sequenceStates.set(voiceId, st);
@@ -77,25 +71,16 @@ export function createScheduler(engine: Engine): Scheduler {
     return 60 / bpm;
   }
 
-  function voiceStepDur(v: VoiceModule) {
-    const beat = secondsPerBeat();
-    const subdiv = Math.max(1, v.subdiv | 0);
-    const denom = 2 * subdiv; // 1->2,2->4,4->8,8->16
-    return beat / denom;
-  }
-
   function getBeatAbs(nowSec: number) {
     return transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
   }
 
   function regenVoicePattern(voiceId: string, v: VoiceModule) {
     const st = getSequenceState(voiceId);
-    const p = renderLegacyVoicePattern(v);
-    st.pattern = p;
-    st.step = 0;
+    st.module = createPatternModuleForVoice(v);
     st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
-    // st.nextTime intentionally NOT forced here; start()/stop() handle timing reset
   }
+
 
   function regenAll() {
     if (!patch) return;
@@ -113,8 +98,7 @@ export function createScheduler(engine: Engine): Scheduler {
   }
 
   function scheduleLoop() {
-    // Scheduler responsibility (current): advance transport cursors and dispatch exact audio times.
-    // TODO(v0.32): replace step-mode path with PatternModule windows for all sequencing modes.
+    // Scheduler responsibility: map transport look-ahead windows to pattern modules and dispatch exact audio times.
     if (!running || !patch) return;
 
     const voices = getVoices(patch);
@@ -128,45 +112,27 @@ export function createScheduler(engine: Engine): Scheduler {
       const voiceId = getVoiceId(v, i);
       const st = getSequenceState(voiceId);
 
-      if (v.mode === "step") {
-        const secPerBeat = secondsPerBeat();
-        const windowStartSec = now;
-        const windowStartBeatAbs = getBeatAbs(windowStartSec);
-        const windowEndBeatAbs = getBeatAbs(windowStartSec + lookaheadSec);
+      const secPerBeat = secondsPerBeat();
+      const windowStartSec = now;
+      const windowStartBeatAbs = getBeatAbs(windowStartSec);
+      const windowEndBeatAbs = getBeatAbs(windowStartSec + lookaheadSec);
 
-        const window = renderStepWindow({
-          voice: v,
-          voiceId,
-          voiceIndex: i,
-          startBeat: windowStartBeatAbs,
-          endBeat: windowEndBeatAbs,
-        });
+      const window = st.module.renderWindow({
+        voice: v,
+        voiceId,
+        source: { type: "self" },
+        startBeat: windowStartBeatAbs,
+        endBeat: windowEndBeatAbs,
+      });
 
-        const eps = 1e-9;
-        for (const ev of window.events) {
-          const eventBeat = window.startBeat + ev.beatOffset;
-          if (eventBeat <= st.lastScheduledBeat + eps) continue;
+      const eps = 1e-9;
+      for (const ev of window.events) {
+        const eventBeat = window.startBeat + ev.beatOffset;
+        if (eventBeat <= st.lastScheduledBeat + eps) continue;
 
-          const eventSec = windowStartSec + ev.beatOffset * secPerBeat;
-          engine.triggerVoice(i, patch, eventSec);
-          st.lastScheduledBeat = eventBeat;
-        }
-        continue;
-      }
-
-      const stepDur = voiceStepDur(v);
-
-      if (st.nextTime === 0) st.nextTime = now;
-
-      while (st.nextTime < now + lookaheadSec) {
-        const pat = st.pattern;
-        const idx = pat.length > 0 ? (st.step % pat.length) : 0;
-
-        // ✅ schedule with lookahead time (tight timing)
-        if (pat[idx]) engine.triggerVoice(i, patch, st.nextTime);
-
-        st.step++;
-        st.nextTime += stepDur;
+        const eventSec = windowStartSec + ev.beatOffset * secPerBeat;
+        engine.triggerVoice(i, patch, eventSec);
+        st.lastScheduledBeat = eventBeat;
       }
     }
   }
@@ -184,15 +150,11 @@ export function createScheduler(engine: Engine): Scheduler {
         const v = voices[i];
         const id = getVoiceId(v, i);
         const st = getSequenceState(id);
-        st.step = 0;
-        st.nextTime = now;
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     } else {
       // If no patch yet, just reset any existing states
       for (const st of sequenceStates.values()) {
-        st.step = 0;
-        st.nextTime = now;
         st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
       }
     }
@@ -211,8 +173,6 @@ export function createScheduler(engine: Engine): Scheduler {
 
     // Reset scheduler timing state
     for (const st of sequenceStates.values()) {
-      st.nextTime = 0;
-      st.step = 0;
       st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
     transportStartTimeSec = 0;
