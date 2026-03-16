@@ -1,75 +1,78 @@
-# README
-
 # GRIDI
 
-**Generative Rhythmic Indeterministic Digital Instrument**
+GRIDI is a browser-based generative rhythmic instrument implemented with Vite, TypeScript, and WebAudio. It focuses on deterministic scheduling plus controlled indeterminism in pattern generation.
 
----
+Current app version: `0.32.4`.
 
-**Current version: 0.32.4**
+## UI overview
 
-## What is GRIDI?
+- Dynamic module grid with voice, visual, and effect modules.
+- Transport/header controls for play, audio context state, bank navigation, reseed/randomize, and master controls.
+- Voice tabs split into `MAIN`, `SEQ`, and `MIDI` sections.
 
-> GRIDI is a generative rhythmic instrument built around controlled indeterminism, non-musical mathematics, and human interaction.
+> Screenshot placeholder: capture from local `npm run dev` session when sharing UX changes.
 
-GRIDi explores the tension between structure and indeterminacy through modular sequencing engines and mathematically-driven sound systems.
+## Architecture summary
 
----
+Core runtime layers:
 
-### Core Concepts
+- **Patch model (`src/patch.ts`)**: canonical typed document for modules, buses, and connections.
+- **Audio engine (`src/engine/audio.ts`)**: WebAudio graph management, voice triggering, routing validation.
+- **Scheduler (`src/engine/scheduler.ts`)**: look-ahead transport that renders pattern windows and schedules exact audio times.
+- **Pattern modules (`src/engine/pattern/*`)**: deterministic event generation and window rendering.
+- **UI layer (`src/ui/*`)**: DOM controls, module rendering, persistence, and modal flows.
 
-- Modular voices
+## Development
 
-- SEQ vs Timbre separation
+### Prerequisites
 
-- Determinism vs Density
+- Node.js `>=20.19.0`
+- npm (lockfile-based install expected)
 
-- CA / Euclid / Hybrid engines (& more to come)
+### Setup
 
-- Look-ahead scheduling
+```bash
+git clone <repo-url>
+cd gridi
+npm ci
+```
 
-- WebAudio native timing
+### Run
 
----
+```bash
+npm run dev
+```
 
-### Architecture Pillars
+### Build
 
-- Plug-in module anatomy
+```bash
+npm run build
+```
 
-- Look-ahead clock
+### Type-check
 
-- Envelope discipline
+```bash
+npm run typecheck
+```
 
----
+### Tests
 
-### Roadmap (condensed)
+```bash
+npm test
+```
 
-- v0.30 — Modular Awakening ✅
+Detailed testing notes: [`docs/testing/testing.md`](docs/testing/testing.md).
 
-- v0.31 — Core Reinforcement (in progress)
+## Documentation map
 
-- v0.32.4 — SEQ structural separation (current)
+- Project status: [`docs/status.md`](docs/status.md)
+- Security review: [`docs/security-review.md`](docs/security-review.md)
+- Testing guide: [`docs/testing/testing.md`](docs/testing/testing.md)
+- Roadmap: [`ROADMAP.md`](ROADMAP.md)
+- RFCs: [`docs/rfcs/`](docs/rfcs)
 
-- v0.4 — Performance routing
+## Roadmap snapshot
 
-- v0.5 — Generative ecosystem
-
----
-
-### Philosophy
-
-This is not a drum machine.  
-This is a rhythmic instrument (or toy).
-
----
-
-### Dedication
-
-**Dedicated to Taniel Morales (1970–2026)**  
-Artist, teacher, friend, seeder of ideas and communities.  
-Who taught that structure and chaos are not opposites but different ways of listening.
-
-### Development
-
-- Run tests: `npm test`
-- Testing guide: `docs/testing.md`
+- `v0.32.x`: sequencing/module architecture stabilization (current).
+- `v0.4`: richer routing and performance controls.
+- `v0.5`: expanded generative ecosystem and external sync.
