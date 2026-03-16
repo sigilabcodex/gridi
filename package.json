@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "build:gh": "tsc && vite build --mode gh",
+    "build:gh": "vite build --mode gh",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/*.test.mjs",
     "test:watch": "node --test --watch tests/*.test.mjs",
