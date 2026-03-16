@@ -1,5 +1,5 @@
-import type { Patch } from "../../patch";
-import { clamp, defaultPatch, migratePatch } from "../../patch";
+import type { Patch } from "../../patch.ts";
+import { clamp, defaultPatch, migratePatch } from "../../patch.ts";
 
 export const BANK_COUNT = 4;
 
