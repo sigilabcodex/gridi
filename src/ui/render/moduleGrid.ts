@@ -1,6 +1,6 @@
 import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
-import type { Patch, VisualKind } from "../../patch";
+import type { DrumModule, Patch, TonalModule, TriggerModule, VisualKind, VisualModule } from "../../patch";
 import { getTriggers, makeSound, makeTrigger, makeVisual } from "../../patch";
 import type { VoiceTab } from "../voiceModule";
 import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModule";
@@ -143,10 +143,17 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       visual: addFamilyLane(grid, "visual", "Visual Family", "Signal display and monitoring"),
     };
 
-    const familyModules: Record<Family, Patch["modules"]> = { trigger: [], drum: [], tonal: [], visual: [] };
+    const familyModules: {
+      trigger: TriggerModule[];
+      drum: DrumModule[];
+      tonal: TonalModule[];
+      visual: VisualModule[];
+    } = { trigger: [], drum: [], tonal: [], visual: [] };
     for (const module of patch.modules) {
-      const family = getFamily(module);
-      if (family !== "other") familyModules[family].push(module);
+      if (module.type === "trigger") familyModules.trigger.push(module);
+      else if (module.type === "drum") familyModules.drum.push(module);
+      else if (module.type === "tonal") familyModules.tonal.push(module);
+      else if (module.type === "visual") familyModules.visual.push(module);
     }
 
     const registerModuleSurface = (family: Family, moduleId: string, moduleKind: string, surface: HTMLElement) => {
@@ -167,7 +174,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     for (const module of familyModules.trigger) {
       const t = module;
       const surfaceRoot = document.createElement("div");
-      const upd = renderTriggerSurface(surfaceRoot, t as any, params.onPatchChange, () => {
+      const upd = renderTriggerSurface(surfaceRoot, t, params.onPatchChange, () => {
         const prev = params.clonePatch(params.patch());
         const nextPatch = params.patch();
         nextPatch.modules = nextPatch.modules.filter((m) => m.id !== t.id);
@@ -191,7 +198,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const surfaceRoot = document.createElement("div");
       const upd = renderDrumModuleSurface({
         root: surfaceRoot,
-        v: s as any,
+        v: s,
         getLedState: params.led,
         onPatchChange: params.onPatchChange,
         ui: { tab: params.getVoiceTab(s.id), setTab: (tab) => params.setVoiceTab(s.id, tab) },
@@ -218,7 +225,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const surfaceRoot = document.createElement("div");
       const upd = renderSynthModuleSurface({
         root: surfaceRoot,
-        v: s as any,
+        v: s,
         getLedState: params.led,
         onPatchChange: params.onPatchChange,
         ui: { tab: params.getVoiceTab(s.id), setTab: (tab) => params.setVoiceTab(s.id, tab) },
@@ -243,7 +250,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     for (const module of familyModules.visual) {
       const vm = module;
       const surfaceRoot = document.createElement("div");
-      const upd = renderVisualSurface(surfaceRoot, params.engine, patch, vm as any, () => {
+      const upd = renderVisualSurface(surfaceRoot, params.engine, patch, vm, () => {
         const prev = params.clonePatch(params.patch());
         const nextPatch = params.patch();
         nextPatch.modules = nextPatch.modules.filter((m) => m.id !== vm.id);

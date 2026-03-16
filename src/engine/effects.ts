@@ -7,7 +7,7 @@ class GainEffectModule implements AudioModuleInstance {
   readonly input: GainNode;
   readonly output: GainNode;
 
-  constructor(private readonly ctx: AudioContext, module: EffectModule) {
+  constructor(ctx: AudioContext, module: EffectModule) {
     this.id = module.id;
     this.input = ctx.createGain();
     this.output = ctx.createGain();

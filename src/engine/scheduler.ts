@@ -41,7 +41,7 @@ export function createScheduler(engine: Engine): Scheduler {
 
   function resolveTrigger(sound: SoundModule, allModules: Patch["modules"]): TriggerModule | null {
     if (!sound.triggerSource) return null;
-    const trg = allModules.find((m) => m.id === sound.triggerSource && isTrigger(m));
+    const trg = allModules.find((m): m is TriggerModule => m.id === sound.triggerSource && isTrigger(m));
     return trg ?? null;
   }
 
