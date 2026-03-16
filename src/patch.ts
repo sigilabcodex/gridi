@@ -4,7 +4,7 @@ export type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
 export const clamp = (x: number, a: number, b: number) =>
   Math.min(b, Math.max(a, x));
 
-export type ModuleType = "voice" | "visual" | "terminal" | "effect";
+export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | "effect" | "voice";
 
 export type ModuleBase = {
   id: string;
@@ -15,15 +15,8 @@ export type ModuleBase = {
   y?: number;
 };
 
-export type VoiceKind = "drum" | "tonal";
-export type PatternSource = "self" | string;
-
-export type VoiceModule = ModuleBase & {
-  type: "voice";
-  kind: VoiceKind;
+export type SequencerParams = {
   mode: Mode;
-  patternSource: PatternSource;
-
   seed: number;
   determinism: number;
   gravity: number;
@@ -31,16 +24,34 @@ export type VoiceModule = ModuleBase & {
   subdiv: 1 | 2 | 4 | 8;
   length: number;
   drop: number;
-
-  amp: number;
-  timbre: number;
-  pan: number;
-
   weird: number;
   euclidRot: number;
   caRule: number;
   caInit: number;
 };
+
+// Legacy shape kept for explicit migration support.
+export type VoiceKind = "drum" | "tonal";
+export type PatternSource = "self" | string;
+export type VoiceModule = ModuleBase & { type: "voice"; kind: VoiceKind; patternSource: PatternSource } & SequencerParams & {
+  amp: number;
+  timbre: number;
+  pan: number;
+};
+
+export type TriggerModule = ModuleBase & { type: "trigger" } & SequencerParams;
+
+type SoundBase = ModuleBase & {
+  triggerSource: string | null;
+  amp: number;
+  timbre: number;
+  pan: number;
+};
+
+export type DrumModule = SoundBase & { type: "drum" };
+export type TonalModule = SoundBase & { type: "tonal" };
+
+export type SoundModule = DrumModule | TonalModule;
 
 export type VisualKind = "scope" | "spectrum" | "pattern";
 
@@ -61,7 +72,8 @@ export type EffectModule = ModuleBase & {
   gain: number;
 };
 
-export type Module = VoiceModule | VisualModule | TerminalModule | EffectModule;
+export type Module = SoundModule | TriggerModule | VisualModule | TerminalModule | EffectModule;
+type AnyKnownModule = Module | VoiceModule;
 
 export type Bus = {
   id: string;
@@ -104,35 +116,36 @@ export function uid(prefix = "m") {
   return `${prefix}_${Date.now().toString(36)}_${_id.toString(36)}`;
 }
 
-export function isVoice(m: Module): m is VoiceModule {
-  return m.type === "voice";
+export function isSound(m: AnyKnownModule): m is SoundModule {
+  return m.type === "drum" || m.type === "tonal";
 }
 
-export function isEffect(m: Module): m is EffectModule {
+export function isTrigger(m: AnyKnownModule): m is TriggerModule {
+  return m.type === "trigger";
+}
+
+export function isEffect(m: AnyKnownModule): m is EffectModule {
   return m.type === "effect";
 }
 
-export function isVisual(m: Module): m is VisualModule {
+export function isVisual(m: AnyKnownModule): m is VisualModule {
   return m.type === "visual";
 }
-export function getVoices(p: Patch): VoiceModule[] {
-  return p.modules.filter(isVoice);
+
+export function getSoundModules(p: Patch): SoundModule[] {
+  return p.modules.filter(isSound);
 }
 
-// Defaults
-const VOICE_NAMES = ["SUB", "BUZZHH", "ULTRATK", "PING", "BITSN", "AIRGAP", "RATTLE", "METAK"];
-const VOICE_KINDS: VoiceKind[] = ["drum","drum","tonal","drum","drum","drum","drum","tonal"];
+export function getTriggers(p: Patch): TriggerModule[] {
+  return p.modules.filter(isTrigger);
+}
 
-export function makeDefaultVoice(i: number): VoiceModule {
+const SOUND_NAMES = ["SUB", "BUZZHH", "ULTRATK", "PING", "BITSN", "AIRGAP", "RATTLE", "METAK"];
+const SOUND_KINDS: Array<"drum" | "tonal"> = ["drum", "drum", "tonal", "drum", "drum", "drum", "drum", "tonal"];
+
+function defaultSequencer(i: number): SequencerParams {
   return {
-    id: uid("v"),
-    type: "voice",
-    name: VOICE_NAMES[i] ?? `V${i + 1}`,
-    enabled: true,
-    kind: VOICE_KINDS[i] ?? "drum",
     mode: "hybrid",
-    patternSource: "self",
-
     seed: 1000 + i * 77,
     determinism: 0.8,
     gravity: 0.6,
@@ -140,11 +153,6 @@ export function makeDefaultVoice(i: number): VoiceModule {
     subdiv: 4,
     length: 16,
     drop: 0.12,
-
-    amp: 0.12,
-    timbre: 0.5,
-    pan: 0,
-
     weird: 0.5,
     euclidRot: 0,
     caRule: 90,
@@ -152,22 +160,27 @@ export function makeDefaultVoice(i: number): VoiceModule {
   };
 }
 
-// NEW: create a new voice module (generic)
-export function makeNewVoice(kind: VoiceKind): VoiceModule {
-  const base = makeDefaultVoice(0);
-  const n = uid("v");
-  const name = kind === "drum" ? `DRM_${n.slice(-3).toUpperCase()}` : `TON_${n.slice(-3).toUpperCase()}`;
-
+export function makeTrigger(i = 0, name = `TRG_${i + 1}`): TriggerModule {
   return {
-    ...base,
-    id: n,
+    id: uid("trg"),
+    type: "trigger",
     name,
-    kind,
     enabled: true,
-    // small variations
-    seed: Math.floor(Math.random() * 999999),
+    ...defaultSequencer(i),
+  };
+}
+
+export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string | null = null): SoundModule {
+  const id = uid(kind === "drum" ? "drm" : "ton");
+  return {
+    id,
+    type: kind,
+    name: SOUND_NAMES[i] ?? `${kind.toUpperCase()}_${id.slice(-3).toUpperCase()}`,
+    enabled: true,
+    triggerSource,
     amp: kind === "drum" ? 0.12 : 0.08,
     timbre: 0.5,
+    pan: 0,
   };
 }
 
@@ -194,25 +207,46 @@ export function makeEffect(kind: EffectKind = "gain"): EffectModule {
   };
 }
 
-export const defaultPatch = (): Patch => ({
-  version: "0.3",
-  bpm: 124,
-  macro: 0.5,
-  masterGain: 0.8,
-  masterMute: false,
-  modules: [
-    ...Array.from({ length: 8 }, (_, i) => makeDefaultVoice(i)),
-    makeVisual("scope"),
-  ],
-  buses: [],
-  connections: [],
-});
+export const defaultPatch = (): Patch => {
+  const modules: Module[] = [];
+  for (let i = 0; i < 8; i++) {
+    const trg = makeTrigger(i, `TRG_${i + 1}`);
+    const sound = makeSound(SOUND_KINDS[i] ?? "drum", i, trg.id);
+    modules.push(sound, trg);
+  }
+  modules.push(makeVisual("scope"));
 
-function normalizePatternSource(raw: unknown): PatternSource {
-  return typeof raw === "string" && raw.trim() ? raw : "self";
+  return {
+    version: "0.3",
+    bpm: 124,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules,
+    buses: [],
+    connections: [],
+  };
+};
+
+function normalizeSequencer(raw: any, fallbackIndex = 0): SequencerParams {
+  const base = defaultSequencer(fallbackIndex);
+  return {
+    mode: ["hybrid", "step", "euclid", "ca", "fractal"].includes(raw?.mode) ? raw.mode : base.mode,
+    seed: typeof raw?.seed === "number" ? raw.seed | 0 : base.seed,
+    determinism: clamp(typeof raw?.determinism === "number" ? raw.determinism : base.determinism, 0, 1),
+    gravity: clamp(typeof raw?.gravity === "number" ? raw.gravity : base.gravity, 0, 1),
+    density: clamp(typeof raw?.density === "number" ? raw.density : base.density, 0, 1),
+    subdiv: ([1, 2, 4, 8].includes(raw?.subdiv) ? raw.subdiv : base.subdiv) as 1 | 2 | 4 | 8,
+    length: clamp(typeof raw?.length === "number" ? raw.length : base.length, 1, 128) | 0,
+    drop: clamp(typeof raw?.drop === "number" ? raw.drop : base.drop, 0, 1),
+    weird: clamp(typeof raw?.weird === "number" ? raw.weird : base.weird, 0, 1),
+    euclidRot: typeof raw?.euclidRot === "number" ? raw.euclidRot | 0 : base.euclidRot,
+    caRule: clamp(typeof raw?.caRule === "number" ? raw.caRule : base.caRule, 0, 255) | 0,
+    caInit: clamp(typeof raw?.caInit === "number" ? raw.caInit : base.caInit, 0, 1),
+  };
 }
 
-function migrateEffectModule(m: Module): Module {
+function migrateEffectModule(m: AnyKnownModule): AnyKnownModule {
   if (m.type !== "effect") return m;
 
   const kind = (m as any).kind === "gain" ? "gain" : "gain";
@@ -254,13 +288,75 @@ function normalizeConnection(raw: unknown): Connection | null {
 }
 
 export function migratePatch(patch: Patch): Patch {
-  const modules = patch.modules.map((m) => {
-    if (m.type !== "voice") return migrateEffectModule(m);
-    return {
-      ...m,
-      patternSource: normalizePatternSource((m as any).patternSource),
-    } satisfies VoiceModule;
-  });
+  const migrated: Module[] = [];
+  const legacyVoiceToTrigger = new Map<string, string>();
+  const unresolvedTriggerRef = new Map<string, string | null>();
+
+  for (let i = 0; i < patch.modules.length; i++) {
+    const moduleAny = migrateEffectModule(patch.modules[i] as AnyKnownModule);
+
+    if ((moduleAny as any).type === "voice") {
+      const legacy = moduleAny as VoiceModule;
+      const trigger = {
+        id: uid("trg"),
+        type: "trigger",
+        name: `${legacy.name} TRG`,
+        enabled: legacy.enabled !== false,
+        ...normalizeSequencer(legacy, i),
+      } satisfies TriggerModule;
+
+      const sound = {
+        id: legacy.id,
+        type: legacy.kind,
+        name: legacy.name,
+        enabled: legacy.enabled !== false,
+        triggerSource: trigger.id,
+        amp: clamp(typeof legacy.amp === "number" ? legacy.amp : 0.12, 0, 1),
+        timbre: clamp(typeof legacy.timbre === "number" ? legacy.timbre : 0.5, 0, 1),
+        pan: clamp(typeof legacy.pan === "number" ? legacy.pan : 0, -1, 1),
+      } satisfies SoundModule;
+
+      legacyVoiceToTrigger.set(legacy.id, trigger.id);
+      unresolvedTriggerRef.set(sound.id, typeof legacy.patternSource === "string" ? legacy.patternSource : "self");
+      migrated.push(sound, trigger);
+      continue;
+    }
+
+    if (moduleAny.type === "drum" || moduleAny.type === "tonal") {
+      migrated.push({
+        ...moduleAny,
+        triggerSource: typeof (moduleAny as any).triggerSource === "string" ? (moduleAny as any).triggerSource : null,
+        amp: clamp(typeof (moduleAny as any).amp === "number" ? (moduleAny as any).amp : 0.12, 0, 1),
+        timbre: clamp(typeof (moduleAny as any).timbre === "number" ? (moduleAny as any).timbre : 0.5, 0, 1),
+        pan: clamp(typeof (moduleAny as any).pan === "number" ? (moduleAny as any).pan : 0, -1, 1),
+      } as SoundModule);
+      continue;
+    }
+
+    if (moduleAny.type === "trigger") {
+      migrated.push({
+        ...moduleAny,
+        ...normalizeSequencer(moduleAny, i),
+      } as TriggerModule);
+      continue;
+    }
+
+    migrated.push(moduleAny as Module);
+  }
+
+  // Explicit legacy patternSource->triggerSource resolution.
+  for (const module of migrated) {
+    if (!isSound(module)) continue;
+    const rawRef = unresolvedTriggerRef.get(module.id);
+    if (!rawRef || rawRef === "self") continue;
+    module.triggerSource = legacyVoiceToTrigger.get(rawRef) ?? null;
+  }
+
+  const triggerIds = new Set(migrated.filter(isTrigger).map((m) => m.id));
+  for (const module of migrated) {
+    if (!isSound(module)) continue;
+    if (module.triggerSource && !triggerIds.has(module.triggerSource)) module.triggerSource = null;
+  }
 
   const buses = Array.isArray((patch as any).buses)
     ? ((patch as any).buses as any[])
@@ -281,7 +377,7 @@ export function migratePatch(patch: Patch): Patch {
 
   return {
     ...patch,
-    modules,
+    modules: migrated,
     buses,
     connections,
   };

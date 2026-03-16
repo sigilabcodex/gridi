@@ -1,6 +1,6 @@
 // src/ui/app.ts
 import type { Patch } from "../patch";
-import { clamp, defaultPatch, getVoices } from "../patch";
+import { clamp, defaultPatch, getSoundModules, getTriggers } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { loadSettings } from "../settings/store";
@@ -96,10 +96,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   root.innerHTML = "";
   const main = document.createElement("main");
 
-  const led = (voiceIndex: number) => {
-    const voices = getVoices(patch);
-    const active = voices[voiceIndex]?.enabled ?? false;
-    const ms = engine.voiceLastTrigMs[voiceIndex] || 0;
+  const led = (moduleId: string) => {
+    const module = getSoundModules(patch).find((m) => m.id === moduleId);
+    const active = module?.enabled ?? false;
+    const ms = engine.voiceLastTrigMs.get(moduleId) || 0;
     const hit = performance.now() - ms < 80;
     return { active, hit };
   };
@@ -186,8 +186,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     },
     onReseed: () => {
       const prev = clonePatch(patch);
-      const voices = getVoices(patch);
-      for (const v of voices) v.seed = randInt(1, 999999);
+      const triggers = getTriggers(patch);
+      for (const t of triggers) t.seed = randInt(1, 999999);
       history.pushHistory(prev);
       sched.setPatch(patch, { regen: true });
       sched.regenAll();
@@ -196,20 +196,21 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     },
     onRandomize: () => {
       const prev = clonePatch(patch);
-      const voices = getVoices(patch);
-      for (const v of voices) {
-        v.subdiv = [1, 2, 4, 8][randInt(0, 3)] as any;
-        v.length = randInt(8, 32);
-        v.density = clamp(0.05 + rand01() * 0.9, 0, 1);
-        v.drop = clamp(rand01() * 0.35, 0, 1);
-        v.determinism = clamp(rand01(), 0, 1);
-        v.weird = clamp(rand01(), 0, 1);
-        v.euclidRot = randInt(-16, 16);
-        v.caRule = randInt(0, 255);
-        v.caInit = clamp(rand01(), 0, 1);
-        v.gravity = clamp(rand01(), 0, 1);
-        v.pan = clamp((rand01() - 0.5) * 2, -1, 1);
+      const triggers = getTriggers(patch);
+      for (const t of triggers) {
+        t.subdiv = [1, 2, 4, 8][randInt(0, 3)] as any;
+        t.length = randInt(8, 32);
+        t.density = clamp(0.05 + rand01() * 0.9, 0, 1);
+        t.drop = clamp(rand01() * 0.35, 0, 1);
+        t.determinism = clamp(rand01(), 0, 1);
+        t.weird = clamp(rand01(), 0, 1);
+        t.euclidRot = randInt(-16, 16);
+        t.caRule = randInt(0, 255);
+        t.caInit = clamp(rand01(), 0, 1);
+        t.gravity = clamp(rand01(), 0, 1);
       }
+      const sounds = getSoundModules(patch);
+      for (const s of sounds) s.pan = clamp((rand01() - 0.5) * 2, -1, 1);
       history.pushHistory(prev);
       sched.setPatch(patch, { regen: true });
       sched.regenAll();

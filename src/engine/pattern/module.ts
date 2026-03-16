@@ -1,18 +1,12 @@
-import type { Mode, VoiceModule } from "../../patch";
+import type { Mode, TriggerModule } from "../../patch";
 import { genStepPattern } from "./stepPatternModule.ts";
 
 const MAX_PATTERN_STEPS = 128;
 const EPS = 1e-9;
 
-export type PatternSourceRef =
-  | { readonly type: "self" }
-  | { readonly type: "module"; readonly moduleId: string };
-
 export type PatternEvent = {
   readonly voiceId: string;
   readonly beatOffset: number;
-  readonly velocity?: number;
-  readonly eventId?: string;
 };
 
 export type PatternEventWindow = {
@@ -23,8 +17,7 @@ export type PatternEventWindow = {
 
 export type PatternRenderRequest = {
   readonly voiceId: string;
-  readonly voice: VoiceModule;
-  readonly source: PatternSourceRef;
+  readonly trigger: TriggerModule;
   readonly startBeat: number;
   readonly endBeat: number;
 };
@@ -39,14 +32,22 @@ function clamp01(x: number) {
   return Math.max(0, Math.min(1, x));
 }
 
-function patternLength(voice: VoiceModule) {
-  return Math.max(1, Math.min(MAX_PATTERN_STEPS, voice.length | 0));
+function patternLength(trigger: TriggerModule) {
+  return Math.max(1, Math.min(MAX_PATTERN_STEPS, trigger.length | 0));
 }
 
 function hashString(s: string) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) | 0;
   return h | 0;
+}
+
+function stepRandom01(seed: number, voiceId: string, stepIndex: number) {
+  let x = (seed | 0) ^ hashString(voiceId) ^ Math.imul(stepIndex | 0, 0x9e3779b1);
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return (x >>> 0) / 4294967296;
 }
 
 function xorshift32(seed: number) {
@@ -59,22 +60,12 @@ function xorshift32(seed: number) {
   };
 }
 
-function stepRandom01(seed: number, voiceId: string, stepIndex: number) {
-  let x = (seed | 0) ^ hashString(voiceId) ^ Math.imul(stepIndex | 0, 0x9e3779b1);
-  x ^= x << 13;
-  x ^= x >>> 17;
-  x ^= x << 5;
-  return (x >>> 0) / 4294967296;
-}
-
 function rotatePattern(p: Uint8Array, rot: number) {
   const n = p.length;
   if (n <= 1) return p;
-  const normalized = ((rot | 0) % n + n) % n;
-  if (normalized === 0) return p;
-
+  const shift = ((rot | 0) % n + n) % n;
   const out = new Uint8Array(n);
-  for (let i = 0; i < n; i++) out[i] = p[(i - normalized + n) % n];
+  for (let i = 0; i < n; i++) out[i] = p[(i - shift + n) % n];
   return out;
 }
 
@@ -99,207 +90,141 @@ function bjorklund(steps: number, pulses: number) {
   }
   counts.push(divisor);
 
-  function build(l: number) {
+  const build = (l: number) => {
     if (l === -1) pattern.push(0);
     else if (l === -2) pattern.push(1);
     else {
       for (let i = 0; i < counts[l]; i++) build(l - 1);
       if (remainders[l] !== 0) build(l - 2);
     }
-  }
+  };
 
   build(level);
-
   const out = pattern.slice(0, n);
   const firstOne = out.indexOf(1);
   const normalized = firstOne > 0 ? firstOne : 0;
   return Uint8Array.from(out.slice(normalized).concat(out.slice(0, normalized)));
 }
 
-function mutatePatternDeterministically(base: Uint8Array, voice: VoiceModule) {
-  const n = base.length;
-  const out = new Uint8Array(n);
-  const rnd = xorshift32((voice.seed ^ 0x5f3759df) | 0);
-  const weird = clamp01(voice.weird);
-  const det = clamp01(voice.determinism);
-
-  for (let i = 0; i < n; i++) {
-    const flipChance = weird * (1 - det) * 0.35;
-    const flip = rnd() < flipChance;
-    out[i] = flip ? (base[i] ? 0 : 1) : base[i];
-  }
-  return out;
-}
-
-function genEuclidPattern(voice: VoiceModule) {
-  const n = patternLength(voice);
-  const density = clamp01(voice.density);
-  const pulses = Math.round(density * n);
+function genEuclidPattern(trigger: TriggerModule) {
+  const n = patternLength(trigger);
+  const pulses = Math.round(clamp01(trigger.density) * n);
   const base = bjorklund(n, pulses);
-
-  const gravityBias = Math.round((clamp01(voice.gravity) - 0.5) * n * 0.25);
-  const weirdBias = Math.round((clamp01(voice.weird) - 0.5) * n * 0.2);
-  const phase = (voice.euclidRot | 0) + gravityBias + weirdBias;
-
+  const phase = (trigger.euclidRot | 0)
+    + Math.round((clamp01(trigger.gravity) - 0.5) * n * 0.25)
+    + Math.round((clamp01(trigger.weird) - 0.5) * n * 0.2);
   return rotatePattern(base, phase);
 }
 
-function genCAPattern(voice: VoiceModule) {
-  const n = patternLength(voice);
-  const rule = (voice.caRule | 0) & 255;
-  const rnd = xorshift32((voice.seed ^ 0x9e3779b9) | 0);
+function genCAPattern(trigger: TriggerModule, voiceId: string) {
+  const n = patternLength(trigger);
+  const rule = (trigger.caRule | 0) & 255;
+  const rnd = xorshift32((trigger.seed ^ 0x9e3779b9) | 0);
 
-  const init = new Uint8Array(n);
-  const initProb = clamp01(voice.caInit);
-  for (let i = 0; i < n; i++) init[i] = rnd() < initProb ? 1 : 0;
+  let cur = new Uint8Array(n);
+  for (let i = 0; i < n; i++) cur[i] = rnd() < clamp01(trigger.caInit) ? 1 : 0;
 
-  const gravity = clamp01(voice.gravity);
-  const weird = clamp01(voice.weird);
-  const iters = 2 + Math.floor(gravity * 14 + weird * 4);
-
-  let cur = init;
+  const iters = 2 + Math.floor(clamp01(trigger.gravity) * 14 + clamp01(trigger.weird) * 4);
   let next = new Uint8Array(n);
+
   for (let t = 0; t < iters; t++) {
     for (let i = 0; i < n; i++) {
-      const left = cur[(i - 1 + n) % n];
-      const center = cur[i];
-      const right = cur[(i + 1) % n];
-      const idx = (left << 2) | (center << 1) | right;
+      const idx = (cur[(i - 1 + n) % n] << 2) | (cur[i] << 1) | cur[(i + 1) % n];
       next[i] = (rule >> idx) & 1;
     }
-
-    const tmp = cur;
-    cur = next;
-    next = tmp;
+    [cur, next] = [next, cur];
   }
 
-  // density softly gates occupancy so CA stays responsive to the density macro.
-  const density = clamp01(voice.density);
+  const density = clamp01(trigger.density);
   if (density >= 0.999) return cur;
 
   const gated = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    const keep = stepRandom01(voice.seed ^ 0x44d, voice.id, i) < density;
-    gated[i] = cur[i] && keep ? 1 : 0;
-  }
+  for (let i = 0; i < n; i++) gated[i] = cur[i] && stepRandom01(trigger.seed ^ 0x44d, voiceId, i) < density ? 1 : 0;
   return gated;
 }
 
-function genHybridPattern(voice: VoiceModule) {
-  const euclid = genEuclidPattern(voice);
-  const ca = genCAPattern(voice);
-  const step = genStepPattern(voice);
-  const n = Math.min(euclid.length, ca.length, step.length);
-  const out = new Uint8Array(n);
+function genHybridPattern(trigger: TriggerModule, voiceId: string) {
+  const euclid = genEuclidPattern(trigger);
+  const ca = genCAPattern(trigger, voiceId);
+  const step = genStepPattern(trigger);
+  const out = new Uint8Array(Math.min(euclid.length, ca.length, step.length));
 
-  const det = clamp01(voice.determinism);
-  const weird = clamp01(voice.weird);
-  const blendNoise = xorshift32((voice.seed ^ 0x13579bdf) | 0);
+  const det = clamp01(trigger.determinism);
+  const weird = clamp01(trigger.weird);
+  const blendNoise = xorshift32((trigger.seed ^ 0x13579bdf) | 0);
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < out.length; i++) {
     const structural = det >= 0.5 ? (euclid[i] && ca[i]) : (euclid[i] || ca[i]);
     const chaosMix = blendNoise() < weird * 0.5 ? step[i] : structural;
-    const gravityGate = clamp01(voice.gravity) * 0.25;
-    out[i] = chaosMix && blendNoise() >= gravityGate ? 1 : 0;
+    out[i] = chaosMix && blendNoise() >= clamp01(trigger.gravity) * 0.25 ? 1 : 0;
   }
 
   return out;
 }
 
-function genFractalProtoPattern(voice: VoiceModule) {
-  const n = patternLength(voice);
-  const density = clamp01(voice.density);
-  const weird = clamp01(voice.weird);
+function genFractalProtoPattern(trigger: TriggerModule, voiceId: string) {
+  const n = patternLength(trigger);
+  const density = clamp01(trigger.density);
+  const weird = clamp01(trigger.weird);
   const proto = new Uint8Array([1, density > 0.5 ? 1 : 0]);
   const out = new Uint8Array(n);
-
   const maxBits = Math.ceil(Math.log2(Math.max(2, n)));
-  const seedMask = (voice.seed ^ ((voice.caRule | 0) << 8) ^ (voice.euclidRot | 0)) >>> 0;
+  const seedMask = (trigger.seed ^ ((trigger.caRule | 0) << 8) ^ (trigger.euclidRot | 0)) >>> 0;
 
   for (let i = 0; i < n; i++) {
-    // Deterministic proto-fractal fold: xor a small set of index bits then project to proto motif.
     let fold = 0;
-    for (let b = 0; b < maxBits; b++) {
-      const bit = (i >> b) & 1;
-      const seedBit = (seedMask >> (b % 24)) & 1;
-      fold ^= bit ^ seedBit;
-    }
-
-    const protoHit = proto[fold & 1] === 1;
-    const gravityBias = clamp01(voice.gravity) * 0.3;
-    const threshold = density - gravityBias + (fold ? weird * 0.15 : -weird * 0.1);
-    const gate = stepRandom01(voice.seed ^ 0x777, voice.id, i) < clamp01(threshold);
-    out[i] = protoHit && gate ? 1 : 0;
+    for (let b = 0; b < maxBits; b++) fold ^= ((i >> b) & 1) ^ ((seedMask >> (b % 24)) & 1);
+    const threshold = density - clamp01(trigger.gravity) * 0.3 + (fold ? weird * 0.15 : -weird * 0.1);
+    out[i] = proto[fold & 1] && stepRandom01(trigger.seed ^ 0x777, voiceId, i) < clamp01(threshold) ? 1 : 0;
   }
 
   return out;
 }
 
-const MODE_ENGINES: Record<Mode, (voice: VoiceModule) => Uint8Array> = {
-  step: (voice) => genStepPattern(voice),
-  euclid: (voice) => mutatePatternDeterministically(genEuclidPattern(voice), voice),
-  ca: (voice) => genCAPattern(voice),
-  hybrid: (voice) => genHybridPattern(voice),
-  fractal: (voice) => genFractalProtoPattern(voice),
-};
+function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
+  if (mode === "step") return genStepPattern(trigger);
+  if (mode === "euclid") {
+    const base = genEuclidPattern(trigger);
+    const out = new Uint8Array(base.length);
+    const rnd = xorshift32((trigger.seed ^ 0x5f3759df) | 0);
+    for (let i = 0; i < base.length; i++) {
+      const flip = rnd() < clamp01(trigger.weird) * (1 - clamp01(trigger.determinism)) * 0.35;
+      out[i] = flip ? (base[i] ? 0 : 1) : base[i];
+    }
+    return out;
+  }
+  if (mode === "ca") return genCAPattern(trigger, voiceId);
+  if (mode === "fractal") return genFractalProtoPattern(trigger, voiceId);
+  return genHybridPattern(trigger, voiceId);
+}
 
-function toStepWindowEvents(params: {
-  pattern: Uint8Array;
-  voice: VoiceModule;
-  voiceId: string;
-  startBeat: number;
-  endBeat: number;
-}): PatternEventWindow {
-  const { pattern, voice, voiceId, startBeat, endBeat } = params;
-  const subdiv = Math.max(1, voice.subdiv | 0);
+function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId: string, startBeat: number, endBeat: number): PatternEventWindow {
+  const subdiv = Math.max(1, trigger.subdiv | 0);
   const stepsPerBeat = 2 * subdiv;
   const firstStep = Math.ceil(startBeat * stepsPerBeat - EPS);
-  const drop = clamp01(voice.drop);
+  const drop = clamp01(trigger.drop);
   const events: PatternEvent[] = [];
 
   for (let step = firstStep; ; step++) {
     const beat = step / stepsPerBeat;
     if (beat >= endBeat - EPS) break;
     if (beat < startBeat - EPS) continue;
-
     const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
     if (pattern[idx] !== 1) continue;
-    if (drop > 0 && stepRandom01(voice.seed, voiceId, step) < drop) continue;
-
-    events.push({
-      voiceId,
-      beatOffset: beat - startBeat,
-    });
+    if (drop > 0 && stepRandom01(trigger.seed, voiceId, step) < drop) continue;
+    events.push({ voiceId, beatOffset: beat - startBeat });
   }
 
-  return {
-    startBeat,
-    endBeat,
-    events,
-  };
+  return { startBeat, endBeat, events };
 }
 
-export function createPatternModuleForMode(mode: Mode): PatternModule {
+export function createPatternModuleForTrigger(trigger: TriggerModule): PatternModule {
   return {
-    id: `pattern:self:${mode}`,
-    kind: mode,
+    id: `pattern:trigger:${trigger.id}:${trigger.mode}`,
+    kind: trigger.mode,
     renderWindow(request) {
-      const pattern = MODE_ENGINES[mode](request.voice);
-      return toStepWindowEvents({
-        pattern,
-        voice: request.voice,
-        voiceId: request.voiceId,
-        startBeat: request.startBeat,
-        endBeat: request.endBeat,
-      });
+      const pattern = patternForMode(trigger.mode, request.trigger, request.voiceId);
+      return toStepWindowEvents(pattern, request.trigger, request.voiceId, request.startBeat, request.endBeat);
     },
   };
-}
-
-export function createStepPatternModule(): PatternModule {
-  return createPatternModuleForMode("step");
-}
-
-export function createPatternModuleForVoice(voice: VoiceModule): PatternModule {
-  return createPatternModuleForMode(voice.mode);
 }

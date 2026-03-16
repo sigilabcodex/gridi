@@ -1,6 +1,6 @@
 // src/engine/audio.ts
-import type { Patch, VoiceModule } from "../patch";
-import { clamp, getVoices, isEffect } from "../patch";
+import type { Patch, SoundModule } from "../patch";
+import { clamp, getSoundModules, isEffect } from "../patch";
 import type { AudioModuleInstance } from "./audioModule";
 import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
@@ -9,7 +9,7 @@ export type Engine = {
   ctx: AudioContext;
   master: GainNode;
   analyser: AnalyserNode;
-  voiceLastTrigMs: Float64Array;
+  voiceLastTrigMs: Map<string, number>;
 
   start(): Promise<void>;
   setMasterMute(muted: boolean): void;
@@ -18,8 +18,7 @@ export type Engine = {
   disconnectModule(moduleId: string): void;
   dispose(): void;
 
-  // i = voice index inside getVoices(patch)
-  triggerVoice(i: number, patch: Patch, when?: number): void;
+  triggerVoice(moduleId: string, patch: Patch, when?: number): void;
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
@@ -36,11 +35,11 @@ function clamp01(x: number) {
   return clamp(x, 0, 1);
 }
 
-function voiceFreqHz(v: VoiceModule, i: number, macro: number) {
+function voiceFreqHz(v: SoundModule, i: number, macro: number) {
   const timbre = clamp01(safe(v.timbre, 0.5));
   const macro01 = clamp01(safe(macro, 0.5));
 
-  if (v.kind === "drum") {
+  if (v.type === "drum") {
     return 70 + timbre * 260 + macro01 * 40 + i * 8;
   }
 
@@ -87,7 +86,7 @@ export function createEngine(): Engine {
   const specByte = new Uint8Array(analyser.frequencyBinCount);
 
   // now that voices are “modular”, allow more than 8
-  const voiceLastTrigMs = new Float64Array(64);
+  const voiceLastTrigMs = new Map<string, number>();
 
   function setMasterMute(muted: boolean) {
     masterMuted = !!muted;
@@ -230,11 +229,12 @@ export function createEngine(): Engine {
     return buf;
   }
 
-  function triggerVoice(i: number, patch: Patch, when?: number) {
-    voiceLastTrigMs[i] = performance.now();
+  function triggerVoice(moduleId: string, patch: Patch, when?: number) {
+    voiceLastTrigMs.set(moduleId, performance.now());
 
-    const voices = getVoices(patch);
-    const v: VoiceModule | undefined = voices[i];
+    const voices = getSoundModules(patch);
+    const i = voices.findIndex((voice) => voice.id === moduleId);
+    const v = i >= 0 ? voices[i] : undefined;
     if (!v || !v.enabled) return;
 
     const now = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
@@ -242,8 +242,8 @@ export function createEngine(): Engine {
     const timbre = clamp01(safe(v.timbre, 0.5));
     const pan = clamp(safe(v.pan, 0), -1, 1);
 
-    const attack = 0.001 + (1 - clamp01(safe(v.determinism, 0.8))) * 0.02;
-    const decay = 0.05 + clamp01(safe(v.gravity, 0.6)) * 0.7;
+    const attack = 0.003 + (1 - timbre) * 0.01;
+    const decay = 0.08 + timbre * 0.45;
 
     const osc = ctx.createOscillator();
     osc.type = timbre < 0.33 ? "sine" : timbre < 0.66 ? "triangle" : "sawtooth";

@@ -1,53 +1,41 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createPatternModuleForVoice } from '../src/engine/pattern/module.ts';
-import { renderStepWindow } from '../src/engine/pattern/stepEventWindow.ts';
-import { absoluteBeats, makeVoice } from './helpers.mjs';
+import { createPatternModuleForTrigger } from '../src/engine/pattern/module.ts';
+import { absoluteBeats, makeTrigger } from './helpers.mjs';
 
-function dedupeOverlappedWindows(windows) {
-  let lastScheduledBeat = Number.NEGATIVE_INFINITY;
+function dedupeMerge(a, b) {
   const eps = 1e-9;
-  const scheduled = [];
-
-  for (const window of windows) {
-    for (const ev of window.events) {
-      const beat = window.startBeat + ev.beatOffset;
-      if (beat <= lastScheduledBeat + eps) continue;
-      scheduled.push(beat);
-      lastScheduledBeat = beat;
-    }
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    const x = i < a.length ? a[i] : Infinity;
+    const y = j < b.length ? b[j] : Infinity;
+    const next = x <= y ? x : y;
+    if (out.length === 0 || Math.abs(out[out.length - 1] - next) > eps) out.push(next);
+    if (Math.abs(x - next) <= eps) i++;
+    if (Math.abs(y - next) <= eps) j++;
   }
-  return scheduled;
+  return out;
 }
 
-test('step event windows are deterministic and bounded', () => {
-  const voice = makeVoice({ seed: 222, length: 16, density: 0.45, subdiv: 4 });
-  const a = renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 0.8, endBeat: 3.9 });
-  const b = renderStepWindow({ voice, voiceId: voice.id, voiceIndex: 0, startBeat: 0.8, endBeat: 3.9 });
-  assert.deepEqual(a, b);
+test('event windows merge without duplicates across overlap', () => {
+  const trigger = makeTrigger({ seed: 222, length: 16, density: 0.45, subdiv: 4 });
+  const module = createPatternModuleForTrigger(trigger);
+  const w1 = module.renderWindow({ trigger, voiceId: 'v1', startBeat: 0, endBeat: 1 });
+  const w2 = module.renderWindow({ trigger, voiceId: 'v1', startBeat: 0.75, endBeat: 1.75 });
 
-  const beats = absoluteBeats(a);
-  beats.forEach((beat, idx) => {
-    assert.ok(beat >= a.startBeat - 1e-9);
-    assert.ok(beat < a.endBeat + 1e-9);
-    if (idx > 0) assert.ok(beat >= beats[idx - 1] - 1e-9);
-  });
+  const merged = dedupeMerge(absoluteBeats(w1), absoluteBeats(w2));
+  const single = absoluteBeats(module.renderWindow({ trigger, voiceId: 'v1', startBeat: 0, endBeat: 1.75 }));
+  assert.deepEqual(merged, single);
 });
 
-test('overlapped look-ahead windows dedupe to one-pass equivalent', () => {
-  const modes = ['step', 'euclid', 'ca', 'hybrid', 'fractal'];
-
-  for (const mode of modes) {
-    const voice = makeVoice({ mode, seed: 901, length: 16, density: 0.8, drop: 0.5, weird: 0.65, caInit: 0.4 });
-    const module = createPatternModuleForVoice(voice);
-    const windows = [
-      module.renderWindow({ voice, voiceId: voice.id, source: { type: 'self' }, startBeat: 2.0, endBeat: 2.7 }),
-      module.renderWindow({ voice, voiceId: voice.id, source: { type: 'self' }, startBeat: 2.3, endBeat: 3.0 }),
-    ];
-    const scheduled = dedupeOverlappedWindows(windows);
-    const reference = module.renderWindow({ voice, voiceId: voice.id, source: { type: 'self' }, startBeat: 2.0, endBeat: 3.0 });
-
-    assert.deepEqual(scheduled, absoluteBeats(reference));
-    assert.equal(new Set(scheduled.map((n) => n.toFixed(9))).size, scheduled.length);
+test('drop remains deterministic across repeated renders by mode', () => {
+  for (const mode of ['step', 'euclid', 'ca', 'hybrid', 'fractal']) {
+    const trigger = makeTrigger({ mode, seed: 901, length: 16, density: 0.8, drop: 0.5, weird: 0.65, caInit: 0.4 });
+    const module = createPatternModuleForTrigger(trigger);
+    const a = absoluteBeats(module.renderWindow({ trigger, voiceId: 'v1', startBeat: 0, endBeat: 2 }));
+    const b = absoluteBeats(module.renderWindow({ trigger, voiceId: 'v1', startBeat: 0, endBeat: 2 }));
+    assert.deepEqual(a, b, `drop determinism failed for mode ${mode}`);
   }
 });

@@ -1,9 +1,10 @@
 import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
-import { getVoices, isVisual, makeNewVoice, makeVisual } from "../../patch";
+import { getSoundModules, getTriggers, isVisual, makeSound, makeTrigger, makeVisual } from "../../patch";
 import type { VoiceTab } from "../voiceModule";
 import { renderVoiceModule } from "../voiceModule";
+import { renderTriggerModule } from "../triggerModule";
 import { renderVisualModule } from "../visualModule";
 import { renderAddModuleSlot } from "../AddModuleSlot";
 
@@ -18,7 +19,7 @@ type ModuleGridParams = {
   saveAndPersist: () => void;
   getVoiceTab: (id: string) => VoiceTab;
   setVoiceTab: (id: string, tab: VoiceTab) => void;
-  led: (voiceIndex: number) => { active: boolean; hit: boolean };
+  led: (moduleId: string) => { active: boolean; hit: boolean };
 };
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -26,48 +27,53 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
   const rerender = () => {
     const patch = params.patch();
-
     params.main.innerHTML = "";
     const grid = document.createElement("div");
     grid.className = "grid";
     params.main.appendChild(grid);
-
     updaters = [];
 
-    const voices = getVoices(patch);
-    const patternSourceOptions = voices.map((voice) => ({
-      id: voice.id,
-      label: `${voice.name} (${voice.id.slice(-4)})`,
-    }));
+    const sounds = getSoundModules(patch);
+    const triggers = getTriggers(patch);
+    const triggerOptions = triggers.map((t) => ({ id: t.id, label: `${t.name} (${t.id.slice(-4)})` }));
 
-    for (let i = 0; i < voices.length; i++) {
-      const v = voices[i];
-      const sourceOptions = [{ id: "self", label: "Self" }, ...patternSourceOptions.filter((opt) => opt.id !== v.id)];
-
+    for (const s of sounds) {
       const upd = renderVoiceModule(
         grid,
-        patch,
-        v,
-        i,
+        s,
+        0,
         params.led,
         params.onPatchChange,
-        {
-          tab: params.getVoiceTab(v.id),
-          setTab: (tab) => params.setVoiceTab(v.id, tab),
-        },
-        sourceOptions,
+        { tab: params.getVoiceTab(s.id), setTab: (tab) => params.setVoiceTab(s.id, tab) },
+        triggerOptions,
         () => {
           const prev = params.clonePatch(params.patch());
           const nextPatch = params.patch();
-          nextPatch.modules = nextPatch.modules.filter((m) => m.id !== v.id);
+          nextPatch.modules = nextPatch.modules.filter((m) => m.id !== s.id);
           params.pushHistory(prev);
           params.sched.setPatch(nextPatch, { regen: true });
           params.sched.regenAll();
           params.saveAndPersist();
           rerender();
-        }
+        },
       );
+      updaters.push(upd);
+    }
 
+    for (const t of triggers) {
+      const upd = renderTriggerModule(grid, t, params.onPatchChange, () => {
+        const prev = params.clonePatch(params.patch());
+        const nextPatch = params.patch();
+        nextPatch.modules = nextPatch.modules.filter((m) => m.id !== t.id);
+        for (const m of nextPatch.modules) {
+          if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === t.id) m.triggerSource = null;
+        }
+        params.pushHistory(prev);
+        params.sched.setPatch(nextPatch, { regen: true });
+        params.sched.regenAll();
+        params.saveAndPersist();
+        rerender();
+      });
       updaters.push(upd);
     }
 
@@ -85,16 +91,12 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     }
 
     const slot = renderAddModuleSlot({
-      onPick: (what: "drum" | "tonal" | VisualKind) => {
+      onPick: (what: "drum" | "tonal" | "trigger" | VisualKind) => {
         const prev = params.clonePatch(params.patch());
         const nextPatch = params.patch();
-
-        if (what === "drum" || what === "tonal") {
-          nextPatch.modules.push(makeNewVoice(what));
-        } else {
-          nextPatch.modules.push(makeVisual(what));
-        }
-
+        if (what === "drum" || what === "tonal") nextPatch.modules.push(makeSound(what));
+        else if (what === "trigger") nextPatch.modules.push(makeTrigger());
+        else nextPatch.modules.push(makeVisual(what));
         params.pushHistory(prev);
         params.sched.setPatch(nextPatch, { regen: true });
         params.sched.regenAll();
@@ -105,10 +107,5 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     grid.appendChild(slot);
   };
 
-  return {
-    rerender,
-    updateFrame: () => {
-      for (const update of updaters) update();
-    },
-  };
+  return { rerender, updateFrame: () => { for (const update of updaters) update(); } };
 }

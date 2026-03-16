@@ -1,6 +1,6 @@
-import type { VoiceModule } from "../../patch.ts";
+import type { TriggerModule } from "../../patch.ts";
 
-export type StepPatternParams = Pick<VoiceModule, "length" | "seed" | "density">;
+export type StepPatternParams = Pick<TriggerModule, "length" | "seed" | "density">;
 
 function xorshift32(seed: number) {
   let x = seed | 0;
