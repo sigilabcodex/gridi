@@ -1,4 +1,3 @@
-// src/ui/visualModule.ts
 import type { Engine } from "../engine/audio";
 import type { Patch, VisualModule } from "../patch";
 
@@ -15,21 +14,26 @@ export function renderVisualModule(
   vm: VisualModule,
   onRemove: () => void
 ) {
-  const card = el("section", "card");
+  const card = el("section", "card moduleCard");
   card.dataset.type = "visual";
-  card.dataset.kind = vm.kind; // <-- para CSS por tipo si luego quieres
 
   const header = el("div", "cardHeader");
   const titleRow = el("div", "titleRow");
-  const badge = el("span", "badge");
-  badge.textContent = "VIS";
-  const name = el("div", "name");
-  name.textContent = `${vm.kind.toUpperCase()}`;
+  const badge = el("span", "familyBadge");
+  badge.textContent = "VISUAL";
 
-  titleRow.append(badge, name);
+  const meta = el("div", "moduleTitleWrap");
+  const moduleType = el("div", "small moduleTypeLabel");
+  moduleType.textContent = "Visual Module";
+  const name = el("div", "name");
+  name.textContent = vm.kind.toUpperCase();
+  const idRef = el("div", "small moduleId");
+  idRef.textContent = `ID ${vm.id.slice(-6).toUpperCase()}`;
+  meta.append(moduleType, name, idRef);
+
+  titleRow.append(badge, meta);
 
   const right = el("div", "rightControls");
-
   const btnOn = el("button");
   const updateOn = () => {
     btnOn.textContent = vm.enabled ? "On" : "Off";
@@ -46,20 +50,21 @@ export function renderVisualModule(
   btnX.onclick = onRemove;
 
   right.append(btnOn, btnX);
-
   header.append(titleRow, right);
-  card.appendChild(header);
+
+  const relationRow = el("div", "moduleRelations");
+  const role = el("div", "connectionPill strong");
+  role.innerHTML = `<span class="small">Role</span><span class="connectionPillValue">Output monitor</span>`;
+  relationRow.append(role);
 
   const body = el("div", "visualBody");
-
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
-  // tamaño inicial razonable (se ajusta luego)
   canvas.width = 800;
   canvas.height = 260;
 
   body.appendChild(canvas);
-  card.appendChild(body);
+  card.append(header, relationRow, body);
   parent.appendChild(card);
 
   updateOn();
@@ -70,8 +75,6 @@ export function renderVisualModule(
 
   function resizeIfNeeded() {
     const r = canvas.getBoundingClientRect();
-
-    // GUARD: si está colapsado por layout un frame, NO lo reduzcas a 1×1
     if (r.width < 2 || r.height < 2) return;
 
     const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
@@ -89,23 +92,19 @@ export function renderVisualModule(
     const h = canvas.height;
 
     ctx2d.clearRect(0, 0, w, h);
-
     ctx2d.lineWidth = 1;
     ctx2d.strokeStyle = "rgba(207,214,221,0.12)";
 
-    const cols = 10;
-    const rows = 4;
-
-    for (let i = 1; i < cols; i++) {
-      const x = (w * i) / cols;
+    for (let i = 1; i < 10; i++) {
+      const x = (w * i) / 10;
       ctx2d.beginPath();
       ctx2d.moveTo(x, 0);
       ctx2d.lineTo(x, h);
       ctx2d.stroke();
     }
 
-    for (let j = 1; j < rows; j++) {
-      const y = (h * j) / rows;
+    for (let j = 1; j < 4; j++) {
+      const y = (h * j) / 4;
       ctx2d.beginPath();
       ctx2d.moveTo(0, y);
       ctx2d.lineTo(w, y);
@@ -124,9 +123,8 @@ export function renderVisualModule(
     ctx2d.strokeStyle = "rgba(235,240,245,0.95)";
     ctx2d.beginPath();
 
-    const n = scopeBuf.length;
-    for (let i = 0; i < n; i++) {
-      const x = (i / (n - 1)) * w;
+    for (let i = 0; i < scopeBuf.length; i++) {
+      const x = (i / (scopeBuf.length - 1)) * w;
       const y = mid - scopeBuf[i] * (h * 0.42);
       if (i === 0) ctx2d.moveTo(x, y);
       else ctx2d.lineTo(x, y);
@@ -139,23 +137,14 @@ export function renderVisualModule(
 
     const w = canvas.width;
     const h = canvas.height;
-
-    const n = specBuf.length;
-    const barW = Math.max(1, Math.floor(w / n));
+    const barW = Math.max(1, Math.floor(w / specBuf.length));
 
     ctx2d.fillStyle = "rgba(74,163,255,0.55)";
-    for (let i = 0; i < n; i++) {
-      const v = specBuf[i]; // 0..1
+    for (let i = 0; i < specBuf.length; i++) {
       const x = i * barW;
-      const bh = v * (h * 0.92);
+      const bh = specBuf[i] * (h * 0.92);
       ctx2d.fillRect(x, h - bh, barW, bh);
     }
-
-    ctx2d.strokeStyle = "rgba(235,240,245,0.35)";
-    ctx2d.beginPath();
-    ctx2d.moveTo(0, h - 1);
-    ctx2d.lineTo(w, h - 1);
-    ctx2d.stroke();
   }
 
   return function update() {
