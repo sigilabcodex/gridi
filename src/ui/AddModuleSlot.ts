@@ -1,7 +1,7 @@
 // src/ui/AddModuleSlot.ts
 import type { VisualKind } from "../patch";
 
-type Pick = "drum" | "tonal" | VisualKind;
+type Pick = "drum" | "tonal" | "trigger" | VisualKind;
 
 export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
   const wrap = document.createElement("div");
@@ -23,11 +23,7 @@ export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
   name.textContent = "Add module";
 
   titleRow.append(badge, name);
-
-  const right = document.createElement("div");
-  right.className = "rightControls";
-
-  header.append(titleRow, right);
+  header.append(titleRow, document.createElement("div"));
   wrap.appendChild(header);
 
   const body = document.createElement("div");
@@ -35,21 +31,16 @@ export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
   wrap.appendChild(body);
 
   let mode: "root" | "visual" = "root";
-
   const mkBtn = (label: string, onClick: () => void, primary = false) => {
     const b = document.createElement("button");
     b.textContent = label;
     if (primary) b.className = "primary";
-    b.onclick = (e) => {
-      e.preventDefault();
-      onClick();
-    };
+    b.onclick = (e) => { e.preventDefault(); onClick(); };
     return b;
   };
 
   function render() {
     body.innerHTML = "";
-
     const hint = document.createElement("div");
     hint.className = "small";
     hint.textContent = mode === "root" ? "Choose type" : "Choose visual";
@@ -62,27 +53,21 @@ export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
       row.append(
         mkBtn("Drum", () => opts.onPick("drum"), true),
         mkBtn("Tonal", () => opts.onPick("tonal")),
-        mkBtn("Visual", () => {
-          mode = "visual";
-          render();
-        })
+        mkBtn("Trigger", () => opts.onPick("trigger")),
+        mkBtn("Visual", () => { mode = "visual"; render(); }),
       );
     } else {
       row.append(
         mkBtn("Scope", () => opts.onPick("scope"), true),
         mkBtn("Spectrum", () => opts.onPick("spectrum")),
-        mkBtn("Back", () => {
-          mode = "root";
-          render();
-        })
+        mkBtn("Back", () => { mode = "root"; render(); }),
       );
     }
 
     body.appendChild(row);
-
     const sub = document.createElement("div");
     sub.className = "small add-slot-sub";
-    sub.textContent = mode === "root" ? "Drum / Tonal / Visual" : "Scope / Spectrum";
+    sub.textContent = mode === "root" ? "Drum / Tonal / Trigger / Visual" : "Scope / Spectrum";
     body.appendChild(sub);
   }
 

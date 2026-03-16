@@ -2,22 +2,49 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateConnections } from '../src/engine/routing.ts';
 import { migratePatch } from '../src/patch.ts';
-import { makeVoice } from './helpers.mjs';
+import { makeLegacyVoice } from './helpers.mjs';
 
-test('legacy voices gain default self pattern source', () => {
-  const legacyPatch = {
+test('legacy voice migrates to sound module + trigger module', () => {
+  const migrated = migratePatch({
     version: '0.3',
     bpm: 120,
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules: [{ ...makeVoice(), patternSource: undefined }],
+    modules: [{ ...makeLegacyVoice({ id: 'voice-a' }), patternSource: undefined }],
     buses: [],
     connections: [],
-  };
+  });
 
-  const migrated = migratePatch(legacyPatch);
-  assert.equal(migrated.modules[0].patternSource, 'self');
+  const sound = migrated.modules.find((m) => m.id === 'voice-a');
+  const trigger = migrated.modules.find((m) => m.type === 'trigger');
+  assert.equal(sound.type, 'drum');
+  assert.equal(sound.triggerSource, trigger.id);
+  assert.ok(trigger);
+});
+
+test('legacy follower maps to source trigger id; missing source becomes null', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      makeLegacyVoice({ id: 'lead', patternSource: 'self' }),
+      makeLegacyVoice({ id: 'follow', patternSource: 'lead' }),
+      makeLegacyVoice({ id: 'missing', patternSource: 'nope' }),
+    ],
+    buses: [],
+    connections: [],
+  });
+
+  const lead = migrated.modules.find((m) => m.id === 'lead');
+  const follow = migrated.modules.find((m) => m.id === 'follow');
+  const missing = migrated.modules.find((m) => m.id === 'missing');
+  assert.equal(typeof lead.triggerSource, 'string');
+  assert.equal(follow.triggerSource, lead.triggerSource);
+  assert.equal(missing.triggerSource, null);
 });
 
 test('migration normalizes buses/effects/connections for malformed legacy input', () => {
@@ -27,7 +54,7 @@ test('migration normalizes buses/effects/connections for malformed legacy input'
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules: [{ ...makeVoice({ id: 'v1' }) }, { id: 'fx1', type: 'effect', name: 'Gain', enabled: true }],
+    modules: [{ ...makeLegacyVoice({ id: 'v1' }) }, { id: 'fx1', type: 'effect', name: 'Gain', enabled: true }],
     buses: [{ id: 'b1', gain: 99, mute: 'truthy' }, { invalid: true }],
     connections: [
       { fromModuleId: 'v1', to: { type: 'module', id: 'fx1' }, gain: 99 },
@@ -54,7 +81,7 @@ test('routing validation keeps enabled valid links and warns on invalid endpoint
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules: [makeVoice({ id: 'v1' }), { id: 'fx1', type: 'effect', name: 'Gain', enabled: true, kind: 'gain', bypass: true, gain: 1 }],
+    modules: [makeLegacyVoice({ id: 'v1' }), { id: 'fx1', type: 'effect', name: 'Gain', enabled: true, kind: 'gain', bypass: true, gain: 1 }],
     buses: [{ id: 'bus-1', name: 'B1', gain: 1, mute: false }],
     connections: [
       { id: 'ok-module', fromModuleId: 'v1', fromPort: 'main', to: { type: 'module', id: 'fx1' }, gain: 1, enabled: true },
