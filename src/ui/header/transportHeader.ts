@@ -127,22 +127,15 @@ export function createTransportHeader(params: HeaderParams) {
   const spacer = document.createElement("div");
   spacer.className = "spacer";
 
-  header.append(
-    h1,
-    btnAudio,
-    btnPlay,
-    btnMute,
-    btnReset,
-    btnReseed,
-    btnRandom,
-    btnRegen,
-    presetWrap,
-    bpmWrap,
-    masterWrap,
-    spacer,
-    status,
-    btnSettings
-  );
+  const transportCluster = document.createElement("div");
+  transportCluster.className = "headerCluster";
+  transportCluster.append(btnAudio, btnPlay, btnMute, btnReset, btnReseed, btnRandom, btnRegen);
+
+  const sceneCluster = document.createElement("div");
+  sceneCluster.className = "headerCluster";
+  sceneCluster.append(presetWrap, bpmWrap, masterWrap);
+
+  header.append(h1, transportCluster, sceneCluster, spacer, status, btnSettings);
 
   params.root.appendChild(header);
 

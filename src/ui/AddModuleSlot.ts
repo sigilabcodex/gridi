@@ -17,36 +17,27 @@ function createFamilyButton(title: string, desc: string, onClick: () => void, pr
 }
 
 export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
-  const wrap = document.createElement("div");
-  wrap.className = "card add-slot-card moduleCard";
+  const wrap = document.createElement("section");
+  wrap.className = "moduleSurface browserSurface";
   wrap.dataset.type = "add";
 
-  const header = document.createElement("div");
-  header.className = "cardHeader";
-
-  const titleRow = document.createElement("div");
-  titleRow.className = "titleRow";
+  const head = document.createElement("div");
+  head.className = "surfaceHeader";
+  const identity = document.createElement("div");
+  identity.className = "surfaceIdentity";
   const badge = document.createElement("span");
-  badge.className = "familyBadge";
-  badge.textContent = "ADD";
-
+  badge.className = "surfaceBadge";
+  badge.textContent = "BROWSER";
   const meta = document.createElement("div");
-  meta.className = "moduleTitleWrap";
-  const type = document.createElement("div");
-  type.className = "small moduleTypeLabel";
-  type.textContent = "Module Browser";
-  const name = document.createElement("div");
-  name.className = "name";
-  name.textContent = "Add Module";
-  meta.append(type, name);
-
-  titleRow.append(badge, meta);
-  header.append(titleRow, document.createElement("div"));
-  wrap.appendChild(header);
+  meta.className = "surfaceNameWrap";
+  meta.innerHTML = "<div class='small'>Module router</div><div class='name'>Add Module</div>";
+  identity.append(badge, meta);
+  head.append(identity, document.createElement("div"));
 
   const body = document.createElement("div");
-  body.className = "add-slot-body";
-  wrap.appendChild(body);
+  body.className = "browserSurfaceBody";
+
+  wrap.append(head, body);
 
   let mode: "root" | "visual" = "root";
 
@@ -54,30 +45,26 @@ export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
     body.innerHTML = "";
     const hint = document.createElement("div");
     hint.className = "small addModuleHint";
-    hint.textContent = mode === "root" ? "Choose a module family" : "Choose a visual module";
+    hint.textContent = mode === "root" ? "Choose family" : "Choose visual surface";
 
     const grid = document.createElement("div");
     grid.className = "addFamilyGrid";
 
     if (mode === "root") {
       grid.append(
-        createFamilyButton("Trigger", "Generative event sources", () => opts.onPick("trigger"), true),
-        createFamilyButton("Drum", "Percussive synth voice", () => opts.onPick("drum")),
-        createFamilyButton("Tonal", "Melodic or drone synth voice", () => opts.onPick("tonal")),
-        createFamilyButton("Visual", "Monitoring and analysis", () => { mode = "visual"; render(); }),
+        createFamilyButton("Trigger", "Sequencing / pulses / probability", () => opts.onPick("trigger"), true),
+        createFamilyButton("Drum", "Transient-body-noise sculpting", () => opts.onPick("drum")),
+        createFamilyButton("Synth", "Timbre-envelope-filter shaping", () => opts.onPick("tonal")),
+        createFamilyButton("Visual", "Scope / spectrum displays", () => { mode = "visual"; render(); }),
       );
-
-      const future = document.createElement("div");
-      future.className = "small addModuleFuture";
-      future.textContent = "Future: Algorithm / Livecoding modules";
-      body.append(hint, grid, future);
+      body.append(hint, grid);
       return;
     }
 
     grid.append(
       createFamilyButton("Scope", "Waveform monitor", () => opts.onPick("scope"), true),
       createFamilyButton("Spectrum", "Frequency monitor", () => opts.onPick("spectrum")),
-      createFamilyButton("Back", "Return to module families", () => { mode = "root"; render(); }),
+      createFamilyButton("Back", "Return to families", () => { mode = "root"; render(); }),
     );
 
     body.append(hint, grid);
