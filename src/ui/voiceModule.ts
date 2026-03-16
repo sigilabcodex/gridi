@@ -1,4 +1,4 @@
-import type { Patch, SoundModule } from "../patch";
+import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 
 export type VoiceTab = "MAIN" | "MIDI";
@@ -9,6 +9,19 @@ type UiState = {
 };
 
 type TriggerOption = { id: string; label: string };
+
+function createGroup(title: string, ...controls: HTMLElement[]) {
+  const group = document.createElement("div");
+  group.className = "soundGroup";
+  const label = document.createElement("div");
+  label.className = "small groupTitle";
+  label.textContent = title;
+  const row = document.createElement("div");
+  row.className = "row compactRow voiceRow";
+  row.append(...controls);
+  group.append(label, row);
+  return group;
+}
 
 export function renderVoiceModule(
   root: HTMLElement,
@@ -21,8 +34,9 @@ export function renderVoiceModule(
   onRemove?: () => void,
 ) {
   const card = document.createElement("section");
-  card.className = "card";
+  card.className = "card soundCard";
   card.dataset.type = v.type;
+  card.dataset.kind = v.type;
 
   const header = document.createElement("div");
   header.className = "cardHeader";
@@ -30,7 +44,7 @@ export function renderVoiceModule(
   titleRow.className = "titleRow";
   const badge = document.createElement("div");
   badge.className = "badge";
-  badge.textContent = v.type === "drum" ? "DRUM" : "TONAL";
+  badge.textContent = v.type === "drum" ? "DRUM SYNTH" : "TONAL SYNTH";
   const ledA = document.createElement("div");
   ledA.className = "led";
   const ledHit = document.createElement("div");
@@ -62,19 +76,71 @@ export function renderVoiceModule(
 
   const tabs = document.createElement("div");
   tabs.className = "modTabs";
-  const btnMain = document.createElement("button"); btnMain.className = "modTab"; btnMain.textContent = "MAIN";
+  const btnMain = document.createElement("button"); btnMain.className = "modTab"; btnMain.textContent = "SYNTH";
   const btnMidi = document.createElement("button"); btnMidi.className = "modTab"; btnMidi.textContent = "MIDI";
   tabs.append(btnMain, btnMidi);
 
   const panelMain = document.createElement("div");
   panelMain.className = "modPanel";
-  const row = document.createElement("div");
-  row.className = "row compactRow";
-  row.append(
-    ctlFloat({ label: "Amp", value: v.amp, min: 0, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m && (m.type === "drum" || m.type === "tonal")) m.amp = x; }, { regen: false }) }),
-    ctlFloat({ label: "Timbre", value: v.timbre, min: 0, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m && (m.type === "drum" || m.type === "tonal")) m.timbre = x; }, { regen: false }) }),
-    ctlFloat({ label: "Pan", value: v.pan, min: -1, max: 1, step: 0.001, center: 0, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m && (m.type === "drum" || m.type === "tonal")) m.pan = x; }, { regen: false }) }),
-  );
+
+  if (v.type === "drum") {
+    const d = v as DrumModule;
+    panelMain.append(
+      createGroup(
+        "Mix",
+        ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) }),
+        ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Body",
+        ctlFloat({ label: "Base Pitch", value: d.basePitch, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }) }),
+        ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) }),
+        ctlFloat({ label: "Body Tone", value: d.bodyTone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.bodyTone = x; }, { regen: false }) }),
+        ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Transient",
+        ctlFloat({ label: "Click", value: d.transient, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.transient = x; }, { regen: false }) }),
+        ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) }),
+        ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Pitch Envelope",
+        ctlFloat({ label: "Amount", value: d.pitchEnvAmt, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pitchEnvAmt = x; }, { regen: false }) }),
+        ctlFloat({ label: "Decay", value: d.pitchEnvDecay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pitchEnvDecay = x; }, { regen: false }) }),
+      ),
+    );
+  } else {
+    const t = v as TonalModule;
+    panelMain.append(
+      createGroup(
+        "Mix",
+        ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) }),
+        ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Oscillator",
+        ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
+        ctlFloat({ label: "Coarse", value: t.coarseTune, min: -24, max: 24, step: 1, format: (x) => `${x.toFixed(0)} st`, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.coarseTune = x; }, { regen: false }) }),
+        ctlFloat({ label: "Fine", value: t.fineTune, min: -1, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.fineTune = x; }, { regen: false }) }),
+        ctlFloat({ label: "Glide", value: t.glide, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.glide = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Envelope",
+        ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
+        ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),
+        ctlFloat({ label: "Sustain", value: t.sustain, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.sustain = x; }, { regen: false }) }),
+        ctlFloat({ label: "Release", value: t.release, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.release = x; }, { regen: false }) }),
+      ),
+      createGroup(
+        "Filter & Mod",
+        ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) }),
+        ctlFloat({ label: "Res", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
+        ctlFloat({ label: "Mod Depth", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) }),
+        ctlFloat({ label: "Mod Rate", value: t.modRate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modRate = x; }, { regen: false }) }),
+      ),
+    );
+  }
 
   const sourceRow = document.createElement("div");
   sourceRow.className = "seqSourceRow";
@@ -92,7 +158,7 @@ export function renderVoiceModule(
     if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = sourceSel.value || null;
   }, { regen: true });
   sourceRow.append(sourceLabel, sourceSel);
-  panelMain.append(row, sourceRow);
+  panelMain.append(sourceRow);
 
   const panelMidi = document.createElement("div");
   panelMidi.className = "modPanel";

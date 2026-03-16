@@ -167,8 +167,8 @@ main { margin-top: 8px; }
   background: rgba(0,0,0,0.22);
   opacity: 0.95;
 }
-.card[data-type="voice"][data-kind="drum"] .badge  { border-color: rgba(74,163,255,0.45); }
-.card[data-type="voice"][data-kind="tonal"] .badge { border-color: rgba(98,214,139,0.45); }
+.card[data-type="drum"] .badge  { border-color: rgba(74,163,255,0.55); }
+.card[data-type="tonal"] .badge { border-color: rgba(98,214,139,0.55); }
 .card[data-type="visual"] .badge { border-color: rgba(255,204,102,0.45); }
 
 .name { font-weight: 700; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -275,8 +275,8 @@ main { margin-top: 8px; }
 .knobDot { fill: var(--knob-dot); opacity: 0.9; }
 .knobCap { fill: var(--knob-cap); stroke: rgba(255,255,255,0.08); stroke-width: 1; }
 
-.card[data-type="voice"][data-kind="drum"]  .knobArc { stroke: var(--acc-blue); }
-.card[data-type="voice"][data-kind="tonal"] .knobArc { stroke: var(--acc-green); }
+.card[data-type="drum"]  .knobArc { stroke: var(--acc-blue); }
+.card[data-type="tonal"] .knobArc { stroke: var(--acc-green); }
 .card[data-type="visual"]                 .knobArc { stroke: var(--acc-amber); }
 
 
@@ -499,4 +499,34 @@ main { margin-top: 8px; }
   gap: 8px;
   margin-top: 8px;
   user-select: none;
+}
+
+
+.soundCard {
+  border-width: 1px;
+}
+.card[data-type="drum"] {
+  background: linear-gradient(180deg, rgba(13, 24, 33, 0.86), rgba(15, 21, 27, 0.75));
+  border-color: rgba(74, 163, 255, 0.28);
+}
+.card[data-type="tonal"] {
+  background: linear-gradient(180deg, rgba(18, 29, 23, 0.82), rgba(15, 21, 27, 0.75));
+  border-color: rgba(98, 214, 139, 0.28);
+}
+.voiceRow {
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  justify-items: center;
+  row-gap: 8px;
+}
+.soundGroup {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.14);
+}
+.groupTitle {
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+  opacity: 0.95;
 }

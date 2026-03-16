@@ -55,8 +55,16 @@ export function makeSound(overrides = {}) {
     enabled: true,
     triggerSource: 'trg-1',
     amp: 0.12,
-    timbre: 0.5,
     pan: 0,
+    basePitch: 0.4,
+    decay: 0.35,
+    transient: 0.6,
+    snap: 0.25,
+    noise: 0.2,
+    bodyTone: 0.5,
+    pitchEnvAmt: 0.6,
+    pitchEnvDecay: 0.2,
+    tone: 0.5,
     ...overrides,
   };
 }
