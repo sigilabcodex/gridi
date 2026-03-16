@@ -83,12 +83,16 @@ function createTabs(mainPanel: HTMLElement, ui: UiState, triggerOptions: Trigger
   tabs.className = "surfaceTabs";
 
   const panelConnections = document.createElement("div");
-  panelConnections.className = "surfaceTabPanel";
+  panelConnections.className = "surfaceTabPanel utilityPanel";
+
   const sourceRow = document.createElement("div");
-  sourceRow.className = "seqSourceRow";
+  sourceRow.className = "utilityRouteCard";
+  const sourceTitle = document.createElement("div");
+  sourceTitle.className = "utilityRouteTitle";
+  sourceTitle.textContent = "Trigger route";
   const sourceLabel = document.createElement("div");
   sourceLabel.className = "small";
-  sourceLabel.textContent = "Trigger source";
+  sourceLabel.textContent = "Map this voice to a trigger module";
   const sourceSel = document.createElement("select");
   const none = document.createElement("option");
   none.value = "";
@@ -107,11 +111,11 @@ function createTabs(mainPanel: HTMLElement, ui: UiState, triggerOptions: Trigger
     if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = sourceSel.value || null;
   }, { regen: true });
 
-  const hint = document.createElement("div");
-  hint.className = "small";
-  hint.textContent = "Connections / MIDI / debug live in tabs so the surface stays performance-first.";
-  sourceRow.append(sourceLabel, sourceSel);
-  panelConnections.append(sourceRow, hint);
+  const routeMap = document.createElement("div");
+  routeMap.className = "utilityRouteMap small";
+  routeMap.textContent = `voice ${v.id.slice(-4).toUpperCase()} → ${v.triggerSource ? `trigger ${v.triggerSource.slice(-4).toUpperCase()}` : "no trigger"}`;
+
+  sourceRow.append(sourceTitle, sourceLabel, sourceSel, routeMap);
 
   const panelMidi = document.createElement("div");
   panelMidi.className = "surfaceTabPanel hidden";
@@ -121,8 +125,10 @@ function createTabs(mainPanel: HTMLElement, ui: UiState, triggerOptions: Trigger
   panelSettings.className = "surfaceTabPanel hidden";
   panelSettings.textContent = "Advanced configuration (coming soon)";
 
+  panelConnections.append(sourceRow);
+
   const specs: TabSpec[] = [
-    { id: "CONNECTIONS", label: "Connections", panel: panelConnections },
+    { id: "CONNECTIONS", label: "Routing", panel: panelConnections },
     { id: "MIDI", label: "MIDI", panel: panelMidi },
     { id: "SETTINGS", label: "Debug", panel: panelSettings },
   ];
@@ -167,26 +173,33 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 
   const h = createHeader(v, "DRUM", "Percussive voice", onPatchChange, onRemove);
 
-  const punchLane = document.createElement("div");
-  punchLane.className = "drumLane";
+  const transientLane = document.createElement("div");
+  transientLane.className = "drumLane";
+  transientLane.innerHTML = `<div class="triggerSectionLabel">Transient</div>`;
+
   const bodyLane = document.createElement("div");
   bodyLane.className = "drumLane";
-  const mixLane = document.createElement("div");
-  mixLane.className = "drumLane";
+  bodyLane.innerHTML = `<div class="triggerSectionLabel">Body + pitch</div>`;
 
-  punchLane.append(
+  const perfLane = document.createElement("div");
+  perfLane.className = "drumLane";
+  perfLane.innerHTML = `<div class="triggerSectionLabel">Performance</div>`;
+
+  transientLane.append(
     ctlFloat({ label: "Transient", value: d.transient, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.transient = x; }, { regen: false }) }),
     ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) }),
-    ctlFloat({ label: "Pitch Env", value: d.pitchEnvAmt, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pitchEnvAmt = x; }, { regen: false }) }),
+    ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) }),
   );
 
   bodyLane.append(
+    ctlFloat({ label: "Base Pitch", value: d.basePitch, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }) }),
+    ctlFloat({ label: "Pitch Env", value: d.pitchEnvAmt, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pitchEnvAmt = x; }, { regen: false }) }),
+    ctlFloat({ label: "Pitch Decay", value: d.pitchEnvDecay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pitchEnvDecay = x; }, { regen: false }) }),
     ctlFloat({ label: "Body", value: d.bodyTone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.bodyTone = x; }, { regen: false }) }),
-    ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) }),
     ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) }),
   );
 
-  mixLane.append(
+  perfLane.append(
     ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) }),
     ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) }),
     ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
@@ -194,7 +207,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 
   const main = document.createElement("div");
   main.className = "drumSurfaceBody";
-  main.append(punchLane, bodyLane, mixLane);
+  main.append(transientLane, bodyLane, perfLane);
 
   const tabs = createTabs(main, ui, triggerOptions, v, onPatchChange);
 
@@ -219,28 +232,33 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
 
   const h = createHeader(v, "SYNTH", "Tonal voice", onPatchChange, onRemove);
 
-  const timbre = document.createElement("div");
-  timbre.className = "synthBlock";
-  const envelope = document.createElement("div");
-  envelope.className = "synthBlock";
-  const filter = document.createElement("div");
-  filter.className = "synthBlock";
+  const oscStrip = document.createElement("div");
+  oscStrip.className = "synthBlock";
+  oscStrip.innerHTML = `<div class="triggerSectionLabel">Oscillator + motion</div>`;
 
-  timbre.append(
+  const envStrip = document.createElement("div");
+  envStrip.className = "synthBlock";
+  envStrip.innerHTML = `<div class="triggerSectionLabel">Envelope</div>`;
+
+  const toneStrip = document.createElement("div");
+  toneStrip.className = "synthBlock";
+  toneStrip.innerHTML = `<div class="triggerSectionLabel">Filter + tuning</div>`;
+
+  oscStrip.append(
     ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
     ctlFloat({ label: "Mod Depth", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) }),
     ctlFloat({ label: "Mod Rate", value: t.modRate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modRate = x; }, { regen: false }) }),
     ctlFloat({ label: "Glide", value: t.glide, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.glide = x; }, { regen: false }) }),
   );
 
-  envelope.append(
+  envStrip.append(
     ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),
     ctlFloat({ label: "Sustain", value: t.sustain, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.sustain = x; }, { regen: false }) }),
     ctlFloat({ label: "Release", value: t.release, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.release = x; }, { regen: false }) }),
   );
 
-  filter.append(
+  toneStrip.append(
     ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) }),
     ctlFloat({ label: "Res", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
     ctlFloat({ label: "Coarse", value: t.coarseTune, min: -24, max: 24, step: 1, integer: true, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.coarseTune = x; }, { regen: false }) }),
@@ -250,7 +268,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
 
   const main = document.createElement("div");
   main.className = "synthSurfaceBody";
-  main.append(timbre, envelope, filter);
+  main.append(oscStrip, envStrip, toneStrip);
 
   const tabs = createTabs(main, ui, triggerOptions, v, onPatchChange);
 

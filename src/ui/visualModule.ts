@@ -43,13 +43,46 @@ export function renderVisualSurface(
   header.append(identity, right);
 
   const body = el("div", "visualSurfaceBody");
+
+  const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
   canvas.width = 800;
   canvas.height = 260;
 
+  const displayOverlay = el("div", "visualOverlay small");
+  displayOverlay.textContent = "live signal";
+  canvasWrap.append(canvas, displayOverlay);
+
+  const dock = el("div", "visualControlDock");
+  const mode = document.createElement("select");
+  ["scope", "spectrum", "pattern"].forEach((kind) => {
+    const o = document.createElement("option");
+    o.value = kind;
+    o.textContent = kind.toUpperCase();
+    if (vm.kind === kind) o.selected = true;
+    mode.appendChild(o);
+  });
+  mode.onchange = () => {
+    vm.kind = mode.value as VisualModule["kind"];
+  };
+
+  const fft = document.createElement("select");
+  [512, 1024, 2048, 4096].forEach((size) => {
+    const o = document.createElement("option");
+    o.value = String(size);
+    o.textContent = `FFT ${size}`;
+    if ((vm.fftSize ?? 2048) === size) o.selected = true;
+    fft.appendChild(o);
+  });
+  fft.onchange = () => {
+    vm.fftSize = Number(fft.value) as VisualModule["fftSize"];
+  };
+
   const readout = el("div", "visualReadout small");
-  body.append(canvas, readout);
+  dock.append(mode, fft, readout);
+
+  body.append(canvasWrap, dock);
   surface.append(header, body);
   parent.appendChild(surface);
   updateOn();
