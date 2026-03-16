@@ -29,8 +29,14 @@ type HeaderParams = {
 
 export function createTransportHeader(params: HeaderParams) {
   const header = document.createElement("header");
+  const titleWrap = document.createElement("div");
+  titleWrap.className = "transportTitle";
   const h1 = document.createElement("h1");
   h1.textContent = APP_DISPLAY_NAME;
+  const subtitle = document.createElement("div");
+  subtitle.className = "small transportSubtitle";
+  subtitle.textContent = "Modular workspace";
+  titleWrap.append(h1, subtitle);
 
   const status = document.createElement("div");
   status.className = "small";
@@ -135,7 +141,8 @@ export function createTransportHeader(params: HeaderParams) {
   sceneCluster.className = "headerCluster";
   sceneCluster.append(presetWrap, bpmWrap, masterWrap);
 
-  header.append(h1, transportCluster, sceneCluster, spacer, status, btnSettings);
+  status.classList.add("transportStatus");
+  header.append(titleWrap, transportCluster, sceneCluster, spacer, status, btnSettings);
 
   params.root.appendChild(header);
 

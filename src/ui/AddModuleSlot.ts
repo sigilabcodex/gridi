@@ -2,74 +2,135 @@ import type { VisualKind } from "../patch";
 
 type Pick = "drum" | "tonal" | "trigger" | VisualKind;
 
-function createFamilyButton(title: string, desc: string, onClick: () => void, primary = false) {
+type AddSlotParams = {
+  family: "trigger" | "drum" | "tonal" | "visual";
+  onPick: (what: Pick) => void;
+};
+
+type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
+
+const FAMILY_ITEMS: Record<AddSlotParams["family"], MenuItem[]> = {
+  trigger: [{ label: "Trigger", desc: "Pulse + probability sequencer", value: "trigger", accent: true }],
+  drum: [{ label: "Drum", desc: "Transient/body/noise voice", value: "drum", accent: true }],
+  tonal: [{ label: "Synth", desc: "Tonal voice architecture", value: "tonal", accent: true }],
+  visual: [
+    { label: "Scope", desc: "Waveform monitor", value: "scope", accent: true },
+    { label: "Spectrum", desc: "Frequency monitor", value: "spectrum" },
+  ],
+};
+
+function createMenuButton(item: MenuItem, onClick: () => void) {
   const btn = document.createElement("button");
-  btn.className = `addFamilyBtn${primary ? " primary" : ""}`;
-  const t = document.createElement("div");
-  t.className = "addFamilyTitle";
-  t.textContent = title;
-  const d = document.createElement("div");
-  d.className = "small addFamilyDesc";
-  d.textContent = desc;
-  btn.append(t, d);
-  btn.onclick = (e) => { e.preventDefault(); onClick(); };
+  btn.className = `addSlotMenuItem${item.accent ? " accent" : ""}`;
+
+  const title = document.createElement("div");
+  title.className = "addSlotMenuTitle";
+  title.textContent = item.label;
+
+  const desc = document.createElement("div");
+  desc.className = "small addSlotMenuDesc";
+  desc.textContent = item.desc;
+
+  btn.append(title, desc);
+  btn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick();
+  };
   return btn;
 }
 
-export function renderAddModuleSlot(opts: { onPick: (what: Pick) => void }) {
-  const wrap = document.createElement("section");
-  wrap.className = "moduleSurface browserSurface";
-  wrap.dataset.type = "add";
+export function renderAddModuleSlot(params: AddSlotParams) {
+  const slot = document.createElement("section");
+  slot.className = "moduleSurface addModuleSlot";
+  slot.dataset.type = "add";
+  slot.dataset.family = params.family;
+  slot.tabIndex = 0;
 
-  const head = document.createElement("div");
-  head.className = "surfaceHeader";
-  const identity = document.createElement("div");
-  identity.className = "surfaceIdentity";
-  const badge = document.createElement("span");
-  badge.className = "surfaceBadge";
-  badge.textContent = "BROWSER";
-  const meta = document.createElement("div");
-  meta.className = "surfaceNameWrap";
-  meta.innerHTML = "<div class='small'>Module router</div><div class='name'>Add Module</div>";
-  identity.append(badge, meta);
-  head.append(identity, document.createElement("div"));
+  const plus = document.createElement("div");
+  plus.className = "addModulePlus";
+  plus.setAttribute("aria-hidden", "true");
+  plus.textContent = "+";
 
-  const body = document.createElement("div");
-  body.className = "browserSurfaceBody";
+  const label = document.createElement("div");
+  label.className = "small addModuleSlotLabel";
+  label.textContent = `Add ${params.family === "tonal" ? "synth" : params.family} module`;
 
-  wrap.append(head, body);
+  const menu = document.createElement("div");
+  menu.className = "addSlotMenu hidden";
 
-  let mode: "root" | "visual" = "root";
+  const menuTitle = document.createElement("div");
+  menuTitle.className = "small addSlotMenuHint";
+  menuTitle.textContent = "Insert here";
+  menu.appendChild(menuTitle);
 
-  const render = () => {
-    body.innerHTML = "";
-    const hint = document.createElement("div");
-    hint.className = "small addModuleHint";
-    hint.textContent = mode === "root" ? "Choose family" : "Choose visual surface";
+  for (const item of FAMILY_ITEMS[params.family]) {
+    menu.appendChild(createMenuButton(item, () => {
+      closeMenu();
+      params.onPick(item.value);
+    }));
+  }
 
-    const grid = document.createElement("div");
-    grid.className = "addFamilyGrid";
-
-    if (mode === "root") {
-      grid.append(
-        createFamilyButton("Trigger", "Sequencing / pulses / probability", () => opts.onPick("trigger"), true),
-        createFamilyButton("Drum", "Transient-body-noise sculpting", () => opts.onPick("drum")),
-        createFamilyButton("Synth", "Timbre-envelope-filter shaping", () => opts.onPick("tonal")),
-        createFamilyButton("Visual", "Scope / spectrum displays", () => { mode = "visual"; render(); }),
-      );
-      body.append(hint, grid);
-      return;
+  const openMenu = (anchor?: { x: number; y: number }) => {
+    menu.classList.remove("hidden");
+    slot.classList.add("menuOpen");
+    if (anchor) {
+      menu.style.setProperty("--menu-x", `${anchor.x}px`);
+      menu.style.setProperty("--menu-y", `${anchor.y}px`);
+      menu.classList.add("anchored");
+    } else {
+      menu.classList.remove("anchored");
+      menu.style.removeProperty("--menu-x");
+      menu.style.removeProperty("--menu-y");
     }
-
-    grid.append(
-      createFamilyButton("Scope", "Waveform monitor", () => opts.onPick("scope"), true),
-      createFamilyButton("Spectrum", "Frequency monitor", () => opts.onPick("spectrum")),
-      createFamilyButton("Back", "Return to families", () => { mode = "root"; render(); }),
-    );
-
-    body.append(hint, grid);
   };
 
-  render();
-  return wrap;
+  const closeMenu = () => {
+    menu.classList.add("hidden");
+    slot.classList.remove("menuOpen");
+  };
+
+  slot.onclick = (e) => {
+    if (!menu.classList.contains("hidden")) {
+      closeMenu();
+      return;
+    }
+    const r = slot.getBoundingClientRect();
+    openMenu({ x: e.clientX - r.left, y: e.clientY - r.top });
+  };
+  slot.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      if (menu.classList.contains("hidden")) openMenu();
+      else closeMenu();
+    }
+    if (e.key === "Escape") closeMenu();
+  };
+
+  slot.addEventListener("focusout", (e) => {
+    if (!slot.contains(e.relatedTarget as Node)) closeMenu();
+  });
+
+  slot.addEventListener("dragenter", (e) => {
+    e.preventDefault();
+    slot.classList.add("dragReady");
+  });
+  slot.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    slot.classList.add("dragReady");
+  });
+  slot.addEventListener("dragleave", () => slot.classList.remove("dragReady"));
+  slot.addEventListener("drop", (e) => {
+    e.preventDefault();
+    slot.classList.remove("dragReady");
+    const dropped = e.dataTransfer?.getData("text/module-kind") as Pick | "";
+    if (!dropped) return;
+    if (params.family === "visual" && (dropped === "scope" || dropped === "spectrum")) params.onPick(dropped);
+    if (params.family === "trigger" && dropped === "trigger") params.onPick(dropped);
+    if (params.family === "drum" && dropped === "drum") params.onPick(dropped);
+    if (params.family === "tonal" && dropped === "tonal") params.onPick(dropped);
+  });
+
+  slot.append(plus, label, menu);
+  return slot;
 }
