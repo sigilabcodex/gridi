@@ -70,12 +70,54 @@ function getTotalCells(moduleCount: number, columns = 3) {
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
 
-  const createModule = (what: "drum" | "tonal" | "trigger" | VisualKind) => {
+  const moveModuleToFamilyCell = (moduleId: string, family: Family, insertionIndex: number) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
-    if (what === "drum" || what === "tonal") nextPatch.modules.push(makeSound(what));
-    else if (what === "trigger") nextPatch.modules.push(makeTrigger());
-    else nextPatch.modules.push(makeVisual(what));
+    const familyIds = nextPatch.modules.filter((m) => getFamily(m) === family).map((m) => m.id);
+    const fromIndex = familyIds.indexOf(moduleId);
+    if (fromIndex < 0) return;
+
+    const moduleCount = familyIds.length;
+    if (insertionIndex < 0 || insertionIndex >= getTotalCells(moduleCount) || insertionIndex < moduleCount) return;
+
+    const toIndex = Math.min(insertionIndex, moduleCount - 1);
+    if (fromIndex === toIndex) return;
+
+    familyIds.splice(fromIndex, 1);
+    familyIds.splice(toIndex, 0, moduleId);
+
+    const rank = new Map(familyIds.map((id, i) => [id, i]));
+    nextPatch.modules.sort((a, b) => {
+      const af = getFamily(a);
+      const bf = getFamily(b);
+      if (af === family && bf === family) return (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0);
+      return 0;
+    });
+
+    params.pushHistory(prev);
+    params.sched.setPatch(nextPatch, { regen: false });
+    params.saveAndPersist();
+    rerender();
+  };
+
+  const createModuleAt = (what: "drum" | "tonal" | "trigger" | VisualKind, family: Family, insertionIndex: number) => {
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+
+    const created = what === "drum" || what === "tonal" ? makeSound(what) : what === "trigger" ? makeTrigger() : makeVisual(what);
+    const familyIndexes = nextPatch.modules
+      .map((m, index) => ({ m, index }))
+      .filter(({ m }) => getFamily(m) === family)
+      .map(({ index }) => index);
+
+    const familyInsertIndex = Math.min(insertionIndex, familyIndexes.length);
+    const globalInsertAt =
+      familyInsertIndex >= familyIndexes.length
+        ? (familyIndexes.at(-1) ?? (nextPatch.modules.length - 1)) + 1
+        : familyIndexes[familyInsertIndex];
+
+    nextPatch.modules.splice(Math.max(0, globalInsertAt), 0, created as Patch["modules"][number]);
+
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
     params.sched.regenAll();
@@ -107,6 +149,21 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       if (family !== "other") familyModules[family].push(module);
     }
 
+    const registerModuleSurface = (family: Family, moduleId: string, moduleKind: string, surface: HTMLElement) => {
+      surface.draggable = true;
+      surface.classList.add("draggableModule");
+      surface.dataset.moduleId = moduleId;
+      surface.dataset.moduleFamily = family;
+
+      surface.addEventListener("dragstart", (e) => {
+        surface.classList.add("dragging");
+        e.dataTransfer?.setData("text/module-id", moduleId);
+        e.dataTransfer?.setData("text/module-kind", moduleKind);
+        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+      });
+      surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
+    };
+
     for (const module of familyModules.trigger) {
       const t = module;
       const surfaceRoot = document.createElement("div");
@@ -123,7 +180,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         params.saveAndPersist();
         rerender();
       });
-      lanes.trigger.appendChild(createModuleCell(surfaceRoot.firstElementChild as HTMLElement));
+      const surface = surfaceRoot.firstElementChild as HTMLElement;
+      registerModuleSurface("trigger", t.id, "trigger", surface);
+      lanes.trigger.appendChild(createModuleCell(surface));
       updaters.push(upd);
     }
 
@@ -148,7 +207,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           rerender();
         },
       });
-      lanes.drum.appendChild(createModuleCell(surfaceRoot.firstElementChild as HTMLElement));
+      const surface = surfaceRoot.firstElementChild as HTMLElement;
+      registerModuleSurface("drum", s.id, "drum", surface);
+      lanes.drum.appendChild(createModuleCell(surface));
       updaters.push(upd);
     }
 
@@ -173,7 +234,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           rerender();
         },
       });
-      lanes.tonal.appendChild(createModuleCell(surfaceRoot.firstElementChild as HTMLElement));
+      const surface = surfaceRoot.firstElementChild as HTMLElement;
+      registerModuleSurface("tonal", s.id, "tonal", surface);
+      lanes.tonal.appendChild(createModuleCell(surface));
       updaters.push(upd);
     }
 
@@ -188,7 +251,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         params.saveAndPersist();
         rerender();
       });
-      lanes.visual.appendChild(createModuleCell(surfaceRoot.firstElementChild as HTMLElement));
+      const surface = surfaceRoot.firstElementChild as HTMLElement;
+      registerModuleSurface("visual", vm.id, vm.kind, surface);
+      lanes.visual.appendChild(createModuleCell(surface));
       updaters.push(upd);
     }
 
@@ -199,7 +264,13 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const slotsToAdd = Math.max(0, totalCells - currentCount);
 
       for (let i = 0; i < slotsToAdd; i++) {
-        const slot = renderAddModuleSlot({ family, onPick: createModule });
+        const insertionIndex = currentCount + i;
+        const slot = renderAddModuleSlot({
+          family,
+          insertionIndex,
+          onPick: (what) => createModuleAt(what, family, insertionIndex),
+          onDropModule: (moduleId) => moveModuleToFamilyCell(moduleId, family, insertionIndex),
+        });
         lane.appendChild(createModuleCell(slot));
       }
     });

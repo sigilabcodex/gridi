@@ -4,7 +4,9 @@ type Pick = "drum" | "tonal" | "trigger" | VisualKind;
 
 type AddSlotParams = {
   family: "trigger" | "drum" | "tonal" | "visual";
+  insertionIndex: number;
   onPick: (what: Pick) => void;
+  onDropModule?: (moduleId: string) => void;
 };
 
 type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
@@ -71,6 +73,18 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     }));
   }
 
+  let removeOutsideListener: (() => void) | null = null;
+
+  const closeMenu = (opts?: { restoreFocus?: boolean }) => {
+    menu.classList.add("hidden");
+    slot.classList.remove("menuOpen");
+    if (removeOutsideListener) {
+      removeOutsideListener();
+      removeOutsideListener = null;
+    }
+    if (opts?.restoreFocus) slot.focus();
+  };
+
   const openMenu = (anchor?: { x: number; y: number }) => {
     menu.classList.remove("hidden");
     slot.classList.add("menuOpen");
@@ -83,11 +97,11 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       menu.style.removeProperty("--menu-x");
       menu.style.removeProperty("--menu-y");
     }
-  };
-
-  const closeMenu = () => {
-    menu.classList.add("hidden");
-    slot.classList.remove("menuOpen");
+    const onDocPointerDown = (e: Event) => {
+      if (!slot.contains(e.target as Node)) closeMenu();
+    };
+    document.addEventListener("pointerdown", onDocPointerDown);
+    removeOutsideListener = () => document.removeEventListener("pointerdown", onDocPointerDown);
   };
 
   slot.onclick = (e) => {
@@ -104,7 +118,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       if (menu.classList.contains("hidden")) openMenu();
       else closeMenu();
     }
-    if (e.key === "Escape") closeMenu();
+    if (e.key === "Escape") closeMenu({ restoreFocus: true });
   };
 
   slot.addEventListener("focusout", (e) => {
@@ -123,6 +137,11 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   slot.addEventListener("drop", (e) => {
     e.preventDefault();
     slot.classList.remove("dragReady");
+    const droppedModuleId = e.dataTransfer?.getData("text/module-id") ?? "";
+    if (droppedModuleId && params.onDropModule) {
+      params.onDropModule(droppedModuleId);
+      return;
+    }
     const dropped = e.dataTransfer?.getData("text/module-kind") as Pick | "";
     if (!dropped) return;
     if (params.family === "visual" && (dropped === "scope" || dropped === "spectrum")) params.onPick(dropped);
@@ -131,6 +150,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     if (params.family === "tonal" && dropped === "tonal") params.onPick(dropped);
   });
 
+  slot.dataset.insertionIndex = String(params.insertionIndex);
   slot.append(plus, label, menu);
   return slot;
 }
