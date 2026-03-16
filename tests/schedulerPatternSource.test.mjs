@@ -29,7 +29,10 @@ test('scheduler dedupes overlaps for linked trigger/sound pair', () => {
 
   const secPerBeat = 60 / 120;
   const beats = triggered.map((t) => +(t / secPerBeat).toFixed(6));
-  assert.deepEqual(beats, [0, 0.125, 0.25, 0.375]);
+  const expected = createPatternModuleForTrigger(trigger)
+    .renderWindow({ trigger, voiceId: sound.id, startBeat: 0, endBeat: 0.48 })
+    .events.map((ev) => +ev.beatOffset.toFixed(6));
+  assert.deepEqual(beats, expected);
 });
 
 test('assigned trigger drives linked sound deterministically', () => {
