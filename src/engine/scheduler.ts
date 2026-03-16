@@ -36,7 +36,7 @@ export function createScheduler(engine: Engine): Scheduler {
   const sequenceStates = new Map<string, VoiceSequenceState>();
 
   function getVoiceId(v: VoiceModule, i: number) {
-    return (v as any).id ? String((v as any).id) : `idx:${i}`;
+    return v.id || `idx:${i}`;
   }
 
   function getSequenceState(voiceId: string): VoiceSequenceState {

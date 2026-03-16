@@ -1,53 +1,57 @@
-// src/settings/store.ts
+import { settingsSchema, SETTINGS_VERSION } from "./schema";
+import type { AppSettings } from "./types";
 
-import { settingsSchema, SETTINGS_VERSION } from "./schema"
-import type { AppSettings } from "./types"
+const STORAGE_KEY = "gridi.settings";
 
-const STORAGE_KEY = "gridi.settings"
+type LooseObject = Record<string, unknown>;
 
 function buildDefaults(): AppSettings {
-  const base: any = { version: SETTINGS_VERSION }
+  const base: LooseObject = { version: SETTINGS_VERSION };
 
   for (const def of settingsSchema) {
-    const parts = def.key.split(".")
-    let ref = base
+    const parts = def.key.split(".");
+    let ref: LooseObject = base;
 
     for (let i = 0; i < parts.length - 1; i++) {
-      if (!ref[parts[i]]) ref[parts[i]] = {}
-      ref = ref[parts[i]]
+      const key = parts[i];
+      const maybe = ref[key];
+      if (!maybe || typeof maybe !== "object") {
+        ref[key] = {};
+      }
+      ref = ref[key] as LooseObject;
     }
 
-    ref[parts[parts.length - 1]] = def.default
+    ref[parts[parts.length - 1]] = def.default;
   }
 
-  return base as AppSettings
+  return base as AppSettings;
 }
 
-function migrate(raw: any): AppSettings {
-  const defaults = buildDefaults()
+function migrate(raw: unknown): AppSettings {
+  const defaults = buildDefaults();
 
   if (!raw || typeof raw !== "object") {
-    return defaults
+    return defaults;
   }
 
   return {
     ...defaults,
-    ...raw,
-    version: SETTINGS_VERSION
-  }
+    ...(raw as Partial<AppSettings>),
+    version: SETTINGS_VERSION,
+  };
 }
 
 export function loadSettings(): AppSettings {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return buildDefaults()
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return buildDefaults();
 
-    return migrate(JSON.parse(raw))
+    return migrate(JSON.parse(raw));
   } catch {
-    return buildDefaults()
+    return buildDefaults();
   }
 }
 
 export function saveSettings(settings: AppSettings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
