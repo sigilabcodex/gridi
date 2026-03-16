@@ -3,7 +3,6 @@ import type { VisualKind } from "../patch";
 type Pick = "drum" | "tonal" | "trigger" | VisualKind;
 
 type AddSlotParams = {
-  family: "trigger" | "drum" | "tonal" | "visual";
   insertionIndex: number;
   onPick: (what: Pick) => void;
   onDropModule?: (moduleId: string) => void;
@@ -11,15 +10,13 @@ type AddSlotParams = {
 
 type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
 
-const FAMILY_ITEMS: Record<AddSlotParams["family"], MenuItem[]> = {
-  trigger: [{ label: "Trigger", desc: "Pulse + probability sequencer", value: "trigger", accent: true }],
-  drum: [{ label: "Drum", desc: "Transient/body/noise voice", value: "drum", accent: true }],
-  tonal: [{ label: "Synth", desc: "Tonal voice architecture", value: "tonal", accent: true }],
-  visual: [
-    { label: "Scope", desc: "Waveform monitor", value: "scope", accent: true },
-    { label: "Spectrum", desc: "Frequency monitor", value: "spectrum" },
-  ],
-};
+const MENU_ITEMS: MenuItem[] = [
+  { label: "Trigger", desc: "Pulse sequencer", value: "trigger", accent: true },
+  { label: "Drum", desc: "Percussive voice", value: "drum", accent: true },
+  { label: "Synth", desc: "Tonal voice", value: "tonal" },
+  { label: "Scope", desc: "Wave monitor", value: "scope" },
+  { label: "Spectrum", desc: "Frequency monitor", value: "spectrum" },
+];
 
 function createMenuButton(item: MenuItem, onClick: () => void) {
   const btn = document.createElement("button");
@@ -46,7 +43,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   const slot = document.createElement("section");
   slot.className = "moduleSurface addModuleSlot";
   slot.dataset.type = "add";
-  slot.dataset.family = params.family;
   slot.tabIndex = 0;
 
   const plus = document.createElement("div");
@@ -56,7 +52,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
   const label = document.createElement("div");
   label.className = "small addModuleSlotLabel";
-  label.textContent = `Add ${params.family === "tonal" ? "synth" : params.family} module`;
+  label.textContent = "Add module";
 
   const menu = document.createElement("div");
   menu.className = "addSlotMenu hidden";
@@ -66,7 +62,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   menuTitle.textContent = "Insert here";
   menu.appendChild(menuTitle);
 
-  for (const item of FAMILY_ITEMS[params.family]) {
+  for (const item of MENU_ITEMS) {
     menu.appendChild(createMenuButton(item, () => {
       closeMenu();
       params.onPick(item.value);
@@ -144,10 +140,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     }
     const dropped = e.dataTransfer?.getData("text/module-kind") as Pick | "";
     if (!dropped) return;
-    if (params.family === "visual" && (dropped === "scope" || dropped === "spectrum")) params.onPick(dropped);
-    if (params.family === "trigger" && dropped === "trigger") params.onPick(dropped);
-    if (params.family === "drum" && dropped === "drum") params.onPick(dropped);
-    if (params.family === "tonal" && dropped === "tonal") params.onPick(dropped);
+    params.onPick(dropped);
   });
 
   slot.dataset.insertionIndex = String(params.insertionIndex);

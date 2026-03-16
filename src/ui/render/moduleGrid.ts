@@ -1,6 +1,6 @@
 import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
-import type { DrumModule, Patch, TonalModule, TriggerModule, VisualKind, VisualModule } from "../../patch";
+import type { Patch, VisualKind } from "../../patch";
 import { getTriggers, makeSound, makeTrigger, makeVisual } from "../../patch";
 import type { VoiceTab } from "../voiceModule";
 import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModule";
@@ -22,38 +22,7 @@ type ModuleGridParams = {
   led: (moduleId: string) => { active: boolean; hit: boolean };
 };
 
-type Family = "trigger" | "drum" | "tonal" | "visual";
-
-function getFamily(module: Patch["modules"][number]): Family | "other" {
-  if (module.type === "trigger") return "trigger";
-  if (module.type === "drum") return "drum";
-  if (module.type === "tonal") return "tonal";
-  if (module.type === "visual") return "visual";
-  return "other";
-}
-
-function addFamilyLane(grid: HTMLElement, family: Family, title: string, subtitle: string) {
-  const lane = document.createElement("section");
-  lane.className = "familyLane";
-  lane.dataset.family = family;
-
-  const head = document.createElement("div");
-  head.className = "familyLaneHead";
-  const t = document.createElement("div");
-  t.className = "moduleSectionTitle";
-  t.textContent = title;
-  const s = document.createElement("div");
-  s.className = "small moduleSectionSubtitle";
-  s.textContent = subtitle;
-  head.append(t, s);
-
-  const body = document.createElement("div");
-  body.className = "familyLaneBody";
-
-  lane.append(head, body);
-  grid.appendChild(lane);
-  return body;
-}
+type Pick = "drum" | "tonal" | "trigger" | VisualKind;
 
 function createModuleCell(surface: HTMLElement) {
   const cell = document.createElement("div");
@@ -70,29 +39,34 @@ function getTotalCells(moduleCount: number, columns = 3) {
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
 
-  const moveModuleToFamilyCell = (moduleId: string, family: Family, insertionIndex: number) => {
+  const removeModule = (moduleId: string) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
-    const familyIds = nextPatch.modules.filter((m) => getFamily(m) === family).map((m) => m.id);
-    const fromIndex = familyIds.indexOf(moduleId);
+    nextPatch.modules = nextPatch.modules.filter((m) => m.id !== moduleId);
+    for (const m of nextPatch.modules) {
+      if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === moduleId) m.triggerSource = null;
+    }
+    params.pushHistory(prev);
+    params.sched.setPatch(nextPatch, { regen: true });
+    params.sched.regenAll();
+    params.saveAndPersist();
+    rerender();
+  };
+
+  const moveModuleToCell = (moduleId: string, insertionIndex: number) => {
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const fromIndex = nextPatch.modules.findIndex((m) => m.id === moduleId);
     if (fromIndex < 0) return;
 
-    const moduleCount = familyIds.length;
-    if (insertionIndex < 0 || insertionIndex >= getTotalCells(moduleCount) || insertionIndex < moduleCount) return;
+    const moduleCount = nextPatch.modules.length;
+    if (insertionIndex < moduleCount || insertionIndex >= getTotalCells(moduleCount)) return;
 
-    const toIndex = Math.min(insertionIndex, moduleCount - 1);
-    if (fromIndex === toIndex) return;
+    const targetIndex = Math.min(insertionIndex, moduleCount - 1);
+    if (targetIndex === fromIndex) return;
 
-    familyIds.splice(fromIndex, 1);
-    familyIds.splice(toIndex, 0, moduleId);
-
-    const rank = new Map(familyIds.map((id, i) => [id, i]));
-    nextPatch.modules.sort((a, b) => {
-      const af = getFamily(a);
-      const bf = getFamily(b);
-      if (af === family && bf === family) return (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0);
-      return 0;
-    });
+    const [module] = nextPatch.modules.splice(fromIndex, 1);
+    nextPatch.modules.splice(targetIndex, 0, module);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: false });
@@ -100,23 +74,13 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerender();
   };
 
-  const createModuleAt = (what: "drum" | "tonal" | "trigger" | VisualKind, family: Family, insertionIndex: number) => {
+  const createModuleAt = (what: Pick, insertionIndex: number) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
 
     const created = what === "drum" || what === "tonal" ? makeSound(what) : what === "trigger" ? makeTrigger() : makeVisual(what);
-    const familyIndexes = nextPatch.modules
-      .map((m, index) => ({ m, index }))
-      .filter(({ m }) => getFamily(m) === family)
-      .map(({ index }) => index);
-
-    const familyInsertIndex = Math.min(insertionIndex, familyIndexes.length);
-    const globalInsertAt =
-      familyInsertIndex >= familyIndexes.length
-        ? (familyIndexes.at(-1) ?? (nextPatch.modules.length - 1)) + 1
-        : familyIndexes[familyInsertIndex];
-
-    nextPatch.modules.splice(Math.max(0, globalInsertAt), 0, created as Patch["modules"][number]);
+    const insertAt = Math.min(insertionIndex, nextPatch.modules.length);
+    nextPatch.modules.splice(insertAt, 0, created as Patch["modules"][number]);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
@@ -128,39 +92,19 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   const rerender = () => {
     const patch = params.patch();
     params.main.innerHTML = "";
-    const grid = document.createElement("div");
-    grid.className = "grid";
-    params.main.appendChild(grid);
+
+    const workspaceGrid = document.createElement("div");
+    workspaceGrid.className = "grid workspaceGrid";
+    params.main.appendChild(workspaceGrid);
     updaters = [];
 
     const triggers = getTriggers(patch);
     const triggerOptions = triggers.map((t) => ({ id: t.id, label: `${t.name} (${t.id.slice(-4)})` }));
 
-    const lanes: Record<Family, HTMLElement> = {
-      trigger: addFamilyLane(grid, "trigger", "Trigger Family", "Pulse logic and probability sources"),
-      drum: addFamilyLane(grid, "drum", "Drum Family", "Percussive voice engines"),
-      tonal: addFamilyLane(grid, "tonal", "Synth Family", "Tonal voice engines"),
-      visual: addFamilyLane(grid, "visual", "Visual Family", "Signal display and monitoring"),
-    };
-
-    const familyModules: {
-      trigger: TriggerModule[];
-      drum: DrumModule[];
-      tonal: TonalModule[];
-      visual: VisualModule[];
-    } = { trigger: [], drum: [], tonal: [], visual: [] };
-    for (const module of patch.modules) {
-      if (module.type === "trigger") familyModules.trigger.push(module);
-      else if (module.type === "drum") familyModules.drum.push(module);
-      else if (module.type === "tonal") familyModules.tonal.push(module);
-      else if (module.type === "visual") familyModules.visual.push(module);
-    }
-
-    const registerModuleSurface = (family: Family, moduleId: string, moduleKind: string, surface: HTMLElement) => {
+    const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement) => {
       surface.draggable = true;
       surface.classList.add("draggableModule");
       surface.dataset.moduleId = moduleId;
-      surface.dataset.moduleFamily = family;
 
       surface.addEventListener("dragstart", (e) => {
         surface.classList.add("dragging");
@@ -171,116 +115,74 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
     };
 
-    for (const module of familyModules.trigger) {
-      const t = module;
+    for (const module of patch.modules) {
       const surfaceRoot = document.createElement("div");
-      const upd = renderTriggerSurface(surfaceRoot, t, params.onPatchChange, () => {
-        const prev = params.clonePatch(params.patch());
-        const nextPatch = params.patch();
-        nextPatch.modules = nextPatch.modules.filter((m) => m.id !== t.id);
-        for (const m of nextPatch.modules) {
-          if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === t.id) m.triggerSource = null;
-        }
-        params.pushHistory(prev);
-        params.sched.setPatch(nextPatch, { regen: true });
-        params.sched.regenAll();
-        params.saveAndPersist();
-        rerender();
-      });
-      const surface = surfaceRoot.firstElementChild as HTMLElement;
-      registerModuleSurface("trigger", t.id, "trigger", surface);
-      lanes.trigger.appendChild(createModuleCell(surface));
-      updaters.push(upd);
-    }
 
-    for (const module of familyModules.drum) {
-      const s = module;
-      const surfaceRoot = document.createElement("div");
-      const upd = renderDrumModuleSurface({
-        root: surfaceRoot,
-        v: s,
-        getLedState: params.led,
-        onPatchChange: params.onPatchChange,
-        ui: { tab: params.getVoiceTab(s.id), setTab: (tab) => params.setVoiceTab(s.id, tab) },
-        triggerOptions,
-        onRemove: () => {
-          const prev = params.clonePatch(params.patch());
-          const nextPatch = params.patch();
-          nextPatch.modules = nextPatch.modules.filter((m) => m.id !== s.id);
-          params.pushHistory(prev);
-          params.sched.setPatch(nextPatch, { regen: true });
-          params.sched.regenAll();
-          params.saveAndPersist();
-          rerender();
-        },
-      });
-      const surface = surfaceRoot.firstElementChild as HTMLElement;
-      registerModuleSurface("drum", s.id, "drum", surface);
-      lanes.drum.appendChild(createModuleCell(surface));
-      updaters.push(upd);
-    }
-
-    for (const module of familyModules.tonal) {
-      const s = module;
-      const surfaceRoot = document.createElement("div");
-      const upd = renderSynthModuleSurface({
-        root: surfaceRoot,
-        v: s,
-        getLedState: params.led,
-        onPatchChange: params.onPatchChange,
-        ui: { tab: params.getVoiceTab(s.id), setTab: (tab) => params.setVoiceTab(s.id, tab) },
-        triggerOptions,
-        onRemove: () => {
-          const prev = params.clonePatch(params.patch());
-          const nextPatch = params.patch();
-          nextPatch.modules = nextPatch.modules.filter((m) => m.id !== s.id);
-          params.pushHistory(prev);
-          params.sched.setPatch(nextPatch, { regen: true });
-          params.sched.regenAll();
-          params.saveAndPersist();
-          rerender();
-        },
-      });
-      const surface = surfaceRoot.firstElementChild as HTMLElement;
-      registerModuleSurface("tonal", s.id, "tonal", surface);
-      lanes.tonal.appendChild(createModuleCell(surface));
-      updaters.push(upd);
-    }
-
-    for (const module of familyModules.visual) {
-      const vm = module;
-      const surfaceRoot = document.createElement("div");
-      const upd = renderVisualSurface(surfaceRoot, params.engine, patch, vm, () => {
-        const prev = params.clonePatch(params.patch());
-        const nextPatch = params.patch();
-        nextPatch.modules = nextPatch.modules.filter((m) => m.id !== vm.id);
-        params.pushHistory(prev);
-        params.saveAndPersist();
-        rerender();
-      });
-      const surface = surfaceRoot.firstElementChild as HTMLElement;
-      registerModuleSurface("visual", vm.id, vm.kind, surface);
-      lanes.visual.appendChild(createModuleCell(surface));
-      updaters.push(upd);
-    }
-
-    (Object.keys(lanes) as Family[]).forEach((family) => {
-      const lane = lanes[family];
-      const currentCount = familyModules[family].length;
-      const totalCells = getTotalCells(currentCount);
-      const slotsToAdd = Math.max(0, totalCells - currentCount);
-
-      for (let i = 0; i < slotsToAdd; i++) {
-        const insertionIndex = currentCount + i;
-        const slot = renderAddModuleSlot({
-          family,
-          insertionIndex,
-          onPick: (what) => createModuleAt(what, family, insertionIndex),
-          onDropModule: (moduleId) => moveModuleToFamilyCell(moduleId, family, insertionIndex),
-        });
-        lane.appendChild(createModuleCell(slot));
+      if (module.type === "trigger") {
+        const upd = renderTriggerSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
+        const surface = surfaceRoot.firstElementChild as HTMLElement;
+        registerModuleSurface(module.id, "trigger", surface);
+        workspaceGrid.appendChild(createModuleCell(surface));
+        updaters.push(upd);
+        continue;
       }
-    });
+
+      if (module.type === "drum") {
+        const upd = renderDrumModuleSurface({
+          root: surfaceRoot,
+          v: module,
+          getLedState: params.led,
+          onPatchChange: params.onPatchChange,
+          ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
+          triggerOptions,
+          onRemove: () => removeModule(module.id),
+        });
+        const surface = surfaceRoot.firstElementChild as HTMLElement;
+        registerModuleSurface(module.id, "drum", surface);
+        workspaceGrid.appendChild(createModuleCell(surface));
+        updaters.push(upd);
+        continue;
+      }
+
+      if (module.type === "tonal") {
+        const upd = renderSynthModuleSurface({
+          root: surfaceRoot,
+          v: module,
+          getLedState: params.led,
+          onPatchChange: params.onPatchChange,
+          ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
+          triggerOptions,
+          onRemove: () => removeModule(module.id),
+        });
+        const surface = surfaceRoot.firstElementChild as HTMLElement;
+        registerModuleSurface(module.id, "tonal", surface);
+        workspaceGrid.appendChild(createModuleCell(surface));
+        updaters.push(upd);
+        continue;
+      }
+
+      if (module.type === "visual") {
+        const upd = renderVisualSurface(surfaceRoot, params.engine, patch, module, () => removeModule(module.id));
+        const surface = surfaceRoot.firstElementChild as HTMLElement;
+        registerModuleSurface(module.id, module.kind, surface);
+        workspaceGrid.appendChild(createModuleCell(surface));
+        updaters.push(upd);
+      }
+    }
+
+    const currentCount = patch.modules.length;
+    const totalCells = getTotalCells(currentCount);
+    const slotsToAdd = Math.max(0, totalCells - currentCount);
+
+    for (let i = 0; i < slotsToAdd; i++) {
+      const insertionIndex = currentCount + i;
+      const slot = renderAddModuleSlot({
+        insertionIndex,
+        onPick: (what) => createModuleAt(what, insertionIndex),
+        onDropModule: (moduleId) => moveModuleToCell(moduleId, insertionIndex),
+      });
+      workspaceGrid.appendChild(createModuleCell(slot));
+    }
   };
 
   return { rerender, updateFrame: () => { for (const update of updaters) update(); } };
