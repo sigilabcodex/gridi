@@ -1,23 +1,19 @@
-import type { VoiceModule } from "../../patch.ts";
-import { createStepPatternModule } from "./module.ts";
+import type { TriggerModule } from "../../patch.ts";
+import { createPatternModuleForTrigger } from "./module.ts";
 import type { EventWindow } from "./eventWindow.ts";
 
 type StepWindowRenderParams = {
-  voice: VoiceModule;
+  trigger: TriggerModule;
   voiceId: string;
-  voiceIndex: number;
   startBeat: number;
   endBeat: number;
 };
 
-const stepModule = createStepPatternModule();
-
 export function renderStepWindow(params: StepWindowRenderParams): EventWindow {
-  const { voice, voiceId, startBeat, endBeat } = params;
-  return stepModule.renderWindow({
-    voice,
+  const { trigger, voiceId, startBeat, endBeat } = params;
+  return createPatternModuleForTrigger(trigger).renderWindow({
     voiceId,
-    source: { type: "self" },
+    trigger,
     startBeat,
     endBeat,
   });
