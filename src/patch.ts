@@ -169,7 +169,7 @@ export function getTriggers(p: Patch): TriggerModule[] {
 }
 
 const SOUND_NAMES = ["SUB", "BUZZHH", "ULTRATK", "PING", "BITSN", "AIRGAP", "RATTLE", "METAK"];
-const SOUND_KINDS: Array<"drum" | "tonal"> = ["drum", "drum", "tonal", "drum", "drum", "drum", "drum", "tonal"];
+const _SOUND_KINDS: Array<"drum" | "tonal"> = ["drum", "drum", "tonal", "drum", "drum", "drum", "drum", "tonal"];
 
 function defaultSequencer(i: number): SequencerParams {
   return {
