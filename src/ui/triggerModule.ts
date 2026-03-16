@@ -49,6 +49,34 @@ export function renderTriggerSurface(
 
   const primary = document.createElement("div");
   primary.className = "triggerPrimary";
+  const patternPreviewText = () => getPatternPreview(t, `${t.id}:preview`, 64);
+
+  const pulseRail = document.createElement("div");
+  pulseRail.className = "triggerPulseRail";
+
+  const pulseHeader = document.createElement("div");
+  pulseHeader.className = "triggerSectionLabel";
+  pulseHeader.textContent = "Pulse map";
+
+  const stepGrid = document.createElement("div");
+  stepGrid.className = "triggerStepGrid";
+
+  const transportReadout = document.createElement("div");
+  transportReadout.className = "triggerTransportReadout small";
+
+  const syncPatternRail = () => {
+    const compact = patternPreviewText().replace(/\s+/g, "").slice(0, 32);
+    stepGrid.textContent = "";
+    for (let i = 0; i < 32; i++) {
+      const cell = document.createElement("span");
+      const c = compact[i] ?? ".";
+      cell.className = `triggerStepCell ${c !== "." ? "on" : "off"}`;
+      stepGrid.appendChild(cell);
+    }
+    transportReadout.textContent = `${t.length} steps · /${t.subdiv} subdivision · ${Math.round(t.density * 100)}% density`;
+  };
+
+  pulseRail.append(pulseHeader, stepGrid, transportReadout);
 
   const modeRack = document.createElement("div");
   modeRack.className = "triggerModeRack";
@@ -88,10 +116,10 @@ export function renderTriggerSurface(
 
   const patternPreview = document.createElement("pre");
   patternPreview.className = "triggerPatternPanel";
-  patternPreview.textContent = getPatternPreview(t, `${t.id}:preview`, 64);
+  patternPreview.textContent = patternPreviewText();
   patternPreview.title = "Pulse stream preview";
 
-  primary.append(modeRack, pulseRack, patternPreview);
+  primary.append(pulseRail, modeRack, pulseRack, patternPreview);
 
   const tabs = document.createElement("div");
   tabs.className = "surfaceTabs";
@@ -132,6 +160,7 @@ export function renderTriggerSurface(
 
   surface.append(header, primary, tabs, panelConnections, panelDebug);
   root.appendChild(surface);
+  syncPatternRail();
 
   function setParam(key: keyof TriggerModule, value: number) {
     onPatchChange((p) => {
@@ -142,7 +171,8 @@ export function renderTriggerSurface(
 
   return () => {
     syncToggle();
-    patternPreview.textContent = getPatternPreview(t, `${t.id}:preview`, 64);
+    patternPreview.textContent = patternPreviewText();
+    syncPatternRail();
   };
 }
 
