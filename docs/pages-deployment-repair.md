@@ -2,67 +2,43 @@
 
 ## What was failing
 
-The `Deploy to GitHub Pages` workflow was failing at the build stage after recent merges, which prevented fresh artifacts from being published and left GitHub Pages serving older successful output.
+The Pages pipeline was failing during the build phase, which blocked new artifacts and left GitHub Pages serving older output.
 
-Quoted failing step from Actions logs:
+Quoted failing step (from prior failed run):
 
 - `Run npm run build:gh`
 - `Error: Process completed with exit code 1.`
 
-Two signals were reported:
+## Root cause
 
-1. `npm run build:gh` step failure (`exit code 1`).
-2. Node.js 20 deprecation warnings for older GitHub Action majors.
+This was a build/dependency-install reliability issue, not an outdated action-major issue.
 
-## Root cause classification
+- The workflow already used modern actions (`actions/checkout@v5`, `actions/setup-node@v6`).
+- The failing path was that plain `npm ci` can install without required dev tooling in production-leaning environments, while this project's build depends on devDependencies (`vite`, `typescript`).
+- When that happens, `npm run build:gh` fails with exit code 1 and Pages upload/deploy never runs.
 
-This was primarily a **build/dependency installation reliability issue**, with **workflow compatibility concerns already addressed** in the current workflow file.
+## Changes carried forward from PR #31
 
-- The workflow was already using Node 24-compatible major versions for key actions:
-  - `actions/checkout@v5`
-  - `actions/setup-node@v6`
-- The workflow install step used plain `npm ci`, which is sensitive to environment defaults (notably `NODE_ENV=production`) and can omit dev dependencies required for build tooling (`vite`, `typescript`).
-- If dev dependencies are omitted, `npm run build:gh` can fail with exit code 1 (tooling unavailable), causing the Pages pipeline to stop before artifact upload/deploy.
+1. **Workflow install hardening**
+   - `npm ci` → `npm ci --include=dev`
+2. **Split CI checks**
+   - Added explicit `npm run typecheck` step before build.
+3. **Build script cleanup**
+   - `build:gh` changed from `tsc && vite build --mode gh` to `vite build --mode gh`.
+   - Type checking remains enforced by the dedicated workflow step.
 
-## Workflow changes made
+## Workflow/runtime status
 
-Updated `.github/workflows/pages.yml`:
+- `actions/checkout@v5`
+- `actions/setup-node@v6`
+- `node-version: 22`
+- Pages artifact upload/deploy flow remains unchanged:
+  - build job uploads `dist`
+  - deploy job runs `actions/deploy-pages@v4`
 
-1. **Install step hardened**
-   - From: `npm ci`
-   - To: `npm ci --include=dev`
+## How to verify Pages serves current main
 
-2. **Typecheck separated from bundling for clearer failure reporting**
-   - Added: `npm run typecheck`
-   - Kept build step: `npm run build:gh`
-
-3. **Node strategy confirmed**
-   - Kept `actions/setup-node@v6` with `node-version: 22` (compatible runtime for current toolchain and modern action ecosystem).
-
-## Code/config changes that fixed build reliability
-
-1. `package.json`
-   - Simplified `build:gh` script:
-     - From: `tsc && vite build --mode gh`
-     - To: `vite build --mode gh`
-   - Reason: avoid duplicate TypeScript invocation now that typecheck runs as a dedicated CI step.
-
-2. `.github/workflows/pages.yml`
-   - Explicitly install dev dependencies in CI and run a dedicated typecheck before build.
-
-## How to verify Pages is now serving current main
-
-1. Push this commit to `main`.
-2. Confirm workflow success in Actions:
-   - Workflow: `Deploy to GitHub Pages`
-   - Required: both `build` and `deploy` jobs green.
-3. Confirm deploy job output URL matches repository Pages URL.
-4. Open the live site and force-refresh (or private window).
-5. Validate the loaded app corresponds to latest `main` bundle:
-   - Network tab should show freshly generated hashed assets from the latest run.
-   - If still stale, check repository Pages source settings and any CDN/browser cache.
-
-## Notes on what was and was not changed
-
-- No new GUI features were added in this repair task.
-- Action versions are now pinned to modern majors (`checkout@v5`, `setup-node@v6`) with `node-version: 22`.
+1. Push this branch and merge.
+2. Confirm latest `Deploy to GitHub Pages` run is green for both jobs (`build` and `deploy`).
+3. Confirm deploy output URL points to repo Pages URL.
+4. Load the live site with cache bypass and verify latest hashed assets are served.
