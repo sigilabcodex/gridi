@@ -5,12 +5,17 @@ import { el } from "../modals/modal";
 type HeaderParams = {
   root: HTMLElement;
   patch: () => Patch;
-  bank: () => number;
-  bankCount: number;
+  presetLabel: () => string;
+  presetNames: () => { id: string; name: string }[];
+  selectedPresetId: () => string;
+  hasUnsavedChanges: () => boolean;
   settingsExperimental: () => boolean;
   audioState: () => "running" | string;
   isPlaying: () => boolean;
   onOpenSettings: () => void;
+  onOpenPresetManager: () => void;
+  onSelectPreset: (presetId: string) => void;
+  onSavePreset: () => void;
   onToggleAudio: () => Promise<void>;
   onTogglePlay: () => Promise<void>;
   onToggleMute: () => void;
@@ -18,8 +23,6 @@ type HeaderParams = {
   onReseed: () => void;
   onRandomize: () => void;
   onRegen: () => void;
-  onPrevBank: () => void;
-  onNextBank: () => void;
   onSetBpm: (v: number) => void;
   onSetMasterGain: (v: number) => void;
 };
@@ -80,21 +83,24 @@ export function createTransportHeader(params: HeaderParams) {
   btnRegen.textContent = "Regen";
   btnRegen.onclick = params.onRegen;
 
-  const bankWrap = document.createElement("div");
-  bankWrap.className = "bankWrap";
+  const presetWrap = document.createElement("div");
+  presetWrap.className = "presetWrap";
 
-  const bankLabel = document.createElement("div");
-  bankLabel.className = "small";
+  const presetLabel = document.createElement("div");
+  presetLabel.className = "small";
 
-  const btnBankPrev = document.createElement("button");
-  btnBankPrev.textContent = "◀";
-  btnBankPrev.onclick = params.onPrevBank;
+  const presetSelect = document.createElement("select");
+  presetSelect.className = "presetSelect";
+  presetSelect.onchange = () => params.onSelectPreset(presetSelect.value);
 
-  const btnBankNext = document.createElement("button");
-  btnBankNext.textContent = "▶";
-  btnBankNext.onclick = params.onNextBank;
+  const btnSavePreset = document.createElement("button");
+  btnSavePreset.onclick = params.onSavePreset;
 
-  bankWrap.append(btnBankPrev, bankLabel, btnBankNext);
+  const btnPresetManager = document.createElement("button");
+  btnPresetManager.textContent = "Presets";
+  btnPresetManager.onclick = params.onOpenPresetManager;
+
+  presetWrap.append(presetLabel, presetSelect, btnSavePreset, btnPresetManager);
 
   const bpmWrap = document.createElement("div");
   bpmWrap.className = "bpmWrap";
@@ -130,7 +136,7 @@ export function createTransportHeader(params: HeaderParams) {
     btnReseed,
     btnRandom,
     btnRegen,
-    bankWrap,
+    presetWrap,
     bpmWrap,
     masterWrap,
     spacer,
@@ -166,8 +172,23 @@ export function createTransportHeader(params: HeaderParams) {
     masterNum.value = String(patch.masterGain);
   };
 
-  const updateBankLabel = () => {
-    bankLabel.textContent = `Bank ${params.bank() + 1}/${params.bankCount}`;
+  const updatePresetUI = () => {
+    presetLabel.textContent = params.presetLabel();
+
+    const selected = params.selectedPresetId();
+    const names = params.presetNames();
+
+    presetSelect.innerHTML = "";
+    names.forEach((preset) => {
+      const option = document.createElement("option");
+      option.value = preset.id;
+      option.textContent = preset.name;
+      if (preset.id === selected) option.selected = true;
+      presetSelect.appendChild(option);
+    });
+
+    btnSavePreset.textContent = params.hasUnsavedChanges() ? "Save*" : "Save";
+    btnSavePreset.className = params.hasUnsavedChanges() ? "primary" : "";
   };
 
   const updateBpmUI = () => {
@@ -183,7 +204,7 @@ export function createTransportHeader(params: HeaderParams) {
     updatePlayBtn,
     updateMuteBtn,
     updateMasterGainUI,
-    updateBankLabel,
+    updatePresetUI,
     updateBpmUI,
   };
 }

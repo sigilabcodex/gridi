@@ -114,7 +114,17 @@ button.danger:hover { background: rgba(60,18,18,0.55); }
   line-height: 1;
 }
 
-.bankWrap, .bpmWrap { display: flex; gap: 8px; align-items: center; }
+.bankWrap, .bpmWrap, .presetWrap { display: flex; gap: 8px; align-items: center; }
+.presetWrap {
+  padding: 4px 8px;
+  border: 1px solid rgba(74,163,255,0.22);
+  border-radius: 10px;
+  background: rgba(9, 15, 20, 0.5);
+}
+.presetSelect {
+  min-width: 160px;
+  max-width: 280px;
+}
 
 .spacer { flex: 1 1 auto; }
 
@@ -509,6 +519,34 @@ main { margin-top: 8px; }
 .settingsIntro {
   margin-bottom: 2px;
   line-height: 1.35;
+}
+
+.presetList {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.presetRow {
+  border: 1px solid rgba(42,52,63,0.45);
+  border-radius: 10px;
+  background: rgba(5, 10, 15, 0.35);
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.presetMeta {
+  display: grid;
+  gap: 4px;
+}
+
+.presetName {
+  font-weight: 600;
+}
+
+.presetName.active {
+  color: var(--acc-green);
 }
 .chkRow {
   display: flex;

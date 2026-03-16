@@ -1,27 +1,12 @@
-import type { Patch } from "../../patch";
-import { clamp, migratePatch } from "../../patch";
 import { settingsSchema } from "../../settings/schema";
 import { saveSettings } from "../../settings/store";
 import type { AppSettings } from "../../settings/types";
-import { BANK_COUNT, ensureBankCount, isPatchLike, safeParseJSON, saveState } from "../persistence/bankState";
 import { el, makeModal } from "./modal";
 
 type SettingsModalParams = {
   settings: AppSettings;
-  patch: Patch;
-  bank: number;
-  banks: Patch[];
-  clonePatch: (patch: Patch) => Patch;
-  pushHistory: (prev: Patch) => void;
-  setPatch: (patch: Patch) => void;
-  setBank: (bank: number) => void;
-  syncEngineFromPatch: (patch: Patch, regen?: boolean) => void;
   applyUserCss: (cssText: string) => void;
-  rerender: () => void;
   updateStatus: () => void;
-  updateBankLabel: () => void;
-  updateMuteBtn: () => void;
-  updateMasterGainUI: () => void;
 };
 
 function getSettingValue(settings: AppSettings, key: string): any {
@@ -40,46 +25,15 @@ function setSettingValue(settings: AppSettings, key: string, value: any) {
   ref[parts[parts.length - 1]] = value;
 }
 
-async function copyToClipboard(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    ta.remove();
-    return ok;
-  }
-}
-
 export function openSettingsModal(params: SettingsModalParams) {
-  const {
-    settings,
-    banks,
-    clonePatch,
-    pushHistory,
-    setPatch,
-    setBank,
-    syncEngineFromPatch,
-    applyUserCss,
-    rerender,
-    updateStatus,
-    updateBankLabel,
-    updateMuteBtn,
-    updateMasterGainUI,
-  } = params;
-
-  let { patch, bank } = params;
+  const { settings, applyUserCss, updateStatus } = params;
 
   const m = makeModal("Settings");
   const body = m.body;
 
   const settingsIntro = el("div", "small settingsIntro");
   settingsIntro.textContent =
-    "Tip: Audio can only start after a tap/click in this tab. Shortcuts: Space = Play/Stop, Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y = Redo.";
+    "Tip: Audio can only start after a tap/click in this tab. Shortcuts: Space = Play/Stop, Ctrl/Cmd+S = Save preset, Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y = Redo.";
   body.appendChild(settingsIntro);
 
   const grouped = new Map<string, typeof settingsSchema>();
@@ -173,95 +127,6 @@ export function openSettingsModal(params: SettingsModalParams) {
 
     body.appendChild(sectionWrap);
   }
-
-  const ieWrap = el("div", "settingsBlock");
-  const ieLab = el("div", "small", "Import / Export JSON");
-  const ieTA = document.createElement("textarea");
-  ieTA.className = "jsonBox";
-  ieTA.placeholder = "Paste Patch JSON or Banks JSON here…";
-
-  const ieBtns = el("div", "settingsBtnRow");
-  const btnCopyPatch = el("button", "", "Copy Patch");
-  const btnCopyBanks = el("button", "", "Copy Banks");
-  const btnImportPatch = el("button", "primary", "Import Patch");
-  const btnImportBanks = el("button", "primary", "Import Banks");
-
-  btnCopyPatch.onclick = async () => {
-    const txt = JSON.stringify(patch, null, 2);
-    ieTA.value = txt;
-    await copyToClipboard(txt);
-  };
-
-  btnCopyBanks.onclick = async () => {
-    const payload = { version: "0.30", bank, banks };
-    const txt = JSON.stringify(payload, null, 2);
-    ieTA.value = txt;
-    await copyToClipboard(txt);
-  };
-
-  btnImportPatch.onclick = () => {
-    const parsed = safeParseJSON<any>(ieTA.value.trim());
-    if (!isPatchLike(parsed)) {
-      alert("Invalid patch JSON (expected version: 0.3).");
-      return;
-    }
-
-    const prev = clonePatch(patch);
-    patch = migratePatch(parsed);
-    banks[bank] = patch;
-
-    pushHistory(prev);
-    setPatch(patch);
-    syncEngineFromPatch(patch, true);
-    saveState(bank, banks);
-    rerender();
-    updateMuteBtn();
-    updateMasterGainUI();
-    updateStatus();
-    m.destroy();
-  };
-
-  btnImportBanks.onclick = () => {
-    const parsed = safeParseJSON<any>(ieTA.value.trim());
-    const banksIn = parsed?.banks;
-    const bankIn = parsed?.bank;
-
-    if (!Array.isArray(banksIn)) {
-      alert("Invalid banks JSON (expected { banks: Patch[] }).");
-      return;
-    }
-
-    const filtered = banksIn.filter(isPatchLike);
-    if (!filtered.length) {
-      alert("No valid patches found in banks JSON (expected version: 0.3).");
-      return;
-    }
-
-    const prev = clonePatch(patch);
-
-    const nextBanks = ensureBankCount(filtered, BANK_COUNT).map((p) => migratePatch(p));
-    const nextBank = typeof bankIn === "number" ? clamp(bankIn, 0, BANK_COUNT - 1) : 0;
-
-    bank = nextBank;
-    setBank(bank);
-    for (let i = 0; i < BANK_COUNT; i++) banks[i] = nextBanks[i];
-
-    patch = banks[bank];
-    pushHistory(prev);
-    setPatch(patch);
-    syncEngineFromPatch(patch, true);
-    saveState(bank, banks);
-    rerender();
-    updateBankLabel();
-    updateMuteBtn();
-    updateMasterGainUI();
-    updateStatus();
-    m.destroy();
-  };
-
-  ieBtns.append(btnCopyPatch, btnCopyBanks, btnImportPatch, btnImportBanks);
-  ieWrap.append(ieLab, ieTA, ieBtns);
-  body.appendChild(ieWrap);
 
   m.open();
 }
