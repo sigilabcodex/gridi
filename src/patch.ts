@@ -44,12 +44,40 @@ export type TriggerModule = ModuleBase & { type: "trigger" } & SequencerParams;
 type SoundBase = ModuleBase & {
   triggerSource: string | null;
   amp: number;
-  timbre: number;
   pan: number;
 };
 
-export type DrumModule = SoundBase & { type: "drum" };
-export type TonalModule = SoundBase & { type: "tonal" };
+export type DrumSynthModule = SoundBase & {
+  type: "drum";
+  basePitch: number;
+  decay: number;
+  transient: number;
+  snap: number;
+  noise: number;
+  bodyTone: number;
+  pitchEnvAmt: number;
+  pitchEnvDecay: number;
+  tone: number;
+};
+
+export type TonalSynthModule = SoundBase & {
+  type: "tonal";
+  waveform: number;
+  coarseTune: number;
+  fineTune: number;
+  attack: number;
+  decay: number;
+  sustain: number;
+  release: number;
+  cutoff: number;
+  resonance: number;
+  glide: number;
+  modDepth: number;
+  modRate: number;
+};
+
+export type DrumModule = DrumSynthModule;
+export type TonalModule = TonalSynthModule;
 
 export type SoundModule = DrumModule | TonalModule;
 
@@ -172,15 +200,47 @@ export function makeTrigger(i = 0, name = `TRG_${i + 1}`): TriggerModule {
 
 export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string | null = null): SoundModule {
   const id = uid(kind === "drum" ? "drm" : "ton");
+  if (kind === "drum") {
+    return {
+      id,
+      type: "drum",
+      name: SOUND_NAMES[i] ?? `${kind.toUpperCase()}_${id.slice(-3).toUpperCase()}`,
+      enabled: true,
+      triggerSource,
+      amp: 0.15,
+      pan: 0,
+      basePitch: 0.42,
+      decay: 0.35,
+      transient: 0.65,
+      snap: 0.3,
+      noise: 0.2,
+      bodyTone: 0.5,
+      pitchEnvAmt: 0.55,
+      pitchEnvDecay: 0.25,
+      tone: 0.45,
+    };
+  }
+
   return {
     id,
-    type: kind,
+    type: "tonal",
     name: SOUND_NAMES[i] ?? `${kind.toUpperCase()}_${id.slice(-3).toUpperCase()}`,
     enabled: true,
     triggerSource,
-    amp: kind === "drum" ? 0.12 : 0.08,
-    timbre: 0.5,
+    amp: 0.11,
     pan: 0,
+    waveform: 0.25,
+    coarseTune: 0,
+    fineTune: 0,
+    attack: 0.02,
+    decay: 0.3,
+    sustain: 0.6,
+    release: 0.5,
+    cutoff: 0.55,
+    resonance: 0.2,
+    glide: 0.08,
+    modDepth: 0.15,
+    modRate: 0.25,
   };
 }
 
@@ -261,6 +321,50 @@ function migrateEffectModule(m: AnyKnownModule): AnyKnownModule {
   } satisfies EffectModule;
 }
 
+
+function normalizeDrumModule(raw: any): DrumModule {
+  const legacyTimbre = clamp(typeof raw?.timbre === "number" ? raw.timbre : 0.5, 0, 1);
+  return {
+    ...raw,
+    type: "drum",
+    triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
+    amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.15, 0, 1),
+    pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
+    basePitch: clamp(typeof raw?.basePitch === "number" ? raw.basePitch : legacyTimbre, 0, 1),
+    decay: clamp(typeof raw?.decay === "number" ? raw.decay : 0.28 + legacyTimbre * 0.42, 0, 1),
+    transient: clamp(typeof raw?.transient === "number" ? raw.transient : 0.45 + (1 - legacyTimbre) * 0.4, 0, 1),
+    snap: clamp(typeof raw?.snap === "number" ? raw.snap : legacyTimbre * 0.6, 0, 1),
+    noise: clamp(typeof raw?.noise === "number" ? raw.noise : 0.1 + legacyTimbre * 0.3, 0, 1),
+    bodyTone: clamp(typeof raw?.bodyTone === "number" ? raw.bodyTone : 0.2 + legacyTimbre * 0.6, 0, 1),
+    pitchEnvAmt: clamp(typeof raw?.pitchEnvAmt === "number" ? raw.pitchEnvAmt : 0.3 + legacyTimbre * 0.4, 0, 1),
+    pitchEnvDecay: clamp(typeof raw?.pitchEnvDecay === "number" ? raw.pitchEnvDecay : 0.2 + legacyTimbre * 0.3, 0, 1),
+    tone: clamp(typeof raw?.tone === "number" ? raw.tone : legacyTimbre, 0, 1),
+  };
+}
+
+function normalizeTonalModule(raw: any): TonalModule {
+  const legacyTimbre = clamp(typeof raw?.timbre === "number" ? raw.timbre : 0.5, 0, 1);
+  return {
+    ...raw,
+    type: "tonal",
+    triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
+    amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.11, 0, 1),
+    pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
+    waveform: clamp(typeof raw?.waveform === "number" ? raw.waveform : legacyTimbre, 0, 1),
+    coarseTune: clamp(typeof raw?.coarseTune === "number" ? raw.coarseTune : 0, -24, 24),
+    fineTune: clamp(typeof raw?.fineTune === "number" ? raw.fineTune : 0, -1, 1),
+    attack: clamp(typeof raw?.attack === "number" ? raw.attack : 0.005 + (1 - legacyTimbre) * 0.08, 0, 1),
+    decay: clamp(typeof raw?.decay === "number" ? raw.decay : 0.15 + legacyTimbre * 0.5, 0, 1),
+    sustain: clamp(typeof raw?.sustain === "number" ? raw.sustain : 0.2 + legacyTimbre * 0.6, 0, 1),
+    release: clamp(typeof raw?.release === "number" ? raw.release : 0.18 + legacyTimbre * 0.7, 0, 1),
+    cutoff: clamp(typeof raw?.cutoff === "number" ? raw.cutoff : legacyTimbre, 0, 1),
+    resonance: clamp(typeof raw?.resonance === "number" ? raw.resonance : 0.18, 0, 1),
+    glide: clamp(typeof raw?.glide === "number" ? raw.glide : 0.04, 0, 1),
+    modDepth: clamp(typeof raw?.modDepth === "number" ? raw.modDepth : 0.1 + legacyTimbre * 0.2, 0, 1),
+    modRate: clamp(typeof raw?.modRate === "number" ? raw.modRate : 0.22, 0, 1),
+  };
+}
+
 function normalizeConnection(raw: unknown): Connection | null {
   if (!raw || typeof raw !== "object") return null;
   const conn = raw as Partial<Connection> & { to?: ConnectionTarget };
@@ -305,7 +409,7 @@ export function migratePatch(patch: Patch): Patch {
         ...normalizeSequencer(legacy, i),
       } satisfies TriggerModule;
 
-      const sound = {
+      const soundSeed = {
         id: legacy.id,
         type: legacy.kind,
         name: legacy.name,
@@ -314,7 +418,8 @@ export function migratePatch(patch: Patch): Patch {
         amp: clamp(typeof legacy.amp === "number" ? legacy.amp : 0.12, 0, 1),
         timbre: clamp(typeof legacy.timbre === "number" ? legacy.timbre : 0.5, 0, 1),
         pan: clamp(typeof legacy.pan === "number" ? legacy.pan : 0, -1, 1),
-      } satisfies SoundModule;
+      };
+      const sound = legacy.kind === "drum" ? normalizeDrumModule(soundSeed) : normalizeTonalModule(soundSeed);
 
       legacyVoiceToTrigger.set(legacy.id, trigger.id);
       unresolvedTriggerRef.set(sound.id, typeof legacy.patternSource === "string" ? legacy.patternSource : "self");
@@ -323,13 +428,7 @@ export function migratePatch(patch: Patch): Patch {
     }
 
     if (moduleAny.type === "drum" || moduleAny.type === "tonal") {
-      migrated.push({
-        ...moduleAny,
-        triggerSource: typeof (moduleAny as any).triggerSource === "string" ? (moduleAny as any).triggerSource : null,
-        amp: clamp(typeof (moduleAny as any).amp === "number" ? (moduleAny as any).amp : 0.12, 0, 1),
-        timbre: clamp(typeof (moduleAny as any).timbre === "number" ? (moduleAny as any).timbre : 0.5, 0, 1),
-        pan: clamp(typeof (moduleAny as any).pan === "number" ? (moduleAny as any).pan : 0, -1, 1),
-      } as SoundModule);
+      migrated.push(moduleAny.type === "drum" ? normalizeDrumModule(moduleAny) : normalizeTonalModule(moduleAny));
       continue;
     }
 

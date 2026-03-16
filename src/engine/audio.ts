@@ -35,29 +35,29 @@ function clamp01(x: number) {
   return clamp(x, 0, 1);
 }
 
-function voiceFreqHz(v: SoundModule, i: number, macro: number) {
-  const timbre = clamp01(safe(v.timbre, 0.5));
-  const macro01 = clamp01(safe(macro, 0.5));
-
-  if (v.type === "drum") {
-    return 70 + timbre * 260 + macro01 * 40 + i * 8;
-  }
-
-  const basePool = [110, 146.83, 196, 220, 293.66, 392];
-  const base = basePool[i % basePool.length];
-  const octave = 1 + Math.floor((i / basePool.length) % 2);
-  return base * octave * (0.7 + timbre * 0.9 + macro01 * 0.2);
+function oscTypeFromWaveform(waveform: number): OscillatorType {
+  if (waveform < 0.25) return "sine";
+  if (waveform < 0.5) return "triangle";
+  if (waveform < 0.75) return "sawtooth";
+  return "square";
 }
 
-function envExp(g: GainNode, now: number, a: number, d: number, peak: number) {
-  const attack = Math.max(0.001, a);
-  const decay = Math.max(0.01, d);
-  const pk = Math.max(EPS, peak);
+function tonalBaseFreq(v: SoundModule, i: number, macro: number) {
+  if (v.type !== "tonal") return 110;
+  const macro01 = clamp01(safe(macro, 0.5));
+  const basePool = [55, 82.41, 110, 146.83, 196, 220];
+  const base = basePool[i % basePool.length] ?? 110;
+  const octave = 1 + Math.floor(i / basePool.length) % 2;
+  const coarseRatio = Math.pow(2, safe(v.coarseTune, 0) / 12);
+  const fineRatio = Math.pow(2, safe(v.fineTune, 0) / 12);
+  return base * octave * coarseRatio * fineRatio * (0.92 + macro01 * 0.16);
+}
 
-  g.gain.cancelScheduledValues(now);
-  g.gain.setValueAtTime(EPS, now);
-  g.gain.exponentialRampToValueAtTime(pk, now + attack);
-  g.gain.exponentialRampToValueAtTime(EPS, now + attack + decay);
+function drumBaseFreq(v: SoundModule, i: number, macro: number) {
+  if (v.type !== "drum") return 90;
+  const basePitch = clamp01(safe(v.basePitch, 0.5));
+  const macro01 = clamp01(safe(macro, 0.5));
+  return 45 + basePitch * 180 + i * 4 + macro01 * 24;
 }
 
 export function createEngine(): Engine {
@@ -239,20 +239,8 @@ export function createEngine(): Engine {
 
     const now = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
     const amp = clamp(safe(v.amp, 0.12), 0, 1);
-    const timbre = clamp01(safe(v.timbre, 0.5));
     const pan = clamp(safe(v.pan, 0), -1, 1);
-
-    const attack = 0.003 + (1 - timbre) * 0.01;
-    const decay = 0.08 + timbre * 0.45;
-
-    const osc = ctx.createOscillator();
-    osc.type = timbre < 0.33 ? "sine" : timbre < 0.66 ? "triangle" : "sawtooth";
-
-    const voiceGain = ctx.createGain();
     const panNode = mkPanner(pan);
-
-    osc.connect(voiceGain);
-    voiceGain.connect(panNode);
 
     const destinations = resolveVoiceDestinations(v.id);
     const sendGains: GainNode[] = [];
@@ -268,22 +256,152 @@ export function createEngine(): Engine {
       }
     }
 
-    osc.onended = () => {
-      for (const send of sendGains) send.disconnect();
-      panNode.disconnect();
+    if (v.type === "drum") {
+      const bodyOsc = ctx.createOscillator();
+      const bodyGain = ctx.createGain();
+      const toneFilter = ctx.createBiquadFilter();
+      const noiseFilter = ctx.createBiquadFilter();
+      const noiseGain = ctx.createGain();
+      const clickGain = ctx.createGain();
+
+      const bodyTone = clamp01(safe(v.bodyTone, 0.5));
+      const transient = clamp01(safe(v.transient, 0.5));
+      const snap = clamp01(safe(v.snap, 0.2));
+      const decay = 0.03 + clamp01(safe(v.decay, 0.4)) * 0.85;
+      const pitchEnvAmt = clamp01(safe(v.pitchEnvAmt, 0.5));
+      const pitchEnvDecay = 0.01 + clamp01(safe(v.pitchEnvDecay, 0.25)) * 0.4;
+      const noiseAmt = clamp01(safe(v.noise, 0.2));
+      const tone = clamp01(safe(v.tone, 0.45));
+
+      bodyOsc.type = bodyTone < 0.55 ? "sine" : "triangle";
+      const baseFreq = drumBaseFreq(v, i, patch.macro);
+      bodyOsc.frequency.setValueAtTime(baseFreq * (1 + pitchEnvAmt * 2.2), now);
+      bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(30, baseFreq), now + pitchEnvDecay);
+
+      toneFilter.type = "lowpass";
+      toneFilter.frequency.value = 300 + tone * 6400;
+      toneFilter.Q.value = 0.4 + tone * 2.2;
+
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.value = 300 + tone * 5200;
+      noiseFilter.Q.value = 0.7 + snap * 10;
+
+      bodyOsc.connect(bodyGain);
+      bodyGain.connect(toneFilter);
+      toneFilter.connect(panNode);
+
+      const noiseBuffer = ctx.createBuffer(1, Math.max(1, (ctx.sampleRate * (decay + 0.05)) | 0), ctx.sampleRate);
+      const noiseData = noiseBuffer.getChannelData(0);
+      for (let n = 0; n < noiseData.length; n++) noiseData[n] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(panNode);
+
+      const clickOsc = ctx.createOscillator();
+      clickOsc.type = "square";
+      clickOsc.frequency.value = 1200 + snap * 2600;
+      clickOsc.connect(clickGain);
+      clickGain.connect(panNode);
+
+      bodyGain.gain.setValueAtTime(EPS, now);
+      bodyGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp * (0.6 + transient * 0.4)), now + 0.002);
+      bodyGain.gain.exponentialRampToValueAtTime(EPS, now + decay);
+
+      noiseGain.gain.setValueAtTime(Math.max(EPS, amp * noiseAmt * 0.8), now);
+      noiseGain.gain.exponentialRampToValueAtTime(EPS, now + 0.01 + decay * 0.65);
+
+      clickGain.gain.setValueAtTime(Math.max(EPS, amp * (0.08 + transient * 0.3 + snap * 0.2)), now);
+      clickGain.gain.exponentialRampToValueAtTime(EPS, now + 0.006 + (1 - snap) * 0.01);
+
+      const stopAt = now + decay + 0.08;
+      bodyOsc.start(now);
+      noise.start(now);
+      clickOsc.start(now);
+      bodyOsc.stop(stopAt);
+      noise.stop(stopAt);
+      clickOsc.stop(stopAt);
+      bodyOsc.onended = () => {
+        bodyGain.disconnect();
+        toneFilter.disconnect();
+        noiseFilter.disconnect();
+        noiseGain.disconnect();
+        clickGain.disconnect();
+        panNode.disconnect();
+        for (const send of sendGains) send.disconnect();
+      };
+      return;
+    }
+
+    const voiceGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const oscA = ctx.createOscillator();
+    const oscB = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+
+    const attack = 0.002 + clamp01(safe(v.attack, 0.02)) * 0.25;
+    const decay = 0.01 + clamp01(safe(v.decay, 0.35)) * 0.8;
+    const sustain = clamp01(safe(v.sustain, 0.6));
+    const release = 0.03 + clamp01(safe(v.release, 0.5)) * 1.3;
+    const cutoff = 150 + clamp01(safe(v.cutoff, 0.55)) * 9000;
+    const resonance = 0.25 + clamp01(safe(v.resonance, 0.2)) * 16;
+    const glide = clamp01(safe(v.glide, 0.08));
+
+    const freq = tonalBaseFreq(v, i, patch.macro);
+    const glideTime = 0.001 + glide * 0.35;
+
+    oscA.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3)));
+    oscB.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3) + 0.22));
+    oscA.frequency.setTargetAtTime(freq, now, glideTime);
+    oscB.frequency.setTargetAtTime(freq * 1.004, now, glideTime);
+
+    filter.type = "lowpass";
+    filter.frequency.value = cutoff;
+    filter.Q.value = resonance;
+
+    const modDepth = clamp01(safe(v.modDepth, 0.15));
+    const modRate = 0.2 + clamp01(safe(v.modRate, 0.25)) * 11;
+    lfo.type = "sine";
+    lfo.frequency.value = modRate;
+    lfoGain.gain.value = freq * modDepth * 0.08;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscA.frequency);
+    lfoGain.connect(oscB.frequency);
+
+    oscA.connect(voiceGain);
+    oscB.connect(voiceGain);
+    voiceGain.connect(filter);
+    filter.connect(panNode);
+
+    voiceGain.gain.cancelScheduledValues(now);
+    voiceGain.gain.setValueAtTime(EPS, now);
+    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp), now + attack);
+    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp * sustain), now + attack + decay);
+    voiceGain.gain.setValueAtTime(Math.max(EPS, amp * sustain), now + attack + decay + 0.06);
+    voiceGain.gain.exponentialRampToValueAtTime(EPS, now + attack + decay + release + 0.08);
+
+    const stopAt = now + attack + decay + release + 0.12;
+    oscA.start(now);
+    oscB.start(now);
+    lfo.start(now);
+    oscA.stop(stopAt);
+    oscB.stop(stopAt);
+    lfo.stop(stopAt);
+    oscA.onended = () => {
+      lfo.disconnect();
+      lfoGain.disconnect();
+      oscA.disconnect();
+      oscB.disconnect();
       voiceGain.disconnect();
+      filter.disconnect();
+      panNode.disconnect();
+      for (const send of sendGains) send.disconnect();
     };
-
-    const freq = voiceFreqHz(v, i, patch.macro);
-    osc.frequency.cancelScheduledValues(now);
-    osc.frequency.setValueAtTime(freq, now);
-
-    envExp(voiceGain, now, attack, decay, amp * 0.8);
-
-    const stopAt = now + attack + decay + 0.02;
-    osc.start(now);
-    osc.stop(stopAt);
   }
+
 
   return {
     ctx,
