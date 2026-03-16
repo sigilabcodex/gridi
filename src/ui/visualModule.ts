@@ -12,7 +12,7 @@ export function renderVisualSurface(
   engine: Engine,
   _patch: Patch,
   vm: VisualModule,
-  onRemove: () => void
+  onRemove: () => void,
 ) {
   const surface = el("section", "moduleSurface visualSurface");
   surface.dataset.type = "visual";
@@ -22,7 +22,7 @@ export function renderVisualSurface(
   const badge = el("span", "surfaceBadge");
   badge.textContent = "VISUAL";
   const meta = el("div", "surfaceNameWrap");
-  meta.innerHTML = `<div class="small">Reactive display</div><div class="name">${vm.kind.toUpperCase()}</div><div class="small moduleId">ID ${vm.id.slice(-6).toUpperCase()}</div>`;
+  meta.innerHTML = `<div class="name">${vm.kind.toUpperCase()}</div><div class="small moduleId">${vm.id.slice(-6).toUpperCase()}</div>`;
   identity.append(badge, meta);
 
   const right = el("div", "rightControls");
@@ -42,18 +42,19 @@ export function renderVisualSurface(
   right.append(btnOn, btnX);
   header.append(identity, right);
 
-  const body = el("div", "visualSurfaceBody");
+  const face = el("div", "surfaceFace");
 
+  const panelMain = el("div", "surfaceTabPanel visualSurfaceBody");
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
   canvas.width = 800;
   canvas.height = 260;
+  const readout = el("div", "visualReadout small");
+  canvasWrap.append(canvas);
+  panelMain.append(canvasWrap, readout);
 
-  const displayOverlay = el("div", "visualOverlay small");
-  displayOverlay.textContent = "live signal";
-  canvasWrap.append(canvas, displayOverlay);
-
+  const panelSettings = el("div", "surfaceTabPanel hidden");
   const dock = el("div", "visualControlDock");
   const mode = document.createElement("select");
   ["scope", "spectrum", "pattern"].forEach((kind) => {
@@ -78,14 +79,32 @@ export function renderVisualSurface(
   fft.onchange = () => {
     vm.fftSize = Number(fft.value) as VisualModule["fftSize"];
   };
+  dock.append(mode, fft);
+  panelSettings.append(dock);
 
-  const readout = el("div", "visualReadout small");
-  dock.append(mode, fft, readout);
+  face.append(panelMain, panelSettings);
 
-  body.append(canvasWrap, dock);
-  surface.append(header, body);
+  const tabs = el("div", "surfaceTabs");
+  const btnMain = document.createElement("button");
+  btnMain.className = "modTab";
+  btnMain.textContent = "Main";
+  const btnSettings = document.createElement("button");
+  btnSettings.className = "modTab";
+  btnSettings.textContent = "Settings";
+  const setTab = (tab: "MAIN" | "SETTINGS") => {
+    panelMain.classList.toggle("hidden", tab !== "MAIN");
+    panelSettings.classList.toggle("hidden", tab !== "SETTINGS");
+    btnMain.classList.toggle("active", tab === "MAIN");
+    btnSettings.classList.toggle("active", tab === "SETTINGS");
+  };
+  btnMain.onclick = () => setTab("MAIN");
+  btnSettings.onclick = () => setTab("SETTINGS");
+  tabs.append(btnMain, btnSettings);
+
+  surface.append(header, face, tabs);
   parent.appendChild(surface);
   updateOn();
+  setTab("MAIN");
 
   const ctx2d = canvas.getContext("2d")!;
   const scopeBuf = new Float32Array(engine.analyser.fftSize);
@@ -133,9 +152,8 @@ export function renderVisualSurface(
       else ctx2d.lineTo(x, y);
     }
     ctx2d.stroke();
-
     const peak = Math.max(...scopeBuf.map((x) => Math.abs(x)));
-    readout.textContent = `wave peak ${peak.toFixed(3)} · window ${scopeBuf.length} samples`;
+    readout.textContent = `peak ${peak.toFixed(3)} · ${scopeBuf.length} samples`;
   }
 
   function drawSpectrum() {
@@ -150,7 +168,7 @@ export function renderVisualSurface(
       ctx2d.fillRect(x, h - bh, barW, bh);
     }
     const avg = specBuf.reduce((a, b) => a + b, 0) / Math.max(1, specBuf.length);
-    readout.textContent = `spectrum avg ${avg.toFixed(3)} · bins ${specBuf.length}`;
+    readout.textContent = `avg ${avg.toFixed(3)} · ${specBuf.length} bins`;
   }
 
   return function update() {
