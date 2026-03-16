@@ -268,13 +268,12 @@ export function makeEffect(kind: EffectKind = "gain"): EffectModule {
 }
 
 export const defaultPatch = (): Patch => {
-  const modules: Module[] = [];
-  for (let i = 0; i < 8; i++) {
-    const trg = makeTrigger(i, `TRG_${i + 1}`);
-    const sound = makeSound(SOUND_KINDS[i] ?? "drum", i, trg.id);
-    modules.push(sound, trg);
-  }
-  modules.push(makeVisual("scope"));
+  const trigA = makeTrigger(0, "TRG_A");
+  const trigB = makeTrigger(1, "TRG_B");
+  const drumA = makeSound("drum", 0, trigA.id);
+  const drumB = makeSound("drum", 1, trigB.id);
+  const synth = makeSound("tonal", 2, trigA.id);
+  const scope = makeVisual("scope");
 
   return {
     version: "0.3",
@@ -282,7 +281,7 @@ export const defaultPatch = (): Patch => {
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules,
+    modules: [trigA, drumA, trigB, drumB, synth, scope],
     buses: [],
     connections: [],
   };

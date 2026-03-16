@@ -1106,3 +1106,91 @@ header {
 .transportStatus {
   margin-top: 4px;
 }
+
+/* === Unified workspace grid + face modes === */
+:root {
+  --module-cell-w: 330px;
+  --module-cell-h: 280px;
+}
+
+.workspaceGrid {
+  grid-template-columns: repeat(auto-fill, minmax(var(--module-cell-w), 1fr));
+  gap: 10px;
+}
+
+.familyLane,
+.familyLaneHead,
+.familyLaneBody {
+  display: none;
+}
+
+.moduleCell {
+  min-height: var(--module-cell-h);
+}
+
+.moduleSurface {
+  padding: 8px;
+}
+
+.surfaceHeader {
+  margin-bottom: 6px;
+}
+
+.surfaceNameWrap .small {
+  display: none;
+}
+
+.surfaceFace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.surfaceTabPanel {
+  margin-top: 0;
+  width: 100%;
+  overflow: auto;
+}
+
+.surfaceTabs {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.triggerPrimary,
+.drumSurfaceBody,
+.synthSurfaceBody,
+.visualSurfaceBody {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.triggerPulseRail,
+.visualDisplayWrap {
+  grid-column: 1 / -1;
+}
+
+.triggerPatternPanel {
+  min-height: 64px;
+}
+
+.visualSurfaceBody {
+  grid-template-columns: 1fr;
+}
+
+.visualControlDock {
+  grid-template-columns: 1fr 1fr;
+}
+
+.addModulePlus {
+  font-size: 44px;
+}
+
+@media (max-width: 760px) {
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+  }
+}
