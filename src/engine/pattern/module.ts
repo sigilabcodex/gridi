@@ -50,16 +50,6 @@ function stepRandom01(seed: number, voiceId: string, stepIndex: number) {
   return (x >>> 0) / 4294967296;
 }
 
-function xorshift32(seed: number) {
-  let x = seed | 0;
-  return () => {
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    return (x >>> 0) / 4294967296;
-  };
-}
-
 function rotatePattern(p: Uint8Array, rot: number) {
   const n = p.length;
   if (n <= 1) return p;

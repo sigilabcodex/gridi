@@ -107,7 +107,7 @@ export function loadPresetSession(): PresetSession {
 
       if (presets.length) {
         const selectedPresetId =
-          typeof parsed.selectedPresetId === "string" && presets.some((p) => p.id === parsed.selectedPresetId)
+          typeof parsed.selectedPresetId === "string" && presets.some((p: PresetRecord) => p.id === parsed.selectedPresetId)
             ? parsed.selectedPresetId
             : presets[0].id;
 
@@ -161,7 +161,7 @@ export function parsePresetImportPayload(raw: string): PresetSession | null {
     if (!presets.length) return null;
 
     const selectedPresetId =
-      typeof parsed.selectedPresetId === "string" && presets.some((p) => p.id === parsed.selectedPresetId)
+      typeof parsed.selectedPresetId === "string" && presets.some((p: PresetRecord) => p.id === parsed.selectedPresetId)
         ? parsed.selectedPresetId
         : presets[0].id;
 
