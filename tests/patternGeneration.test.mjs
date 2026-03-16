@@ -28,8 +28,10 @@ test('euclid rotation and CA rule differences change output', () => {
     absoluteBeats(createPatternModuleForTrigger(euclidB).renderWindow({ trigger: euclidB, voiceId: 'v1', startBeat: 0, endBeat: 2 })),
   );
 
-  const caOff = makeTrigger({ mode: 'ca', caRule: 0, density: 1, drop: 0 });
-  const caOn = makeTrigger({ mode: 'ca', caRule: 255, density: 1, drop: 0 });
-  assert.equal(createPatternModuleForTrigger(caOff).renderWindow({ trigger: caOff, voiceId: 'v1', startBeat: 0, endBeat: 2 }).events.length, 0);
-  assert.ok(createPatternModuleForTrigger(caOn).renderWindow({ trigger: caOn, voiceId: 'v1', startBeat: 0, endBeat: 2 }).events.length > 0);
+  const caOff = makeTrigger({ mode: 'ca', caRule: 0, caInit: 1, density: 1, drop: 0 });
+  const caOn = makeTrigger({ mode: 'ca', caRule: 255, caInit: 1, density: 1, drop: 0 });
+  assert.notDeepEqual(
+    absoluteBeats(createPatternModuleForTrigger(caOff).renderWindow({ trigger: caOff, voiceId: 'v1', startBeat: 0, endBeat: 2 })),
+    absoluteBeats(createPatternModuleForTrigger(caOn).renderWindow({ trigger: caOn, voiceId: 'v1', startBeat: 0, endBeat: 2 })),
+  );
 });

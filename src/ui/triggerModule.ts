@@ -1,4 +1,5 @@
 import type { Mode, Patch, TriggerModule } from "../patch";
+import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
@@ -54,7 +55,12 @@ export function renderTriggerModule(
     ctlFloat({ label: "CA Init", value: t.caInit, min: 0, max: 1, step: 0.001, format: (x) => x.toFixed(3), onChange: (x) => set("caInit", x) }),
   );
 
-  body.append(top, adv);
+  const patternPreview = document.createElement("div");
+  patternPreview.className = "triggerPatternPreview";
+  patternPreview.textContent = getPatternPreview(t, `${t.id}:preview`, 32);
+  patternPreview.title = "First 32 pattern steps for current mode";
+
+  body.append(top, adv, patternPreview);
   card.append(header, body);
   root.appendChild(card);
 
