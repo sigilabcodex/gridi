@@ -3,5 +3,4 @@ export type {
   PatternEventWindow as EventWindow,
   PatternModule,
   PatternRenderRequest,
-  PatternSourceRef,
 } from "./pattern/module";
