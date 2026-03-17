@@ -1,5 +1,6 @@
 import type { Engine } from "../engine/audio";
 import type { Patch, VisualModule } from "../patch";
+import { wireSafeDeleteButton } from "./deleteButton";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   const n = document.createElement(tag);
@@ -38,7 +39,7 @@ export function renderVisualSurface(
 
   const btnX = el("button", "danger");
   btnX.textContent = "×";
-  btnX.onclick = onRemove;
+  wireSafeDeleteButton(btnX, onRemove);
   right.append(btnOn, btnX);
   header.append(identity, right);
 
@@ -56,6 +57,8 @@ export function renderVisualSurface(
 
   const panelSettings = el("div", "surfaceTabPanel hidden");
   const dock = el("div", "visualControlDock");
+  const modeCard = el("div", "machineSelect");
+  const fftCard = el("div", "machineSelect");
   const mode = document.createElement("select");
   ["scope", "spectrum", "pattern"].forEach((kind) => {
     const o = document.createElement("option");
@@ -79,7 +82,11 @@ export function renderVisualSurface(
   fft.onchange = () => {
     vm.fftSize = Number(fft.value) as VisualModule["fftSize"];
   };
-  dock.append(mode, fft);
+  modeCard.innerHTML = `<div class="triggerReadoutLabel">view mode</div>`;
+  fftCard.innerHTML = `<div class="triggerReadoutLabel">resolution</div>`;
+  modeCard.appendChild(mode);
+  fftCard.appendChild(fft);
+  dock.append(modeCard, fftCard);
   panelSettings.append(dock);
 
   face.append(panelMain, panelSettings);
