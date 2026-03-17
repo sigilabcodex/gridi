@@ -1,10 +1,11 @@
 import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
+import { wireSafeDeleteButton } from "./deleteButton";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
 
-type TriggerFaceTab = "MAIN" | "ROUTING" | "DEBUG" | "SETTINGS";
+type TriggerFaceTab = "MAIN" | "SETTINGS";
 
 export function renderTriggerSurface(
   root: HTMLElement,
@@ -45,7 +46,7 @@ export function renderTriggerSurface(
   const btnX = document.createElement("button");
   btnX.textContent = "×";
   btnX.className = "danger";
-  btnX.onclick = () => onRemove?.();
+  wireSafeDeleteButton(btnX, () => onRemove?.());
   right.append(toggle, btnX);
   header.append(identity, right);
 
@@ -57,77 +58,76 @@ export function renderTriggerSurface(
 
   const pulseRail = document.createElement("div");
   pulseRail.className = "triggerPulseRail";
+
+  const generatorReadout = document.createElement("button");
+  generatorReadout.className = "triggerGeneratorReadout";
+  generatorReadout.type = "button";
+  const generatorLabel = document.createElement("div");
+  generatorLabel.className = "triggerReadoutLabel";
+  generatorLabel.textContent = "generator";
+  const generatorValue = document.createElement("div");
+  generatorValue.className = "triggerReadoutValue";
+  generatorReadout.append(generatorLabel, generatorValue);
+  generatorReadout.onclick = () => {
+    const idx = MODES.findIndex((mode) => mode === t.mode);
+    const nextMode = MODES[(idx + 1) % MODES.length];
+    onPatchChange((p) => {
+      const m = p.modules.find((x) => x.id === t.id);
+      if (m?.type === "trigger") m.mode = nextMode;
+    }, { regen: true });
+  };
+
+  const seedReadout = document.createElement("button");
+  seedReadout.className = "triggerSeedReadout";
+  seedReadout.type = "button";
+  const seedLabel = document.createElement("div");
+  seedLabel.className = "triggerReadoutLabel";
+  seedLabel.textContent = "seed";
+  const seedValue = document.createElement("div");
+  seedValue.className = "triggerReadoutValue";
+  const seedHint = document.createElement("div");
+  seedHint.className = "triggerReadoutHint";
+  seedHint.textContent = "tap to reseed";
+  seedReadout.append(seedLabel, seedValue, seedHint);
+  seedReadout.onclick = () => onPatchChange((p) => {
+    const m = p.modules.find((x) => x.id === t.id);
+    if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
+  }, { regen: true });
+
   const stepGrid = document.createElement("div");
   stepGrid.className = "triggerStepGrid";
   const transportReadout = document.createElement("div");
   transportReadout.className = "triggerTransportReadout small";
-  pulseRail.append(stepGrid, transportReadout);
 
-  const modeRack = document.createElement("div");
-  modeRack.className = "triggerModeRack";
-  const sel = document.createElement("select");
-  for (const m of MODES) {
-    const o = document.createElement("option");
-    o.value = m;
-    o.textContent = m;
-    if (m === t.mode) o.selected = true;
-    sel.appendChild(o);
-  }
-  sel.onchange = () => onPatchChange((p) => {
-    const m = p.modules.find((x) => x.id === t.id);
-    if (m?.type === "trigger") m.mode = sel.value as Mode;
-  }, { regen: true });
-
-  const seed = document.createElement("input");
-  seed.type = "number";
-  seed.value = String(t.seed);
-  seed.className = "seedInput";
-  seed.onchange = () => onPatchChange((p) => {
-    const m = p.modules.find((x) => x.id === t.id);
-    if (m?.type === "trigger") m.seed = seed.valueAsNumber | 0;
-  }, { regen: true });
-  modeRack.append(sel, seed);
+  pulseRail.append(generatorReadout, seedReadout, stepGrid, transportReadout);
 
   const mainControlRack = document.createElement("div");
   mainControlRack.className = "triggerPulseRack";
   mainControlRack.append(
     ctlFloat({ label: "Density", value: t.density, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("density", x) }),
-    ctlFloat({ label: "Drop", value: t.drop, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("drop", x) }),
     ctlFloat({ label: "Length", value: t.length, min: 1, max: 128, step: 1, integer: true, onChange: (x) => setParam("length", x) }),
+    ctlFloat({ label: "Drop", value: t.drop, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("drop", x) }),
     ctlFloat({ label: "Subdiv", value: t.subdiv, min: 1, max: 8, step: 1, integer: true, onChange: (x) => setParam("subdiv", x) }),
+    ctlFloat({ label: "Determinism", value: t.determinism, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("determinism", x) }),
+    ctlFloat({ label: "Weird", value: t.weird, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("weird", x) }),
   );
-  panelMain.append(pulseRail, modeRack, mainControlRack);
-
-  const panelRouting = document.createElement("div");
-  panelRouting.className = "surfaceTabPanel hidden";
-  panelRouting.textContent = "Select this trigger from a voice module Routing tab.";
-
-  const panelDebug = document.createElement("div");
-  panelDebug.className = "surfaceTabPanel hidden";
-  const patternPreview = document.createElement("pre");
-  patternPreview.className = "triggerPatternPanel";
-  panelDebug.append(
-    patternPreview,
-    ctlFloat({ label: "Rotation", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
-    ctlFloat({ label: "CA Rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
-    ctlFloat({ label: "CA Init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
-  );
+  panelMain.append(pulseRail, mainControlRack);
 
   const panelSettings = document.createElement("div");
   panelSettings.className = "surfaceTabPanel hidden";
   panelSettings.append(
-    ctlFloat({ label: "Determinism", value: t.determinism, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("determinism", x) }),
-    ctlFloat({ label: "Weird", value: t.weird, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("weird", x) }),
+    ctlFloat({ label: "Rotation", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
+    ctlFloat({ label: "CA Rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
+    ctlFloat({ label: "CA Init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
+    ctlFloat({ label: "Gravity", value: t.gravity, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("gravity", x) }),
   );
 
-  face.append(panelMain, panelRouting, panelDebug, panelSettings);
+  face.append(panelMain, panelSettings);
 
   const tabs = document.createElement("div");
   tabs.className = "surfaceTabs";
   const tabSpecs: Array<{ id: TriggerFaceTab; label: string; panel: HTMLElement }> = [
     { id: "MAIN", label: "Main", panel: panelMain },
-    { id: "ROUTING", label: "Routing", panel: panelRouting },
-    { id: "DEBUG", label: "Debug", panel: panelDebug },
     { id: "SETTINGS", label: "Settings", panel: panelSettings },
   ];
 
@@ -160,6 +160,9 @@ export function renderTriggerSurface(
   }
 
   function syncPatternRail() {
+    generatorValue.textContent = t.mode.toUpperCase();
+    seedValue.textContent = String(t.seed).padStart(6, "0");
+
     const compact = patternPreviewText().replace(/\s+/g, "").slice(0, 32);
     stepGrid.textContent = "";
     for (let i = 0; i < 32; i++) {
@@ -168,8 +171,7 @@ export function renderTriggerSurface(
       cell.className = `triggerStepCell ${c !== "." ? "on" : "off"}`;
       stepGrid.appendChild(cell);
     }
-    transportReadout.textContent = `${t.length} steps · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
-    patternPreview.textContent = patternPreviewText();
+    transportReadout.textContent = `${t.length} steps · /${t.subdiv} · ${Math.round(t.density * 100)}%`; 
   }
 
   function setParam(key: keyof TriggerModule, value: number) {

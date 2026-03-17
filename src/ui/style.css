@@ -923,7 +923,7 @@ header {
 }
 
 .moduleCell {
-  min-height: var(--module-cell-h);
+  height: var(--module-cell-h);
 }
 
 .moduleCell > .moduleSurface {
@@ -1110,7 +1110,7 @@ header {
 /* === Unified workspace grid + face modes === */
 :root {
   --module-cell-w: 330px;
-  --module-cell-h: 280px;
+  --module-cell-h: 340px;
 }
 
 .workspaceGrid {
@@ -1125,7 +1125,7 @@ header {
 }
 
 .moduleCell {
-  min-height: var(--module-cell-h);
+  height: var(--module-cell-h);
 }
 
 .moduleSurface {
@@ -1144,13 +1144,13 @@ header {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
+  overflow: hidden;
 }
 
 .surfaceTabPanel {
   margin-top: 0;
   width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .surfaceTabs {
@@ -1162,7 +1162,7 @@ header {
 .triggerPrimary,
 .visualSurfaceBody {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
   align-content: start;
 }
@@ -1205,4 +1205,54 @@ header {
 
 .hidden {
   display: none !important;
+}
+
+
+.triggerGeneratorReadout,
+.triggerSeedReadout {
+  border: 1px solid rgba(198,127,255,0.42);
+  border-radius: 9px;
+  background: rgba(18, 11, 26, 0.86);
+  text-align: left;
+  padding: 6px 8px;
+}
+
+.triggerReadoutLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  font-size: 10px;
+  opacity: 0.72;
+}
+
+.triggerReadoutValue {
+  margin-top: 3px;
+  font-size: 13px;
+  letter-spacing: 1.2px;
+  color: #f0d8ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.triggerReadoutHint {
+  margin-top: 2px;
+  opacity: 0.68;
+  font-size: 10px;
+}
+
+button.danger.armed {
+  border-color: rgba(255,120,120,0.9);
+  background: rgba(120, 20, 20, 0.55);
+  color: #ffd7d7;
+}
+
+.machineSelect {
+  border: 1px solid rgba(255,204,102,0.28);
+  border-radius: 8px;
+  padding: 6px;
+  background: rgba(17,14,10,0.55);
+  display: grid;
+  gap: 6px;
+}
+
+.machineSelect select {
+  width: 100%;
 }
