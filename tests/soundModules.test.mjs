@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { makeSound, migratePatch } from '../src/patch.ts';
+import { defaultPatch, makeSound, makeTrigger, makeVisual, migratePatch } from '../src/patch.ts';
 
 test('drum and tonal defaults are distinct and specialized', () => {
   const drum = makeSound('drum', 0, 'trg-1');
@@ -46,4 +46,33 @@ test('new sound modules instantiate safely with full parameter surface', () => {
     assert.equal(module.enabled, true);
     assert.equal(module.triggerSource, null);
   }
+});
+
+
+test('module identity separates instance name, engine, and preset', () => {
+  const trigger = makeTrigger(1);
+  const drum = makeSound('drum', 0, trigger.id);
+  const synth = makeSound('tonal', 1, trigger.id);
+  const visual = makeVisual('scope', 0);
+
+  assert.equal(trigger.name, 'Trigger 2');
+  assert.equal(trigger.engine, 'trigger');
+  assert.equal(trigger.presetName, 'Sparse Euclid');
+
+  assert.equal(drum.name, 'Drum 1');
+  assert.equal(drum.engine, 'drum');
+  assert.equal(drum.presetName, 'Deep Kick');
+
+  assert.equal(synth.name, 'Synth 2');
+  assert.equal(synth.engine, 'synth');
+  assert.equal(synth.presetName, 'Rubber Bass');
+
+  assert.equal(visual.name, 'Scope 1');
+  assert.equal(visual.engine, 'visual');
+  assert.equal(visual.presetName, 'Scope Default');
+});
+
+test('default patch uses readable module instance names', () => {
+  const names = defaultPatch().modules.map((m) => m.name);
+  assert.deepEqual(names, ['Trigger 1', 'Drum 1', 'Trigger 2', 'Drum 2', 'Synth 1', 'Scope 1']);
 });

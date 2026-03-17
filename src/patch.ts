@@ -1,5 +1,6 @@
 // src/patch.ts
 export type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
+export type ModuleEngine = "trigger" | "drum" | "synth" | "visual";
 
 export const clamp = (x: number, a: number, b: number) =>
   Math.min(b, Math.max(a, x));
@@ -9,7 +10,10 @@ export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | 
 export type ModuleBase = {
   id: string;
   type: ModuleType;
+  engine?: ModuleEngine;
   name: string;
+  presetName?: string;
+  presetMeta?: Record<string, unknown>;
   enabled: boolean;
   x?: number;
   y?: number;
@@ -168,9 +172,6 @@ export function getTriggers(p: Patch): TriggerModule[] {
   return p.modules.filter(isTrigger);
 }
 
-const SOUND_NAMES = ["SUB", "BUZZHH", "ULTRATK", "PING", "BITSN", "AIRGAP", "RATTLE", "METAK"];
-const _SOUND_KINDS: Array<"drum" | "tonal"> = ["drum", "drum", "tonal", "drum", "drum", "drum", "drum", "tonal"];
-
 function defaultSequencer(i: number): SequencerParams {
   return {
     mode: "hybrid",
@@ -188,11 +189,13 @@ function defaultSequencer(i: number): SequencerParams {
   };
 }
 
-export function makeTrigger(i = 0, name = `TRG_${i + 1}`): TriggerModule {
+export function makeTrigger(i = 0, name = `Trigger ${i + 1}`): TriggerModule {
   return {
     id: uid("trg"),
     type: "trigger",
+    engine: "trigger",
     name,
+    presetName: "Sparse Euclid",
     enabled: true,
     ...defaultSequencer(i),
   };
@@ -204,7 +207,9 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
     return {
       id,
       type: "drum",
-      name: SOUND_NAMES[i] ?? `${kind.toUpperCase()}_${id.slice(-3).toUpperCase()}`,
+      engine: "drum",
+      name: `Drum ${i + 1}`,
+      presetName: "Deep Kick",
       enabled: true,
       triggerSource,
       amp: 0.15,
@@ -224,7 +229,9 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
   return {
     id,
     type: "tonal",
-    name: SOUND_NAMES[i] ?? `${kind.toUpperCase()}_${id.slice(-3).toUpperCase()}`,
+    engine: "synth",
+    name: `Synth ${i + 1}`,
+    presetName: "Rubber Bass",
     enabled: true,
     triggerSource,
     amp: 0.11,
@@ -244,11 +251,13 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
   };
 }
 
-export function makeVisual(kind: VisualKind): VisualModule {
+export function makeVisual(kind: VisualKind, i = 0): VisualModule {
   return {
     id: uid("vis"),
     type: "visual",
-    name: kind === "scope" ? "SCOPE" : kind === "spectrum" ? "SPECTRUM" : "VISUAL",
+    engine: "visual",
+    name: `Scope ${i + 1}`,
+    presetName: kind === "scope" ? "Scope Default" : kind === "spectrum" ? "Spectrum Default" : "Pattern Default",
     enabled: true,
     kind,
     fftSize: 2048,
@@ -268,12 +277,12 @@ export function makeEffect(kind: EffectKind = "gain"): EffectModule {
 }
 
 export const defaultPatch = (): Patch => {
-  const trigA = makeTrigger(0, "TRG_A");
-  const trigB = makeTrigger(1, "TRG_B");
+  const trigA = makeTrigger(0);
+  const trigB = makeTrigger(1);
   const drumA = makeSound("drum", 0, trigA.id);
   const drumB = makeSound("drum", 1, trigB.id);
-  const synth = makeSound("tonal", 2, trigA.id);
-  const scope = makeVisual("scope");
+  const synth = makeSound("tonal", 0, trigA.id);
+  const scope = makeVisual("scope", 0);
 
   return {
     version: "0.3",
@@ -326,6 +335,8 @@ function normalizeDrumModule(raw: any): DrumModule {
   return {
     ...raw,
     type: "drum",
+    engine: "drum",
+    presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Deep Kick",
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.15, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
@@ -346,6 +357,8 @@ function normalizeTonalModule(raw: any): TonalModule {
   return {
     ...raw,
     type: "tonal",
+    engine: "synth",
+    presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Rubber Bass",
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.11, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
@@ -403,7 +416,9 @@ export function migratePatch(patch: Patch): Patch {
       const trigger = {
         id: uid("trg"),
         type: "trigger",
-        name: `${legacy.name} TRG`,
+        engine: "trigger",
+        name: `Trigger ${i + 1}`,
+        presetName: "Sparse Euclid",
         enabled: legacy.enabled !== false,
         ...normalizeSequencer(legacy, i),
       } satisfies TriggerModule;
@@ -411,7 +426,9 @@ export function migratePatch(patch: Patch): Patch {
       const soundSeed = {
         id: legacy.id,
         type: legacy.kind,
-        name: legacy.name,
+        engine: legacy.kind === "drum" ? "drum" : "synth",
+        name: legacy.kind === "drum" ? `Drum ${i + 1}` : `Synth ${i + 1}`,
+        presetName: legacy.kind === "drum" ? "Deep Kick" : "Rubber Bass",
         enabled: legacy.enabled !== false,
         triggerSource: trigger.id,
         amp: clamp(typeof legacy.amp === "number" ? legacy.amp : 0.12, 0, 1),
@@ -434,8 +451,23 @@ export function migratePatch(patch: Patch): Patch {
     if (moduleAny.type === "trigger") {
       migrated.push({
         ...moduleAny,
+        engine: "trigger",
+        presetName: typeof (moduleAny as any).presetName === "string" && (moduleAny as any).presetName.trim()
+          ? (moduleAny as any).presetName
+          : "Sparse Euclid",
         ...normalizeSequencer(moduleAny, i),
       } as TriggerModule);
+      continue;
+    }
+
+    if (moduleAny.type === "visual") {
+      migrated.push({
+        ...moduleAny,
+        engine: "visual",
+        presetName: typeof (moduleAny as any).presetName === "string" && (moduleAny as any).presetName.trim()
+          ? (moduleAny as any).presetName
+          : "Scope Default",
+      } as VisualModule);
       continue;
     }
 

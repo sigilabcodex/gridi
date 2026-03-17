@@ -22,7 +22,7 @@ export function renderVisualSurface(
   const badge = el("span", "surfaceBadge");
   badge.textContent = "VISUAL";
   const meta = el("div", "surfaceNameWrap");
-  meta.innerHTML = `<div class="name">${vm.kind.toUpperCase()}</div><div class="small moduleId">${vm.id.slice(-6).toUpperCase()}</div>`;
+  meta.innerHTML = `<div class="name">${vm.name}</div><div class="small">Preset: ${vm.presetName ?? "Scope Default"}</div><div class="small moduleId">${vm.id.slice(-6).toUpperCase()}</div>`;
   identity.append(badge, meta);
 
   const right = el("div", "rightControls");

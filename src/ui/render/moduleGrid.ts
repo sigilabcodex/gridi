@@ -78,7 +78,21 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
 
-    const created = what === "drum" || what === "tonal" ? makeSound(what) : what === "trigger" ? makeTrigger() : makeVisual(what);
+    const indexForType = nextPatch.modules.filter((m) =>
+      what === "trigger"
+        ? m.type === "trigger"
+        : what === "drum"
+          ? m.type === "drum"
+          : what === "tonal"
+            ? m.type === "tonal"
+            : m.type === "visual"
+    ).length;
+
+    const created = what === "drum" || what === "tonal"
+      ? makeSound(what, indexForType)
+      : what === "trigger"
+        ? makeTrigger(indexForType)
+        : makeVisual(what, indexForType);
     const insertAt = Math.min(insertionIndex, nextPatch.modules.length);
     nextPatch.modules.splice(insertAt, 0, created as Patch["modules"][number]);
 
