@@ -1,7 +1,7 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 
-export type VoiceTab = "MAIN" | "ROUTING" | "MIDI" | "SETTINGS";
+export type VoiceTab = "MAIN" | "ROUTING" | "MIDI" | "DEBUG" | "SETTINGS";
 
 type UiState = {
   tab: VoiceTab;
@@ -71,7 +71,7 @@ function createFaceTabs(
   onPatchChange: SurfaceParams["onPatchChange"],
 ) {
   const panelRouting = document.createElement("div");
-  panelRouting.className = "surfaceTabPanel utilityPanel";
+  panelRouting.className = "surfaceTabPanel utilityPanel hidden";
 
   const sourceRow = document.createElement("div");
   sourceRow.className = "utilityRouteCard";
@@ -102,11 +102,15 @@ function createFaceTabs(
   panelMidi.className = "surfaceTabPanel hidden";
   panelMidi.textContent = "MIDI mapping will live here.";
 
+  const panelDebug = document.createElement("div");
+  panelDebug.className = "surfaceTabPanel hidden";
+  panelDebug.textContent = "Debug diagnostics will appear here.";
+
   const panelSettings = document.createElement("div");
   panelSettings.className = "surfaceTabPanel hidden";
   panelSettings.textContent = "Advanced voice setup.";
 
-  faceRoot.append(mainPanel, panelRouting, panelMidi, panelSettings);
+  faceRoot.append(mainPanel, panelRouting, panelMidi, panelDebug, panelSettings);
 
   const tabs = document.createElement("div");
   tabs.className = "surfaceTabs";
@@ -114,6 +118,7 @@ function createFaceTabs(
     { id: "MAIN", label: "Main", panel: mainPanel },
     { id: "ROUTING", label: "Routing", panel: panelRouting },
     { id: "MIDI", label: "MIDI", panel: panelMidi },
+    { id: "DEBUG", label: "Debug", panel: panelDebug },
     { id: "SETTINGS", label: "Settings", panel: panelSettings },
   ];
 

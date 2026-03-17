@@ -1136,7 +1136,7 @@ header {
   margin-bottom: 6px;
 }
 
-.surfaceNameWrap .small {
+.surfaceNameWrap .moduleId {
   display: none;
 }
 
@@ -1149,7 +1149,8 @@ header {
 .surfaceTabPanel {
   margin-top: 0;
   width: 100%;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .surfaceTabs {
@@ -1159,11 +1160,17 @@ header {
 }
 
 .triggerPrimary,
-.drumSurfaceBody,
-.synthSurfaceBody,
 .visualSurfaceBody {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.drumSurfaceBody,
+.synthSurfaceBody {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 8px;
   align-content: start;
 }
@@ -1193,4 +1200,9 @@ header {
   .workspaceGrid {
     grid-template-columns: 1fr;
   }
+}
+
+
+.hidden {
+  display: none !important;
 }
