@@ -7,10 +7,13 @@ const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
 
 type TriggerFaceTab = "MAIN" | "SETTINGS";
 
+type ControlOption = { id: string; label: string };
+
 export function renderTriggerSurface(
   root: HTMLElement,
   t: TriggerModule,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
+  controlOptions: ControlOption[],
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -115,11 +118,39 @@ export function renderTriggerSurface(
 
   const panelSettings = document.createElement("div");
   panelSettings.className = "surfaceTabPanel hidden";
+  const modulationRow = document.createElement("div");
+  modulationRow.className = "utilityRouteCard";
+  const modLabel = document.createElement("div");
+  modLabel.className = "small utilityRouteTitle";
+  modLabel.textContent = "Density Mod";
+  const modSel = document.createElement("select");
+  const modNone = document.createElement("option");
+  modNone.value = "";
+  modNone.textContent = "None";
+  if (!t.modulations?.density) modNone.selected = true;
+  modSel.appendChild(modNone);
+  for (const opt of controlOptions) {
+    const o = document.createElement("option");
+    o.value = opt.id;
+    o.textContent = opt.label;
+    if (opt.id === t.modulations?.density) o.selected = true;
+    modSel.appendChild(o);
+  }
+  modSel.onchange = () => onPatchChange((p) => {
+    const m = p.modules.find((x) => x.id === t.id);
+    if (m?.type !== "trigger") return;
+    m.modulations = m.modulations ?? {};
+    if (modSel.value) m.modulations.density = modSel.value;
+    else delete m.modulations.density;
+  }, { regen: false });
+  modulationRow.append(modLabel, modSel);
+
   panelSettings.append(
     ctlFloat({ label: "Rotation", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
     ctlFloat({ label: "CA Rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
     ctlFloat({ label: "CA Init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
     ctlFloat({ label: "Gravity", value: t.gravity, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("gravity", x) }),
+    modulationRow,
   );
 
   face.append(panelMain, panelSettings);

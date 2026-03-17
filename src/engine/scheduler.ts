@@ -1,8 +1,9 @@
 // src/engine/scheduler.ts
-import type { Patch, SoundModule, TriggerModule } from "../patch.ts";
-import { getSoundModules, isTrigger } from "../patch.ts";
+import type { ControlModule, Patch, SoundModule, TriggerModule } from "../patch.ts";
+import { clamp, getSoundModules, isControl, isTrigger } from "../patch.ts";
 import type { Engine } from "./audio";
 import { createPatternModuleForTrigger } from "./pattern/module.ts";
+import { sampleControl01 } from "./control.ts";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -45,6 +46,17 @@ export function createScheduler(engine: Engine): Scheduler {
     return trg ?? null;
   }
 
+
+
+  function modulateTrigger(trigger: TriggerModule, activePatch: Patch, nowSec: number): TriggerModule {
+    const controlId = trigger.modulations?.density;
+    if (!controlId) return trigger;
+    const control = activePatch.modules.find((m): m is ControlModule => m.id === controlId && isControl(m));
+    if (!control || !control.enabled) return trigger;
+    const value = sampleControl01(control, nowSec);
+    return { ...trigger, density: clamp(trigger.density + (value - 0.5) * 0.85, 0, 1) };
+  }
+
   function setBpm(next: number) {
     const clamped = Math.max(20, Math.min(400, next | 0));
     if (running) {
@@ -81,9 +93,10 @@ export function createScheduler(engine: Engine): Scheduler {
       if (!trigger || !trigger.enabled) continue;
 
       const st = getSequenceState(sound.id);
-      const window = createPatternModuleForTrigger(trigger).renderWindow({
+      const effectiveTrigger = modulateTrigger(trigger, patch, now);
+      const window = createPatternModuleForTrigger(effectiveTrigger).renderWindow({
         voiceId: sound.id,
-        trigger,
+        trigger: effectiveTrigger,
         startBeat: windowStartBeatAbs,
         endBeat: windowEndBeatAbs,
       });

@@ -1,11 +1,13 @@
 // src/patch.ts
 export type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
-export type ModuleEngine = "trigger" | "drum" | "synth" | "visual";
+export type ModuleEngine = "trigger" | "drum" | "synth" | "visual" | "control";
 
 export const clamp = (x: number, a: number, b: number) =>
   Math.min(b, Math.max(a, x));
 
-export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | "effect" | "voice";
+export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | "effect" | "voice" | "control";
+
+export type ModulationMap = Partial<Record<string, string>>;
 
 export type ModuleBase = {
   id: string;
@@ -43,12 +45,28 @@ export type VoiceModule = ModuleBase & { type: "voice"; kind: VoiceKind; pattern
   pan: number;
 };
 
-export type TriggerModule = ModuleBase & { type: "trigger" } & SequencerParams;
+export type TriggerModule = ModuleBase & { type: "trigger"; modulations?: ModulationMap } & SequencerParams;
 
 type SoundBase = ModuleBase & {
   triggerSource: string | null;
   amp: number;
   pan: number;
+  modulations?: ModulationMap;
+};
+
+export type ControlKind = "lfo" | "drift" | "stepped";
+export type LfoWaveform = "sine" | "triangle" | "square" | "random";
+
+export type ControlModule = ModuleBase & {
+  type: "control";
+  engine: "control";
+  kind: ControlKind;
+  waveform: LfoWaveform;
+  speed: number;
+  amount: number;
+  phase: number;
+  rate: number;
+  randomness: number;
 };
 
 export type DrumSynthModule = SoundBase & {
@@ -104,7 +122,7 @@ export type EffectModule = ModuleBase & {
   gain: number;
 };
 
-export type Module = SoundModule | TriggerModule | VisualModule | TerminalModule | EffectModule;
+export type Module = SoundModule | TriggerModule | VisualModule | TerminalModule | EffectModule | ControlModule;
 type AnyKnownModule = Module | VoiceModule;
 
 export type Bus = {
@@ -164,12 +182,20 @@ export function isVisual(m: AnyKnownModule): m is VisualModule {
   return m.type === "visual";
 }
 
+export function isControl(m: AnyKnownModule): m is ControlModule {
+  return m.type === "control";
+}
+
 export function getSoundModules(p: Patch): SoundModule[] {
   return p.modules.filter(isSound);
 }
 
 export function getTriggers(p: Patch): TriggerModule[] {
   return p.modules.filter(isTrigger);
+}
+
+export function getControls(p: Patch): ControlModule[] {
+  return p.modules.filter(isControl);
 }
 
 function defaultSequencer(i: number): SequencerParams {
@@ -198,6 +224,24 @@ export function makeTrigger(i = 0, name = `Trigger ${i + 1}`): TriggerModule {
     presetName: "Sparse Euclid",
     enabled: true,
     ...defaultSequencer(i),
+  };
+}
+
+export function makeControl(kind: ControlKind, i = 0): ControlModule {
+  return {
+    id: uid("ctl"),
+    type: "control",
+    engine: "control",
+    name: `Control ${i + 1}`,
+    presetName: kind === "lfo" ? "Sine LFO" : kind === "drift" ? "Warm Drift" : "Stepped Motion",
+    enabled: true,
+    kind,
+    waveform: "sine",
+    speed: 0.3,
+    amount: 0.55,
+    phase: 0,
+    rate: kind === "stepped" ? 0.5 : 0.35,
+    randomness: kind === "stepped" ? 0.45 : 0.3,
   };
 }
 
@@ -282,6 +326,7 @@ export const defaultPatch = (): Patch => {
   const drumA = makeSound("drum", 0, trigA.id);
   const drumB = makeSound("drum", 1, trigB.id);
   const synth = makeSound("tonal", 0, trigA.id);
+  const control = makeControl("lfo", 0);
   const scope = makeVisual("scope", 0);
 
   return {
@@ -290,7 +335,7 @@ export const defaultPatch = (): Patch => {
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules: [trigA, drumA, trigB, drumB, synth, scope],
+    modules: [trigA, drumA, trigB, drumB, synth, control, scope],
     buses: [],
     connections: [],
   };
@@ -349,6 +394,7 @@ function normalizeDrumModule(raw: any): DrumModule {
     pitchEnvAmt: clamp(typeof raw?.pitchEnvAmt === "number" ? raw.pitchEnvAmt : 0.3 + legacyTimbre * 0.4, 0, 1),
     pitchEnvDecay: clamp(typeof raw?.pitchEnvDecay === "number" ? raw.pitchEnvDecay : 0.2 + legacyTimbre * 0.3, 0, 1),
     tone: clamp(typeof raw?.tone === "number" ? raw.tone : legacyTimbre, 0, 1),
+    modulations: typeof raw?.modulations === "object" && raw.modulations ? raw.modulations : {},
   };
 }
 
@@ -374,6 +420,29 @@ function normalizeTonalModule(raw: any): TonalModule {
     glide: clamp(typeof raw?.glide === "number" ? raw.glide : 0.04, 0, 1),
     modDepth: clamp(typeof raw?.modDepth === "number" ? raw.modDepth : 0.1 + legacyTimbre * 0.2, 0, 1),
     modRate: clamp(typeof raw?.modRate === "number" ? raw.modRate : 0.22, 0, 1),
+    modulations: typeof raw?.modulations === "object" && raw.modulations ? raw.modulations : {},
+  };
+}
+
+function normalizeControlModule(raw: any): ControlModule {
+  const kind: ControlKind = raw?.kind === "drift" || raw?.kind === "stepped" ? raw.kind : "lfo";
+  const waveform: LfoWaveform = raw?.waveform === "triangle" || raw?.waveform === "square" || raw?.waveform === "random"
+    ? raw.waveform
+    : "sine";
+  return {
+    ...raw,
+    type: "control",
+    engine: "control",
+    name: typeof raw?.name === "string" && raw.name.trim() ? raw.name : "Control",
+    presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Sine LFO",
+    enabled: raw?.enabled !== false,
+    kind,
+    waveform,
+    speed: clamp(typeof raw?.speed === "number" ? raw.speed : 0.3, 0, 1),
+    amount: clamp(typeof raw?.amount === "number" ? raw.amount : 0.55, 0, 1),
+    phase: clamp(typeof raw?.phase === "number" ? raw.phase : 0, 0, 1),
+    rate: clamp(typeof raw?.rate === "number" ? raw.rate : 0.35, 0, 1),
+    randomness: clamp(typeof raw?.randomness === "number" ? raw.randomness : 0.3, 0, 1),
   };
 }
 
@@ -456,7 +525,15 @@ export function migratePatch(patch: Patch): Patch {
           ? (moduleAny as any).presetName
           : "Sparse Euclid",
         ...normalizeSequencer(moduleAny, i),
+        modulations: typeof (moduleAny as any)?.modulations === "object" && (moduleAny as any).modulations
+          ? (moduleAny as any).modulations
+          : {},
       } as TriggerModule);
+      continue;
+    }
+
+    if (moduleAny.type === "control") {
+      migrated.push(normalizeControlModule(moduleAny));
       continue;
     }
 
