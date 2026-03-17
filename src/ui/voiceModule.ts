@@ -10,6 +10,7 @@ type UiState = {
 };
 
 type TriggerOption = { id: string; label: string };
+type ControlOption = { id: string; label: string };
 
 type SurfaceParams = {
   root: HTMLElement;
@@ -18,6 +19,7 @@ type SurfaceParams = {
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void;
   ui: UiState;
   triggerOptions: TriggerOption[];
+  controlOptions: ControlOption[];
   onRemove?: () => void;
 };
 
@@ -145,8 +147,33 @@ function createFaceTabs(
   return tabs;
 }
 
+
+function modulationSelect(options: ControlOption[], selected: string | undefined, onChange: (value: string | null) => void) {
+  const wrap = document.createElement("div");
+  wrap.className = "utilityRouteCard";
+  const label = document.createElement("div");
+  label.className = "small utilityRouteTitle";
+  label.textContent = "Mod source";
+  const sel = document.createElement("select");
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "None";
+  if (!selected) none.selected = true;
+  sel.appendChild(none);
+  for (const opt of options) {
+    const o = document.createElement("option");
+    o.value = opt.id;
+    o.textContent = opt.label;
+    if (opt.id === selected) o.selected = true;
+    sel.appendChild(o);
+  }
+  sel.onchange = () => onChange(sel.value || null);
+  wrap.append(label, sel);
+  return wrap;
+}
+
 export function renderDrumModuleSurface(params: SurfaceParams) {
-  const { root, v, onPatchChange, getLedState, triggerOptions, ui, onRemove } = params;
+  const { root, v, onPatchChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
 
   const surface = document.createElement("section");
@@ -161,6 +188,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   main.className = "surfaceTabPanel drumSurfaceBody";
   main.append(
     ctlFloat({ label: "Pitch", value: d.basePitch, min: 24, max: 84, step: 1, integer: true, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }) }),
+    modulationSelect(controlOptions, d.modulations?.basePitch, (source) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") { m.modulations = m.modulations ?? {}; if (source) m.modulations.basePitch = source; else delete m.modulations.basePitch; } }, { regen: false })), 
     ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) }),
     ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) }),
@@ -182,7 +210,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 }
 
 export function renderSynthModuleSurface(params: SurfaceParams) {
-  const { root, v, onPatchChange, getLedState, triggerOptions, ui, onRemove } = params;
+  const { root, v, onPatchChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
 
   const surface = document.createElement("section");
@@ -198,6 +226,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   main.append(
     ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
     ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) }),
+    modulationSelect(controlOptions, t.modulations?.cutoff, (source) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") { m.modulations = m.modulations ?? {}; if (source) m.modulations.cutoff = source; else delete m.modulations.cutoff; } }, { regen: false })), 
     ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
     ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),

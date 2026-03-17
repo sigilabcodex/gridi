@@ -1256,3 +1256,19 @@ button.danger.armed {
 .machineSelect select {
   width: 100%;
 }
+
+.controlSurface { background: linear-gradient(180deg, rgba(29, 33, 54, 0.92), rgba(14, 18, 24, 0.95)); }
+.controlBody { display: grid; gap: 8px; align-content: start; }
+.controlTypeRow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.controlMeter {
+  border: 1px solid rgba(156, 171, 255, 0.45);
+  border-radius: 999px;
+  height: 12px;
+  background: rgba(40, 48, 88, 0.35);
+  overflow: hidden;
+}
+.controlMeterFill {
+  height: 100%;
+  width: 50%;
+  background: linear-gradient(90deg, rgba(130, 152, 255, 0.7), rgba(190, 203, 255, 0.95));
+}

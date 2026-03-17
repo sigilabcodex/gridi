@@ -1,9 +1,10 @@
 // src/engine/audio.ts
-import type { Patch, SoundModule } from "../patch";
-import { clamp, getSoundModules, isEffect } from "../patch";
+import type { ControlModule, Patch, SoundModule } from "../patch";
+import { clamp, getSoundModules, isControl, isEffect } from "../patch";
 import type { AudioModuleInstance } from "./audioModule";
 import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
+import { sampleControl01 } from "./control";
 
 export type Engine = {
   ctx: AudioContext;
@@ -35,6 +36,21 @@ function clamp01(x: number) {
   return clamp(x, 0, 1);
 }
 
+
+
+function modulationValue(patch: Patch, controlId: string | undefined, now: number): number | null {
+  if (!controlId) return null;
+  const control = patch.modules.find((m): m is ControlModule => m.id === controlId && isControl(m));
+  if (!control || !control.enabled) return null;
+  return sampleControl01(control, now);
+}
+
+function modulate(base: number, patch: Patch, module: SoundModule, key: string, now: number, depth: number) {
+  const controlId = module.modulations?.[key];
+  const value = modulationValue(patch, controlId, now);
+  if (value == null) return base;
+  return clamp(base + (value - 0.5) * depth, 0, 1);
+}
 function oscTypeFromWaveform(waveform: number): OscillatorType {
   if (waveform < 0.25) return "sine";
   if (waveform < 0.5) return "triangle";
@@ -53,12 +69,7 @@ function tonalBaseFreq(v: SoundModule, i: number, macro: number) {
   return base * octave * coarseRatio * fineRatio * (0.92 + macro01 * 0.16);
 }
 
-function drumBaseFreq(v: SoundModule, i: number, macro: number) {
-  if (v.type !== "drum") return 90;
-  const basePitch = clamp01(safe(v.basePitch, 0.5));
-  const macro01 = clamp01(safe(macro, 0.5));
-  return 45 + basePitch * 180 + i * 4 + macro01 * 24;
-}
+
 
 export function createEngine(): Engine {
   const ctx = new AudioContext();
@@ -272,9 +283,10 @@ export function createEngine(): Engine {
       const pitchEnvDecay = 0.01 + clamp01(safe(v.pitchEnvDecay, 0.25)) * 0.4;
       const noiseAmt = clamp01(safe(v.noise, 0.2));
       const tone = clamp01(safe(v.tone, 0.45));
+      const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9);
 
       bodyOsc.type = bodyTone < 0.55 ? "sine" : "triangle";
-      const baseFreq = drumBaseFreq(v, i, patch.macro);
+      const baseFreq = 45 + modBasePitch * 180 + i * 4 + clamp01(safe(patch.macro, 0.5)) * 24;
       bodyOsc.frequency.setValueAtTime(baseFreq * (1 + pitchEnvAmt * 2.2), now);
       bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(30, baseFreq), now + pitchEnvDecay);
 
@@ -345,7 +357,8 @@ export function createEngine(): Engine {
     const decay = 0.01 + clamp01(safe(v.decay, 0.35)) * 0.8;
     const sustain = clamp01(safe(v.sustain, 0.6));
     const release = 0.03 + clamp01(safe(v.release, 0.5)) * 1.3;
-    const cutoff = 150 + clamp01(safe(v.cutoff, 0.55)) * 9000;
+    const modCutoff = modulate(clamp01(safe(v.cutoff, 0.55)), patch, v, "cutoff", now, 0.9);
+    const cutoff = 150 + modCutoff * 9000;
     const resonance = 0.25 + clamp01(safe(v.resonance, 0.2)) * 16;
     const glide = clamp01(safe(v.glide, 0.08));
 

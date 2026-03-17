@@ -1,6 +1,6 @@
 import type { VisualKind } from "../patch";
 
-type Pick = "drum" | "tonal" | "trigger" | VisualKind;
+type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
 type AddSlotParams = {
   insertionIndex: number;
@@ -14,6 +14,9 @@ const MENU_ITEMS: MenuItem[] = [
   { label: "Trigger", desc: "Pulse sequencer", value: "trigger", accent: true },
   { label: "Drum", desc: "Percussive voice", value: "drum", accent: true },
   { label: "Synth", desc: "Tonal voice", value: "tonal" },
+  { label: "LFO", desc: "Control oscillator", value: "control-lfo" },
+  { label: "Drift", desc: "Smooth random control", value: "control-drift" },
+  { label: "Stepped", desc: "Sample/step control", value: "control-stepped" },
   { label: "Scope", desc: "Wave monitor", value: "scope" },
   { label: "Spectrum", desc: "Frequency monitor", value: "spectrum" },
 ];

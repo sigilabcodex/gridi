@@ -1,10 +1,11 @@
 import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
-import { getTriggers, makeSound, makeTrigger, makeVisual } from "../../patch";
+import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
 import type { VoiceTab } from "../voiceModule";
 import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModule";
 import { renderTriggerSurface } from "../triggerModule";
+import { renderControlSurface } from "../controlModule";
 import { renderVisualSurface } from "../visualModule";
 import { renderAddModuleSlot } from "../AddModuleSlot";
 
@@ -22,7 +23,7 @@ type ModuleGridParams = {
   led: (moduleId: string) => { active: boolean; hit: boolean };
 };
 
-type Pick = "drum" | "tonal" | "trigger" | VisualKind;
+type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
 function createModuleCell(surface: HTMLElement) {
   const cell = document.createElement("div");
@@ -45,6 +46,12 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     nextPatch.modules = nextPatch.modules.filter((m) => m.id !== moduleId);
     for (const m of nextPatch.modules) {
       if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === moduleId) m.triggerSource = null;
+      if (m.type === "drum" || m.type === "tonal" || m.type === "trigger") {
+        const entries = Object.entries(m.modulations ?? {});
+        for (const [key, sourceId] of entries) {
+          if (sourceId === moduleId) delete (m.modulations as Record<string, string>)[key];
+        }
+      }
     }
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
@@ -81,18 +88,26 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const indexForType = nextPatch.modules.filter((m) =>
       what === "trigger"
         ? m.type === "trigger"
-        : what === "drum"
-          ? m.type === "drum"
-          : what === "tonal"
-            ? m.type === "tonal"
-            : m.type === "visual"
+        : what.startsWith("control")
+          ? m.type === "control"
+          : what === "drum"
+            ? m.type === "drum"
+            : what === "tonal"
+              ? m.type === "tonal"
+              : m.type === "visual"
     ).length;
 
     const created = what === "drum" || what === "tonal"
       ? makeSound(what, indexForType)
       : what === "trigger"
         ? makeTrigger(indexForType)
-        : makeVisual(what, indexForType);
+        : what === "control-lfo"
+          ? makeControl("lfo", indexForType)
+          : what === "control-drift"
+            ? makeControl("drift", indexForType)
+            : what === "control-stepped"
+              ? makeControl("stepped", indexForType)
+              : makeVisual(what, indexForType);
     const insertAt = Math.min(insertionIndex, nextPatch.modules.length);
     nextPatch.modules.splice(insertAt, 0, created as Patch["modules"][number]);
 
@@ -113,7 +128,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     updaters = [];
 
     const triggers = getTriggers(patch);
+    const controls = getControls(patch);
     const triggerOptions = triggers.map((t) => ({ id: t.id, label: `${t.name} (${t.id.slice(-4)})` }));
+    const controlOptions = controls.map((c) => ({ id: c.id, label: `${c.name} (${c.kind})` }));
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement) => {
       surface.draggable = true;
@@ -133,7 +150,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const surfaceRoot = document.createElement("div");
 
       if (module.type === "trigger") {
-        const upd = renderTriggerSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
+        const upd = renderTriggerSurface(surfaceRoot, module, params.onPatchChange, controlOptions, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "trigger", surface);
         workspaceGrid.appendChild(createModuleCell(surface));
@@ -149,6 +166,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           onPatchChange: params.onPatchChange,
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
+          controlOptions,
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
@@ -166,10 +184,21 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           onPatchChange: params.onPatchChange,
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
+          controlOptions,
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "tonal", surface);
+        workspaceGrid.appendChild(createModuleCell(surface));
+        updaters.push(upd);
+        continue;
+      }
+
+
+      if (module.type === "control") {
+        const upd = renderControlSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
+        const surface = surfaceRoot.firstElementChild as HTMLElement;
+        registerModuleSurface(module.id, "control", surface);
         workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
         continue;

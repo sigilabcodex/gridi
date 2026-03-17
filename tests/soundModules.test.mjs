@@ -74,5 +74,5 @@ test('module identity separates instance name, engine, and preset', () => {
 
 test('default patch uses readable module instance names', () => {
   const names = defaultPatch().modules.map((m) => m.name);
-  assert.deepEqual(names, ['Trigger 1', 'Drum 1', 'Trigger 2', 'Drum 2', 'Synth 1', 'Scope 1']);
+  assert.deepEqual(names, ['Trigger 1', 'Drum 1', 'Trigger 2', 'Drum 2', 'Synth 1', 'Control 1', 'Scope 1']);
 });
