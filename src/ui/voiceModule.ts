@@ -31,7 +31,7 @@ function makeHeader(v: SoundModule, badgeText: string, onPatchChange: SurfacePar
   badge.textContent = badgeText;
   const nameWrap = document.createElement("div");
   nameWrap.className = "surfaceNameWrap";
-  nameWrap.innerHTML = `<div class="name">${v.name}</div><div class="small moduleId">${v.id.slice(-6).toUpperCase()}</div>`;
+  nameWrap.innerHTML = `<div class="name">${v.name}</div><div class="small">Preset: ${v.presetName ?? (v.type === "drum" ? "Deep Kick" : "Rubber Bass")}</div><div class="small moduleId">${v.id.slice(-6).toUpperCase()}</div>`;
   left.append(badge, nameWrap);
 
   const right = document.createElement("div");

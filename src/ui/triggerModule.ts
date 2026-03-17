@@ -26,7 +26,7 @@ export function renderTriggerSurface(
   badge.textContent = "TRIGGER";
   const meta = document.createElement("div");
   meta.className = "surfaceNameWrap";
-  meta.innerHTML = `<div class="name">${t.name}</div><div class="small moduleId">${t.id.slice(-6).toUpperCase()}</div>`;
+  meta.innerHTML = `<div class="name">${t.name}</div><div class="small">Preset: ${t.presetName ?? "Sparse Euclid"}</div><div class="small moduleId">${t.id.slice(-6).toUpperCase()}</div>`;
   identity.append(badge, meta);
 
   const right = document.createElement("div");
