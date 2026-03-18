@@ -53,10 +53,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   plus.setAttribute("aria-hidden", "true");
   plus.textContent = "+";
 
-  const hint = document.createElement("div");
-  hint.className = "small addModuleSlotHint";
-  hint.textContent = "Empty slot";
-
   const label = document.createElement("div");
   label.className = "small addModuleSlotLabel";
   label.textContent = "Add module";
@@ -66,7 +62,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
   const menuTitle = document.createElement("div");
   menuTitle.className = "small addSlotMenuHint";
-  menuTitle.textContent = "Place module here";
+  menuTitle.textContent = "Insert here";
   menu.appendChild(menuTitle);
 
   for (const item of MENU_ITEMS) {
@@ -151,6 +147,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   });
 
   slot.dataset.insertionIndex = String(params.insertionIndex);
-  slot.append(hint, plus, label, menu);
+  slot.append(plus, label, menu);
   return slot;
 }
