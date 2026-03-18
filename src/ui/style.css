@@ -1272,3 +1272,224 @@ button.danger.armed {
   width: 50%;
   background: linear-gradient(90deg, rgba(130, 152, 255, 0.7), rgba(190, 203, 255, 0.95));
 }
+
+/* === Fixed module shell architecture === */
+:root {
+  --module-cell-w: 330px;
+  --module-cell-h: 348px;
+  --module-shell-pad: 10px;
+  --module-shell-gap: 8px;
+  --module-header-h: 58px;
+  --module-tabs-h: 34px;
+}
+
+.workspaceGrid {
+  grid-template-columns: repeat(auto-fill, minmax(var(--module-cell-w), var(--module-cell-w)));
+  justify-content: start;
+  align-items: start;
+  gap: 10px;
+}
+
+.moduleCell {
+  width: var(--module-cell-w);
+  height: var(--module-cell-h);
+}
+
+.moduleCell > .moduleSurface,
+.moduleCell > .addModuleSlot {
+  width: 100%;
+  height: 100%;
+}
+
+.moduleSurface {
+  display: grid;
+  grid-template-rows: var(--module-header-h) var(--module-tabs-h) minmax(0, 1fr);
+  gap: var(--module-shell-gap);
+  padding: var(--module-shell-pad);
+  overflow: clip;
+}
+
+.surfaceHeader {
+  min-height: 0;
+  margin: 0;
+  align-items: start;
+}
+
+.surfaceIdentity {
+  min-width: 0;
+  align-items: start;
+}
+
+.surfaceNameWrap {
+  min-width: 0;
+  line-height: 1.05;
+}
+
+.surfaceNameWrap .small + .small {
+  margin-top: 1px;
+}
+
+.surfaceBadge {
+  flex: 0 0 auto;
+}
+
+.rightControls {
+  gap: 6px;
+  align-self: start;
+}
+
+.rightControls > button {
+  min-width: 40px;
+}
+
+.surfaceTabs {
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  min-height: 0;
+}
+
+.surfaceTabs .modTab {
+  flex: 1 1 0;
+  padding: 6px 8px;
+}
+
+.surfaceFace {
+  min-height: 0;
+  display: grid;
+}
+
+.surfaceFace > .surfaceTabPanel {
+  min-height: 0;
+  margin: 0;
+  padding: 8px;
+  overflow: clip;
+  align-content: start;
+}
+
+.triggerPrimary,
+.drumSurfaceBody,
+.synthSurfaceBody,
+.visualSurfaceBody,
+.controlBody,
+.utilityPanel {
+  min-height: 0;
+}
+
+.triggerPrimary,
+.drumSurfaceBody,
+.synthSurfaceBody,
+.controlBody {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.drumSurfaceBody,
+.synthSurfaceBody,
+.triggerPulseRack,
+.controlBody {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.triggerPulseRail {
+  padding: 7px;
+  gap: 5px;
+}
+
+.triggerGeneratorReadout,
+.triggerSeedReadout {
+  padding: 5px 7px;
+}
+
+.triggerReadoutValue {
+  font-size: 12px;
+}
+
+.triggerStepGrid {
+  gap: 2px;
+}
+
+.triggerStepCell {
+  height: 7px;
+}
+
+.triggerPulseRack {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.utilityPanel,
+.controlBody {
+  align-content: start;
+}
+
+.utilityRouteCard,
+.machineSelect {
+  padding: 7px;
+  gap: 5px;
+}
+
+.visualSurfaceBody {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+  height: 100%;
+}
+
+.visualDisplayWrap {
+  min-height: 0;
+}
+
+.scope {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.visualControlDock {
+  align-items: start;
+}
+
+.controlTypeRow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.controlMeter {
+  align-self: end;
+}
+
+.addModuleSlot {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+}
+
+@media (max-width: 760px) {
+  :root {
+    --module-cell-w: min(100%, 330px);
+  }
+
+  .workspaceGrid {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .moduleCell {
+    width: 100%;
+  }
+}
+/* control/add shell overrides */
+.controlSurface {
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr);
+}
+
+.controlSurface .surfaceFace {
+  grid-row: 2;
+}
+
+.controlSurface .surfaceFace > .surfaceTabPanel {
+  height: 100%;
+}
+
