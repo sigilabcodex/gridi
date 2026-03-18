@@ -172,7 +172,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   );
 
   const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
-  surface.append(h.header, shell.tabs, shell.face);
+  surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
   return () => {
@@ -207,7 +207,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   );
 
   const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
-  surface.append(h.header, shell.tabs, shell.face);
+  surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
   return () => {

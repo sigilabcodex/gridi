@@ -1303,7 +1303,7 @@ button.danger.armed {
 
 .moduleSurface {
   display: grid;
-  grid-template-rows: var(--module-header-h) var(--module-tabs-h) minmax(0, 1fr);
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
   gap: var(--module-shell-gap);
   padding: var(--module-shell-pad);
   overflow: clip;
@@ -1312,34 +1312,53 @@ button.danger.armed {
 .surfaceHeader {
   min-height: 0;
   margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
+  gap: 8px;
 }
 
 .surfaceIdentity {
   min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
+  gap: 8px;
 }
 
 .surfaceNameWrap {
   min-width: 0;
+  display: grid;
+  gap: 2px;
   line-height: 1.05;
 }
 
+.surfaceNameWrap > .name,
+.surfaceNameWrap > .small {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .surfaceNameWrap .small + .small {
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .surfaceBadge {
   flex: 0 0 auto;
+  align-self: start;
 }
 
 .rightControls {
   gap: 6px;
   align-self: start;
+  flex: 0 0 auto;
 }
 
 .rightControls > button {
   min-width: 40px;
+  flex: 0 0 auto;
 }
 
 .surfaceTabs {
@@ -1347,16 +1366,19 @@ button.danger.armed {
   padding: 0;
   border-top: 0;
   min-height: 0;
+  align-self: end;
 }
 
 .surfaceTabs .modTab {
   flex: 1 1 0;
+  min-width: 0;
   padding: 6px 8px;
 }
 
 .surfaceFace {
   min-height: 0;
   display: grid;
+  align-self: stretch;
 }
 
 .surfaceFace > .surfaceTabPanel {
