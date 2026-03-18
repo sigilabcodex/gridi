@@ -1,6 +1,7 @@
 import type { Engine } from "../engine/audio";
 import type { Patch, VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createModuleTabShell } from "./moduleShell";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   const n = document.createElement(tag);
@@ -23,7 +24,7 @@ export function renderVisualSurface(
   const badge = el("span", "surfaceBadge");
   badge.textContent = "VISUAL";
   const meta = el("div", "surfaceNameWrap");
-  meta.innerHTML = `<div class="name">${vm.name}</div><div class="small">Preset: ${vm.presetName ?? "Scope Default"}</div><div class="small moduleId">${vm.id.slice(-6).toUpperCase()}</div>`;
+  meta.innerHTML = `<div class="name">${vm.name}</div><div class="surfaceHeaderSubline small"><span class="surfacePresetLabel">Preset: ${vm.presetName ?? "Scope Default"}</span><span class="moduleId">${vm.id.slice(-6).toUpperCase()}</span></div>`;
   identity.append(badge, meta);
 
   const right = el("div", "rightControls");
@@ -43,9 +44,7 @@ export function renderVisualSurface(
   right.append(btnOn, btnX);
   header.append(identity, right);
 
-  const face = el("div", "surfaceFace");
-
-  const panelMain = el("div", "surfaceTabPanel visualSurfaceBody");
+  const panelMain = el("div", "visualSurfaceBody");
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
@@ -55,7 +54,7 @@ export function renderVisualSurface(
   canvasWrap.append(canvas);
   panelMain.append(canvasWrap, readout);
 
-  const panelSettings = el("div", "surfaceTabPanel hidden");
+  const panelSettings = el("div");
   const dock = el("div", "visualControlDock");
   const modeCard = el("div", "machineSelect");
   const fftCard = el("div", "machineSelect");
@@ -89,29 +88,17 @@ export function renderVisualSurface(
   dock.append(modeCard, fftCard);
   panelSettings.append(dock);
 
-  face.append(panelMain, panelSettings);
+  const shell = createModuleTabShell({
+    specs: [
+      { id: "MAIN", label: "Main", panel: panelMain },
+      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+    ],
+    activeTab: "MAIN",
+  });
 
-  const tabs = el("div", "surfaceTabs");
-  const btnMain = document.createElement("button");
-  btnMain.className = "modTab";
-  btnMain.textContent = "Main";
-  const btnSettings = document.createElement("button");
-  btnSettings.className = "modTab";
-  btnSettings.textContent = "Settings";
-  const setTab = (tab: "MAIN" | "SETTINGS") => {
-    panelMain.classList.toggle("hidden", tab !== "MAIN");
-    panelSettings.classList.toggle("hidden", tab !== "SETTINGS");
-    btnMain.classList.toggle("active", tab === "MAIN");
-    btnSettings.classList.toggle("active", tab === "SETTINGS");
-  };
-  btnMain.onclick = () => setTab("MAIN");
-  btnSettings.onclick = () => setTab("SETTINGS");
-  tabs.append(btnMain, btnSettings);
-
-  surface.append(header, face, tabs);
+  surface.append(header, shell.face, shell.tabs);
   parent.appendChild(surface);
   updateOn();
-  setTab("MAIN");
 
   const ctx2d = canvas.getContext("2d")!;
   const scopeBuf = new Float32Array(engine.analyser.fftSize);

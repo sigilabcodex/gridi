@@ -2,10 +2,10 @@ import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createModuleTabShell } from "./moduleShell";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
 
-type TriggerFaceTab = "MAIN" | "SETTINGS";
 
 type ControlOption = { id: string; label: string };
 
@@ -30,7 +30,7 @@ export function renderTriggerSurface(
   badge.textContent = "TRIGGER";
   const meta = document.createElement("div");
   meta.className = "surfaceNameWrap";
-  meta.innerHTML = `<div class="name">${t.name}</div><div class="small">Preset: ${t.presetName ?? "Sparse Euclid"}</div><div class="small moduleId">${t.id.slice(-6).toUpperCase()}</div>`;
+  meta.innerHTML = `<div class="name">${t.name}</div><div class="surfaceHeaderSubline small"><span class="surfacePresetLabel">Preset: ${t.presetName ?? "Sparse Euclid"}</span><span class="moduleId">${t.id.slice(-6).toUpperCase()}</span></div>`;
   identity.append(badge, meta);
 
   const right = document.createElement("div");
@@ -53,11 +53,8 @@ export function renderTriggerSurface(
   right.append(toggle, btnX);
   header.append(identity, right);
 
-  const face = document.createElement("div");
-  face.className = "surfaceFace";
-
   const panelMain = document.createElement("div");
-  panelMain.className = "surfaceTabPanel triggerPrimary";
+  panelMain.className = "triggerPrimary";
 
   const pulseRail = document.createElement("div");
   pulseRail.className = "triggerPulseRail";
@@ -117,7 +114,6 @@ export function renderTriggerSurface(
   panelMain.append(pulseRail, mainControlRack);
 
   const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceTabPanel hidden";
   const modulationRow = document.createElement("div");
   modulationRow.className = "utilityRouteCard";
   const modLabel = document.createElement("div");
@@ -153,37 +149,16 @@ export function renderTriggerSurface(
     modulationRow,
   );
 
-  face.append(panelMain, panelSettings);
+  const shell = createModuleTabShell({
+    specs: [
+      { id: "MAIN", label: "Main", panel: panelMain },
+      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+    ],
+    activeTab: "MAIN",
+  });
 
-  const tabs = document.createElement("div");
-  tabs.className = "surfaceTabs";
-  const tabSpecs: Array<{ id: TriggerFaceTab; label: string; panel: HTMLElement }> = [
-    { id: "MAIN", label: "Main", panel: panelMain },
-    { id: "SETTINGS", label: "Settings", panel: panelSettings },
-  ];
-
-  const buttons = new Map<TriggerFaceTab, HTMLButtonElement>();
-  const setTab = (tab: TriggerFaceTab) => {
-    for (const spec of tabSpecs) {
-      const isActive = spec.id === tab;
-      spec.panel.classList.toggle("hidden", !isActive);
-      buttons.get(spec.id)?.classList.toggle("active", isActive);
-    }
-  };
-
-  for (const spec of tabSpecs) {
-    const btn = document.createElement("button");
-    btn.className = "modTab";
-    btn.textContent = spec.label;
-    btn.onclick = () => setTab(spec.id);
-    tabs.appendChild(btn);
-    buttons.set(spec.id, btn);
-  }
-
-  surface.append(header, face, tabs);
+  surface.append(header, shell.face, shell.tabs);
   root.appendChild(surface);
-
-  setTab("MAIN");
   syncPatternRail();
 
   function patternPreviewText() {
