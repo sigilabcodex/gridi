@@ -157,7 +157,7 @@ export function renderTriggerSurface(
     activeTab: "MAIN",
   });
 
-  surface.append(header, shell.tabs, shell.face);
+  surface.append(header, shell.face, shell.tabs);
   root.appendChild(surface);
   syncPatternRail();
 

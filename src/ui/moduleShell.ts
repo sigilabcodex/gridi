@@ -14,6 +14,7 @@ export function createModuleTabShell<T extends string>(params: {
 
   const tabs = document.createElement("div");
   tabs.className = "surfaceTabs";
+  tabs.setAttribute("role", "tablist");
 
   const buttons = new Map<T, HTMLButtonElement>();
 
@@ -31,8 +32,10 @@ export function createModuleTabShell<T extends string>(params: {
     face.appendChild(spec.panel);
 
     const btn = document.createElement("button");
+    btn.type = "button";
     btn.className = "modTab";
     btn.textContent = spec.label;
+    btn.title = spec.label;
     btn.onclick = () => setTab(spec.id);
     tabs.appendChild(btn);
     buttons.set(spec.id, btn);

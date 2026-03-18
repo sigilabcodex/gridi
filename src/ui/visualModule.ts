@@ -96,7 +96,7 @@ export function renderVisualSurface(
     activeTab: "MAIN",
   });
 
-  surface.append(header, shell.tabs, shell.face);
+  surface.append(header, shell.face, shell.tabs);
   parent.appendChild(surface);
   updateOn();
 
