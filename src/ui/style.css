@@ -1409,9 +1409,17 @@ button.danger.armed {
 
 .drumSurfaceBody,
 .synthSurfaceBody,
-.triggerPulseRack,
+.triggerPulseRack {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .controlBody {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.controlTypeRow,
+.controlMeter {
+  grid-column: 1 / -1;
 }
 
 .triggerPulseRail {
