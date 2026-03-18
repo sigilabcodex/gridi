@@ -1523,3 +1523,111 @@ button.danger.armed {
   height: 100%;
 }
 
+/* === Fixed shell spacing polish pass === */
+:root {
+  --module-shell-gap: 9px;
+  --module-face-pad-x: 9px;
+  --module-face-pad-y: 10px;
+  --module-rhythm-gap: 9px;
+  --module-rhythm-tight: 6px;
+}
+
+.surfaceHeader {
+  gap: 9px;
+  padding-bottom: 1px;
+}
+
+.surfaceIdentity,
+.rightControls {
+  gap: 7px;
+}
+
+.surfaceNameWrap {
+  gap: 3px;
+  line-height: 1.12;
+}
+
+.surfaceFace > .surfaceTabPanel {
+  padding: var(--module-face-pad-y) var(--module-face-pad-x) 9px;
+}
+
+.surfaceTabs {
+  gap: 7px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.surfaceTabs .modTab {
+  padding: 6px 10px;
+}
+
+.triggerPrimary,
+.drumSurfaceBody,
+.synthSurfaceBody,
+.visualSurfaceBody,
+.controlBody,
+.utilityPanel {
+  gap: var(--module-rhythm-gap);
+}
+
+.drumSurfaceBody,
+.synthSurfaceBody,
+.triggerPulseRack,
+.controlBody,
+.visualControlDock,
+.controlTypeRow {
+  column-gap: 9px;
+  row-gap: 10px;
+}
+
+.knobCtl {
+  width: 72px;
+  gap: 5px;
+}
+
+.knobCtl > label {
+  line-height: 1.1;
+  text-align: center;
+}
+
+.knobVal {
+  margin-top: 1px;
+}
+
+.triggerPulseRail {
+  padding: 8px 9px;
+  gap: var(--module-rhythm-tight);
+}
+
+.triggerGeneratorReadout,
+.triggerSeedReadout {
+  padding: 7px 8px;
+}
+
+.triggerReadoutValue {
+  margin-top: 4px;
+}
+
+.triggerReadoutHint,
+.triggerTransportReadout {
+  line-height: 1.25;
+}
+
+.utilityRouteCard,
+.machineSelect {
+  padding: 8px;
+  gap: var(--module-rhythm-tight);
+}
+
+.utilityRouteMap,
+.visualReadout {
+  padding: 1px 2px;
+}
+
+.visualDisplayWrap {
+  padding: 3px;
+}
+
+.controlMeter {
+  margin-top: 1px;
+}
