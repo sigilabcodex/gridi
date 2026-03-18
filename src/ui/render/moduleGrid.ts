@@ -25,9 +25,18 @@ type ModuleGridParams = {
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
-function createModuleCell(surface: HTMLElement) {
+function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number }) {
   const cell = document.createElement("div");
-  cell.className = "moduleCell";
+  cell.className = `moduleCell ${opts.occupied ? "occupied" : "empty"}`;
+  cell.dataset.slotIndex = String(opts.index);
+
+  const substrate = document.createElement("div");
+  substrate.className = "moduleCellSubstrate";
+
+  const bed = document.createElement("div");
+  bed.className = "moduleCellBed";
+
+  cell.append(substrate, bed);
   cell.appendChild(surface);
   return cell;
 }
@@ -146,16 +155,15 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
     };
 
-    for (const module of patch.modules) {
+    const renderModuleSurface = (module: Patch["modules"][number]) => {
       const surfaceRoot = document.createElement("div");
 
       if (module.type === "trigger") {
         const upd = renderTriggerSurface(surfaceRoot, module, params.onPatchChange, controlOptions, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "trigger", surface);
-        workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
-        continue;
+        return surface;
       }
 
       if (module.type === "drum") {
@@ -171,9 +179,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "drum", surface);
-        workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
-        continue;
+        return surface;
       }
 
       if (module.type === "tonal") {
@@ -189,9 +196,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "tonal", surface);
-        workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
-        continue;
+        return surface;
       }
 
 
@@ -199,32 +205,37 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         const upd = renderControlSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "control", surface);
-        workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
-        continue;
+        return surface;
       }
 
       if (module.type === "visual") {
         const upd = renderVisualSurface(surfaceRoot, params.engine, patch, module, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, module.kind, surface);
-        workspaceGrid.appendChild(createModuleCell(surface));
         updaters.push(upd);
+        return surface;
       }
-    }
+      return surfaceRoot;
+    };
 
     const currentCount = patch.modules.length;
     const totalCells = getTotalCells(currentCount);
-    const slotsToAdd = Math.max(0, totalCells - currentCount);
 
-    for (let i = 0; i < slotsToAdd; i++) {
-      const insertionIndex = currentCount + i;
+    for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
+      const module = patch.modules[slotIndex];
+      if (module) {
+        const surface = renderModuleSurface(module);
+        workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex }));
+        continue;
+      }
+
       const slot = renderAddModuleSlot({
-        insertionIndex,
-        onPick: (what) => createModuleAt(what, insertionIndex),
-        onDropModule: (moduleId) => moveModuleToCell(moduleId, insertionIndex),
+        insertionIndex: slotIndex,
+        onPick: (what) => createModuleAt(what, slotIndex),
+        onDropModule: (moduleId) => moveModuleToCell(moduleId, slotIndex),
       });
-      workspaceGrid.appendChild(createModuleCell(slot));
+      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex }));
     }
   };
 

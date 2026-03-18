@@ -1281,6 +1281,7 @@ button.danger.armed {
   --module-shell-gap: 8px;
   --module-header-h: 58px;
   --module-tabs-h: 34px;
+  --workspace-slot-radius: 18px;
 }
 
 .workspaceGrid {
@@ -1288,15 +1289,71 @@ button.danger.armed {
   justify-content: start;
   align-items: start;
   gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(207, 214, 221, 0.08);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(12, 17, 23, 0.92), rgba(9, 13, 18, 0.86)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.03), transparent 56%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .moduleCell {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: stretch;
   width: var(--module-cell-w);
   height: var(--module-cell-h);
 }
 
+.moduleCellSubstrate,
+.moduleCellBed {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--workspace-slot-radius);
+}
+
+.moduleCellSubstrate {
+  border: 1px solid rgba(207, 214, 221, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(9, 13, 18, 0.34), rgba(6, 10, 14, 0.2));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.moduleCellBed {
+  inset: 8px;
+  border: 1px dashed rgba(207, 214, 221, 0.07);
+  background: linear-gradient(180deg, rgba(5, 8, 12, 0.18), rgba(11, 16, 22, 0.08));
+}
+
+.moduleCell.occupied .moduleCellSubstrate {
+  border-color: rgba(207, 214, 221, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
+    linear-gradient(180deg, rgba(12, 17, 23, 0.44), rgba(8, 12, 18, 0.28));
+}
+
+.moduleCell.occupied .moduleCellBed {
+  border-style: solid;
+  border-color: rgba(207, 214, 221, 0.06);
+  background: linear-gradient(180deg, rgba(8, 12, 18, 0.2), rgba(12, 18, 25, 0.08));
+}
+
+.moduleCell.empty .moduleCellSubstrate {
+  border-color: rgba(207, 214, 221, 0.06);
+}
+
 .moduleCell > .moduleSurface,
 .moduleCell > .addModuleSlot {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
 }
@@ -1492,8 +1549,26 @@ button.danger.armed {
 
 .addModuleSlot {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto 1fr auto;
+  justify-items: center;
   align-items: center;
+  border-radius: var(--workspace-slot-radius);
+  border-color: rgba(207, 214, 221, 0.14);
+  background:
+    linear-gradient(180deg, rgba(17, 23, 30, 0.42), rgba(8, 12, 16, 0.18)),
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.025), transparent 55%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.01);
+}
+
+.addModuleSlotHint {
+  align-self: start;
+  justify-self: start;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  opacity: 0.44;
+  padding-top: 4px;
 }
 
 @media (max-width: 760px) {
