@@ -1,6 +1,7 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createModuleTabShell } from "./moduleShell";
 
 export type VoiceTab = "MAIN" | "ROUTING" | "SETTINGS";
 
@@ -66,15 +67,14 @@ function makeHeader(v: SoundModule, badgeText: string, onPatchChange: SurfacePar
 }
 
 function createFaceTabs(
-  faceRoot: HTMLElement,
-  mainPanel: HTMLElement,
   ui: UiState,
+  mainPanel: HTMLElement,
   triggerOptions: TriggerOption[],
   v: SoundModule,
   onPatchChange: SurfaceParams["onPatchChange"],
 ) {
   const panelRouting = document.createElement("div");
-  panelRouting.className = "surfaceTabPanel utilityPanel hidden";
+  panelRouting.className = "utilityPanel";
 
   const sourceRow = document.createElement("div");
   sourceRow.className = "utilityRouteCard";
@@ -102,7 +102,6 @@ function createFaceTabs(
   panelRouting.appendChild(sourceRow);
 
   const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceTabPanel hidden";
   panelSettings.append(
     ctlFloat({ label: "Pan", value: v.pan, min: -1, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === v.id);
@@ -114,37 +113,15 @@ function createFaceTabs(
     }, { regen: false }) }),
   );
 
-  faceRoot.append(mainPanel, panelRouting, panelSettings);
-
-  const tabs = document.createElement("div");
-  tabs.className = "surfaceTabs";
-  const specs: Array<{ id: VoiceTab; label: string; panel: HTMLElement }> = [
-    { id: "MAIN", label: "Main", panel: mainPanel },
-    { id: "ROUTING", label: "Routing", panel: panelRouting },
-    { id: "SETTINGS", label: "Settings", panel: panelSettings },
-  ];
-
-  const buttons = new Map<VoiceTab, HTMLButtonElement>();
-  const setTab = (tab: VoiceTab) => {
-    ui.setTab(tab);
-    for (const spec of specs) {
-      const active = spec.id === tab;
-      spec.panel.classList.toggle("hidden", !active);
-      buttons.get(spec.id)?.classList.toggle("active", active);
-    }
-  };
-
-  for (const spec of specs) {
-    const btn = document.createElement("button");
-    btn.className = "modTab";
-    btn.textContent = spec.label;
-    btn.onclick = () => setTab(spec.id);
-    tabs.appendChild(btn);
-    buttons.set(spec.id, btn);
-  }
-
-  setTab(ui.tab);
-  return tabs;
+  return createModuleTabShell({
+    specs: [
+      { id: "MAIN", label: "Main", panel: mainPanel },
+      { id: "ROUTING", label: "Routing", panel: panelRouting },
+      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+    ],
+    activeTab: ui.tab,
+    onTabChange: (tab) => ui.setTab(tab),
+  });
 }
 
 
@@ -181,9 +158,6 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "drum";
 
   const h = makeHeader(v, "DRUM", onPatchChange, onRemove);
-  const face = document.createElement("div");
-  face.className = "surfaceFace";
-
   const main = document.createElement("div");
   main.className = "surfaceTabPanel drumSurfaceBody";
   main.append(
@@ -197,8 +171,8 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
   );
 
-  const tabs = createFaceTabs(face, main, ui, triggerOptions, v, onPatchChange);
-  surface.append(h.header, face, tabs);
+  const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
+  surface.append(h.header, shell.tabs, shell.face);
   root.appendChild(surface);
 
   return () => {
@@ -218,9 +192,6 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", onPatchChange, onRemove);
-  const face = document.createElement("div");
-  face.className = "surfaceFace";
-
   const main = document.createElement("div");
   main.className = "surfaceTabPanel synthSurfaceBody";
   main.append(
@@ -235,8 +206,8 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) }),
   );
 
-  const tabs = createFaceTabs(face, main, ui, triggerOptions, v, onPatchChange);
-  surface.append(h.header, face, tabs);
+  const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
+  surface.append(h.header, shell.tabs, shell.face);
   root.appendChild(surface);
 
   return () => {
