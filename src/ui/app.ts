@@ -321,7 +321,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   root.innerHTML = "";
 
-  const background = createAmbientBackgroundLayer(root);
+  const background = createAmbientBackgroundLayer(root, () => engine.getMasterActivity());
   const shell = document.createElement("div");
   shell.className = "appShell";
   root.appendChild(shell);

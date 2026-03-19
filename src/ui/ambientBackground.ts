@@ -1,13 +1,15 @@
 const BACKGROUND_CONFIG = {
   frameIntervalMs: 1000 / 30,
-  simulationIntervalMs: 180,
+  simulationIntervalMs: 150,
   minCellSize: 42,
   maxCellSize: 58,
   maxDpr: 2,
-  pulseSpawnChance: 0.22,
-  pulseMaxCount: 4,
-  lineAlpha: 0.07,
-  reducedMotionSeedStrength: 0.18,
+  basePulseSpawnChance: 0.08,
+  audioPulseSpawnChance: 0.2,
+  pulseMaxCount: 5,
+  lineAlpha: 0.06,
+  reducedMotionSeedStrength: 0.16,
+  neighborhoodRange: 1,
 } as const;
 
 type GridPulse = {
@@ -19,6 +21,12 @@ type GridPulse = {
   decay: number;
   driftX: number;
   driftY: number;
+};
+
+export type AmbientAudioActivity = {
+  level: number;
+  transient: number;
+  active: boolean;
 };
 
 export type AmbientBackgroundController = {
@@ -36,6 +44,7 @@ type GridField = {
   memory: Float32Array;
   phase: Float32Array;
   bias: Float32Array;
+  drift: Float32Array;
 };
 
 function rand(min: number, max: number) {
@@ -46,16 +55,16 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function createPulse(cols: number, rows: number): GridPulse {
+function createPulse(cols: number, rows: number, strengthBoost = 0, focus?: { x: number; y: number }): GridPulse {
   return {
-    x: rand(1, Math.max(2, cols - 2)),
-    y: rand(1, Math.max(2, rows - 2)),
-    radius: rand(0.8, 1.6),
-    strength: rand(0.12, 0.24),
-    growth: rand(0.16, 0.28),
-    decay: rand(0.9, 0.95),
-    driftX: rand(-0.04, 0.04),
-    driftY: rand(-0.03, 0.03),
+    x: clamp(focus?.x ?? rand(1, Math.max(2, cols - 2)), 1, Math.max(1, cols - 2)),
+    y: clamp(focus?.y ?? rand(1, Math.max(2, rows - 2)), 1, Math.max(1, rows - 2)),
+    radius: rand(0.7, 1.4),
+    strength: rand(0.09, 0.18) + strengthBoost,
+    growth: rand(0.18, 0.32),
+    decay: rand(0.82, 0.9),
+    driftX: rand(-0.05, 0.05),
+    driftY: rand(-0.04, 0.04),
   };
 }
 
@@ -71,17 +80,19 @@ function createField(width: number, height: number, reducedMotion: boolean): Gri
   const memory = new Float32Array(total);
   const phase = new Float32Array(total);
   const bias = new Float32Array(total);
+  const drift = new Float32Array(total);
 
   for (let index = 0; index < total; index += 1) {
     phase[index] = rand(0, Math.PI * 2);
     bias[index] = rand(-1, 1);
+    drift[index] = rand(-1, 1);
     const seed = Math.random();
-    if (seed > 0.94) {
+    if (seed > 0.965) {
       const value = reducedMotion
-        ? rand(0.05, BACKGROUND_CONFIG.reducedMotionSeedStrength)
-        : rand(0.04, 0.14);
+        ? rand(0.03, BACKGROUND_CONFIG.reducedMotionSeedStrength)
+        : rand(0.025, 0.1);
       energy[index] = value;
-      memory[index] = value;
+      memory[index] = value * 0.75;
     }
   }
 
@@ -95,10 +106,21 @@ function createField(width: number, height: number, reducedMotion: boolean): Gri
     memory,
     phase,
     bias,
+    drift,
   };
 }
 
-export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgroundController {
+function indexToCoord(index: number, cols: number) {
+  return {
+    x: index % cols,
+    y: Math.floor(index / cols),
+  };
+}
+
+export function createAmbientBackgroundLayer(
+  root: HTMLElement,
+  getAudioActivity?: () => AmbientAudioActivity,
+): AmbientBackgroundController {
   const layer = document.createElement("div");
   layer.className = "ambientBackground";
   layer.setAttribute("aria-hidden", "true");
@@ -120,6 +142,9 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
   let staticFrameDrawn = false;
   let pulses: GridPulse[] = [];
   let field = createField(window.innerWidth, window.innerHeight, reducedMotion);
+  let audioLevelSmoothed = 0;
+  let audioTransientSmoothed = 0;
+  let activityMomentum = 0;
 
   const resize = () => {
     width = window.innerWidth;
@@ -134,12 +159,39 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
     staticFrameDrawn = false;
   };
 
-  const simulate = (time: number) => {
-    const { cols, rows, energy, memory, phase, bias } = field;
-    const next = new Float32Array(energy.length);
+  const sampleAudioActivity = () => {
+    const activity = getAudioActivity?.() ?? { level: 0, transient: 0, active: false };
+    const levelTarget = activity.active ? activity.level : activity.level * 0.45;
+    audioLevelSmoothed += (levelTarget - audioLevelSmoothed) * 0.14;
+    audioTransientSmoothed += (activity.transient - audioTransientSmoothed) * 0.24;
+    activityMomentum = clamp(activityMomentum * 0.88 + audioLevelSmoothed * 0.18 + audioTransientSmoothed * 0.32, 0, 1);
+    return {
+      level: audioLevelSmoothed,
+      transient: audioTransientSmoothed,
+      active: activity.active,
+      momentum: activityMomentum,
+    };
+  };
 
-    if (!reducedMotion && pulses.length < BACKGROUND_CONFIG.pulseMaxCount && Math.random() < BACKGROUND_CONFIG.pulseSpawnChance) {
-      pulses.push(createPulse(cols, rows));
+  const simulate = (time: number) => {
+    const audio = sampleAudioActivity();
+    const { cols, rows, energy, memory, phase, bias, drift } = field;
+    const next = new Float32Array(energy.length);
+    let fieldSum = 0;
+    let activeCount = 0;
+
+    let hotspotIndex = 0;
+    let hotspotEnergy = 0;
+    for (let index = 0; index < energy.length; index += 1) {
+      if (energy[index] <= hotspotEnergy) continue;
+      hotspotEnergy = energy[index];
+      hotspotIndex = index;
+    }
+
+    const pulseChance = BACKGROUND_CONFIG.basePulseSpawnChance + audio.level * 0.08 + audio.transient * BACKGROUND_CONFIG.audioPulseSpawnChance;
+    if (!reducedMotion && pulses.length < BACKGROUND_CONFIG.pulseMaxCount && Math.random() < pulseChance) {
+      const hotspot = indexToCoord(hotspotEnergy > 0.02 ? hotspotIndex : Math.floor(rand(0, energy.length - 1)), cols);
+      pulses.push(createPulse(cols, rows, audio.level * 0.04 + audio.transient * 0.08, hotspot));
     }
 
     pulses = pulses
@@ -151,12 +203,15 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
         strength: pulse.strength * pulse.decay,
       }))
       .filter((pulse) => (
-        pulse.strength > 0.018
+        pulse.strength > 0.012
         && pulse.x > -2
         && pulse.x < cols + 2
         && pulse.y > -2
         && pulse.y < rows + 2
       ));
+
+    let brightestIndex = 0;
+    let brightestEnergy = 0;
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
@@ -164,15 +219,17 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
         let neighborSum = 0;
         let neighborCount = 0;
 
-        for (let y = -1; y <= 1; y += 1) {
+        for (let y = -BACKGROUND_CONFIG.neighborhoodRange; y <= BACKGROUND_CONFIG.neighborhoodRange; y += 1) {
           const nextRow = row + y;
           if (nextRow < 0 || nextRow >= rows) continue;
-          for (let x = -1; x <= 1; x += 1) {
+          for (let x = -BACKGROUND_CONFIG.neighborhoodRange; x <= BACKGROUND_CONFIG.neighborhoodRange; x += 1) {
             if (x === 0 && y === 0) continue;
             const nextCol = col + x;
             if (nextCol < 0 || nextCol >= cols) continue;
-            neighborSum += energy[nextRow * cols + nextCol];
-            neighborCount += 1;
+            const distance = Math.abs(x) + Math.abs(y);
+            const weight = distance === 1 ? 1 : 0.58;
+            neighborSum += energy[nextRow * cols + nextCol] * weight;
+            neighborCount += weight;
           }
         }
 
@@ -183,27 +240,66 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
           const dx = col - pulse.x;
           const dy = row - pulse.y;
           const distance = Math.hypot(dx, dy);
-          const spread = Math.max(1.2, pulse.radius);
-          if (distance > spread * 1.8) continue;
-          const falloff = Math.max(0, 1 - distance / (spread * 1.8));
+          const spread = Math.max(1.1, pulse.radius);
+          if (distance > spread * 1.65) continue;
+          const falloff = Math.max(0, 1 - distance / (spread * 1.65));
           pulseInfluence += falloff * falloff * pulse.strength;
         }
 
-        const shimmer = Math.sin(time * 0.00012 + phase[index]) * 0.004;
-        const structuralBias = bias[index] * 0.003;
-        const persistence = energy[index] * 0.74;
-        const propagated = neighborAvg * 0.3;
-        const emergence = Math.max(0, neighborAvg - 0.05) * 0.18;
-        const damping = 0.018 + Math.max(0, bias[index]) * 0.004;
+        const shimmer = Math.sin(time * 0.0001 + phase[index]) * 0.003;
+        const structuralBias = bias[index] * 0.0024;
+        const carried = energy[index] * (0.45 + audio.level * 0.05);
+        const retainedMemory = memory[index] * 0.16;
+        const propagated = neighborAvg * (0.24 + audio.level * 0.05);
+        const birthWindow = Math.max(0, 0.16 - Math.abs(neighborAvg - (0.09 + audio.level * 0.035)));
+        const emergence = birthWindow * (0.22 + audio.transient * 0.38);
+        const localDrift = Math.sin(time * 0.00018 + drift[index] * Math.PI) * 0.0025;
+        const baseCooling = 0.02 + Math.max(0, bias[index]) * 0.005;
+
         const value = clamp(
-          persistence + propagated + emergence + pulseInfluence + shimmer + structuralBias - damping,
+          carried
+          + retainedMemory
+          + propagated
+          + emergence
+          + pulseInfluence
+          + shimmer
+          + structuralBias
+          + localDrift
+          - baseCooling,
           0,
-          0.34,
+          0.32,
         );
 
         next[index] = value;
-        memory[index] = Math.max(memory[index] * 0.95, value);
+        memory[index] = Math.max(memory[index] * 0.86, value * (0.52 + audio.level * 0.08));
+        fieldSum += value;
+        if (value > 0.06) activeCount += 1;
+        if (value > brightestEnergy) {
+          brightestEnergy = value;
+          brightestIndex = index;
+        }
       }
+    }
+
+    const avgEnergy = fieldSum / Math.max(1, next.length);
+    const occupancy = activeCount / Math.max(1, next.length);
+    const saturation = clamp(avgEnergy * 1.8 + Math.max(0, occupancy - 0.24) * 1.5, 0, 1);
+
+    if (saturation > 0.38) {
+      const coolAmount = 0.03 + (saturation - 0.38) * 0.12;
+      for (let index = 0; index < next.length; index += 1) {
+        const cooled = Math.max(0, next[index] - coolAmount * (0.55 + Math.max(0, bias[index]) * 0.3));
+        next[index] = cooled;
+        memory[index] *= 0.9 - saturation * 0.16;
+      }
+    }
+
+    const brightest = indexToCoord(brightestIndex, cols);
+    if (!reducedMotion && audio.active && audio.transient > 0.1 && pulses.length < BACKGROUND_CONFIG.pulseMaxCount) {
+      pulses.push(createPulse(cols, rows, audio.transient * 0.1, {
+        x: brightest.x + rand(-1.5, 1.5),
+        y: brightest.y + rand(-1.5, 1.5),
+      }));
     }
 
     field.energy = next;
@@ -237,42 +333,42 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
 
   const drawCells = () => {
     const { cols, rows, cellSize, offsetX, offsetY, energy, memory } = field;
-    const innerSize = Math.max(10, cellSize - 12);
+    const innerSize = Math.max(10, cellSize - 14);
     const halfInner = innerSize * 0.5;
 
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
         const index = row * cols + col;
-        const active = energy[index] * 0.7 + memory[index] * 0.55;
-        if (active < 0.015) continue;
+        const active = energy[index] * 0.82 + memory[index] * 0.42;
+        if (active < 0.012) continue;
 
         const x = offsetX + col * cellSize;
         const y = offsetY + row * cellSize;
-        const cellAlpha = Math.min(0.14, active * 0.28);
+        const cellAlpha = Math.min(0.11, active * 0.22);
 
-        ctx!.fillStyle = `rgba(58, 94, 122, ${cellAlpha})`;
+        ctx!.fillStyle = `rgba(56, 88, 112, ${cellAlpha})`;
         ctx!.fillRect(x - halfInner, y - halfInner, innerSize, innerSize);
 
-        const nodeRadius = 1.2 + active * 2.1;
-        const glow = ctx!.createRadialGradient(x, y, 0, x, y, cellSize * 0.46);
-        glow.addColorStop(0, `rgba(126, 190, 228, ${0.06 + active * 0.18})`);
-        glow.addColorStop(0.55, `rgba(74, 126, 164, ${0.02 + active * 0.06})`);
+        const nodeRadius = 1 + active * 1.6;
+        const glow = ctx!.createRadialGradient(x, y, 0, x, y, cellSize * 0.4);
+        glow.addColorStop(0, `rgba(120, 182, 220, ${0.04 + active * 0.14})`);
+        glow.addColorStop(0.58, `rgba(64, 110, 146, ${0.015 + active * 0.05})`);
         glow.addColorStop(1, "rgba(0, 0, 0, 0)");
         ctx!.fillStyle = glow;
         ctx!.beginPath();
-        ctx!.arc(x, y, cellSize * 0.46, 0, Math.PI * 2);
+        ctx!.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
         ctx!.fill();
 
-        ctx!.fillStyle = `rgba(198, 230, 248, ${0.08 + active * 0.28})`;
+        ctx!.fillStyle = `rgba(194, 226, 244, ${0.06 + active * 0.18})`;
         ctx!.beginPath();
         ctx!.arc(x, y, nodeRadius, 0, Math.PI * 2);
         ctx!.fill();
 
         if (col + 1 < cols) {
-          const neighbor = energy[index + 1] * 0.6 + memory[index + 1] * 0.4;
+          const neighbor = energy[index + 1] * 0.62 + memory[index + 1] * 0.3;
           const link = Math.min(active, neighbor);
-          if (link > 0.05) {
-            ctx!.strokeStyle = `rgba(110, 170, 206, ${link * 0.12})`;
+          if (link > 0.055) {
+            ctx!.strokeStyle = `rgba(102, 156, 188, ${link * 0.08})`;
             ctx!.lineWidth = 1;
             ctx!.beginPath();
             ctx!.moveTo(x, y);
@@ -282,10 +378,10 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
         }
 
         if (row + 1 < rows) {
-          const neighbor = energy[index + cols] * 0.6 + memory[index + cols] * 0.4;
+          const neighbor = energy[index + cols] * 0.62 + memory[index + cols] * 0.3;
           const link = Math.min(active, neighbor);
-          if (link > 0.05) {
-            ctx!.strokeStyle = `rgba(110, 170, 206, ${link * 0.1})`;
+          if (link > 0.055) {
+            ctx!.strokeStyle = `rgba(102, 156, 188, ${link * 0.07})`;
             ctx!.lineWidth = 1;
             ctx!.beginPath();
             ctx!.moveTo(x, y);
@@ -300,9 +396,10 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
   const drawAtmosphere = (time: number) => {
     const sweepX = width * (0.3 + Math.sin(time * 0.00006) * 0.08);
     const sweepY = height * (0.26 + Math.cos(time * 0.00005) * 0.06);
+    const activityGlow = 0.045 + activityMomentum * 0.04;
     const glow = ctx!.createRadialGradient(sweepX, sweepY, 0, sweepX, sweepY, Math.max(width, height) * 0.42);
-    glow.addColorStop(0, "rgba(34, 84, 122, 0.075)");
-    glow.addColorStop(0.45, "rgba(20, 46, 71, 0.04)");
+    glow.addColorStop(0, `rgba(34, 84, 122, ${activityGlow})`);
+    glow.addColorStop(0.45, `rgba(20, 46, 71, ${0.022 + activityMomentum * 0.022})`);
     glow.addColorStop(1, "rgba(0, 0, 0, 0)");
     ctx!.fillStyle = glow;
     ctx!.fillRect(0, 0, width, height);
