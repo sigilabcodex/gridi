@@ -2,6 +2,14 @@ import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
 import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
+import {
+  gridPositionKey,
+  gridPositionToSlotIndex,
+  resolveGridLayout,
+  setModuleGridPosition,
+  slotIndexToGridPosition,
+  type GridPosition,
+} from "../../workspacePlacement.ts";
 import type { VoiceTab } from "../voiceModule";
 import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModule";
 import { renderTriggerSurface } from "../triggerModule";
@@ -24,12 +32,13 @@ type ModuleGridParams = {
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
-const WORKSPACE_COLUMNS = 3;
 
-function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number }) {
+function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
   const cell = document.createElement("div");
   cell.className = `moduleCell ${opts.occupied ? "occupied" : "empty"}`;
   cell.dataset.slotIndex = String(opts.index);
+  cell.dataset.gridX = String(opts.position.x);
+  cell.dataset.gridY = String(opts.position.y);
 
   const substrate = document.createElement("div");
   substrate.className = "moduleCellSubstrate";
@@ -40,49 +49,6 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   cell.append(substrate, bed);
   cell.appendChild(surface);
   return cell;
-}
-
-function getModuleSlotIndex(module: Patch["modules"][number], columns = WORKSPACE_COLUMNS) {
-  if (
-    Number.isInteger(module.x) && Number.isInteger(module.y)
-    && (module.x as number) >= 0 && (module.y as number) >= 0
-  ) {
-    return (module.y as number) * columns + (module.x as number);
-  }
-  return null;
-}
-
-function setModuleSlot(module: Patch["modules"][number], slotIndex: number, columns = WORKSPACE_COLUMNS) {
-  module.x = slotIndex % columns;
-  module.y = Math.floor(slotIndex / columns);
-}
-
-function resolveWorkspaceSlots(modules: Patch["modules"], columns = WORKSPACE_COLUMNS) {
-  const modulesBySlot = new Map<number, Patch["modules"][number]>();
-  const slotByModuleId = new Map<string, number>();
-  let nextDenseSlot = 0;
-
-  const claimSlot = (preferred: number | null, module: Patch["modules"][number]) => {
-    let slotIndex = preferred;
-    if (slotIndex == null || modulesBySlot.has(slotIndex)) {
-      while (modulesBySlot.has(nextDenseSlot)) nextDenseSlot++;
-      slotIndex = nextDenseSlot;
-    }
-    modulesBySlot.set(slotIndex, module);
-    slotByModuleId.set(module.id, slotIndex);
-    nextDenseSlot = Math.max(nextDenseSlot, slotIndex + 1);
-    return slotIndex;
-  };
-
-  for (const module of modules) claimSlot(getModuleSlotIndex(module, columns), module);
-
-  const highestOccupiedSlot = Math.max(-1, ...modulesBySlot.keys());
-  const atLeastOneRow = Math.max(columns, highestOccupiedSlot + 2);
-  return {
-    modulesBySlot,
-    slotByModuleId,
-    totalCells: Math.ceil(atLeastOneRow / columns) * columns,
-  };
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -108,18 +74,18 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerender();
   };
 
-  const moveModuleToCell = (moduleId: string, insertionIndex: number) => {
+  const moveModuleToCell = (moduleId: string, destination: GridPosition) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
     const module = nextPatch.modules.find((m) => m.id === moduleId);
     if (!module) return;
 
-    const { totalCells, slotByModuleId } = resolveWorkspaceSlots(nextPatch.modules);
-    if (insertionIndex < 0 || insertionIndex >= totalCells) return;
-
+    const { slotByModuleId } = resolveGridLayout(nextPatch.modules);
+    const destinationSlot = gridPositionToSlotIndex(destination);
     const currentSlot = slotByModuleId.get(module.id);
-    if (currentSlot === insertionIndex) return;
-    setModuleSlot(module, insertionIndex);
+    if (currentSlot === destinationSlot) return;
+
+    setModuleGridPosition(module, destination);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: false });
@@ -127,7 +93,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerender();
   };
 
-  const createModuleAt = (what: Pick, insertionIndex: number) => {
+  const createModuleAt = (what: Pick, destination: GridPosition) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
 
@@ -151,10 +117,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           ? makeControl("lfo", indexForType)
           : what === "control-drift"
             ? makeControl("drift", indexForType)
-          : what === "control-stepped"
+            : what === "control-stepped"
               ? makeControl("stepped", indexForType)
               : makeVisual(what, indexForType);
-    setModuleSlot(created as Patch["modules"][number], insertionIndex);
+    setModuleGridPosition(created as Patch["modules"][number], destination);
     nextPatch.modules.push(created as Patch["modules"][number]);
 
     params.pushHistory(prev);
@@ -237,7 +203,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         return surface;
       }
 
-
       if (module.type === "control") {
         const upd = renderControlSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
@@ -256,22 +221,23 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       return surfaceRoot;
     };
 
-    const { modulesBySlot, totalCells } = resolveWorkspaceSlots(patch.modules);
+    const { modulesByPosition, totalCells } = resolveGridLayout(patch.modules);
 
     for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
-      const module = modulesBySlot.get(slotIndex);
+      const position = slotIndexToGridPosition(slotIndex);
+      const module = modulesByPosition.get(gridPositionKey(position));
       if (module) {
         const surface = renderModuleSurface(module);
-        workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex }));
+        workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
         continue;
       }
 
       const slot = renderAddModuleSlot({
-        insertionIndex: slotIndex,
-        onPick: (what) => createModuleAt(what, slotIndex),
-        onDropModule: (moduleId) => moveModuleToCell(moduleId, slotIndex),
+        position,
+        onPick: (what) => createModuleAt(what, position),
+        onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
       });
-      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex }));
+      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position }));
     }
   };
 

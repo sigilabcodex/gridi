@@ -76,3 +76,56 @@ test('default patch uses readable module instance names', () => {
   const names = defaultPatch().modules.map((m) => m.name);
   assert.deepEqual(names, ['Trigger 1', 'Drum 1', 'Trigger 2', 'Drum 2', 'Synth 1', 'Control 1', 'Scope 1']);
 });
+
+
+test('migration assigns deterministic coordinates to legacy sequential modules', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'a', type: 'trigger', name: 'A', enabled: true },
+      { id: 'b', type: 'drum', name: 'B', enabled: true, triggerSource: null, amp: 0.2, pan: 0 },
+      { id: 'c', type: 'visual', name: 'C', enabled: true, kind: 'scope' },
+    ],
+    buses: [],
+    connections: [],
+  });
+
+  assert.deepEqual(
+    migrated.modules.map((module) => ({ id: module.id, x: module.x, y: module.y })),
+    [
+      { id: 'a', x: 0, y: 0 },
+      { id: 'b', x: 1, y: 0 },
+      { id: 'c', x: 2, y: 0 },
+    ]
+  );
+});
+
+test('migration preserves explicit coordinate gaps when positions are already present', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'a', type: 'trigger', name: 'A', enabled: true, x: 0, y: 0 },
+      { id: 'b', type: 'drum', name: 'B', enabled: true, triggerSource: null, amp: 0.2, pan: 0, x: 2, y: 0 },
+      { id: 'c', type: 'visual', name: 'C', enabled: true, kind: 'scope', x: 1, y: 1 },
+    ],
+    buses: [],
+    connections: [],
+  });
+
+  assert.deepEqual(
+    migrated.modules.map((module) => ({ id: module.id, x: module.x, y: module.y })),
+    [
+      { id: 'a', x: 0, y: 0 },
+      { id: 'b', x: 2, y: 0 },
+      { id: 'c', x: 1, y: 1 },
+    ]
+  );
+});
