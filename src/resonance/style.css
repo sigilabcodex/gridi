@@ -1,0 +1,199 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #040813;
+  color: #edf4ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  min-height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top, rgba(66, 108, 190, 0.08), transparent 48%),
+    linear-gradient(180deg, #050814 0%, #03050b 100%);
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.resonanceApp {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.resonanceCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+.resonanceCanvas:active {
+  cursor: grabbing;
+}
+
+.resonanceOverlay {
+  position: absolute;
+  inset: 0;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(250px, 360px);
+  grid-template-rows: auto auto;
+  gap: 18px;
+  align-content: space-between;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.resonancePanel {
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgba(8, 14, 28, 0.72), rgba(5, 10, 22, 0.5));
+  border: 1px solid rgba(146, 182, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+  padding: 18px 20px;
+}
+
+.resonanceTitlePanel {
+  max-width: 420px;
+}
+
+.resonanceStatusPanel {
+  justify-self: end;
+  max-width: 360px;
+}
+
+.resonanceControlsPanel {
+  max-width: 320px;
+}
+
+.resonanceEyebrow,
+.resonanceLabel {
+  margin: 0 0 8px;
+  color: rgba(189, 211, 255, 0.72);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.74rem;
+}
+
+.resonanceTitlePanel h1,
+.resonancePhase {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.resonanceTitlePanel h1 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+}
+
+.resonanceSubtitle,
+.resonancePhaseText,
+.resonanceControlsPanel li {
+  margin: 10px 0 0;
+  color: rgba(228, 236, 255, 0.8);
+  line-height: 1.55;
+}
+
+.resonancePhase {
+  font-size: 1.75rem;
+  margin-bottom: 12px;
+}
+
+.resonanceMeter {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(112, 152, 255, 0.12);
+  overflow: hidden;
+}
+
+.resonanceMeter span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(120, 202, 255, 0.8), rgba(255, 90, 150, 0.85));
+  box-shadow: 0 0 24px rgba(255, 90, 150, 0.36);
+  transition: width 180ms ease-out;
+}
+
+.resonanceLegend {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  color: rgba(227, 236, 255, 0.82);
+  font-size: 0.92rem;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 7px;
+}
+
+.legendDot-harmonic {
+  background: #8fd7ff;
+  box-shadow: 0 0 12px rgba(143, 215, 255, 0.75);
+}
+
+.legendDot-anomaly {
+  background: #a884ff;
+  box-shadow: 0 0 12px rgba(168, 132, 255, 0.75);
+}
+
+.legendDot-breach {
+  background: #ff6e9f;
+  box-shadow: 0 0 12px rgba(255, 110, 159, 0.75);
+}
+
+.resonanceControlsPanel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.resonanceControlsPanel strong {
+  color: #f3f7ff;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .resonanceOverlay {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    align-content: start;
+    justify-content: stretch;
+  }
+
+  .resonanceStatusPanel,
+  .resonanceControlsPanel,
+  .resonanceTitlePanel {
+    justify-self: stretch;
+    max-width: none;
+  }
+}

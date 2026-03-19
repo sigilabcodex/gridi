@@ -1,17 +1,10 @@
-// src/main.ts
-import "./ui/style.css";
-import { createEngine } from "./engine/audio";
-import { createScheduler } from "./engine/scheduler";
-import { mountApp } from "./ui/app";
-import { loadSettings } from "./settings/store";
-import { APP_NAME, APP_TITLE } from "./version";
+import "./resonance/style.css";
+import { mountResonanceBreachApp } from "./resonance/app";
 
-const root = document.getElementById("app")!;
-const engine = createEngine();
-const sched = createScheduler(engine);
+const root = document.getElementById("app");
 
-const settings = loadSettings();
-document.title = APP_TITLE;
-console.log(`${APP_NAME} settings:`, settings);
+if (!root) {
+  throw new Error("Missing #app root");
+}
 
-mountApp(root, engine, sched);
+mountResonanceBreachApp(root);

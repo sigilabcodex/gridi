@@ -1,105 +1,99 @@
-# GRIDI
+# Resonance Breach Prototype
 
-GRIDI is **a modular generative music instrument built around a grid-based workspace**.
+A minimal browser simulation about **harmonic order slipping into rhythmic instability**.
 
-It runs in the browser (Vite + TypeScript + WebAudio) and focuses on deterministic timing with controlled indeterminism in pattern generation.
+The experience is intentionally slow, readable, and continuous: the field begins calm, introduces subtle distortions, lets breach entities emerge gradually, and then builds pressure until instability dominates.
 
-Current app version: `0.32.4`.
+## What changed in this pass
 
-## 1) Project description
+This pass focuses on clarity, pacing, and differentiation rather than adding heavy systemic complexity.
 
-GRIDI is a patch-based instrument where you place modules in a fixed workspace grid, connect event and modulation sources, and shape rhythm/tonality through compact module surfaces.
+- Added **five continuous progression phases** driven by elapsed time and system pressure.
+- Split the field into three readable roles: **harmonic nodes**, **anomalies**, and **breach entities**.
+- Slowed the simulation so the player has time to observe local interactions and wider trends.
+- Added **camera controls** for panning and zooming.
+- Added **time controls** for contemplation and tension management.
+- Improved anomaly emergence so distortions appear first before they become full breach entities.
+- Added a subtle **rhythmic audio pulse** that intensifies as breach pressure rises.
 
-It is not just a sequencer timeline. The core interaction is assembling and performing a small modular system.
+## Simulation phases
 
-## 2) Core concepts
+Phase transitions are gradual and overlapping. There are no hard switches.
 
-### Module types
+### 1. Calm
 
-- **Trigger**: generates musical events (step/pattern timing).
-- **Drum**: percussive sound voices, typically driven by Trigger modules.
-- **Synth**: tonal sound voices (`tonal` module type with `synth` engine).
-- **Visual**: display/analysis modules (scope/spectrum/pattern views).
-- **Control**: modulation sources (LFO/drift/stepped). Present in the data model and UI, still evolving.
+- Slow harmonic drift.
+- Stable node relations dominate the field.
+- Audio remains mostly ambient.
 
-See also: [`docs/module-types.md`](docs/module-types.md).
+### 2. Anomaly
 
-### Engine vs preset vs instance
+- Rare distortions begin to appear.
+- These read as unstable traces and warped forms rather than complete entities.
+- The system is still mostly stable.
 
-Each module has three identities:
+### 3. Emergence
 
-- **Engine identity** (`engine`): stable runtime family (`trigger`, `drum`, `synth`, `visual`, `control`).
-- **Preset identity** (`presetName`, optional `presetMeta`): sound/pattern label + metadata.
-- **Instance identity** (`name`): how that specific module is labeled in the current workspace.
+- Some anomalies condense into the first breach entities.
+- Breach entities become visually and behaviorally distinct from the ambient field.
+- Pressure is noticeable, but still sparse and legible.
 
-This separation keeps runtime behavior stable while allowing user-facing variation.
+### 4. Pressure
 
-## 3) Workspace model
+- Reproduction and propagation increase.
+- Rhythmic pulsing becomes more audible.
+- The field starts feeling coordinated under stress.
 
-- The workspace is a **grid of fixed-size cells**.
-- Modules occupy one cell each with a consistent footprint.
-- Empty cells act as local add-slots.
-- Modules can be added, removed, and repositioned through grid interactions.
-- The design intent is spatial patch composition rather than scrolling forms.
+### 5. Breach
 
-More detail: [`docs/ui-principles.md`](docs/ui-principles.md), [`docs/architecture.md`](docs/architecture.md).
+- Instability dominates.
+- Breach rhythm tightens and visual stress peaks.
+- Harmonic order is still present, but under heavy pressure.
 
-## 4) UI philosophy
+## Entity roles
 
-- **Main face first**: each module exposes a compact primary surface for performance-critical controls.
-- **Tabbed secondary faces**: routing/settings/debug-adjacent controls move to tabs.
-- **Minimal primary surface**: keep the top-level view focused and playable.
-- **No internal scroll panels** in module surfaces.
-- **Instrument-like interaction** over form-heavy UI.
+### Harmonic nodes
 
-## 5) Current state
+- Calm, stable anchors in the field.
+- Rendered as restrained glowing circular forms with linking lines.
+- Move gently and establish the baseline atmosphere.
 
-### Working now
+### Anomalies
 
-- Patch model with module/bus/connection data and migration support.
-- Deterministic look-ahead scheduler + pattern window rendering.
-- Trigger, drum, synth, visual, and control module families in the workspace.
-- Grid-based module composition with add/remove flows.
-- Tabbed module surfaces with per-family content.
+- Transitional distortions rather than complete bodies.
+- Rendered as warped traces, ellipses, and unstable flickers.
+- They foreshadow breach activity before full emergence.
 
-### Partial / in-progress
+### Breach entities
 
-- Control/modulation routing depth and UX are still being refined.
-- Preset identity exists, but full preset management (browser/save/load workflows) is not complete.
-- Some advanced tabs remain intentionally lean while the shell model stabilizes.
+- Distinct spiked geometric structures with stronger glow and pulse.
+- Move more deliberately toward harmonic structure.
+- Drive rhythmic pressure and reproduction.
 
-### Experimental
+## Controls
 
-- Wider routing ergonomics and visibility patterns.
-- Additional pattern/control engines beyond the current baseline set.
+- **Mouse wheel**: zoom in / out.
+- **Click + drag**: pan camera.
+- **W / A / S / D**: pan camera.
+- **Hold Shift**: 0.5× slow motion.
+- **Hold Space**: 2× fast forward.
 
-Status reference: [`docs/status.md`](docs/status.md).
+## Design direction
 
-## 6) Short roadmap
-
-Near-term direction:
-
-1. **Control/modulation system**: clearer mapping, stronger feedback, safer defaults.
-2. **Preset system**: explicit preset workflows on top of existing preset identity.
-3. **Routing improvements**: better UX and validation visibility.
-4. **UI refinement**: continue simplifying module faces and tab behavior while preserving fixed-grid stability.
+- Minimal geometric rendering.
+- Dark presentation with restrained color accents.
+- No hard mode switches.
+- No clutter or cartoon styling.
 
 ## Development
-
-### Prerequisites
-
-- Node.js `>=20.19.0`
-- npm (lockfile-based install expected)
 
 ### Setup
 
 ```bash
-git clone <repo-url>
-cd gridi
 npm ci
 ```
 
-### Run
+### Run locally
 
 ```bash
 npm run dev
@@ -116,17 +110,3 @@ npm run build
 ```bash
 npm run typecheck
 ```
-
-### Tests
-
-```bash
-npm test
-```
-
-## Documentation map
-
-- Architecture: [`docs/architecture.md`](docs/architecture.md)
-- Module families: [`docs/module-types.md`](docs/module-types.md)
-- UI principles: [`docs/ui-principles.md`](docs/ui-principles.md)
-- Status: [`docs/status.md`](docs/status.md)
-- Existing deep dives: [`docs/`](docs)
