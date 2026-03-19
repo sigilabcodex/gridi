@@ -36,3 +36,13 @@ Why: preserve instrument feel and avoid mini-app panels.
 - The workspace is a modular grid, not a scrolling dashboard.
 - Add/remove actions are local to grid cells.
 - Interaction should emphasize patch-building and performance flow, not menu depth.
+
+## 6) Shared control and transient-UI policy
+
+- Continuous controls keep direct play on the module face, but precise value entry should open a lightweight floating editor instead of a full inspector.
+- If a parameter already supports controller/modulation assignment, that assignment should be reachable from the same floating edit surface when practical.
+- Menus and floating panels should clamp to the viewport, flip vertically when needed, and only scroll internally when the viewport truly runs out of space.
+- The workspace should always leave at least two visible empty rows below the lowest occupied row so expansion stays legible.
+- Keyboard flow must remain first-class: visible focus, Enter/Space activation, arrow-key tab/menu travel where appropriate, and Escape to dismiss transient UI.
+
+Why: preserve a compact instrument surface while keeping editing precise, reachable, and playable.

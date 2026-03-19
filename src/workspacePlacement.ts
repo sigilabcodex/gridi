@@ -108,12 +108,12 @@ export function resolveGridLayout<T extends Pick<Module, "id" | "x" | "y">>(
     highestOccupiedSlot = Math.max(highestOccupiedSlot, slotIndex);
   }
 
-  const cellsNeededForOccupancy = highestOccupiedSlot + 1;
-  const cellsWithTrailingSlot = Math.max(columns, cellsNeededForOccupancy + 1);
+  const highestOccupiedRow = highestOccupiedSlot >= 0 ? Math.floor(highestOccupiedSlot / columns) : -1;
+  const totalRows = Math.max(2, highestOccupiedRow + 3);
 
   return {
     modulesByPosition,
     slotByModuleId,
-    totalCells: Math.ceil(cellsWithTrailingSlot / columns) * columns,
+    totalCells: totalRows * columns,
   };
 }

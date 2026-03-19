@@ -121,7 +121,26 @@ export function renderTriggerSurface(
   const mainControlRack = document.createElement("div");
   mainControlRack.className = "triggerPulseRack";
   mainControlRack.append(
-    ctlFloat({ label: "Dense", value: t.density, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("density", x) }),
+    ctlFloat({
+      label: "Dense",
+      value: t.density,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      modulation: {
+        label: "Density mod",
+        options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
+        selected: t.modulations?.density,
+        onChange: (value) => onRoutingChange((p) => {
+          const m = p.modules.find((x) => x.id === t.id);
+          if (m?.type !== "trigger") return;
+          m.modulations = m.modulations ?? {};
+          if (value) m.modulations.density = value;
+          else delete m.modulations.density;
+        }, { regen: false }),
+      },
+      onChange: (x) => setParam("density", x),
+    }),
     ctlFloat({ label: "Len", value: t.length, min: 1, max: 128, step: 1, integer: true, onChange: (x) => setParam("length", x) }),
     ctlFloat({ label: "Drop", value: t.drop, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("drop", x) }),
     ctlFloat({ label: "Div", value: t.subdiv, min: 1, max: 8, step: 1, integer: true, onChange: (x) => setParam("subdiv", x) }),
