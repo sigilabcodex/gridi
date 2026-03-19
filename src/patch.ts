@@ -1,4 +1,6 @@
 // src/patch.ts
+import { normalizeModuleGridPositions, setModuleGridPosition, slotIndexToGridPosition } from "./workspacePlacement.ts";
+
 export type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
 export type ModuleEngine = "trigger" | "drum" | "synth" | "visual" | "control";
 
@@ -17,8 +19,8 @@ export type ModuleBase = {
   presetName?: string;
   presetMeta?: Record<string, unknown>;
   enabled: boolean;
-  x?: number;
-  y?: number;
+  x: number;
+  y: number;
 };
 
 export type SequencerParams = {
@@ -223,6 +225,8 @@ export function makeTrigger(i = 0, name = `Trigger ${i + 1}`): TriggerModule {
     name,
     presetName: "Sparse Euclid",
     enabled: true,
+    x: 0,
+    y: 0,
     ...defaultSequencer(i),
   };
 }
@@ -235,6 +239,8 @@ export function makeControl(kind: ControlKind, i = 0): ControlModule {
     name: `Control ${i + 1}`,
     presetName: kind === "lfo" ? "Sine LFO" : kind === "drift" ? "Warm Drift" : "Stepped Motion",
     enabled: true,
+    x: 0,
+    y: 0,
     kind,
     waveform: "sine",
     speed: 0.3,
@@ -255,6 +261,8 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
       name: `Drum ${i + 1}`,
       presetName: "Deep Kick",
       enabled: true,
+      x: 0,
+      y: 0,
       triggerSource,
       amp: 0.15,
       pan: 0,
@@ -277,6 +285,8 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
     name: `Synth ${i + 1}`,
     presetName: "Rubber Bass",
     enabled: true,
+    x: 0,
+    y: 0,
     triggerSource,
     amp: 0.11,
     pan: 0,
@@ -303,6 +313,8 @@ export function makeVisual(kind: VisualKind, i = 0): VisualModule {
     name: `Scope ${i + 1}`,
     presetName: kind === "scope" ? "Scope Default" : kind === "spectrum" ? "Spectrum Default" : "Pattern Default",
     enabled: true,
+    x: 0,
+    y: 0,
     kind,
     fftSize: 2048,
   };
@@ -314,6 +326,8 @@ export function makeEffect(kind: EffectKind = "gain"): EffectModule {
     type: "effect",
     name: kind === "gain" ? "GAIN FX" : "EFFECT",
     enabled: true,
+    x: 0,
+    y: 0,
     kind,
     bypass: true,
     gain: 1,
@@ -329,13 +343,16 @@ export const defaultPatch = (): Patch => {
   const control = makeControl("lfo", 0);
   const scope = makeVisual("scope", 0);
 
+  const modules = [trigA, drumA, trigB, drumB, synth, control, scope];
+  modules.forEach((module, index) => setModuleGridPosition(module, slotIndexToGridPosition(index)));
+
   return {
     version: "0.3",
     bpm: 124,
     macro: 0.5,
     masterGain: 0.8,
     masterMute: false,
-    modules: [trigA, drumA, trigB, drumB, synth, control, scope],
+    modules,
     buses: [],
     connections: [],
   };
@@ -489,6 +506,8 @@ export function migratePatch(patch: Patch): Patch {
         name: `Trigger ${i + 1}`,
         presetName: "Sparse Euclid",
         enabled: legacy.enabled !== false,
+        x: 0,
+        y: 0,
         ...normalizeSequencer(legacy, i),
       } satisfies TriggerModule;
 
@@ -499,6 +518,8 @@ export function migratePatch(patch: Patch): Patch {
         name: legacy.kind === "drum" ? `Drum ${i + 1}` : `Synth ${i + 1}`,
         presetName: legacy.kind === "drum" ? "Deep Kick" : "Rubber Bass",
         enabled: legacy.enabled !== false,
+        x: 0,
+        y: 0,
         triggerSource: trigger.id,
         amp: clamp(typeof legacy.amp === "number" ? legacy.amp : 0.12, 0, 1),
         timbre: clamp(typeof legacy.timbre === "number" ? legacy.timbre : 0.5, 0, 1),
@@ -564,6 +585,8 @@ export function migratePatch(patch: Patch): Patch {
     if (!isSound(module)) continue;
     if (module.triggerSource && !triggerIds.has(module.triggerSource)) module.triggerSource = null;
   }
+
+  normalizeModuleGridPositions(migrated);
 
   const buses = Array.isArray((patch as any).buses)
     ? ((patch as any).buses as any[])

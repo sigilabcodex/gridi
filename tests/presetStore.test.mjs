@@ -13,6 +13,11 @@ function makeLinkedPatch() {
   const trigger = makeTrigger(0, 'TRG_A');
   const drum = makeSound('drum', 0, trigger.id);
 
+  trigger.x = 0;
+  trigger.y = 0;
+  drum.x = 2;
+  drum.y = 1;
+
   return {
     version: '0.3',
     bpm: 120,
@@ -78,4 +83,27 @@ test('invalid import payloads return null safely', () => {
   assert.equal(parsePresetImportPayload('{'), null);
   assert.equal(parsePresetImportPayload('{}'), null);
   assert.equal(parsePresetImportPayload(JSON.stringify({ presets: [{ name: 'bad' }] })), null);
+});
+
+
+test('preset import preserves explicit module coordinates', () => {
+  const payload = JSON.stringify({
+    preset: {
+      id: 'preset-coords',
+      name: 'Coords',
+      patch: makeLinkedPatch(),
+      createdAt: 10,
+      updatedAt: 11,
+    },
+  });
+
+  const imported = parsePresetImportPayload(payload);
+  assert.ok(imported);
+  assert.deepEqual(
+    imported.presets[0].patch.modules.map((module) => ({ id: module.id, x: module.x, y: module.y })),
+    [
+      { id: imported.presets[0].patch.modules[0].id, x: 0, y: 0 },
+      { id: imported.presets[0].patch.modules[1].id, x: 2, y: 1 },
+    ]
+  );
 });

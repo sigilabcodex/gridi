@@ -1,9 +1,10 @@
 import type { VisualKind } from "../patch";
+import type { GridPosition } from "../workspacePlacement.ts";
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
 type AddSlotParams = {
-  insertionIndex: number;
+  position: GridPosition;
   onPick: (what: Pick) => void;
   onDropModule?: (moduleId: string) => void;
 };
@@ -46,6 +47,8 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   const slot = document.createElement("section");
   slot.className = "moduleSurface addModuleSlot";
   slot.dataset.type = "add";
+  slot.dataset.gridX = String(params.position.x);
+  slot.dataset.gridY = String(params.position.y);
   slot.tabIndex = 0;
 
   const plus = document.createElement("div");
@@ -62,7 +65,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
   const menuTitle = document.createElement("div");
   menuTitle.className = "small addSlotMenuHint";
-  menuTitle.textContent = "Insert here";
+  menuTitle.textContent = `Insert at (${params.position.x}, ${params.position.y})`;
   menu.appendChild(menuTitle);
 
   for (const item of MENU_ITEMS) {
@@ -146,7 +149,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     params.onPick(dropped);
   });
 
-  slot.dataset.insertionIndex = String(params.insertionIndex);
   slot.append(plus, label, menu);
   return slot;
 }
