@@ -24,6 +24,7 @@ type ModuleGridParams = {
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
+const WORKSPACE_COLUMNS = 3;
 
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number }) {
   const cell = document.createElement("div");
@@ -41,9 +42,47 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   return cell;
 }
 
-function getTotalCells(moduleCount: number, columns = 3) {
-  const atLeastOneRow = Math.max(columns, moduleCount + 1);
-  return Math.ceil(atLeastOneRow / columns) * columns;
+function getModuleSlotIndex(module: Patch["modules"][number], columns = WORKSPACE_COLUMNS) {
+  if (
+    Number.isInteger(module.x) && Number.isInteger(module.y)
+    && (module.x as number) >= 0 && (module.y as number) >= 0
+  ) {
+    return (module.y as number) * columns + (module.x as number);
+  }
+  return null;
+}
+
+function setModuleSlot(module: Patch["modules"][number], slotIndex: number, columns = WORKSPACE_COLUMNS) {
+  module.x = slotIndex % columns;
+  module.y = Math.floor(slotIndex / columns);
+}
+
+function resolveWorkspaceSlots(modules: Patch["modules"], columns = WORKSPACE_COLUMNS) {
+  const modulesBySlot = new Map<number, Patch["modules"][number]>();
+  const slotByModuleId = new Map<string, number>();
+  let nextDenseSlot = 0;
+
+  const claimSlot = (preferred: number | null, module: Patch["modules"][number]) => {
+    let slotIndex = preferred;
+    if (slotIndex == null || modulesBySlot.has(slotIndex)) {
+      while (modulesBySlot.has(nextDenseSlot)) nextDenseSlot++;
+      slotIndex = nextDenseSlot;
+    }
+    modulesBySlot.set(slotIndex, module);
+    slotByModuleId.set(module.id, slotIndex);
+    nextDenseSlot = Math.max(nextDenseSlot, slotIndex + 1);
+    return slotIndex;
+  };
+
+  for (const module of modules) claimSlot(getModuleSlotIndex(module, columns), module);
+
+  const highestOccupiedSlot = Math.max(-1, ...modulesBySlot.keys());
+  const atLeastOneRow = Math.max(columns, highestOccupiedSlot + 2);
+  return {
+    modulesBySlot,
+    slotByModuleId,
+    totalCells: Math.ceil(atLeastOneRow / columns) * columns,
+  };
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -72,17 +111,15 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   const moveModuleToCell = (moduleId: string, insertionIndex: number) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
-    const fromIndex = nextPatch.modules.findIndex((m) => m.id === moduleId);
-    if (fromIndex < 0) return;
+    const module = nextPatch.modules.find((m) => m.id === moduleId);
+    if (!module) return;
 
-    const moduleCount = nextPatch.modules.length;
-    if (insertionIndex < moduleCount || insertionIndex >= getTotalCells(moduleCount)) return;
+    const { totalCells, slotByModuleId } = resolveWorkspaceSlots(nextPatch.modules);
+    if (insertionIndex < 0 || insertionIndex >= totalCells) return;
 
-    const targetIndex = Math.min(insertionIndex, moduleCount - 1);
-    if (targetIndex === fromIndex) return;
-
-    const [module] = nextPatch.modules.splice(fromIndex, 1);
-    nextPatch.modules.splice(targetIndex, 0, module);
+    const currentSlot = slotByModuleId.get(module.id);
+    if (currentSlot === insertionIndex) return;
+    setModuleSlot(module, insertionIndex);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: false });
@@ -114,11 +151,11 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           ? makeControl("lfo", indexForType)
           : what === "control-drift"
             ? makeControl("drift", indexForType)
-            : what === "control-stepped"
+          : what === "control-stepped"
               ? makeControl("stepped", indexForType)
               : makeVisual(what, indexForType);
-    const insertAt = Math.min(insertionIndex, nextPatch.modules.length);
-    nextPatch.modules.splice(insertAt, 0, created as Patch["modules"][number]);
+    setModuleSlot(created as Patch["modules"][number], insertionIndex);
+    nextPatch.modules.push(created as Patch["modules"][number]);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
@@ -219,11 +256,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       return surfaceRoot;
     };
 
-    const currentCount = patch.modules.length;
-    const totalCells = getTotalCells(currentCount);
+    const { modulesBySlot, totalCells } = resolveWorkspaceSlots(patch.modules);
 
     for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
-      const module = patch.modules[slotIndex];
+      const module = modulesBySlot.get(slotIndex);
       if (module) {
         const surface = renderModuleSurface(module);
         workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex }));
