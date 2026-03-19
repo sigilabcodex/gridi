@@ -1,7 +1,14 @@
 import type { Engine } from "../engine/audio";
-import type { Patch, VisualModule } from "../patch";
+import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
+import {
+  createModuleRefChip,
+  createRoutingCard,
+  createRoutingSummary,
+  createRoutingSummaryStrip,
+  type RoutingSnapshot,
+} from "./routingVisibility";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   const n = document.createElement(tag);
@@ -12,8 +19,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
 export function renderVisualSurface(
   parent: HTMLElement,
   engine: Engine,
-  _patch: Patch,
   vm: VisualModule,
+  routing: RoutingSnapshot,
   onRemove: () => void,
 ) {
   const surface = el("section", "moduleSurface visualSurface");
@@ -44,7 +51,13 @@ export function renderVisualSurface(
   right.append(btnOn, btnX);
   header.append(identity, right);
 
+  const visualSource = routing.visualSources.get(vm.id);
+
   const panelMain = el("div", "visualSurfaceBody");
+  panelMain.appendChild(createRoutingSummaryStrip([
+    createRoutingSummary("Listening", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master mix"),
+    createRoutingSummary("Contributors", (visualSource?.contributors ?? []).slice(0, 3).map((ref) => createModuleRefChip(ref)), "No active modules"),
+  ]));
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
@@ -53,6 +66,13 @@ export function renderVisualSurface(
   const readout = el("div", "visualReadout small");
   canvasWrap.append(canvas);
   panelMain.append(canvasWrap, readout);
+
+  const panelRouting = el("div", "utilityPanel");
+  const sourceCard = createRoutingCard("Listen source", visualSource?.sourceLabel ?? "Master mix");
+  const contributors = el("div", "routingChipList");
+  (visualSource?.contributors ?? []).forEach((ref) => contributors.appendChild(createModuleRefChip(ref)));
+  sourceCard.appendChild(contributors);
+  panelRouting.appendChild(sourceCard);
 
   const panelSettings = el("div");
   const dock = el("div", "visualControlDock");
@@ -91,6 +111,7 @@ export function renderVisualSurface(
   const shell = createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
+      { id: "ROUTING", label: "Routing", panel: panelRouting },
       { id: "SETTINGS", label: "Settings", panel: panelSettings },
     ],
     activeTab: "MAIN",

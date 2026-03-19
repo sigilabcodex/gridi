@@ -1688,3 +1688,120 @@ button.danger.armed {
 .controlMeter {
   margin-top: 1px;
 }
+
+/* === Routing visibility layer === */
+.routingSummaryStrip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.routingSummaryBlock {
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid rgba(207, 214, 221, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  display: grid;
+  gap: 6px;
+}
+
+.routingSummaryLabel,
+.routingCardTitle {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  opacity: 0.72;
+}
+
+.routingSummaryValues,
+.routingChipList,
+.routingSelectors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.routingChip {
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 214, 221, 0.12);
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(240, 244, 247, 0.94);
+  font-size: 11px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.routingChip-connected {
+  border-color: rgba(120, 205, 255, 0.34);
+  background: rgba(60, 118, 160, 0.2);
+}
+
+.routingChip-muted {
+  opacity: 0.66;
+}
+
+.routingCard {
+  min-width: 0;
+}
+
+.routingCardHead {
+  display: grid;
+  gap: 2px;
+}
+
+.routingCardSubtitle {
+  font-size: 11px;
+  line-height: 1.25;
+  color: rgba(226, 231, 236, 0.72);
+}
+
+.routingInlineCard {
+  min-width: 0;
+}
+
+.routingSelectors {
+  margin-top: 4px;
+}
+
+.routingSelectors > .utilityRouteCard {
+  flex: 1 1 140px;
+}
+
+.moduleSurface.routingInspect {
+  box-shadow:
+    0 0 0 1px rgba(125, 212, 255, 0.52),
+    0 16px 30px rgba(3, 16, 28, 0.34);
+}
+
+.moduleSurface.routingLinked {
+  box-shadow:
+    0 0 0 1px rgba(125, 212, 255, 0.2),
+    0 12px 24px rgba(3, 16, 28, 0.22);
+}
+
+.moduleSurface.routingInspect .surfaceBadge,
+.moduleSurface.routingLinked .surfaceBadge {
+  border-color: rgba(125, 212, 255, 0.42);
+}
+
+@media (max-width: 760px) {
+  .routingSummaryStrip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.controlSurface {
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
+}
+
+.controlSurface .surfaceFace,
+.controlSurface .surfaceTabs {
+  grid-row: auto;
+}

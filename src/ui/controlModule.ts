@@ -2,6 +2,14 @@ import type { ControlKind, LfoWaveform, Patch, ControlModule } from "../patch";
 import { sampleControl01 } from "../engine/control";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createModuleTabShell } from "./moduleShell";
+import {
+  createRoutingCard,
+  createRoutingChip,
+  createRoutingSummary,
+  createRoutingSummaryStrip,
+  type RoutingSnapshot,
+} from "./routingVisibility";
 
 const KINDS: ControlKind[] = ["lfo", "drift", "stepped"];
 const WAVES: LfoWaveform[] = ["sine", "triangle", "square", "random"];
@@ -9,6 +17,7 @@ const WAVES: LfoWaveform[] = ["sine", "triangle", "square", "random"];
 export function renderControlSurface(
   root: HTMLElement,
   mod: ControlModule,
+  routing: RoutingSnapshot,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRemove?: () => void,
 ) {
@@ -25,7 +34,7 @@ export function renderControlSurface(
   badge.textContent = "CONTROL";
   const meta = document.createElement("div");
   meta.className = "surfaceNameWrap";
-  meta.innerHTML = `<div class="name">${mod.name}</div><div class="small">Preset: ${mod.presetName ?? "Sine LFO"}</div>`;
+  meta.innerHTML = `<div class="name">${mod.name}</div><div class="small">Preset: ${mod.presetName ?? "Sine LFO"}</div><div class="small moduleId">${mod.id.slice(-6).toUpperCase()}</div>`;
   idWrap.append(badge, meta);
 
   const right = document.createElement("div");
@@ -48,10 +57,15 @@ export function renderControlSurface(
   right.append(toggle, btnX);
   header.append(idWrap, right);
 
-  const face = document.createElement("div");
-  face.className = "surfaceFace";
-  const panel = document.createElement("div");
-  panel.className = "surfaceTabPanel controlBody";
+  const controlTargets = routing.controlTargets.get(mod.id) ?? [];
+
+  const panelMain = document.createElement("div");
+  panelMain.className = "surfaceTabPanel controlBody";
+  panelMain.append(
+    createRoutingSummaryStrip([
+      createRoutingSummary("Targets", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
+    ]),
+  );
 
   const kindSel = document.createElement("select");
   for (const kind of KINDS) {
@@ -89,7 +103,7 @@ export function renderControlSurface(
   meterFill.className = "controlMeterFill";
   meter.appendChild(meterFill);
 
-  panel.append(
+  panelMain.append(
     typeRow,
     ctlFloat({ label: "Speed", value: mod.speed, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
@@ -114,8 +128,28 @@ export function renderControlSurface(
     meter,
   );
 
-  face.append(panel);
-  surface.append(header, face);
+  const panelRouting = document.createElement("div");
+  panelRouting.className = "utilityPanel";
+  const targetCard = createRoutingCard("Current targets", controlTargets.length ? `${controlTargets.length} assignments` : "This control is not modulating anything yet");
+  const targetList = document.createElement("div");
+  targetList.className = "routingChipList";
+  if (controlTargets.length) {
+    controlTargets.forEach((target) => targetList.appendChild(createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")));
+  } else {
+    targetList.appendChild(createRoutingChip("Unassigned", "muted"));
+  }
+  targetCard.appendChild(targetList);
+  panelRouting.appendChild(targetCard);
+
+  const shell = createModuleTabShell({
+    specs: [
+      { id: "MAIN", label: "Main", panel: panelMain },
+      { id: "ROUTING", label: "Routing", panel: panelRouting },
+    ],
+    activeTab: "MAIN",
+  });
+
+  surface.append(header, shell.face, shell.tabs);
   root.appendChild(surface);
 
   return () => {

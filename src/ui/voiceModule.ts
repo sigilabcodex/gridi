@@ -2,6 +2,14 @@ import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
+import {
+  createModuleRefChip,
+  createRoutingCard,
+  createRoutingChip,
+  createRoutingSummary,
+  createRoutingSummaryStrip,
+  type RoutingSnapshot,
+} from "./routingVisibility";
 
 export type VoiceTab = "MAIN" | "ROUTING" | "SETTINGS";
 
@@ -16,8 +24,10 @@ type ControlOption = { id: string; label: string };
 type SurfaceParams = {
   root: HTMLElement;
   v: SoundModule;
+  routing: RoutingSnapshot;
   getLedState: (moduleId: string) => { active: boolean; hit: boolean };
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void;
+  onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void;
   ui: UiState;
   triggerOptions: TriggerOption[];
   controlOptions: ControlOption[];
@@ -66,18 +76,33 @@ function makeHeader(v: SoundModule, badgeText: string, onPatchChange: SurfacePar
   return { header, ledA, ledHit, syncToggle };
 }
 
+function createVoiceSummary(v: SoundModule, routing: RoutingSnapshot) {
+  const incoming = routing.voiceIncoming.get(v.id);
+  const triggerChip = incoming?.trigger ? [createModuleRefChip(incoming.trigger)] : [];
+  const modChips = (incoming?.modulations ?? []).map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel));
+
+  return createRoutingSummaryStrip([
+    createRoutingSummary("Trigger", triggerChip, "Unassigned"),
+    createRoutingSummary("Mod", modChips, "No modulation"),
+  ]);
+}
+
 function createFaceTabs(
   ui: UiState,
   mainPanel: HTMLElement,
   triggerOptions: TriggerOption[],
+  controlOptions: ControlOption[],
   v: SoundModule,
+  routing: RoutingSnapshot,
   onPatchChange: SurfaceParams["onPatchChange"],
+  onRoutingChange: SurfaceParams["onRoutingChange"],
 ) {
   const panelRouting = document.createElement("div");
   panelRouting.className = "utilityPanel";
 
-  const sourceRow = document.createElement("div");
-  sourceRow.className = "utilityRouteCard";
+  const incoming = routing.voiceIncoming.get(v.id);
+
+  const sourceRow = createRoutingCard("Trigger source", incoming?.trigger ? `Currently fed by ${incoming.trigger.name}` : "No trigger assigned");
   const sourceSel = document.createElement("select");
   const none = document.createElement("option");
   none.value = "";
@@ -91,15 +116,27 @@ function createFaceTabs(
     if (opt.id === v.triggerSource) o.selected = true;
     sourceSel.appendChild(o);
   }
-  sourceSel.onchange = () => onPatchChange((p) => {
+  sourceSel.onchange = () => onRoutingChange((p) => {
     const m = p.modules.find((x) => x.id === v.id);
     if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = sourceSel.value || null;
   }, { regen: true });
   const routeMap = document.createElement("div");
   routeMap.className = "utilityRouteMap small";
-  routeMap.textContent = v.triggerSource ? `listening to ${v.triggerSource.slice(-4).toUpperCase()}` : "not listening";
+  routeMap.textContent = incoming?.trigger ? `Listening to ${incoming.trigger.name}` : "Not listening";
   sourceRow.append(sourceSel, routeMap);
   panelRouting.appendChild(sourceRow);
+
+  const modulationCard = createRoutingCard("Modulation", incoming?.modulations?.length ? "Assigned control sources" : "No control modulation assigned");
+  const modulationList = document.createElement("div");
+  modulationList.className = "routingChipList";
+  if (incoming?.modulations?.length) {
+    incoming.modulations.forEach((modulation) => modulationList.appendChild(createModuleRefChip(modulation.source, modulation.parameterLabel)));
+  } else {
+    modulationList.appendChild(createRoutingChip("No modulation", "muted"));
+  }
+  modulationCard.appendChild(modulationList);
+  modulationCard.appendChild(createVoiceRoutingSelectors(v, controlOptions, onRoutingChange));
+  panelRouting.appendChild(modulationCard);
 
   const panelSettings = document.createElement("div");
   panelSettings.append(
@@ -124,13 +161,17 @@ function createFaceTabs(
   });
 }
 
-
-function modulationSelect(options: ControlOption[], selected: string | undefined, onChange: (value: string | null) => void) {
+function modulationSelect(
+  labelText: string,
+  options: ControlOption[],
+  selected: string | undefined,
+  onChange: (value: string | null) => void,
+) {
   const wrap = document.createElement("div");
-  wrap.className = "utilityRouteCard";
+  wrap.className = "utilityRouteCard routingInlineCard";
   const label = document.createElement("div");
   label.className = "small utilityRouteTitle";
-  label.textContent = "Mod source";
+  label.textContent = labelText;
   const sel = document.createElement("select");
   const none = document.createElement("option");
   none.value = "";
@@ -149,8 +190,41 @@ function modulationSelect(options: ControlOption[], selected: string | undefined
   return wrap;
 }
 
+function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOption[], onRoutingChange: SurfaceParams["onRoutingChange"]) {
+  const selectors = document.createElement("div");
+  selectors.className = "routingSelectors";
+
+  if (v.type === "drum") {
+    selectors.appendChild(
+      modulationSelect(controlOptions.length ? "Pitch mod" : "Pitch mod", controlOptions, v.modulations?.basePitch, (source) => onRoutingChange((p) => {
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "drum") {
+          m.modulations = m.modulations ?? {};
+          if (source) m.modulations.basePitch = source;
+          else delete m.modulations.basePitch;
+        }
+      }, { regen: false })),
+    );
+  }
+
+  if (v.type === "tonal") {
+    selectors.appendChild(
+      modulationSelect(controlOptions.length ? "Cutoff mod" : "Cutoff mod", controlOptions, v.modulations?.cutoff, (source) => onRoutingChange((p) => {
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "tonal") {
+          m.modulations = m.modulations ?? {};
+          if (source) m.modulations.cutoff = source;
+          else delete m.modulations.cutoff;
+        }
+      }, { regen: false })),
+    );
+  }
+
+  return selectors;
+}
+
 export function renderDrumModuleSurface(params: SurfaceParams) {
-  const { root, v, onPatchChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
+  const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
 
   const surface = document.createElement("section");
@@ -161,8 +235,9 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const main = document.createElement("div");
   main.className = "surfaceTabPanel drumSurfaceBody";
   main.append(
+    createVoiceSummary(v, routing),
     ctlFloat({ label: "Pitch", value: d.basePitch, min: 24, max: 84, step: 1, integer: true, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }) }),
-    modulationSelect(controlOptions, d.modulations?.basePitch, (source) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") { m.modulations = m.modulations ?? {}; if (source) m.modulations.basePitch = source; else delete m.modulations.basePitch; } }, { regen: false })), 
+    modulationSelect("Pitch mod", controlOptions, d.modulations?.basePitch, (source) => onRoutingChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") { m.modulations = m.modulations ?? {}; if (source) m.modulations.basePitch = source; else delete m.modulations.basePitch; } }, { regen: false })),
     ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) }),
     ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) }),
@@ -171,7 +246,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
   );
 
-  const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
+  const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onPatchChange, onRoutingChange);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
@@ -184,7 +259,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 }
 
 export function renderSynthModuleSurface(params: SurfaceParams) {
-  const { root, v, onPatchChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
+  const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
 
   const surface = document.createElement("section");
@@ -195,9 +270,10 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const main = document.createElement("div");
   main.className = "surfaceTabPanel synthSurfaceBody";
   main.append(
+    createVoiceSummary(v, routing),
     ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
     ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) }),
-    modulationSelect(controlOptions, t.modulations?.cutoff, (source) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") { m.modulations = m.modulations ?? {}; if (source) m.modulations.cutoff = source; else delete m.modulations.cutoff; } }, { regen: false })), 
+    modulationSelect("Cutoff mod", controlOptions, t.modulations?.cutoff, (source) => onRoutingChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") { m.modulations = m.modulations ?? {}; if (source) m.modulations.cutoff = source; else delete m.modulations.cutoff; } }, { regen: false })),
     ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
     ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),
@@ -206,7 +282,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) }),
   );
 
-  const shell = createFaceTabs(ui, main, triggerOptions, v, onPatchChange);
+  const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onPatchChange, onRoutingChange);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
