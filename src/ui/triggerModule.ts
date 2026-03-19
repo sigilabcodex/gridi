@@ -4,6 +4,7 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
 import {
+  createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
@@ -68,8 +69,8 @@ export function renderTriggerSurface(
   const panelMain = document.createElement("div");
   panelMain.className = "triggerPrimary";
   panelMain.appendChild(createRoutingSummaryStrip([
-    createRoutingSummary("Feeds", outgoingVoices.map((voice) => createModuleRefChip(voice)), "No voices"),
-    createRoutingSummary("Density mod", incomingMods.map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel)), "No modulation"),
+    createRoutingSummary("Out", outgoingVoices.map((voice) => createModuleRefChip(voice)), "No voices"),
+    createRoutingSummary("Mod", incomingMods.map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel)), "No mod"),
   ]));
 
   const pulseRail = document.createElement("div");
@@ -80,7 +81,7 @@ export function renderTriggerSurface(
   generatorReadout.type = "button";
   const generatorLabel = document.createElement("div");
   generatorLabel.className = "triggerReadoutLabel";
-  generatorLabel.textContent = "generator";
+  generatorLabel.textContent = "gen";
   const generatorValue = document.createElement("div");
   generatorValue.className = "triggerReadoutValue";
   generatorReadout.append(generatorLabel, generatorValue);
@@ -103,7 +104,7 @@ export function renderTriggerSurface(
   seedValue.className = "triggerReadoutValue";
   const seedHint = document.createElement("div");
   seedHint.className = "triggerReadoutHint";
-  seedHint.textContent = "tap to reseed";
+  seedHint.textContent = "tap = new";
   seedReadout.append(seedLabel, seedValue, seedHint);
   seedReadout.onclick = () => onPatchChange((p) => {
     const m = p.modules.find((x) => x.id === t.id);
@@ -120,11 +121,11 @@ export function renderTriggerSurface(
   const mainControlRack = document.createElement("div");
   mainControlRack.className = "triggerPulseRack";
   mainControlRack.append(
-    ctlFloat({ label: "Density", value: t.density, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("density", x) }),
-    ctlFloat({ label: "Length", value: t.length, min: 1, max: 128, step: 1, integer: true, onChange: (x) => setParam("length", x) }),
+    ctlFloat({ label: "Dense", value: t.density, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("density", x) }),
+    ctlFloat({ label: "Len", value: t.length, min: 1, max: 128, step: 1, integer: true, onChange: (x) => setParam("length", x) }),
     ctlFloat({ label: "Drop", value: t.drop, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("drop", x) }),
-    ctlFloat({ label: "Subdiv", value: t.subdiv, min: 1, max: 8, step: 1, integer: true, onChange: (x) => setParam("subdiv", x) }),
-    ctlFloat({ label: "Determinism", value: t.determinism, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("determinism", x) }),
+    ctlFloat({ label: "Div", value: t.subdiv, min: 1, max: 8, step: 1, integer: true, onChange: (x) => setParam("subdiv", x) }),
+    ctlFloat({ label: "Det", value: t.determinism, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("determinism", x) }),
     ctlFloat({ label: "Weird", value: t.weird, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("weird", x) }),
   );
   panelMain.append(pulseRail, mainControlRack);
@@ -132,7 +133,7 @@ export function renderTriggerSurface(
   const panelRouting = document.createElement("div");
   panelRouting.className = "utilityPanel";
 
-  const targetsCard = createRoutingCard("Feeds voices", outgoingVoices.length ? `${outgoingVoices.length} connected` : "No voices currently listening");
+  const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
   const targetsList = document.createElement("div");
   targetsList.className = "routingChipList";
   if (outgoingVoices.length) outgoingVoices.forEach((voice) => targetsList.appendChild(createModuleRefChip(voice)));
@@ -140,43 +141,33 @@ export function renderTriggerSurface(
   targetsCard.appendChild(targetsList);
   panelRouting.appendChild(targetsCard);
 
-  const modulationCard = createRoutingCard("Density modulation", incomingMods.length ? "Control assigned" : "No density modulation");
-  const modLabel = document.createElement("div");
-  modLabel.className = "small utilityRouteTitle";
-  modLabel.textContent = "Density mod source";
-  const modSel = document.createElement("select");
-  const modNone = document.createElement("option");
-  modNone.value = "";
-  modNone.textContent = "None";
-  if (!t.modulations?.density) modNone.selected = true;
-  modSel.appendChild(modNone);
-  for (const opt of controlOptions) {
-    const o = document.createElement("option");
-    o.value = opt.id;
-    o.textContent = opt.label;
-    if (opt.id === t.modulations?.density) o.selected = true;
-    modSel.appendChild(o);
-  }
-  modSel.onchange = () => onRoutingChange((p) => {
-    const m = p.modules.find((x) => x.id === t.id);
-    if (m?.type !== "trigger") return;
-    m.modulations = m.modulations ?? {};
-    if (modSel.value) m.modulations.density = modSel.value;
-    else delete m.modulations.density;
-  }, { regen: false });
+  const modulationCard = createRoutingCard("Density mod", incomingMods.length ? `${incomingMods.length} source${incomingMods.length === 1 ? "" : "s"}` : "No source");
+  const modField = createCompactSelectField({
+    label: "Source",
+    options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
+    selected: t.modulations?.density,
+    emptyLabel: "None",
+    onChange: (value) => onRoutingChange((p) => {
+      const m = p.modules.find((x) => x.id === t.id);
+      if (m?.type !== "trigger") return;
+      m.modulations = m.modulations ?? {};
+      if (value) m.modulations.density = value;
+      else delete m.modulations.density;
+    }, { regen: false }),
+  });
   const modList = document.createElement("div");
   modList.className = "routingChipList";
   if (incomingMods.length) incomingMods.forEach((modulation) => modList.appendChild(createModuleRefChip(modulation.source, modulation.parameterLabel)));
-  else modList.appendChild(createRoutingChip("None", "muted"));
-  modulationCard.append(modLabel, modSel, modList);
+  else modList.appendChild(createRoutingChip("No mod", "muted"));
+  modulationCard.append(modField.wrap, modList);
   panelRouting.appendChild(modulationCard);
 
   const panelSettings = document.createElement("div");
   panelSettings.append(
-    ctlFloat({ label: "Rotation", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
-    ctlFloat({ label: "CA Rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
-    ctlFloat({ label: "CA Init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
-    ctlFloat({ label: "Gravity", value: t.gravity, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("gravity", x) }),
+    ctlFloat({ label: "Rotate", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
+    ctlFloat({ label: "CA rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
+    ctlFloat({ label: "CA init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
+    ctlFloat({ label: "Grav", value: t.gravity, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("gravity", x) }),
   );
 
   const shell = createModuleTabShell({
@@ -208,7 +199,7 @@ export function renderTriggerSurface(
       cell.className = `triggerStepCell ${c !== "." ? "on" : "off"}`;
       stepGrid.appendChild(cell);
     }
-    transportReadout.textContent = `${t.length} steps · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
+    transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }
 
   function setParam(key: keyof TriggerModule, value: number) {

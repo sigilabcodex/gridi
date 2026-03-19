@@ -197,7 +197,38 @@ export function createRoutingCard(title: string, subtitle?: string) {
   return card;
 }
 
+export function createCompactSelectField(params: {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+  selected: string | null | undefined;
+  emptyLabel?: string;
+  className?: string;
+  onChange: (value: string | null) => void;
+}) {
+  const wrap = createEl("label", `compactSelectField${params.className ? ` ${params.className}` : ""}`.trim());
+  const label = createEl("span", "compactSelectLabel", params.label);
+  const sel = document.createElement("select");
+  sel.className = "compactSelectInput";
+
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = params.emptyLabel ?? "None";
+  if (!params.selected) none.selected = true;
+  sel.appendChild(none);
+
+  for (const option of params.options) {
+    const node = document.createElement("option");
+    node.value = option.value;
+    node.textContent = option.label;
+    if (option.value === params.selected) node.selected = true;
+    sel.appendChild(node);
+  }
+
+  sel.onchange = () => params.onChange(sel.value || null);
+  wrap.append(label, sel);
+  return { wrap, select: sel };
+}
+
 export function createModuleRefChip(ref: RouteRef, suffix?: string) {
   return createRoutingChip(suffix ? `${ref.name} · ${suffix}` : ref.name, "connected");
 }
-

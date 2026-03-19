@@ -3,6 +3,7 @@ import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
 import {
+  createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
   createRoutingSummary,
@@ -55,8 +56,8 @@ export function renderVisualSurface(
 
   const panelMain = el("div", "visualSurfaceBody");
   panelMain.appendChild(createRoutingSummaryStrip([
-    createRoutingSummary("Listening", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master mix"),
-    createRoutingSummary("Contributors", (visualSource?.contributors ?? []).slice(0, 3).map((ref) => createModuleRefChip(ref)), "No active modules"),
+    createRoutingSummary("In", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master"),
+    createRoutingSummary("Mix", (visualSource?.contributors ?? []).slice(0, 3).map((ref) => createModuleRefChip(ref)), "No voices"),
   ]));
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
@@ -68,7 +69,7 @@ export function renderVisualSurface(
   panelMain.append(canvasWrap, readout);
 
   const panelRouting = el("div", "utilityPanel");
-  const sourceCard = createRoutingCard("Listen source", visualSource?.sourceLabel ?? "Master mix");
+  const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
   const contributors = el("div", "routingChipList");
   (visualSource?.contributors ?? []).forEach((ref) => contributors.appendChild(createModuleRefChip(ref)));
   sourceCard.appendChild(contributors);
@@ -76,36 +77,23 @@ export function renderVisualSurface(
 
   const panelSettings = el("div");
   const dock = el("div", "visualControlDock");
-  const modeCard = el("div", "machineSelect");
-  const fftCard = el("div", "machineSelect");
-  const mode = document.createElement("select");
-  ["scope", "spectrum", "pattern"].forEach((kind) => {
-    const o = document.createElement("option");
-    o.value = kind;
-    o.textContent = kind.toUpperCase();
-    if (vm.kind === kind) o.selected = true;
-    mode.appendChild(o);
+  const modeField = createCompactSelectField({
+    label: "View",
+    options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
+    selected: vm.kind,
+    onChange: (value) => {
+      if (value) vm.kind = value as VisualModule["kind"];
+    },
   });
-  mode.onchange = () => {
-    vm.kind = mode.value as VisualModule["kind"];
-  };
-
-  const fft = document.createElement("select");
-  [512, 1024, 2048, 4096].forEach((size) => {
-    const o = document.createElement("option");
-    o.value = String(size);
-    o.textContent = `FFT ${size}`;
-    if ((vm.fftSize ?? 2048) === size) o.selected = true;
-    fft.appendChild(o);
+  const fftField = createCompactSelectField({
+    label: "FFT",
+    options: [512, 1024, 2048, 4096].map((size) => ({ value: String(size), label: String(size) })),
+    selected: String(vm.fftSize ?? 2048),
+    onChange: (value) => {
+      if (value) vm.fftSize = Number(value) as VisualModule["fftSize"];
+    },
   });
-  fft.onchange = () => {
-    vm.fftSize = Number(fft.value) as VisualModule["fftSize"];
-  };
-  modeCard.innerHTML = `<div class="triggerReadoutLabel">view mode</div>`;
-  fftCard.innerHTML = `<div class="triggerReadoutLabel">resolution</div>`;
-  modeCard.appendChild(mode);
-  fftCard.appendChild(fft);
-  dock.append(modeCard, fftCard);
+  dock.append(modeField.wrap, fftField.wrap);
   panelSettings.append(dock);
 
   const shell = createModuleTabShell({
@@ -168,7 +156,7 @@ export function renderVisualSurface(
     }
     ctx2d.stroke();
     const peak = Math.max(...scopeBuf.map((x) => Math.abs(x)));
-    readout.textContent = `peak ${peak.toFixed(3)} · ${scopeBuf.length} samples`;
+    readout.textContent = `peak ${peak.toFixed(3)} · ${scopeBuf.length} smp`;
   }
 
   function drawSpectrum() {

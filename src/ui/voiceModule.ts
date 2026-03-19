@@ -3,6 +3,7 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
 import {
+  createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
@@ -82,8 +83,8 @@ function createVoiceSummary(v: SoundModule, routing: RoutingSnapshot) {
   const modChips = (incoming?.modulations ?? []).map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel));
 
   return createRoutingSummaryStrip([
-    createRoutingSummary("Trigger", triggerChip, "Unassigned"),
-    createRoutingSummary("Mod", modChips, "No modulation"),
+    createRoutingSummary("Trig", triggerChip, "No trig"),
+    createRoutingSummary("Mod", modChips, "No mod"),
   ]);
 }
 
@@ -102,37 +103,30 @@ function createFaceTabs(
 
   const incoming = routing.voiceIncoming.get(v.id);
 
-  const sourceRow = createRoutingCard("Trigger source", incoming?.trigger ? `Currently fed by ${incoming.trigger.name}` : "No trigger assigned");
-  const sourceSel = document.createElement("select");
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = "Unassigned";
-  if (!v.triggerSource) none.selected = true;
-  sourceSel.appendChild(none);
-  for (const opt of triggerOptions) {
-    const o = document.createElement("option");
-    o.value = opt.id;
-    o.textContent = opt.label;
-    if (opt.id === v.triggerSource) o.selected = true;
-    sourceSel.appendChild(o);
-  }
-  sourceSel.onchange = () => onRoutingChange((p) => {
-    const m = p.modules.find((x) => x.id === v.id);
-    if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = sourceSel.value || null;
-  }, { regen: true });
+  const sourceRow = createRoutingCard("Trig in", incoming?.trigger ? incoming.trigger.name : "No source");
+  const sourceField = createCompactSelectField({
+    label: "Source",
+    options: triggerOptions.map((opt) => ({ value: opt.id, label: opt.label })),
+    selected: v.triggerSource,
+    emptyLabel: "None",
+    onChange: (value) => onRoutingChange((p) => {
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = value;
+    }, { regen: true }),
+  });
   const routeMap = document.createElement("div");
   routeMap.className = "utilityRouteMap small";
-  routeMap.textContent = incoming?.trigger ? `Listening to ${incoming.trigger.name}` : "Not listening";
-  sourceRow.append(sourceSel, routeMap);
+  routeMap.textContent = incoming?.trigger ? `← ${incoming.trigger.name}` : "No trig feed";
+  sourceRow.append(sourceField.wrap, routeMap);
   panelRouting.appendChild(sourceRow);
 
-  const modulationCard = createRoutingCard("Modulation", incoming?.modulations?.length ? "Assigned control sources" : "No control modulation assigned");
+  const modulationCard = createRoutingCard("Mod in", incoming?.modulations?.length ? `${incoming.modulations.length} lane${incoming.modulations.length === 1 ? "" : "s"}` : "No source");
   const modulationList = document.createElement("div");
   modulationList.className = "routingChipList";
   if (incoming?.modulations?.length) {
     incoming.modulations.forEach((modulation) => modulationList.appendChild(createModuleRefChip(modulation.source, modulation.parameterLabel)));
   } else {
-    modulationList.appendChild(createRoutingChip("No modulation", "muted"));
+    modulationList.appendChild(createRoutingChip("No mod", "muted"));
   }
   modulationCard.appendChild(modulationList);
   modulationCard.appendChild(createVoiceRoutingSelectors(v, controlOptions, onRoutingChange));
@@ -167,27 +161,14 @@ function modulationSelect(
   selected: string | undefined,
   onChange: (value: string | null) => void,
 ) {
-  const wrap = document.createElement("div");
-  wrap.className = "utilityRouteCard routingInlineCard";
-  const label = document.createElement("div");
-  label.className = "small utilityRouteTitle";
-  label.textContent = labelText;
-  const sel = document.createElement("select");
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = "None";
-  if (!selected) none.selected = true;
-  sel.appendChild(none);
-  for (const opt of options) {
-    const o = document.createElement("option");
-    o.value = opt.id;
-    o.textContent = opt.label;
-    if (opt.id === selected) o.selected = true;
-    sel.appendChild(o);
-  }
-  sel.onchange = () => onChange(sel.value || null);
-  wrap.append(label, sel);
-  return wrap;
+  return createCompactSelectField({
+    label: labelText,
+    options: options.map((opt) => ({ value: opt.id, label: opt.label })),
+    selected,
+    emptyLabel: "None",
+    className: "routingInlineCard",
+    onChange,
+  }).wrap;
 }
 
 function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOption[], onRoutingChange: SurfaceParams["onRoutingChange"]) {
@@ -196,7 +177,7 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 
   if (v.type === "drum") {
     selectors.appendChild(
-      modulationSelect(controlOptions.length ? "Pitch mod" : "Pitch mod", controlOptions, v.modulations?.basePitch, (source) => onRoutingChange((p) => {
+      modulationSelect("Pitch mod", controlOptions, v.modulations?.basePitch, (source) => onRoutingChange((p) => {
         const m = p.modules.find((z) => z.id === v.id);
         if (m?.type === "drum") {
           m.modulations = m.modulations ?? {};
@@ -209,7 +190,7 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 
   if (v.type === "tonal") {
     selectors.appendChild(
-      modulationSelect(controlOptions.length ? "Cutoff mod" : "Cutoff mod", controlOptions, v.modulations?.cutoff, (source) => onRoutingChange((p) => {
+      modulationSelect("Cut mod", controlOptions, v.modulations?.cutoff, (source) => onRoutingChange((p) => {
         const m = p.modules.find((z) => z.id === v.id);
         if (m?.type === "tonal") {
           m.modulations = m.modulations ?? {};
@@ -273,7 +254,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     createVoiceSummary(v, routing),
     ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
     ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) }),
-    modulationSelect("Cutoff mod", controlOptions, t.modulations?.cutoff, (source) => onRoutingChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") { m.modulations = m.modulations ?? {}; if (source) m.modulations.cutoff = source; else delete m.modulations.cutoff; } }, { regen: false })),
+    modulationSelect("Cut mod", controlOptions, t.modulations?.cutoff, (source) => onRoutingChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") { m.modulations = m.modulations ?? {}; if (source) m.modulations.cutoff = source; else delete m.modulations.cutoff; } }, { regen: false })),
     ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
     ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
     ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),
