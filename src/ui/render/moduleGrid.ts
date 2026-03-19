@@ -3,13 +3,11 @@ import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
 import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
 import {
-  WORKSPACE_COLUMNS,
+  getModuleGridPosition,
   gridPositionKey,
-  gridPositionToSlotIndex,
-  resolveGridLayout,
   setModuleGridPosition,
-  slotIndexToGridPosition,
   type GridPosition,
+  resolveGridLayout,
 } from "../../workspacePlacement.ts";
 import type { VoiceTab } from "../voiceModule";
 import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModule";
@@ -34,6 +32,8 @@ type ModuleGridParams = {
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
+
+const MIN_VISIBLE_COLUMNS = 1;
 
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
   const cell = document.createElement("div");
@@ -60,9 +60,26 @@ function focusFirstInteractive(surface: HTMLElement) {
   target?.focus();
 }
 
+function parseCssLengthPx(value: string, fallback: number) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function readVisibleColumnCount(main: HTMLElement) {
+  const rootStyles = getComputedStyle(document.documentElement);
+  const cellWidth = parseCssLengthPx(rootStyles.getPropertyValue("--module-cell-w"), 330);
+  const gap = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-gap"), 10);
+  const padding = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-pad"), 8) * 2;
+  const availableWidth = Math.max(main.clientWidth, cellWidth + padding);
+  const fitted = Math.floor((availableWidth - padding + gap) / (cellWidth + gap));
+  return Math.max(MIN_VISIBLE_COLUMNS, fitted || 0);
+}
+
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
   let inspectedModuleId: string | null = null;
+  let visibleColumns = readVisibleColumnCount(params.main);
+  let renderedColumns = visibleColumns;
 
   const removeModule = (moduleId: string) => {
     const prev = params.clonePatch(params.patch());
@@ -91,10 +108,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const module = nextPatch.modules.find((m) => m.id === moduleId);
     if (!module) return;
 
-    const { slotByModuleId } = resolveGridLayout(nextPatch.modules);
-    const destinationSlot = gridPositionToSlotIndex(destination);
-    const currentSlot = slotByModuleId.get(module.id);
-    if (currentSlot === destinationSlot) return;
+    const currentPosition = getModuleGridPosition(module);
+    if (currentPosition && gridPositionKey(currentPosition) === gridPositionKey(destination)) return;
 
     setModuleGridPosition(module, destination);
 
@@ -142,13 +157,24 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   };
 
   const rerender = () => {
+    visibleColumns = readVisibleColumnCount(params.main);
+
     const patch = params.patch();
     const routing = buildRoutingSnapshot(patch);
     params.main.innerHTML = "";
 
+    const workspaceViewport = document.createElement("div");
+    workspaceViewport.className = "workspaceViewport";
+
+    const workspaceViewportInner = document.createElement("div");
+    workspaceViewportInner.className = "workspaceViewportInner";
+
     const workspaceGrid = document.createElement("div");
     workspaceGrid.className = "grid workspaceGrid";
-    params.main.appendChild(workspaceGrid);
+
+    workspaceViewport.appendChild(workspaceViewportInner);
+    workspaceViewportInner.appendChild(workspaceGrid);
+    params.main.appendChild(workspaceViewport);
     updaters = [];
 
     const triggers = getTriggers(patch);
@@ -171,7 +197,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           e.preventDefault();
           focusPosition({ x: position.x - 1, y: position.y });
         } else if (e.key === "ArrowRight") {
-          if (position.x >= WORKSPACE_COLUMNS - 1) return;
+          if (position.x >= renderedColumns - 1) return;
           e.preventDefault();
           focusPosition({ x: position.x + 1, y: position.y });
         } else if (e.key === "ArrowUp") {
@@ -298,39 +324,55 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       return surfaceRoot;
     };
 
-    const { modulesByPosition, totalCells } = resolveGridLayout(patch.modules);
+    const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
+    renderedColumns = Math.max(visibleColumns, maxOccupiedX + 1, MIN_VISIBLE_COLUMNS);
+    workspaceGrid.style.setProperty("--workspace-visible-columns", String(visibleColumns));
+    workspaceGrid.style.setProperty("--workspace-render-columns", String(renderedColumns));
 
     if (inspectedModuleId && !patch.modules.some((module) => module.id === inspectedModuleId)) inspectedModuleId = null;
 
-    for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
-      const position = slotIndexToGridPosition(slotIndex);
-      const module = modulesByPosition.get(gridPositionKey(position));
-      if (module) {
-        const surface = renderModuleSurface(module, position);
-        workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
-        continue;
-      }
+    for (let y = 0; y < totalRows; y++) {
+      for (let x = 0; x < renderedColumns; x++) {
+        const position = { x, y };
+        const slotIndex = y * renderedColumns + x;
+        const module = modulesByPosition.get(gridPositionKey(position));
+        if (module) {
+          const surface = renderModuleSurface(module, position);
+          workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
+          continue;
+        }
 
-      const slot = renderAddModuleSlot({
-        position,
-        onPick: (what) => createModuleAt(what, position),
-        onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
-      });
-      focusableByPosition.set(gridPositionKey(position), slot);
-      handleGridNavigation(slot, position);
-      slot.addEventListener("focusin", () => {
-        inspectedModuleId = null;
-        applyRoutingHighlight();
-      });
-      slot.addEventListener("pointerdown", () => {
-        inspectedModuleId = null;
-        applyRoutingHighlight();
-      });
-      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position }));
+        const slot = renderAddModuleSlot({
+          position,
+          onPick: (what) => createModuleAt(what, position),
+          onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
+        });
+        focusableByPosition.set(gridPositionKey(position), slot);
+        handleGridNavigation(slot, position);
+        slot.addEventListener("focusin", () => {
+          inspectedModuleId = null;
+          applyRoutingHighlight();
+        });
+        slot.addEventListener("pointerdown", () => {
+          inspectedModuleId = null;
+          applyRoutingHighlight();
+        });
+        workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position }));
+      }
     }
 
     applyRoutingHighlight();
   };
+
+  const resizeObserver = typeof ResizeObserver === "undefined"
+    ? null
+    : new ResizeObserver(() => {
+      const nextVisibleColumns = readVisibleColumnCount(params.main);
+      if (nextVisibleColumns === visibleColumns) return;
+      visibleColumns = nextVisibleColumns;
+      rerender();
+    });
+  resizeObserver?.observe(params.main);
 
   return { rerender, updateFrame: () => { for (const update of updaters) update(); } };
 }

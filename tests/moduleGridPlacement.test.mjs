@@ -17,13 +17,15 @@ test('grid layout resolution keeps canonical module object references', () => {
   assert.equal(layout.modulesByPosition.get('1,0'), drum);
 });
 
-test('grid layout resolution canonicalizes wider-grid coordinates for lookup', () => {
+test('grid layout resolution preserves wider explicit coordinates for lookup', () => {
   const trigger = makeTrigger(0, 'TRG');
   trigger.x = 4;
   trigger.y = 0;
 
   const layout = resolveGridLayout([trigger]);
 
-  assert.equal(layout.modulesByPosition.get('1,1'), trigger);
-  assert.equal(layout.slotByModuleId.get(trigger.id), 4);
+  assert.equal(layout.modulesByPosition.get('4,0'), trigger);
+  assert.equal(layout.maxOccupiedX, 4);
+  assert.equal(layout.maxOccupiedY, 0);
+  assert.equal(layout.totalRows, 3);
 });
