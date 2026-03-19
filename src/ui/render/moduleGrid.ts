@@ -16,6 +16,7 @@ import { renderTriggerSurface } from "../triggerModule";
 import { renderControlSurface } from "../controlModule";
 import { renderVisualSurface } from "../visualModule";
 import { renderAddModuleSlot } from "../AddModuleSlot";
+import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -53,6 +54,7 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
+  let inspectedModuleId: string | null = null;
 
   const removeModule = (moduleId: string) => {
     const prev = params.clonePatch(params.patch());
@@ -67,6 +69,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         }
       }
     }
+    if (inspectedModuleId === moduleId) inspectedModuleId = null;
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
     params.sched.regenAll();
@@ -132,6 +135,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
   const rerender = () => {
     const patch = params.patch();
+    const routing = buildRoutingSnapshot(patch);
     params.main.innerHTML = "";
 
     const workspaceGrid = document.createElement("div");
@@ -144,10 +148,34 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const triggerOptions = triggers.map((t) => ({ id: t.id, label: `${t.name} (${t.id.slice(-4)})` }));
     const controlOptions = controls.map((c) => ({ id: c.id, label: `${c.name} (${c.kind})` }));
 
+    const surfaceByModuleId = new Map<string, HTMLElement>();
+
+    const applyRoutingHighlight = () => {
+      const inspected = inspectedModuleId ? patch.modules.find((module) => module.id === inspectedModuleId) : null;
+      const related = inspected ? new Set(getConnectedModuleIds(routing, inspected)) : new Set<string>();
+
+      for (const [moduleId, surface] of surfaceByModuleId.entries()) {
+        surface.classList.toggle("routingInspect", moduleId === inspectedModuleId);
+        surface.classList.toggle("routingLinked", related.has(moduleId));
+      }
+    };
+
+    const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
+      params.onPatchChange(fn, opts);
+      rerender();
+    };
+
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement) => {
       surface.draggable = true;
+      surface.tabIndex = 0;
       surface.classList.add("draggableModule");
       surface.dataset.moduleId = moduleId;
+      surfaceByModuleId.set(moduleId, surface);
+
+      const inspect = () => {
+        inspectedModuleId = moduleId;
+        applyRoutingHighlight();
+      };
 
       surface.addEventListener("dragstart", (e) => {
         surface.classList.add("dragging");
@@ -156,13 +184,15 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
       });
       surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
+      surface.addEventListener("pointerdown", inspect);
+      surface.addEventListener("focusin", inspect);
     };
 
     const renderModuleSurface = (module: Patch["modules"][number]) => {
       const surfaceRoot = document.createElement("div");
 
       if (module.type === "trigger") {
-        const upd = renderTriggerSurface(surfaceRoot, module, params.onPatchChange, controlOptions, () => removeModule(module.id));
+        const upd = renderTriggerSurface(surfaceRoot, module, routing, params.onPatchChange, onRoutingChange, controlOptions, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "trigger", surface);
         updaters.push(upd);
@@ -173,8 +203,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         const upd = renderDrumModuleSurface({
           root: surfaceRoot,
           v: module,
+          routing,
           getLedState: params.led,
           onPatchChange: params.onPatchChange,
+          onRoutingChange,
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
           controlOptions,
@@ -190,8 +222,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         const upd = renderSynthModuleSurface({
           root: surfaceRoot,
           v: module,
+          routing,
           getLedState: params.led,
           onPatchChange: params.onPatchChange,
+          onRoutingChange,
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
           controlOptions,
@@ -204,7 +238,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
 
       if (module.type === "control") {
-        const upd = renderControlSurface(surfaceRoot, module, params.onPatchChange, () => removeModule(module.id));
+        const upd = renderControlSurface(surfaceRoot, module, routing, params.onPatchChange, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "control", surface);
         updaters.push(upd);
@@ -212,7 +246,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
 
       if (module.type === "visual") {
-        const upd = renderVisualSurface(surfaceRoot, params.engine, patch, module, () => removeModule(module.id));
+        const upd = renderVisualSurface(surfaceRoot, params.engine, module, routing, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, module.kind, surface);
         updaters.push(upd);
@@ -222,6 +256,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     };
 
     const { modulesByPosition, totalCells } = resolveGridLayout(patch.modules);
+
+    if (inspectedModuleId && !patch.modules.some((module) => module.id === inspectedModuleId)) inspectedModuleId = null;
 
     for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
       const position = slotIndexToGridPosition(slotIndex);
@@ -237,8 +273,18 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         onPick: (what) => createModuleAt(what, position),
         onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
       });
+      slot.addEventListener("focusin", () => {
+        inspectedModuleId = null;
+        applyRoutingHighlight();
+      });
+      slot.addEventListener("pointerdown", () => {
+        inspectedModuleId = null;
+        applyRoutingHighlight();
+      });
       workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position }));
     }
+
+    applyRoutingHighlight();
   };
 
   return { rerender, updateFrame: () => { for (const update of updaters) update(); } };
