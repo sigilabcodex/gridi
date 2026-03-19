@@ -4,6 +4,7 @@ import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { loadSettings } from "../settings/store";
 import { createTransportHeader } from "./header/transportHeader";
+import { createAmbientBackgroundLayer } from "./ambientBackground";
 import { createUndoRedoHistory } from "./history/undoRedo";
 import { openPresetManagerModal } from "./modals/presetManagerModal";
 import { openSettingsModal } from "./modals/settingsModal";
@@ -319,6 +320,12 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   syncEngineFromPatch(patch, true);
 
   root.innerHTML = "";
+
+  const background = createAmbientBackgroundLayer(root);
+  const shell = document.createElement("div");
+  shell.className = "appShell";
+  root.appendChild(shell);
+
   const main = document.createElement("main");
 
   const led = (moduleId: string) => {
@@ -344,7 +351,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   });
 
   const header = createTransportHeader({
-    root,
+    root: shell,
     patch: () => patch,
     presetLabel: () => `${selectedPreset().name}${hasUnsavedChanges() ? " *" : ""}`,
     presetNames: () => session.presets.map((preset) => ({ id: preset.id, name: preset.name })),
@@ -464,7 +471,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     },
   });
 
-  root.appendChild(main);
+  shell.appendChild(main);
 
   window.addEventListener("keydown", (e) => {
     const isMac = navigator.platform.toLowerCase().includes("mac");
@@ -517,7 +524,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     updateStatus: header.updateStatus,
   });
 
-  const frame = () => {
+  const frame = (timestamp: number) => {
+    background.updateFrame(timestamp);
     gridRenderer.updateFrame();
     requestAnimationFrame(frame);
   };
