@@ -24,6 +24,7 @@ export type Engine = {
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
   getSpectrumData(out?: Float32Array): Float32Array; // 0..1 (normalized)
+  getMasterActivity(): { level: number; transient: number; active: boolean };
 };
 
 const EPS = 1e-5;
@@ -95,6 +96,9 @@ export function createEngine(): Engine {
   const scopeByte = new Uint8Array(analyser.fftSize);
   const specFloat = new Float32Array(analyser.frequencyBinCount);
   const specByte = new Uint8Array(analyser.frequencyBinCount);
+  let lastActivityLevel = 0;
+  let smoothedActivityLevel = 0;
+  let transientActivity = 0;
 
   // now that voices are “modular”, allow more than 8
   const voiceLastTrigMs = new Map<string, number>();
@@ -238,6 +242,30 @@ export function createEngine(): Engine {
     analyser.getByteFrequencyData(specByte);
     for (let i = 0; i < buf.length; i++) buf[i] = specByte[i] / 255;
     return buf;
+  }
+
+  function getMasterActivity() {
+    getScopeData(scopeBuf);
+    let peak = 0;
+    let rmsSum = 0;
+    for (let i = 0; i < scopeBuf.length; i += 1) {
+      const sample = Math.abs(scopeBuf[i]);
+      peak = Math.max(peak, sample);
+      rmsSum += sample * sample;
+    }
+
+    const rms = Math.sqrt(rmsSum / Math.max(1, scopeBuf.length));
+    const level = clamp01(Math.max(peak * 0.85, rms * 1.8));
+    smoothedActivityLevel += (level - smoothedActivityLevel) * 0.2;
+    const delta = Math.max(0, level - lastActivityLevel);
+    transientActivity = transientActivity * 0.72 + delta * 1.35;
+    lastActivityLevel = level;
+
+    return {
+      level: smoothedActivityLevel,
+      transient: clamp01(transientActivity),
+      active: smoothedActivityLevel > 0.018 || transientActivity > 0.03,
+    };
   }
 
   function triggerVoice(moduleId: string, patch: Patch, when?: number) {
@@ -430,5 +458,6 @@ export function createEngine(): Engine {
     triggerVoice,
     getScopeData,
     getSpectrumData,
+    getMasterActivity,
   };
 }
