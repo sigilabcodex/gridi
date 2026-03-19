@@ -59,9 +59,9 @@ body {
 
 .ambientBackground::before {
   background:
-    radial-gradient(1400px 900px at 20% 10%, rgba(54, 111, 160, 0.11), transparent 58%),
-    radial-gradient(900px 700px at 82% 18%, rgba(53, 120, 132, 0.08), transparent 62%),
-    radial-gradient(1200px 900px at 50% 100%, rgba(26, 66, 98, 0.12), transparent 68%),
+    radial-gradient(1400px 900px at 20% 10%, rgba(54, 111, 160, 0.14), transparent 58%),
+    radial-gradient(900px 700px at 82% 18%, rgba(53, 120, 132, 0.1), transparent 62%),
+    radial-gradient(1200px 900px at 50% 100%, rgba(26, 66, 98, 0.15), transparent 68%),
     linear-gradient(180deg, #050d14 0%, #061019 32%, #05090f 100%);
   background-repeat: no-repeat;
   background-position: center top;
@@ -79,7 +79,7 @@ body {
   width: 100%;
   height: 100%;
   display: block;
-  opacity: 0.94;
+  opacity: 0.97;
 }
 
 header {
@@ -1332,14 +1332,17 @@ button.danger.armed {
 }
 
 .workspaceGrid {
-  grid-template-columns: repeat(auto-fill, minmax(var(--module-cell-w), var(--module-cell-w)));
-  justify-content: start;
+  grid-template-columns: repeat(3, minmax(0, var(--module-cell-w)));
+  justify-content: center;
   align-items: start;
   gap: 10px;
+  width: min(100%, calc(var(--module-cell-w) * 3 + 20px));
+  max-width: calc(var(--module-cell-w) * 3 + 20px);
+  margin-inline: auto;
   padding: 8px;
-  border: 1px solid rgba(207, 214, 221, 0.05);
+  border: 1px solid rgba(207, 214, 221, 0.06);
   border-radius: 18px;
-  background: rgba(8, 12, 17, 0.2);
+  background: rgba(8, 12, 17, 0.26);
 }
 
 .moduleCell {
@@ -2104,23 +2107,16 @@ button:focus-visible,
   font-variant-numeric: tabular-nums;
   font-size: 10px;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .knobCtl .ctlValueButton {
   justify-self: center;
 }
 
-.ctlFloat .ctlValueButton::after {
-  content: " edit";
-  opacity: 0.48;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-size: 8px;
-}
-
-.ctlEditorOpen .ctlValueButton,
-.ctlEditorOpen.knob,
-.ctlEditorOpen.ctlPrimaryHit {
+.ctlFloat.ctlEditorOpen .ctlValueButton,
+.ctlFloat.ctlEditorOpen .knob,
+.ctlFloat.ctlEditorOpen .ctlPrimaryHit {
   border-color: rgba(125, 212, 255, 0.48);
   box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.16) inset;
 }
@@ -2250,4 +2246,11 @@ button:focus-visible,
 
 .hidden {
   display: none !important;
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  :root {
+    --module-cell-w: 300px;
+    --module-cell-h: 336px;
+  }
 }

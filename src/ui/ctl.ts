@@ -33,12 +33,6 @@ function defaultFormat(x: number, step: number) {
   return x.toFixed(3);
 }
 
-function commitNormalized(raw: number, o: CtlFloatOpts, normalize: (x: number) => number, syncDisplay: (x: number) => void) {
-  const next = normalize(raw);
-  syncDisplay(next);
-  o.onChange(next);
-}
-
 export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   const doClamp = o.clamp ?? true;
 
@@ -54,18 +48,26 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   };
 
   let currentValue = normalize(o.value);
-  const setCurrentValue = (x: number) => {
-    currentValue = normalize(x);
-    if (valueBtn) valueBtn.textContent = fmt(currentValue);
-    if (numberInput) numberInput.value = String(currentValue);
-  };
-
   let editorOpen = false;
-  let editorCleanup: (() => void) | null = null;
-  let repositionCleanup: { destroy: () => void; update: () => void } | null = null;
+  let repositionCleanup: { destroy: () => void } | null = null;
   let valueBtn: HTMLButtonElement | null = null;
   let numberInput: HTMLInputElement | null = null;
-  let lastAnchorEl: HTMLElement | null = null;
+  let anchorScopeEl: HTMLElement | null = null;
+  let focusRestoreEl: HTMLElement | null = null;
+  let syncControlVisual: (x: number) => void = () => {};
+
+  const syncReadout = (x: number) => {
+    currentValue = normalize(x);
+    if (valueBtn) valueBtn.textContent = fmt(currentValue);
+    if (numberInput && document.activeElement !== numberInput) numberInput.value = String(currentValue);
+  };
+
+  const applyValue = (x: number, opts?: { emit?: boolean; syncControl?: boolean }) => {
+    const next = normalize(x);
+    syncReadout(next);
+    if (opts?.syncControl ?? true) syncControlVisual(next);
+    if (opts?.emit) o.onChange(next);
+  };
 
   const editor = document.createElement("div");
   editor.className = "floatingPanel ctlEditor hidden";
@@ -99,14 +101,14 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   const commitFromInput = () => {
     const parsed = Number.parseFloat(numberInput?.value ?? "");
     if (!Number.isFinite(parsed)) {
-      setCurrentValue(currentValue);
+      syncReadout(currentValue);
       return;
     }
-    commitNormalized(parsed, o, normalize, setCurrentValue);
+    applyValue(parsed, { emit: true, syncControl: true });
   };
 
-  numberInput.addEventListener("input", () => commitFromInput());
-  numberInput.addEventListener("change", () => commitFromInput());
+  numberInput.addEventListener("input", commitFromInput);
+  numberInput.addEventListener("change", commitFromInput);
   numberInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -136,14 +138,14 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   const onDocPointerDown = (e: Event) => {
     const target = e.target as Node | null;
     if (!target) return;
-    if (editor.contains(target) || lastAnchorEl?.contains(target)) return;
+    if (editor.contains(target) || anchorScopeEl?.contains(target)) return;
     closeEditor();
   };
 
   const onDocFocusIn = (e: Event) => {
     const target = e.target as Node | null;
     if (!target) return;
-    if (editor.contains(target) || lastAnchorEl?.contains(target)) return;
+    if (editor.contains(target) || anchorScopeEl?.contains(target)) return;
     closeEditor();
   };
 
@@ -152,43 +154,43 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
     editorOpen = false;
     editor.classList.add("hidden");
     editor.remove();
-    editorCleanup?.();
-    editorCleanup = null;
     repositionCleanup?.destroy();
     repositionCleanup = null;
     document.removeEventListener("pointerdown", onDocPointerDown, true);
     document.removeEventListener("focusin", onDocFocusIn, true);
     document.removeEventListener("keydown", onEscapeKey, true);
-    lastAnchorEl?.classList.remove("ctlEditorOpen");
-    if (opts?.restoreFocus) lastAnchorEl?.focus();
+    anchorScopeEl?.classList.remove("ctlEditorOpen");
+    if (opts?.restoreFocus) focusRestoreEl?.focus();
   }
 
   function onEscapeKey(e: KeyboardEvent) {
-    if (e.key !== "Escape") return;
-    if (!editorOpen) return;
+    if (e.key !== "Escape" || !editorOpen) return;
     e.preventDefault();
     e.stopPropagation();
     closeEditor({ restoreFocus: true });
   }
 
   function openEditor(anchorEl: HTMLElement) {
-    if (editorOpen) {
-      closeEditor();
+    const scopeEl = anchorEl.closest<HTMLElement>(".ctlFloat") ?? anchorEl;
+    if (editorOpen && anchorScopeEl === scopeEl) {
+      closeEditor({ restoreFocus: true });
       return;
     }
+    if (editorOpen) closeEditor();
 
-    lastAnchorEl = anchorEl;
-    setCurrentValue(currentValue);
+    focusRestoreEl = anchorEl;
+    anchorScopeEl = scopeEl;
+    syncReadout(currentValue);
     editor.classList.remove("hidden");
     document.body.appendChild(editor);
-    placeFloatingPanel(editor, anchorEl.getBoundingClientRect(), {
+    placeFloatingPanel(editor, scopeEl.getBoundingClientRect(), {
       preferredSide: "bottom",
       align: "center",
       offset: 10,
       minWidth: 188,
       maxWidth: 250,
     });
-    repositionCleanup = bindFloatingPanelReposition(editor, () => lastAnchorEl?.isConnected ? lastAnchorEl.getBoundingClientRect() : null, {
+    repositionCleanup = bindFloatingPanelReposition(editor, () => anchorScopeEl?.isConnected ? anchorScopeEl.getBoundingClientRect() : null, {
       preferredSide: "bottom",
       align: "center",
       offset: 10,
@@ -196,12 +198,11 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
       maxWidth: 250,
     });
     editorOpen = true;
-    lastAnchorEl.classList.add("ctlEditorOpen");
+    anchorScopeEl.classList.add("ctlEditorOpen");
     document.addEventListener("pointerdown", onDocPointerDown, true);
     document.addEventListener("focusin", onDocFocusIn, true);
     document.addEventListener("keydown", onEscapeKey, true);
     queueMicrotask(() => numberInput?.focus());
-    editorCleanup = () => {};
   }
 
   if (!prefersSliders()) {
@@ -213,13 +214,13 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
       step: o.step,
       format: (x) => fmt(x),
       onChange: (x) => {
-        currentValue = normalize(x);
-        o.onChange(currentValue);
-        if (numberInput) numberInput.value = String(currentValue);
+        applyValue(x, { syncControl: false });
+        o.onChange(normalize(x));
       },
       onRequestEditor: () => openEditor(k.knobEl),
       center: o.center,
     });
+    syncControlVisual = (x) => k.setValue(x, false);
     valueBtn = k.valueEl;
     return k.el;
   }
@@ -238,6 +239,9 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   r.max = String(o.max);
   r.step = String(o.step);
   r.value = String(currentValue);
+  syncControlVisual = (x) => {
+    r.value = String(normalize(x));
+  };
 
   valueBtn = document.createElement("button");
   valueBtn.type = "button";
@@ -247,7 +251,7 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
 
   r.oninput = () => {
     const x = normalize(parseFloat(r.value));
-    setCurrentValue(x);
+    applyValue(x, { syncControl: false });
     o.onChange(x);
   };
   r.addEventListener("keydown", (e) => {
