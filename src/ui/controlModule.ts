@@ -4,6 +4,7 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createModuleTabShell } from "./moduleShell";
 import {
+  createCompactSelectField,
   createRoutingCard,
   createRoutingChip,
   createRoutingSummary,
@@ -63,39 +64,33 @@ export function renderControlSurface(
   panelMain.className = "surfaceTabPanel controlBody";
   panelMain.append(
     createRoutingSummaryStrip([
-      createRoutingSummary("Targets", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
+      createRoutingSummary("To", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
     ]),
   );
 
-  const kindSel = document.createElement("select");
-  for (const kind of KINDS) {
-    const o = document.createElement("option");
-    o.value = kind;
-    o.textContent = kind.toUpperCase();
-    if (kind === mod.kind) o.selected = true;
-    kindSel.appendChild(o);
-  }
-  kindSel.onchange = () => onPatchChange((p) => {
-    const m = p.modules.find((x) => x.id === mod.id);
-    if (m?.type === "control") m.kind = kindSel.value as ControlKind;
-  }, { regen: false });
+  const kindField = createCompactSelectField({
+    label: "Mode",
+    options: KINDS.map((kind) => ({ value: kind, label: kind.toUpperCase() })),
+    selected: mod.kind,
+    onChange: (value) => onPatchChange((p) => {
+      const m = p.modules.find((x) => x.id === mod.id);
+      if (m?.type === "control" && value) m.kind = value as ControlKind;
+    }, { regen: false }),
+  });
 
-  const waveSel = document.createElement("select");
-  for (const wave of WAVES) {
-    const o = document.createElement("option");
-    o.value = wave;
-    o.textContent = wave;
-    if (wave === mod.waveform) o.selected = true;
-    waveSel.appendChild(o);
-  }
-  waveSel.onchange = () => onPatchChange((p) => {
-    const m = p.modules.find((x) => x.id === mod.id);
-    if (m?.type === "control") m.waveform = waveSel.value as LfoWaveform;
-  }, { regen: false });
+  const waveField = createCompactSelectField({
+    label: "Shape",
+    options: WAVES.map((wave) => ({ value: wave, label: wave })),
+    selected: mod.waveform,
+    onChange: (value) => onPatchChange((p) => {
+      const m = p.modules.find((x) => x.id === mod.id);
+      if (m?.type === "control" && value) m.waveform = value as LfoWaveform;
+    }, { regen: false }),
+  });
 
   const typeRow = document.createElement("div");
   typeRow.className = "controlTypeRow";
-  typeRow.append(kindSel, waveSel);
+  typeRow.append(kindField.wrap, waveField.wrap);
 
   const meter = document.createElement("div");
   meter.className = "controlMeter";
@@ -109,7 +104,7 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.speed = x;
     }, { regen: false }) }),
-    ctlFloat({ label: "Amount", value: mod.amount, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+    ctlFloat({ label: "Amt", value: mod.amount, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.amount = x;
     }, { regen: false }) }),
@@ -121,7 +116,7 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.rate = x;
     }, { regen: false }) }),
-    ctlFloat({ label: "Random", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+    ctlFloat({ label: "Rand", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.randomness = x;
     }, { regen: false }) }),
@@ -130,7 +125,7 @@ export function renderControlSurface(
 
   const panelRouting = document.createElement("div");
   panelRouting.className = "utilityPanel";
-  const targetCard = createRoutingCard("Current targets", controlTargets.length ? `${controlTargets.length} assignments` : "This control is not modulating anything yet");
+  const targetCard = createRoutingCard("Targets", controlTargets.length ? `${controlTargets.length} lane${controlTargets.length === 1 ? "" : "s"}` : "No routes");
   const targetList = document.createElement("div");
   targetList.className = "routingChipList";
   if (controlTargets.length) {
@@ -156,6 +151,7 @@ export function renderControlSurface(
     syncToggle();
     const val = sampleControl01(mod, performance.now() / 1000);
     meterFill.style.width = `${Math.round(val * 100)}%`;
-    waveSel.disabled = mod.kind !== "lfo";
+    waveField.select.disabled = mod.kind !== "lfo";
+    waveField.wrap.classList.toggle("isDisabled", mod.kind !== "lfo");
   };
 }
