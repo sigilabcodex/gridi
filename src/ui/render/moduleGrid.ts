@@ -3,6 +3,7 @@ import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
 import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
 import {
+  WORKSPACE_COLUMNS,
   gridPositionKey,
   gridPositionToSlotIndex,
   resolveGridLayout,
@@ -50,6 +51,13 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   cell.append(substrate, bed);
   cell.appendChild(surface);
   return cell;
+}
+
+function focusFirstInteractive(surface: HTMLElement) {
+  const target = surface.querySelector<HTMLElement>(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  );
+  target?.focus();
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -109,7 +117,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             ? m.type === "drum"
             : what === "tonal"
               ? m.type === "tonal"
-              : m.type === "visual"
+              : m.type === "visual",
     ).length;
 
     const created = what === "drum" || what === "tonal"
@@ -149,6 +157,36 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const controlOptions = controls.map((c) => ({ id: c.id, label: `${c.name} (${c.kind})` }));
 
     const surfaceByModuleId = new Map<string, HTMLElement>();
+    const focusableByPosition = new Map<string, HTMLElement>();
+
+    const focusPosition = (position: GridPosition) => {
+      focusableByPosition.get(gridPositionKey(position))?.focus();
+    };
+
+    const handleGridNavigation = (surface: HTMLElement, position: GridPosition) => {
+      surface.addEventListener("keydown", (e) => {
+        if (e.target !== surface) return;
+        if (e.key === "ArrowLeft") {
+          if (position.x <= 0) return;
+          e.preventDefault();
+          focusPosition({ x: position.x - 1, y: position.y });
+        } else if (e.key === "ArrowRight") {
+          if (position.x >= WORKSPACE_COLUMNS - 1) return;
+          e.preventDefault();
+          focusPosition({ x: position.x + 1, y: position.y });
+        } else if (e.key === "ArrowUp") {
+          if (position.y <= 0) return;
+          e.preventDefault();
+          focusPosition({ x: position.x, y: position.y - 1 });
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          focusPosition({ x: position.x, y: position.y + 1 });
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          focusFirstInteractive(surface);
+        }
+      });
+    };
 
     const applyRoutingHighlight = () => {
       const inspected = inspectedModuleId ? patch.modules.find((module) => module.id === inspectedModuleId) : null;
@@ -165,12 +203,17 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       rerender();
     };
 
-    const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement) => {
+    const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
       surface.draggable = true;
       surface.tabIndex = 0;
       surface.classList.add("draggableModule");
       surface.dataset.moduleId = moduleId;
+      surface.dataset.gridX = String(position.x);
+      surface.dataset.gridY = String(position.y);
+      surface.setAttribute("aria-label", `Module ${moduleId.slice(-4)} at ${position.x + 1}, ${position.y + 1}`);
       surfaceByModuleId.set(moduleId, surface);
+      focusableByPosition.set(gridPositionKey(position), surface);
+      handleGridNavigation(surface, position);
 
       const inspect = () => {
         inspectedModuleId = moduleId;
@@ -188,13 +231,13 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.addEventListener("focusin", inspect);
     };
 
-    const renderModuleSurface = (module: Patch["modules"][number]) => {
+    const renderModuleSurface = (module: Patch["modules"][number], position: GridPosition) => {
       const surfaceRoot = document.createElement("div");
 
       if (module.type === "trigger") {
         const upd = renderTriggerSurface(surfaceRoot, module, routing, params.onPatchChange, onRoutingChange, controlOptions, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "trigger", surface);
+        registerModuleSurface(module.id, "trigger", surface, position);
         updaters.push(upd);
         return surface;
       }
@@ -213,7 +256,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "drum", surface);
+        registerModuleSurface(module.id, "drum", surface, position);
         updaters.push(upd);
         return surface;
       }
@@ -232,7 +275,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "tonal", surface);
+        registerModuleSurface(module.id, "tonal", surface, position);
         updaters.push(upd);
         return surface;
       }
@@ -240,7 +283,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       if (module.type === "control") {
         const upd = renderControlSurface(surfaceRoot, module, routing, params.onPatchChange, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "control", surface);
+        registerModuleSurface(module.id, "control", surface, position);
         updaters.push(upd);
         return surface;
       }
@@ -248,7 +291,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       if (module.type === "visual") {
         const upd = renderVisualSurface(surfaceRoot, params.engine, module, routing, () => removeModule(module.id));
         const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, module.kind, surface);
+        registerModuleSurface(module.id, module.kind, surface, position);
         updaters.push(upd);
         return surface;
       }
@@ -263,7 +306,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const position = slotIndexToGridPosition(slotIndex);
       const module = modulesByPosition.get(gridPositionKey(position));
       if (module) {
-        const surface = renderModuleSurface(module);
+        const surface = renderModuleSurface(module, position);
         workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
         continue;
       }
@@ -273,6 +316,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         onPick: (what) => createModuleAt(what, position),
         onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
       });
+      focusableByPosition.set(gridPositionKey(position), slot);
+      handleGridNavigation(slot, position);
       slot.addEventListener("focusin", () => {
         inspectedModuleId = null;
         applyRoutingHighlight();

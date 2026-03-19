@@ -7,6 +7,7 @@ export type KnobOpts = {
   label?: string;
   format?: (v: number) => string;
   onChange: (v: number) => void;
+  onRequestEditor?: () => void;
 
   /**
    * If provided, value==center maps to the middle of the travel (12 o'clock).
@@ -17,31 +18,42 @@ export type KnobOpts = {
 
 export function knob(
   opts: KnobOpts
-): { el: HTMLElement; setValue: (v: number, emit?: boolean) => void; getValue: () => number } {
+): {
+  el: HTMLElement;
+  knobEl: HTMLElement;
+  valueEl: HTMLButtonElement;
+  setValue: (v: number, emit?: boolean) => void;
+  getValue: () => number;
+} {
   const wrap = document.createElement("div");
-  wrap.className = "knobCtl";
+  wrap.className = "knobCtl ctlFloat";
 
   if (opts.label) {
     const lab = document.createElement("label");
+    lab.className = "ctlLabel";
     lab.textContent = opts.label;
     wrap.appendChild(lab);
   }
 
   const knobEl = document.createElement("div");
-  knobEl.className = "knob";
+  knobEl.className = "knob ctlPrimaryHit";
   knobEl.tabIndex = 0;
+  knobEl.setAttribute("role", "slider");
 
-  const valEl = document.createElement("div");
-  valEl.className = "knobVal";
+  const valEl = document.createElement("button");
+  valEl.className = "knobVal ctlValueButton";
+  valEl.type = "button";
+  valEl.tabIndex = -1;
+  valEl.setAttribute("aria-hidden", "true");
 
   wrap.append(knobEl, valEl);
 
   const size = 54;
   const r = 20;
-  const cx = 27,
-    cy = 27;
-const startA = (-225 * Math.PI) / 180;
-const endA   = (  45 * Math.PI) / 180;
+  const cx = 27;
+  const cy = 27;
+  const startA = (-225 * Math.PI) / 180;
+  const endA = (45 * Math.PI) / 180;
 
   const svgNS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(svgNS, "svg");
@@ -100,27 +112,26 @@ const endA   = (  45 * Math.PI) / 180;
     return `M ${p0.x} ${p0.y} A ${r} ${r} 0 ${large} 1 ${p1.x} ${p1.y}`;
   };
 
-  // value -> normalized t in [0..1]
   const valueToT = (v: number) => {
     const min = opts.min;
     const max = opts.max;
     const c = opts.center;
 
     if (c === undefined) return (v - min) / (max - min || 1);
-
-    // avoid weird division if center equals bounds
     if (c <= min || c >= max) return (v - min) / (max - min || 1);
 
     if (v <= c) {
-      const a = (v - min) / (c - min); // 0..1
-      return 0.5 * a; // 0..0.5
-    } else {
-      const b = (v - c) / (max - c); // 0..1
-      return 0.5 + 0.5 * b; // 0.5..1
+      const a = (v - min) / (c - min);
+      return 0.5 * a;
     }
+
+    const b = (v - c) / (max - c);
+    return 0.5 + 0.5 * b;
   };
 
   let value = clamp(opts.value);
+
+  const describeValue = () => (opts.format ? opts.format(value) : value.toFixed(3));
 
   const render = () => {
     const t = valueToT(value);
@@ -133,7 +144,13 @@ const endA   = (  45 * Math.PI) / 180;
     needle.setAttribute("x2", String(nx));
     needle.setAttribute("y2", String(ny));
 
-    valEl.textContent = opts.format ? opts.format(value) : value.toFixed(3);
+    const text = describeValue();
+    valEl.textContent = text;
+    knobEl.setAttribute("aria-valuemin", String(opts.min));
+    knobEl.setAttribute("aria-valuemax", String(opts.max));
+    knobEl.setAttribute("aria-valuenow", String(value));
+    knobEl.setAttribute("aria-valuetext", text);
+    if (opts.label) knobEl.setAttribute("aria-label", `${opts.label} ${text}`);
   };
 
   const setValue = (v: number, emit = true) => {
@@ -144,7 +161,6 @@ const endA   = (  45 * Math.PI) / 180;
 
   const getValue = () => value;
 
-  // pointer drag
   let dragging = false;
   let startY = 0;
   let startV = value;
@@ -174,7 +190,6 @@ const endA   = (  45 * Math.PI) / 180;
   knobEl.addEventListener("pointerup", stopDrag);
   knobEl.addEventListener("pointercancel", stopDrag);
 
-  // wheel
   knobEl.addEventListener(
     "wheel",
     (e) => {
@@ -188,10 +203,9 @@ const endA   = (  45 * Math.PI) / 180;
       const delta = -dir * base * 4 * fine;
       setValue(value + delta, true);
     },
-    { passive: false }
+    { passive: false },
   );
 
-  // keyboard
   knobEl.addEventListener("keydown", (e) => {
     const range = opts.max - opts.min;
     const base = step || range / 200;
@@ -200,12 +214,44 @@ const endA   = (  45 * Math.PI) / 180;
     if (e.key === "ArrowUp" || e.key === "ArrowRight") {
       e.preventDefault();
       setValue(value + base * fine, true);
-    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+      return;
+    }
+    if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
       e.preventDefault();
       setValue(value - base * fine, true);
+      return;
+    }
+    if (e.key === "PageUp") {
+      e.preventDefault();
+      setValue(value + base * 8 * fine, true);
+      return;
+    }
+    if (e.key === "PageDown") {
+      e.preventDefault();
+      setValue(value - base * 8 * fine, true);
+      return;
+    }
+    if (e.key === "Home") {
+      e.preventDefault();
+      setValue(opts.min, true);
+      return;
+    }
+    if (e.key === "End") {
+      e.preventDefault();
+      setValue(opts.max, true);
+      return;
+    }
+    if ((e.key === "Enter" || e.key === " ") && opts.onRequestEditor) {
+      e.preventDefault();
+      opts.onRequestEditor();
     }
   });
 
+  valEl.addEventListener("click", (e) => {
+    e.preventDefault();
+    opts.onRequestEditor?.();
+  });
+
   setValue(value, false);
-  return { el: wrap, setValue, getValue };
+  return { el: wrap, knobEl, valueEl: valEl, setValue, getValue };
 }
