@@ -1,31 +1,24 @@
-const NODE_COUNT = 16;
-const VEIL_COUNT = 3;
-const CONNECTION_DISTANCE = 220;
-const FRAME_INTERVAL_MS = 1000 / 30;
+const BACKGROUND_CONFIG = {
+  frameIntervalMs: 1000 / 30,
+  simulationIntervalMs: 180,
+  minCellSize: 42,
+  maxCellSize: 58,
+  maxDpr: 2,
+  pulseSpawnChance: 0.22,
+  pulseMaxCount: 4,
+  lineAlpha: 0.07,
+  reducedMotionSeedStrength: 0.18,
+} as const;
 
-type DriftNode = {
-  anchorX: number;
-  anchorY: number;
-  radiusX: number;
-  radiusY: number;
-  hue: number;
-  phase: number;
-  phase2: number;
-  speed: number;
-  pulse: number;
-  pulseSpeed: number;
-  size: number;
-};
-
-type Veil = {
-  anchorX: number;
-  anchorY: number;
+type GridPulse = {
+  x: number;
+  y: number;
   radius: number;
+  strength: number;
+  growth: number;
+  decay: number;
   driftX: number;
   driftY: number;
-  phase: number;
-  speed: number;
-  hue: number;
 };
 
 export type AmbientBackgroundController = {
@@ -33,37 +26,76 @@ export type AmbientBackgroundController = {
   destroy: () => void;
 };
 
+type GridField = {
+  cols: number;
+  rows: number;
+  cellSize: number;
+  offsetX: number;
+  offsetY: number;
+  energy: Float32Array;
+  memory: Float32Array;
+  phase: Float32Array;
+  bias: Float32Array;
+};
+
 function rand(min: number, max: number) {
   return min + Math.random() * (max - min);
 }
 
-function createNodes() {
-  return Array.from({ length: NODE_COUNT }, () => ({
-    anchorX: rand(0.08, 0.92),
-    anchorY: rand(0.08, 0.92),
-    radiusX: rand(22, 120),
-    radiusY: rand(16, 90),
-    hue: rand(188, 210),
-    phase: rand(0, Math.PI * 2),
-    phase2: rand(0, Math.PI * 2),
-    speed: rand(0.35, 1.1),
-    pulse: rand(0, Math.PI * 2),
-    pulseSpeed: rand(0.3, 0.9),
-    size: rand(1.2, 2.8),
-  } satisfies DriftNode));
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
-function createVeils() {
-  return Array.from({ length: VEIL_COUNT }, () => ({
-    anchorX: rand(0.15, 0.85),
-    anchorY: rand(0.12, 0.88),
-    radius: rand(220, 420),
-    driftX: rand(40, 120),
-    driftY: rand(30, 90),
-    phase: rand(0, Math.PI * 2),
-    speed: rand(0.15, 0.45),
-    hue: rand(188, 205),
-  } satisfies Veil));
+function createPulse(cols: number, rows: number): GridPulse {
+  return {
+    x: rand(1, Math.max(2, cols - 2)),
+    y: rand(1, Math.max(2, rows - 2)),
+    radius: rand(0.8, 1.6),
+    strength: rand(0.12, 0.24),
+    growth: rand(0.16, 0.28),
+    decay: rand(0.9, 0.95),
+    driftX: rand(-0.04, 0.04),
+    driftY: rand(-0.03, 0.03),
+  };
+}
+
+function createField(width: number, height: number, reducedMotion: boolean): GridField {
+  const baseCellSize = clamp(Math.round(Math.min(width, height) / 18), BACKGROUND_CONFIG.minCellSize, BACKGROUND_CONFIG.maxCellSize);
+  const cols = Math.max(12, Math.ceil(width / baseCellSize) + 2);
+  const rows = Math.max(8, Math.ceil(height / baseCellSize) + 2);
+  const total = cols * rows;
+  const gridWidth = (cols - 1) * baseCellSize;
+  const gridHeight = (rows - 1) * baseCellSize;
+
+  const energy = new Float32Array(total);
+  const memory = new Float32Array(total);
+  const phase = new Float32Array(total);
+  const bias = new Float32Array(total);
+
+  for (let index = 0; index < total; index += 1) {
+    phase[index] = rand(0, Math.PI * 2);
+    bias[index] = rand(-1, 1);
+    const seed = Math.random();
+    if (seed > 0.94) {
+      const value = reducedMotion
+        ? rand(0.05, BACKGROUND_CONFIG.reducedMotionSeedStrength)
+        : rand(0.04, 0.14);
+      energy[index] = value;
+      memory[index] = value;
+    }
+  }
+
+  return {
+    cols,
+    rows,
+    cellSize: baseCellSize,
+    offsetX: (width - gridWidth) * 0.5,
+    offsetY: (height - gridHeight) * 0.5,
+    energy,
+    memory,
+    phase,
+    bias,
+  };
 }
 
 export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgroundController {
@@ -77,92 +109,203 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
   root.appendChild(layer);
 
   const ctx = canvas.getContext("2d", { alpha: true });
-  const nodes = createNodes();
-  const veils = createVeils();
   const reduceMotionQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") ?? null;
 
   let width = 0;
   let height = 0;
   let dpr = 1;
   let reducedMotion = reduceMotionQuery?.matches ?? false;
-  let lastFrameAt = -FRAME_INTERVAL_MS;
+  let lastFrameAt = -BACKGROUND_CONFIG.frameIntervalMs;
+  let lastSimulationAt = -BACKGROUND_CONFIG.simulationIntervalMs;
   let staticFrameDrawn = false;
+  let pulses: GridPulse[] = [];
+  let field = createField(window.innerWidth, window.innerHeight, reducedMotion);
 
   const resize = () => {
     width = window.innerWidth;
     height = window.innerHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    dpr = Math.min(window.devicePixelRatio || 1, BACKGROUND_CONFIG.maxDpr);
     canvas.width = Math.max(1, Math.round(width * dpr));
     canvas.height = Math.max(1, Math.round(height * dpr));
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
+    field = createField(width, height, reducedMotion);
+    pulses = reducedMotion ? [] : [createPulse(field.cols, field.rows)];
     staticFrameDrawn = false;
   };
 
-  const drawVeils = (time: number) => {
-    for (const veil of veils) {
-      const driftTime = time * 0.00008 * veil.speed;
-      const x = width * veil.anchorX + Math.sin(driftTime + veil.phase) * veil.driftX;
-      const y = height * veil.anchorY + Math.cos(driftTime * 1.2 + veil.phase) * veil.driftY;
-      const gradient = ctx!.createRadialGradient(x, y, 0, x, y, veil.radius);
-      gradient.addColorStop(0, `hsla(${veil.hue}, 76%, 62%, 0.082)`);
-      gradient.addColorStop(0.45, `hsla(${veil.hue - 8}, 68%, 46%, 0.032)`);
-      gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx!.fillStyle = gradient;
-      ctx!.beginPath();
-      ctx!.arc(x, y, veil.radius, 0, Math.PI * 2);
-      ctx!.fill();
+  const simulate = (time: number) => {
+    const { cols, rows, energy, memory, phase, bias } = field;
+    const next = new Float32Array(energy.length);
+
+    if (!reducedMotion && pulses.length < BACKGROUND_CONFIG.pulseMaxCount && Math.random() < BACKGROUND_CONFIG.pulseSpawnChance) {
+      pulses.push(createPulse(cols, rows));
     }
-  };
 
-  const drawField = (time: number) => {
-    const positions = nodes.map((node) => {
-      const driftTime = time * 0.00012 * node.speed;
-      const x = width * node.anchorX
-        + Math.sin(driftTime + node.phase) * node.radiusX
-        + Math.sin(driftTime * 0.53 + node.phase2) * (node.radiusX * 0.28);
-      const y = height * node.anchorY
-        + Math.cos(driftTime * 0.87 + node.phase2) * node.radiusY
-        + Math.sin(driftTime * 0.34 + node.phase) * (node.radiusY * 0.26);
-      const glow = 0.45 + (Math.sin(driftTime * node.pulseSpeed + node.pulse) + 1) * 0.28;
-      return { x, y, glow, node };
-    });
+    pulses = pulses
+      .map((pulse) => ({
+        ...pulse,
+        x: pulse.x + pulse.driftX,
+        y: pulse.y + pulse.driftY,
+        radius: pulse.radius + pulse.growth,
+        strength: pulse.strength * pulse.decay,
+      }))
+      .filter((pulse) => (
+        pulse.strength > 0.018
+        && pulse.x > -2
+        && pulse.x < cols + 2
+        && pulse.y > -2
+        && pulse.y < rows + 2
+      ));
 
-    ctx!.lineWidth = 0.65;
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const index = row * cols + col;
+        let neighborSum = 0;
+        let neighborCount = 0;
 
-    for (let i = 0; i < positions.length; i += 1) {
-      const a = positions[i];
-      for (let j = i + 1; j < positions.length; j += 1) {
-        const b = positions[j];
-        const dx = a.x - b.x;
-        const dy = a.y - b.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > CONNECTION_DISTANCE) continue;
-        const strength = (1 - dist / CONNECTION_DISTANCE) ** 2;
-        ctx!.strokeStyle = `rgba(118, 202, 255, ${0.012 + strength * 0.085})`;
-        ctx!.beginPath();
-        ctx!.moveTo(a.x, a.y);
-        ctx!.lineTo(b.x, b.y);
-        ctx!.stroke();
+        for (let y = -1; y <= 1; y += 1) {
+          const nextRow = row + y;
+          if (nextRow < 0 || nextRow >= rows) continue;
+          for (let x = -1; x <= 1; x += 1) {
+            if (x === 0 && y === 0) continue;
+            const nextCol = col + x;
+            if (nextCol < 0 || nextCol >= cols) continue;
+            neighborSum += energy[nextRow * cols + nextCol];
+            neighborCount += 1;
+          }
+        }
+
+        const neighborAvg = neighborCount > 0 ? neighborSum / neighborCount : 0;
+        let pulseInfluence = 0;
+
+        for (const pulse of pulses) {
+          const dx = col - pulse.x;
+          const dy = row - pulse.y;
+          const distance = Math.hypot(dx, dy);
+          const spread = Math.max(1.2, pulse.radius);
+          if (distance > spread * 1.8) continue;
+          const falloff = Math.max(0, 1 - distance / (spread * 1.8));
+          pulseInfluence += falloff * falloff * pulse.strength;
+        }
+
+        const shimmer = Math.sin(time * 0.00012 + phase[index]) * 0.004;
+        const structuralBias = bias[index] * 0.003;
+        const persistence = energy[index] * 0.74;
+        const propagated = neighborAvg * 0.3;
+        const emergence = Math.max(0, neighborAvg - 0.05) * 0.18;
+        const damping = 0.018 + Math.max(0, bias[index]) * 0.004;
+        const value = clamp(
+          persistence + propagated + emergence + pulseInfluence + shimmer + structuralBias - damping,
+          0,
+          0.34,
+        );
+
+        next[index] = value;
+        memory[index] = Math.max(memory[index] * 0.95, value);
       }
     }
 
-    for (const { x, y, glow, node } of positions) {
-      const haloRadius = 24 + glow * 42;
-      const halo = ctx!.createRadialGradient(x, y, 0, x, y, haloRadius);
-      halo.addColorStop(0, `hsla(${node.hue}, 82%, 74%, ${0.055 + glow * 0.032})`);
-      halo.addColorStop(0.5, `hsla(${node.hue - 6}, 88%, 60%, 0.018)`);
-      halo.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx!.fillStyle = halo;
-      ctx!.beginPath();
-      ctx!.arc(x, y, haloRadius, 0, Math.PI * 2);
-      ctx!.fill();
+    field.energy = next;
+  };
 
-      ctx!.fillStyle = `rgba(188, 232, 255, ${0.18 + glow * 0.18})`;
+  const drawGrid = () => {
+    const { cols, rows, cellSize, offsetX, offsetY } = field;
+
+    ctx!.save();
+    ctx!.lineWidth = 1;
+    ctx!.strokeStyle = `rgba(82, 118, 144, ${BACKGROUND_CONFIG.lineAlpha})`;
+
+    for (let col = 0; col < cols; col += 1) {
+      const x = offsetX + col * cellSize;
       ctx!.beginPath();
-      ctx!.arc(x, y, node.size + glow * 0.55, 0, Math.PI * 2);
-      ctx!.fill();
+      ctx!.moveTo(x, 0);
+      ctx!.lineTo(x, height);
+      ctx!.stroke();
     }
+
+    for (let row = 0; row < rows; row += 1) {
+      const y = offsetY + row * cellSize;
+      ctx!.beginPath();
+      ctx!.moveTo(0, y);
+      ctx!.lineTo(width, y);
+      ctx!.stroke();
+    }
+
+    ctx!.restore();
+  };
+
+  const drawCells = () => {
+    const { cols, rows, cellSize, offsetX, offsetY, energy, memory } = field;
+    const innerSize = Math.max(10, cellSize - 12);
+    const halfInner = innerSize * 0.5;
+
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        const index = row * cols + col;
+        const active = energy[index] * 0.7 + memory[index] * 0.55;
+        if (active < 0.015) continue;
+
+        const x = offsetX + col * cellSize;
+        const y = offsetY + row * cellSize;
+        const cellAlpha = Math.min(0.14, active * 0.28);
+
+        ctx!.fillStyle = `rgba(58, 94, 122, ${cellAlpha})`;
+        ctx!.fillRect(x - halfInner, y - halfInner, innerSize, innerSize);
+
+        const nodeRadius = 1.2 + active * 2.1;
+        const glow = ctx!.createRadialGradient(x, y, 0, x, y, cellSize * 0.46);
+        glow.addColorStop(0, `rgba(126, 190, 228, ${0.06 + active * 0.18})`);
+        glow.addColorStop(0.55, `rgba(74, 126, 164, ${0.02 + active * 0.06})`);
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx!.fillStyle = glow;
+        ctx!.beginPath();
+        ctx!.arc(x, y, cellSize * 0.46, 0, Math.PI * 2);
+        ctx!.fill();
+
+        ctx!.fillStyle = `rgba(198, 230, 248, ${0.08 + active * 0.28})`;
+        ctx!.beginPath();
+        ctx!.arc(x, y, nodeRadius, 0, Math.PI * 2);
+        ctx!.fill();
+
+        if (col + 1 < cols) {
+          const neighbor = energy[index + 1] * 0.6 + memory[index + 1] * 0.4;
+          const link = Math.min(active, neighbor);
+          if (link > 0.05) {
+            ctx!.strokeStyle = `rgba(110, 170, 206, ${link * 0.12})`;
+            ctx!.lineWidth = 1;
+            ctx!.beginPath();
+            ctx!.moveTo(x, y);
+            ctx!.lineTo(x + cellSize, y);
+            ctx!.stroke();
+          }
+        }
+
+        if (row + 1 < rows) {
+          const neighbor = energy[index + cols] * 0.6 + memory[index + cols] * 0.4;
+          const link = Math.min(active, neighbor);
+          if (link > 0.05) {
+            ctx!.strokeStyle = `rgba(110, 170, 206, ${link * 0.1})`;
+            ctx!.lineWidth = 1;
+            ctx!.beginPath();
+            ctx!.moveTo(x, y);
+            ctx!.lineTo(x, y + cellSize);
+            ctx!.stroke();
+          }
+        }
+      }
+    }
+  };
+
+  const drawAtmosphere = (time: number) => {
+    const sweepX = width * (0.3 + Math.sin(time * 0.00006) * 0.08);
+    const sweepY = height * (0.26 + Math.cos(time * 0.00005) * 0.06);
+    const glow = ctx!.createRadialGradient(sweepX, sweepY, 0, sweepX, sweepY, Math.max(width, height) * 0.42);
+    glow.addColorStop(0, "rgba(34, 84, 122, 0.075)");
+    glow.addColorStop(0.45, "rgba(20, 46, 71, 0.04)");
+    glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx!.fillStyle = glow;
+    ctx!.fillRect(0, 0, width, height);
   };
 
   const draw = (time: number) => {
@@ -172,16 +315,21 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    drawVeils(time);
-    drawField(time);
+    drawAtmosphere(time);
+    drawGrid();
+    drawCells();
   };
 
   const updateReducedMotion = (event?: MediaQueryListEvent) => {
     reducedMotion = event?.matches ?? reduceMotionQuery?.matches ?? false;
+    resize();
     staticFrameDrawn = false;
   };
 
   resize();
+  if (!reducedMotion) {
+    simulate(0);
+  }
   draw(0);
   staticFrameDrawn = true;
 
@@ -197,7 +345,13 @@ export function createAmbientBackgroundLayer(root: HTMLElement): AmbientBackgrou
         }
         return;
       }
-      if (timestamp - lastFrameAt < FRAME_INTERVAL_MS) return;
+
+      if (timestamp - lastSimulationAt >= BACKGROUND_CONFIG.simulationIntervalMs) {
+        lastSimulationAt = timestamp;
+        simulate(timestamp);
+      }
+
+      if (timestamp - lastFrameAt < BACKGROUND_CONFIG.frameIntervalMs) return;
       lastFrameAt = timestamp;
       draw(timestamp);
       staticFrameDrawn = true;
