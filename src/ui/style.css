@@ -1281,6 +1281,7 @@ button.danger.armed {
   --module-shell-gap: 8px;
   --module-header-h: 58px;
   --module-tabs-h: 34px;
+  --workspace-slot-radius: 18px;
 }
 
 .workspaceGrid {
@@ -1288,20 +1289,70 @@ button.danger.armed {
   justify-content: start;
   align-items: start;
   gap: 10px;
+  padding: 8px;
+  border: 1px solid rgba(207, 214, 221, 0.05);
+  border-radius: 18px;
+  background: rgba(8, 12, 17, 0.2);
 }
 
 .moduleCell {
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: stretch;
+  min-height: 0;
   width: var(--module-cell-w);
   height: var(--module-cell-h);
 }
 
+.moduleCellSubstrate,
+.moduleCellBed {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--workspace-slot-radius);
+}
+
+.moduleCellSubstrate {
+  border: 1px solid rgba(207, 214, 221, 0.05);
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.moduleCellBed {
+  inset: 6px;
+  border: 1px solid rgba(207, 214, 221, 0.035);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), rgba(255, 255, 255, 0));
+}
+
+.moduleCell.occupied .moduleCellSubstrate {
+  border-color: rgba(207, 214, 221, 0.06);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.moduleCell.occupied .moduleCellBed {
+  border-color: rgba(207, 214, 221, 0.03);
+  background: transparent;
+}
+
+.moduleCell.empty .moduleCellSubstrate {
+  border-color: rgba(207, 214, 221, 0.04);
+}
+
 .moduleCell > .moduleSurface,
 .moduleCell > .addModuleSlot {
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  max-height: 100%;
   width: 100%;
   height: 100%;
 }
 
 .moduleSurface {
+  box-sizing: border-box;
   display: grid;
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
   gap: var(--module-shell-gap);
@@ -1491,9 +1542,15 @@ button.danger.armed {
 }
 
 .addModuleSlot {
+  box-sizing: border-box;
   display: grid;
   grid-template-rows: 1fr auto;
+  justify-items: center;
   align-items: center;
+  border-radius: var(--workspace-slot-radius);
+  border-color: rgba(207, 214, 221, 0.1);
+  background: rgba(12, 17, 23, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.01);
 }
 
 @media (max-width: 760px) {
