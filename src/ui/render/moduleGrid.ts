@@ -3,13 +3,11 @@ import type { Engine } from "../../engine/audio";
 import type { Patch, VisualKind } from "../../patch";
 import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
 import {
-  getModuleGridPosition,
   gridPositionKey,
   gridPositionToSlotIndex,
-  normalizeModuleGridPositions,
+  resolveGridLayout,
   setModuleGridPosition,
   slotIndexToGridPosition,
-  WORKSPACE_COLUMNS,
   type GridPosition,
 } from "../../workspacePlacement.ts";
 import type { VoiceTab } from "../voiceModule";
@@ -35,12 +33,6 @@ type ModuleGridParams = {
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
-type WorkspaceLayout = {
-  modulesByPosition: Map<string, Patch["modules"][number]>;
-  slotByModuleId: Map<string, number>;
-  totalCells: number;
-};
-
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
   const cell = document.createElement("div");
   cell.className = `moduleCell ${opts.occupied ? "occupied" : "empty"}`;
@@ -57,30 +49,6 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   cell.append(substrate, bed);
   cell.appendChild(surface);
   return cell;
-}
-
-function resolveWorkspaceSlots(modules: Patch["modules"], columns = WORKSPACE_COLUMNS): WorkspaceLayout {
-  const normalized = normalizeModuleGridPositions(modules.map((module) => ({ ...module })), columns);
-  const modulesByPosition = new Map<string, Patch["modules"][number]>();
-  const slotByModuleId = new Map<string, number>();
-  let highestOccupiedSlot = -1;
-
-  for (const module of normalized) {
-    const position = getModuleGridPosition(module) ?? slotIndexToGridPosition(0, columns);
-    const slotIndex = gridPositionToSlotIndex(position, columns);
-    modulesByPosition.set(gridPositionKey(position), module);
-    slotByModuleId.set(module.id, slotIndex);
-    highestOccupiedSlot = Math.max(highestOccupiedSlot, slotIndex);
-  }
-
-  const cellsNeededForOccupancy = highestOccupiedSlot + 1;
-  const cellsWithTrailingSlot = Math.max(columns, cellsNeededForOccupancy + 1);
-
-  return {
-    modulesByPosition,
-    slotByModuleId,
-    totalCells: Math.ceil(cellsWithTrailingSlot / columns) * columns,
-  };
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -112,7 +80,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const module = nextPatch.modules.find((m) => m.id === moduleId);
     if (!module) return;
 
-    const { slotByModuleId } = resolveWorkspaceSlots(nextPatch.modules);
+    const { slotByModuleId } = resolveGridLayout(nextPatch.modules);
     const destinationSlot = gridPositionToSlotIndex(destination);
     const currentSlot = slotByModuleId.get(module.id);
     if (currentSlot === destinationSlot) return;
@@ -253,7 +221,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       return surfaceRoot;
     };
 
-    const { modulesByPosition, totalCells } = resolveWorkspaceSlots(patch.modules);
+    const { modulesByPosition, totalCells } = resolveGridLayout(patch.modules);
 
     for (let slotIndex = 0; slotIndex < totalCells; slotIndex++) {
       const position = slotIndexToGridPosition(slotIndex);

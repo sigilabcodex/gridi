@@ -5,6 +5,12 @@ export type GridPosition = {
   y: number;
 };
 
+export type ResolvedGridLayout<T> = {
+  modulesByPosition: Map<string, T>;
+  slotByModuleId: Map<string, number>;
+  totalCells: number;
+};
+
 export const WORKSPACE_COLUMNS = 3;
 
 function isValidGridAxis(value: unknown) {
@@ -36,6 +42,10 @@ export function slotIndexToGridPosition(slotIndex: number, columns = WORKSPACE_C
   };
 }
 
+export function canonicalizeGridPosition(position: GridPosition, columns = WORKSPACE_COLUMNS): GridPosition {
+  return slotIndexToGridPosition(gridPositionToSlotIndex(position, columns), columns);
+}
+
 export function setModuleGridPosition(module: Pick<Module, "x" | "y">, position: GridPosition) {
   module.x = position.x;
   module.y = position.y;
@@ -65,4 +75,45 @@ export function normalizeModuleGridPositions<T extends Pick<Module, "id" | "x" |
   }
 
   return modules;
+}
+
+export function resolveGridLayout<T extends Pick<Module, "id" | "x" | "y">>(
+  modules: T[],
+  columns = WORKSPACE_COLUMNS
+): ResolvedGridLayout<T> {
+  const modulesByPosition = new Map<string, T>();
+  const slotByModuleId = new Map<string, number>();
+  let highestOccupiedSlot = -1;
+  let nextDenseSlot = 0;
+
+  const reserveNextDensePosition = () => {
+    let position = slotIndexToGridPosition(nextDenseSlot, columns);
+    while (modulesByPosition.has(gridPositionKey(position))) {
+      nextDenseSlot++;
+      position = slotIndexToGridPosition(nextDenseSlot, columns);
+    }
+    nextDenseSlot++;
+    return position;
+  };
+
+  for (const module of modules) {
+    const preferred = getModuleGridPosition(module);
+    const canonicalPreferred = preferred ? canonicalizeGridPosition(preferred, columns) : null;
+    const position = canonicalPreferred && !modulesByPosition.has(gridPositionKey(canonicalPreferred))
+      ? canonicalPreferred
+      : reserveNextDensePosition();
+    const slotIndex = gridPositionToSlotIndex(position, columns);
+    modulesByPosition.set(gridPositionKey(position), module);
+    slotByModuleId.set(module.id, slotIndex);
+    highestOccupiedSlot = Math.max(highestOccupiedSlot, slotIndex);
+  }
+
+  const cellsNeededForOccupancy = highestOccupiedSlot + 1;
+  const cellsWithTrailingSlot = Math.max(columns, cellsNeededForOccupancy + 1);
+
+  return {
+    modulesByPosition,
+    slotByModuleId,
+    totalCells: Math.ceil(cellsWithTrailingSlot / columns) * columns,
+  };
 }
