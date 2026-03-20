@@ -1,6 +1,7 @@
 import type { Patch } from "../../patch";
 import { APP_DISPLAY_NAME } from "../../version";
 import { el } from "../modals/modal";
+import type { TooltipBinder } from "../tooltip";
 
 type HeaderParams = {
   root: HTMLElement;
@@ -25,6 +26,7 @@ type HeaderParams = {
   onRegen: () => void;
   onSetBpm: (v: number) => void;
   onSetMasterGain: (v: number) => void;
+  attachTooltip: TooltipBinder;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -42,18 +44,33 @@ export function createTransportHeader(params: HeaderParams) {
   status.className = "small";
 
   const btnSettings = el("button", "iconBtn", "⚙");
-  btnSettings.title = "Settings";
   btnSettings.onclick = params.onOpenSettings;
+  params.attachTooltip(btnSettings, {
+    text: "Open app settings and UI preferences.",
+    ariaLabel: "Settings",
+  });
 
   const btnAudio = document.createElement("button");
   btnAudio.className = "primary";
   btnAudio.onclick = params.onToggleAudio;
+  params.attachTooltip(btnAudio, {
+    text: "Start or suspend the audio engine for this tab.",
+    ariaLabel: "Audio engine",
+  });
 
   const btnPlay = document.createElement("button");
   btnPlay.onclick = params.onTogglePlay;
+  params.attachTooltip(btnPlay, {
+    text: "Play or stop the current patch.",
+    ariaLabel: "Transport play stop",
+  });
 
   const btnMute = document.createElement("button");
   btnMute.onclick = params.onToggleMute;
+  params.attachTooltip(btnMute, {
+    text: "Mute or unmute the master output.",
+    ariaLabel: "Master mute",
+  });
 
   const masterWrap = el("div", "bpmWrap");
   const masterLab = el("div", "small", "Master");
@@ -71,23 +88,47 @@ export function createTransportHeader(params: HeaderParams) {
 
   master.oninput = () => params.onSetMasterGain(parseFloat(master.value));
   masterNum.onchange = () => params.onSetMasterGain(parseFloat(masterNum.value));
+  params.attachTooltip(master, {
+    text: "Adjust the overall master output level.",
+    ariaLabel: "Master gain slider",
+  });
+  params.attachTooltip(masterNum, {
+    text: "Enter the master output level directly.",
+    ariaLabel: "Master gain value",
+  });
   masterWrap.append(masterLab, master, masterNum);
 
   const btnReset = document.createElement("button");
   btnReset.textContent = "Reset";
   btnReset.onclick = params.onReset;
+  params.attachTooltip(btnReset, {
+    text: "Reset the current patch back to the default layout.",
+    ariaLabel: "Reset patch",
+  });
 
   const btnReseed = document.createElement("button");
   btnReseed.textContent = "Re-seed";
   btnReseed.onclick = params.onReseed;
+  params.attachTooltip(btnReseed, {
+    text: "Give all trigger modules fresh random seeds.",
+    ariaLabel: "Reseed triggers",
+  });
 
   const btnRandom = document.createElement("button");
   btnRandom.textContent = "Randomize";
   btnRandom.onclick = params.onRandomize;
+  params.attachTooltip(btnRandom, {
+    text: "Randomize trigger and voice parameters in the patch.",
+    ariaLabel: "Randomize patch",
+  });
 
   const btnRegen = document.createElement("button");
   btnRegen.textContent = "Regen";
   btnRegen.onclick = params.onRegen;
+  params.attachTooltip(btnRegen, {
+    text: "Regenerate pattern outputs without rebuilding the patch.",
+    ariaLabel: "Regenerate patterns",
+  });
 
   const presetWrap = document.createElement("div");
   presetWrap.className = "presetWrap";
@@ -98,13 +139,25 @@ export function createTransportHeader(params: HeaderParams) {
   const presetSelect = document.createElement("select");
   presetSelect.className = "presetSelect";
   presetSelect.onchange = () => params.onSelectPreset(presetSelect.value);
+  params.attachTooltip(presetSelect, {
+    text: "Choose the active preset for the current session.",
+    ariaLabel: "Preset selector",
+  });
 
   const btnSavePreset = document.createElement("button");
   btnSavePreset.onclick = params.onSavePreset;
+  params.attachTooltip(btnSavePreset, {
+    text: "Save the current patch into the selected preset.",
+    ariaLabel: "Save preset",
+  });
 
   const btnPresetManager = document.createElement("button");
   btnPresetManager.textContent = "Presets";
   btnPresetManager.onclick = params.onOpenPresetManager;
+  params.attachTooltip(btnPresetManager, {
+    text: "Open preset management actions like import and export.",
+    ariaLabel: "Open preset manager",
+  });
 
   presetWrap.append(presetLabel, presetSelect, btnSavePreset, btnPresetManager);
 
@@ -128,6 +181,14 @@ export function createTransportHeader(params: HeaderParams) {
 
   bpm.oninput = () => params.onSetBpm(parseInt(bpm.value, 10));
   bpmNum.onchange = () => params.onSetBpm(parseInt(bpmNum.value, 10));
+  params.attachTooltip(bpm, {
+    text: "Adjust the global tempo in beats per minute.",
+    ariaLabel: "Tempo slider",
+  });
+  params.attachTooltip(bpmNum, {
+    text: "Enter the tempo in beats per minute.",
+    ariaLabel: "Tempo value",
+  });
   bpmWrap.append(bpmLabel, bpm, bpmNum);
 
   const spacer = document.createElement("div");

@@ -71,7 +71,7 @@ export const settingsSchema: SettingDef[] = [
   {
     key: "ux.tooltips",
     section: "UX",
-    label: "Tooltips",
+    label: "Show tooltips",
     type: "boolean",
     default: true
   }

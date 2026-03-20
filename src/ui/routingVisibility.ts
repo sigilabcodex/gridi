@@ -1,4 +1,5 @@
 import type { Module, Patch, SoundModule } from "../patch";
+import type { TooltipBinder } from "./tooltip";
 
 export type RouteRef = {
   id: string;
@@ -203,6 +204,8 @@ export function createCompactSelectField(params: {
   selected: string | null | undefined;
   emptyLabel?: string;
   className?: string;
+  tooltip?: string;
+  attachTooltip?: TooltipBinder;
   onChange: (value: string | null) => void;
 }) {
   const wrap = createEl("label", `compactSelectField${params.className ? ` ${params.className}` : ""}`.trim());
@@ -225,6 +228,9 @@ export function createCompactSelectField(params: {
   }
 
   sel.onchange = () => params.onChange(sel.value || null);
+  if (params.tooltip && params.attachTooltip) {
+    params.attachTooltip(sel, { text: params.tooltip, ariaLabel: params.label });
+  }
   wrap.append(label, sel);
   return { wrap, select: sel };
 }

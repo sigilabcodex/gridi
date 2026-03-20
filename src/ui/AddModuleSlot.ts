@@ -1,6 +1,7 @@
 import type { VisualKind } from "../patch";
 import type { GridPosition } from "../workspacePlacement.ts";
 import { bindFloatingPanelReposition, pointAnchor, placeFloatingPanel, type FloatingAnchor } from "./floatingPanel";
+import type { TooltipBinder } from "./tooltip";
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
@@ -8,6 +9,7 @@ type AddSlotParams = {
   position: GridPosition;
   onPick: (what: Pick) => void;
   onDropModule?: (moduleId: string) => void;
+  attachTooltip?: TooltipBinder;
 };
 
 type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
@@ -55,6 +57,10 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   slot.tabIndex = 0;
   slot.setAttribute("aria-haspopup", "menu");
   slot.setAttribute("aria-expanded", "false");
+  params.attachTooltip?.(slot, {
+    text: "Add a module to this empty workspace slot.",
+    ariaLabel: `Add module at row ${params.position.y + 1}, column ${params.position.x + 1}`,
+  });
 
   const plus = document.createElement("div");
   plus.className = "addModulePlus";

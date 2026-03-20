@@ -7,6 +7,7 @@ type SettingsModalParams = {
   settings: AppSettings;
   applyUserCss: (cssText: string) => void;
   updateStatus: () => void;
+  onTooltipsChange?: (enabled: boolean) => void;
 };
 
 function getSettingValue(settings: AppSettings, key: string): any {
@@ -26,7 +27,7 @@ function setSettingValue(settings: AppSettings, key: string, value: any) {
 }
 
 export function openSettingsModal(params: SettingsModalParams) {
-  const { settings, applyUserCss, updateStatus } = params;
+  const { settings, applyUserCss, updateStatus, onTooltipsChange } = params;
 
   const m = makeModal("Settings");
   const body = m.body;
@@ -61,6 +62,7 @@ export function openSettingsModal(params: SettingsModalParams) {
           saveSettings(settings);
           if (def.key === "ui.experimental") updateStatus();
           if (def.key === "ui.customCss") applyUserCss(String(getSettingValue(settings, def.key) ?? ""));
+          if (def.key === "ux.tooltips") onTooltipsChange?.(input.checked);
         };
         label.append(input, el("span", "small", def.label));
         row.appendChild(label);
