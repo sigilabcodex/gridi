@@ -2,7 +2,10 @@ import type { ControlKind, LfoWaveform, Patch, ControlModule } from "../patch";
 import { sampleControl01 } from "../engine/control";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createModuleTabShell } from "./moduleShell";
+import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModulePresetControl } from "./modulePresetControl";
+import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import type { TooltipBinder } from "./tooltip";
 import {
   createCompactSelectField,
   createRoutingCard,
@@ -20,6 +23,10 @@ export function renderControlSurface(
   mod: ControlModule,
   routing: RoutingSnapshot,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
+  modulePresetRecords: ModulePresetRecord[] = [],
+  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
+  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
+  attachTooltip?: TooltipBinder,
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -28,15 +35,20 @@ export function renderControlSurface(
 
   const header = document.createElement("div");
   header.className = "surfaceHeader";
-  const idWrap = document.createElement("div");
-  idWrap.className = "surfaceIdentity";
-  const badge = document.createElement("div");
-  badge.className = "surfaceBadge";
-  badge.textContent = "CONTROL";
-  const meta = document.createElement("div");
-  meta.className = "surfaceNameWrap";
-  meta.innerHTML = `<div class="name">${mod.name}</div><div class="small">Preset: ${mod.presetName ?? "Sine LFO"}</div><div class="small moduleId">${mod.id.slice(-6).toUpperCase()}</div>`;
-  idWrap.append(badge, meta);
+  const presetControl = createModulePresetControl({
+    module: mod,
+    records: modulePresetRecords,
+    onLoadPreset: (presetId) => onLoadModulePreset?.(mod.id, presetId),
+    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(mod.id, name, overwritePresetId),
+    attachTooltip,
+  });
+
+  const idWrap = createModuleIdentityMeta({
+    badgeText: "CONTROL",
+    instanceName: mod.name,
+    instanceId: mod.id.slice(-6).toUpperCase(),
+    presetButton: presetControl.button,
+  });
 
   const right = document.createElement("div");
   right.className = "rightControls";
