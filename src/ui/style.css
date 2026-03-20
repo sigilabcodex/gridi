@@ -1329,17 +1329,35 @@ button.danger.armed {
   --module-header-h: 58px;
   --module-tabs-h: 34px;
   --workspace-slot-radius: 18px;
+  --workspace-grid-gap: 10px;
+  --workspace-grid-pad: 8px;
+}
+
+.workspaceViewport {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable both-edges;
+}
+
+.workspaceViewportInner {
+  display: flex;
+  justify-content: center;
+  width: max(100%, fit-content);
 }
 
 .workspaceGrid {
-  grid-template-columns: repeat(3, minmax(0, var(--module-cell-w)));
-  justify-content: center;
+  --workspace-visible-columns: 1;
+  --workspace-render-columns: var(--workspace-visible-columns);
+  grid-template-columns: repeat(var(--workspace-render-columns), minmax(0, var(--module-cell-w)));
+  justify-content: start;
   align-items: start;
-  gap: 10px;
-  width: min(100%, calc(var(--module-cell-w) * 3 + 20px));
-  max-width: calc(var(--module-cell-w) * 3 + 20px);
-  margin-inline: auto;
-  padding: 8px;
+  gap: var(--workspace-grid-gap);
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  padding: var(--workspace-grid-pad);
   border: 1px solid rgba(207, 214, 221, 0.06);
   border-radius: 18px;
   background: rgba(8, 12, 17, 0.26);
@@ -1608,9 +1626,8 @@ button.danger.armed {
     --module-cell-w: min(100%, 330px);
   }
 
-  .workspaceGrid {
-    grid-template-columns: 1fr;
-    justify-content: stretch;
+  .workspaceViewportInner {
+    min-width: 100%;
   }
 
   .moduleCell {

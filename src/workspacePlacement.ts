@@ -7,10 +7,12 @@ export type GridPosition = {
 
 export type ResolvedGridLayout<T> = {
   modulesByPosition: Map<string, T>;
-  slotByModuleId: Map<string, number>;
-  totalCells: number;
+  maxOccupiedX: number;
+  maxOccupiedY: number;
+  totalRows: number;
 };
 
+// Legacy dense fallback used for default placement and migration helpers.
 export const WORKSPACE_COLUMNS = 3;
 
 function isValidGridAxis(value: unknown) {
@@ -82,8 +84,8 @@ export function resolveGridLayout<T extends Pick<Module, "id" | "x" | "y">>(
   columns = WORKSPACE_COLUMNS
 ): ResolvedGridLayout<T> {
   const modulesByPosition = new Map<string, T>();
-  const slotByModuleId = new Map<string, number>();
-  let highestOccupiedSlot = -1;
+  let maxOccupiedX = -1;
+  let maxOccupiedY = -1;
   let nextDenseSlot = 0;
 
   const reserveNextDensePosition = () => {
@@ -98,22 +100,18 @@ export function resolveGridLayout<T extends Pick<Module, "id" | "x" | "y">>(
 
   for (const module of modules) {
     const preferred = getModuleGridPosition(module);
-    const canonicalPreferred = preferred ? canonicalizeGridPosition(preferred, columns) : null;
-    const position = canonicalPreferred && !modulesByPosition.has(gridPositionKey(canonicalPreferred))
-      ? canonicalPreferred
+    const position = preferred && !modulesByPosition.has(gridPositionKey(preferred))
+      ? preferred
       : reserveNextDensePosition();
-    const slotIndex = gridPositionToSlotIndex(position, columns);
     modulesByPosition.set(gridPositionKey(position), module);
-    slotByModuleId.set(module.id, slotIndex);
-    highestOccupiedSlot = Math.max(highestOccupiedSlot, slotIndex);
+    maxOccupiedX = Math.max(maxOccupiedX, position.x);
+    maxOccupiedY = Math.max(maxOccupiedY, position.y);
   }
-
-  const highestOccupiedRow = highestOccupiedSlot >= 0 ? Math.floor(highestOccupiedSlot / columns) : -1;
-  const totalRows = Math.max(2, highestOccupiedRow + 3);
 
   return {
     modulesByPosition,
-    slotByModuleId,
-    totalCells: totalRows * columns,
+    maxOccupiedX,
+    maxOccupiedY,
+    totalRows: Math.max(2, maxOccupiedY + 3),
   };
 }
