@@ -21,6 +21,7 @@ import {
 } from "./persistence/presetStore";
 import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
+import { createTooltipController } from "./tooltip";
 
 function randInt(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
@@ -56,6 +57,9 @@ function downloadJSON(filename: string, value: unknown) {
 export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const settings = loadSettings();
   applyUserCss(settings.ui.customCss);
+  const tooltips = createTooltipController({
+    getEnabled: () => settings.ux.tooltips,
+  });
 
   const clonePatch = (p: Patch): Patch => structuredClone(p);
   const clonePreset = (preset: PresetRecord): PresetRecord => structuredClone(preset);
@@ -348,6 +352,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     getVoiceTab,
     setVoiceTab,
     led,
+    attachTooltip: tooltips.attachTooltip,
   });
 
   const header = createTransportHeader({
@@ -365,6 +370,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         settings,
         applyUserCss,
         updateStatus: header.updateStatus,
+        onTooltipsChange: () => tooltips.refreshEnabled(),
       }),
     onOpenPresetManager: () =>
       openPresetManagerModal({
@@ -469,6 +475,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateMasterGainUI();
       maybeAutosaveCurrentPreset();
     },
+    attachTooltip: tooltips.attachTooltip,
   });
 
   shell.appendChild(main);

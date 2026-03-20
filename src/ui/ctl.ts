@@ -3,6 +3,7 @@ import { knob } from "./knob";
 import { prefersSliders } from "./env";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createCompactSelectField } from "./routingVisibility";
+import type { TooltipBinder } from "./tooltip";
 
 export type CtlFloatOpts = {
   label: string;
@@ -17,10 +18,13 @@ export type CtlFloatOpts = {
   clamp?: boolean;
   integer?: boolean;
   unit?: string;
+  tooltip?: string;
+  attachTooltip?: TooltipBinder;
   modulation?: {
     label?: string;
     options: Array<{ value: string; label: string }>;
     selected?: string;
+    attachTooltip?: TooltipBinder;
     onChange: (value: string | null) => void;
   };
 };
@@ -130,6 +134,8 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
       selected: o.modulation.selected,
       emptyLabel: "None",
       className: "ctlEditorSelectField",
+      attachTooltip: o.modulation.attachTooltip,
+      tooltip: `Choose a modulation source for ${o.label}.`,
       onChange: (value) => o.modulation?.onChange(value),
     });
     editor.appendChild(modulationField.wrap);
@@ -220,6 +226,10 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
       onRequestEditor: () => openEditor(k.knobEl),
       center: o.center,
     });
+    if (o.tooltip && o.attachTooltip) {
+      o.attachTooltip(k.knobEl, { text: o.tooltip, ariaLabel: o.label });
+      o.attachTooltip(k.valueEl, { text: o.tooltip });
+    }
     syncControlVisual = (x) => k.setValue(x, false);
     valueBtn = k.valueEl;
     return k.el;
@@ -248,6 +258,10 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   valueBtn.className = "val ctlValueButton";
   valueBtn.textContent = fmt(currentValue);
   valueBtn.addEventListener("click", () => openEditor(r));
+  if (o.tooltip && o.attachTooltip) {
+    o.attachTooltip(r, { text: o.tooltip, ariaLabel: o.label });
+    o.attachTooltip(valueBtn, { text: o.tooltip });
+  }
 
   r.oninput = () => {
     const x = normalize(parseFloat(r.value));

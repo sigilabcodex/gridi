@@ -12,6 +12,7 @@ import {
   createRoutingSummaryStrip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import type { TooltipBinder } from "./tooltip";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
 
@@ -24,6 +25,7 @@ export function renderTriggerSurface(
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   controlOptions: ControlOption[],
+  attachTooltip?: TooltipBinder,
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -55,11 +57,19 @@ export function renderTriggerSurface(
     const m = p.modules.find((x) => x.id === t.id);
     if (m?.type === "trigger") m.enabled = !m.enabled;
   }, { regen: false });
+  attachTooltip?.(toggle, {
+    text: "Enable or bypass this trigger module.",
+    ariaLabel: `${t.name} power`,
+  });
 
   const btnX = document.createElement("button");
   btnX.textContent = "×";
   btnX.className = "danger";
   wireSafeDeleteButton(btnX, () => onRemove?.());
+  attachTooltip?.(btnX, {
+    text: "Remove this trigger module from the grid.",
+    ariaLabel: `Remove ${t.name}`,
+  });
   right.append(toggle, btnX);
   header.append(identity, right);
 
@@ -85,6 +95,10 @@ export function renderTriggerSurface(
   const generatorValue = document.createElement("div");
   generatorValue.className = "triggerReadoutValue";
   generatorReadout.append(generatorLabel, generatorValue);
+  attachTooltip?.(generatorReadout, {
+    text: "Cycle the trigger generator mode.",
+    ariaLabel: `${t.name} generator mode`,
+  });
   generatorReadout.onclick = () => {
     const idx = MODES.findIndex((mode) => mode === t.mode);
     const nextMode = MODES[(idx + 1) % MODES.length];
@@ -106,6 +120,10 @@ export function renderTriggerSurface(
   seedHint.className = "triggerReadoutHint";
   seedHint.textContent = "tap = new";
   seedReadout.append(seedLabel, seedValue, seedHint);
+  attachTooltip?.(seedReadout, {
+    text: "Generate a fresh seed for this pattern.",
+    ariaLabel: `${t.name} pattern seed`,
+  });
   seedReadout.onclick = () => onPatchChange((p) => {
     const m = p.modules.find((x) => x.id === t.id);
     if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
@@ -131,6 +149,7 @@ export function renderTriggerSurface(
         label: "Density mod",
         options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
         selected: t.modulations?.density,
+        attachTooltip,
         onChange: (value) => onRoutingChange((p) => {
           const m = p.modules.find((x) => x.id === t.id);
           if (m?.type !== "trigger") return;
@@ -139,13 +158,62 @@ export function renderTriggerSurface(
           else delete m.modulations.density;
         }, { regen: false }),
       },
+      tooltip: "Adjust how often this trigger lane produces steps.",
+      attachTooltip,
       onChange: (x) => setParam("density", x),
     }),
-    ctlFloat({ label: "Len", value: t.length, min: 1, max: 128, step: 1, integer: true, onChange: (x) => setParam("length", x) }),
-    ctlFloat({ label: "Drop", value: t.drop, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("drop", x) }),
-    ctlFloat({ label: "Div", value: t.subdiv, min: 1, max: 8, step: 1, integer: true, onChange: (x) => setParam("subdiv", x) }),
-    ctlFloat({ label: "Det", value: t.determinism, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("determinism", x) }),
-    ctlFloat({ label: "Weird", value: t.weird, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("weird", x) }),
+    ctlFloat({
+      label: "Len",
+      value: t.length,
+      min: 1,
+      max: 128,
+      step: 1,
+      integer: true,
+      tooltip: "Set the loop length in sequencer steps.",
+      attachTooltip,
+      onChange: (x) => setParam("length", x),
+    }),
+    ctlFloat({
+      label: "Drop",
+      value: t.drop,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Thin the pattern by dropping hits after generation.",
+      attachTooltip,
+      onChange: (x) => setParam("drop", x),
+    }),
+    ctlFloat({
+      label: "Div",
+      value: t.subdiv,
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Change the timing division for this trigger lane.",
+      attachTooltip,
+      onChange: (x) => setParam("subdiv", x),
+    }),
+    ctlFloat({
+      label: "Det",
+      value: t.determinism,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Bias the generator toward repeatable results.",
+      attachTooltip,
+      onChange: (x) => setParam("determinism", x),
+    }),
+    ctlFloat({
+      label: "Weird",
+      value: t.weird,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Add more surprising variations to the pattern.",
+      attachTooltip,
+      onChange: (x) => setParam("weird", x),
+    }),
   );
   panelMain.append(pulseRail, mainControlRack);
 
@@ -166,6 +234,8 @@ export function renderTriggerSurface(
     options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
     selected: t.modulations?.density,
     emptyLabel: "None",
+    tooltip: "Choose a control source that modulates density.",
+    attachTooltip,
     onChange: (value) => onRoutingChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
       if (m?.type !== "trigger") return;
@@ -183,10 +253,48 @@ export function renderTriggerSurface(
 
   const panelSettings = document.createElement("div");
   panelSettings.append(
-    ctlFloat({ label: "Rotate", value: t.euclidRot, min: -32, max: 32, step: 1, integer: true, onChange: (x) => setParam("euclidRot", x) }),
-    ctlFloat({ label: "CA rule", value: t.caRule, min: 0, max: 255, step: 1, integer: true, onChange: (x) => setParam("caRule", x) }),
-    ctlFloat({ label: "CA init", value: t.caInit, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("caInit", x) }),
-    ctlFloat({ label: "Grav", value: t.gravity, min: 0, max: 1, step: 0.001, onChange: (x) => setParam("gravity", x) }),
+    ctlFloat({
+      label: "Rotate",
+      value: t.euclidRot,
+      min: -32,
+      max: 32,
+      step: 1,
+      integer: true,
+      tooltip: "Rotate Euclidean hits around the loop.",
+      attachTooltip,
+      onChange: (x) => setParam("euclidRot", x),
+    }),
+    ctlFloat({
+      label: "CA rule",
+      value: t.caRule,
+      min: 0,
+      max: 255,
+      step: 1,
+      integer: true,
+      tooltip: "Select the cellular automata rule number.",
+      attachTooltip,
+      onChange: (x) => setParam("caRule", x),
+    }),
+    ctlFloat({
+      label: "CA init",
+      value: t.caInit,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Set the initial fill used by CA-based patterns.",
+      attachTooltip,
+      onChange: (x) => setParam("caInit", x),
+    }),
+    ctlFloat({
+      label: "Grav",
+      value: t.gravity,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Pull generated hits toward denser clusters.",
+      attachTooltip,
+      onChange: (x) => setParam("gravity", x),
+    }),
   );
 
   const shell = createModuleTabShell({

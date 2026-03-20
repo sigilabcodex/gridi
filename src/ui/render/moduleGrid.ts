@@ -16,6 +16,7 @@ import { renderControlSurface } from "../controlModule";
 import { renderVisualSurface } from "../visualModule";
 import { renderAddModuleSlot } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
+import type { TooltipBinder } from "../tooltip";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -29,6 +30,7 @@ type ModuleGridParams = {
   getVoiceTab: (id: string) => VoiceTab;
   setVoiceTab: (id: string, tab: VoiceTab) => void;
   led: (moduleId: string) => { active: boolean; hit: boolean };
+  attachTooltip: TooltipBinder;
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
@@ -261,7 +263,16 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       const surfaceRoot = document.createElement("div");
 
       if (module.type === "trigger") {
-        const upd = renderTriggerSurface(surfaceRoot, module, routing, params.onPatchChange, onRoutingChange, controlOptions, () => removeModule(module.id));
+        const upd = renderTriggerSurface(
+          surfaceRoot,
+          module,
+          routing,
+          params.onPatchChange,
+          onRoutingChange,
+          controlOptions,
+          params.attachTooltip,
+          () => removeModule(module.id),
+        );
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "trigger", surface, position);
         updaters.push(upd);
@@ -346,6 +357,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           position,
           onPick: (what) => createModuleAt(what, position),
           onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
+          attachTooltip: params.attachTooltip,
         });
         focusableByPosition.set(gridPositionKey(position), slot);
         handleGridNavigation(slot, position);
