@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { makeSound, makeTrigger } from '../src/patch.ts';
+import { makeControl, makeSound, makeTrigger } from '../src/patch.ts';
 import {
   defaultPresetSession,
   makePresetExportPayload,
@@ -8,6 +8,11 @@ import {
   parsePresetImportPayload,
   sanitizePresetName,
 } from '../src/ui/persistence/presetStore.ts';
+import {
+  applyModulePreset,
+  listModulePresetsForModule,
+  saveModulePresetFromModule,
+} from '../src/ui/persistence/modulePresetStore.ts';
 
 function makeLinkedPatch() {
   const trigger = makeTrigger(0, 'TRG_A');
@@ -106,4 +111,44 @@ test('preset import preserves explicit module coordinates', () => {
       { id: imported.presets[0].patch.modules[1].id, x: 2, y: 1 },
     ]
   );
+});
+
+
+test('module preset filtering only returns compatible family/type entries', () => {
+  const drum = makeSound('drum', 0);
+  const control = makeControl('lfo', 0);
+  const records = [
+    { id: 'drum-a', name: 'Deep Kick', family: 'drum', subtype: 'drum', state: { enabled: true, amp: 0.3, pan: 0, basePitch: 0.42, decay: 0.3, transient: 0.6, snap: 0.25, noise: 0.2, bodyTone: 0.5, pitchEnvAmt: 0.55, pitchEnvDecay: 0.25, tone: 0.45 }, createdAt: 1, updatedAt: 1 },
+    { id: 'synth-a', name: 'Rubber Bass', family: 'tonal', subtype: 'tonal', state: { enabled: true, amp: 0.2, pan: 0, waveform: 0.25, coarseTune: 0, fineTune: 0, attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.5, cutoff: 0.55, resonance: 0.2, glide: 0.08, modDepth: 0.15, modRate: 0.25 }, createdAt: 1, updatedAt: 1 },
+    { id: 'control-a', name: 'Warm Drift', family: 'control', subtype: 'drift', state: { enabled: true, kind: 'drift', waveform: 'sine', speed: 0.2, amount: 0.4, phase: 0, rate: 0.3, randomness: 0.6 }, createdAt: 1, updatedAt: 1 },
+  ];
+
+  assert.deepEqual(listModulePresetsForModule(records, drum).map((record) => record.id), ['drum-a']);
+  assert.deepEqual(listModulePresetsForModule(records, control).map((record) => record.id), ['control-a']);
+});
+
+test('saving and loading a module preset preserves module identity while updating preset identity', () => {
+  const drum = makeSound('drum', 0);
+  drum.name = 'Kick Lane';
+  drum.basePitch = 0.73;
+  drum.triggerSource = 'external-trigger';
+
+  const library = [];
+  const saved = saveModulePresetFromModule(library, drum, { name: 'Punch Kick' });
+
+  assert.ok(saved);
+  assert.equal(library.length, 1);
+  assert.equal(drum.name, 'Kick Lane');
+  assert.equal(drum.presetName, 'Punch Kick');
+  assert.equal(drum.presetMeta.modulePresetId, library[0].id);
+
+  drum.basePitch = 0.11;
+  drum.triggerSource = 'keep-this-routing';
+  const applied = applyModulePreset(drum, library[0]);
+
+  assert.equal(applied, true);
+  assert.equal(drum.name, 'Kick Lane');
+  assert.equal(drum.presetName, 'Punch Kick');
+  assert.equal(drum.basePitch, 0.73);
+  assert.equal(drum.triggerSource, 'keep-this-routing');
 });

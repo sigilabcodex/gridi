@@ -1,7 +1,10 @@
 import type { Engine } from "../engine/audio";
 import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createModuleTabShell } from "./moduleShell";
+import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModulePresetControl } from "./modulePresetControl";
+import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import type { TooltipBinder } from "./tooltip";
 import {
   createCompactSelectField,
   createModuleRefChip,
@@ -23,17 +26,29 @@ export function renderVisualSurface(
   vm: VisualModule,
   routing: RoutingSnapshot,
   onRemove: () => void,
+  modulePresetRecords: ModulePresetRecord[] = [],
+  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
+  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
+  attachTooltip?: TooltipBinder,
 ) {
   const surface = el("section", "moduleSurface visualSurface");
   surface.dataset.type = "visual";
 
   const header = el("div", "surfaceHeader");
-  const identity = el("div", "surfaceIdentity");
-  const badge = el("span", "surfaceBadge");
-  badge.textContent = "VISUAL";
-  const meta = el("div", "surfaceNameWrap");
-  meta.innerHTML = `<div class="name">${vm.name}</div><div class="small">Preset: ${vm.presetName ?? "Scope Default"}</div><div class="small moduleId">${vm.id.slice(-6).toUpperCase()}</div>`;
-  identity.append(badge, meta);
+  const presetControl = createModulePresetControl({
+    module: vm,
+    records: modulePresetRecords,
+    onLoadPreset: (presetId) => onLoadModulePreset?.(vm.id, presetId),
+    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(vm.id, name, overwritePresetId),
+    attachTooltip,
+  });
+
+  const identity = createModuleIdentityMeta({
+    badgeText: "VISUAL",
+    instanceName: vm.name,
+    instanceId: vm.id.slice(-6).toUpperCase(),
+    presetButton: presetControl.button,
+  });
 
   const right = el("div", "rightControls");
   const btnOn = el("button");

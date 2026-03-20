@@ -2,7 +2,9 @@ import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createModuleTabShell } from "./moduleShell";
+import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModulePresetControl } from "./modulePresetControl";
+import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import {
   createCompactSelectField,
   createModuleRefChip,
@@ -26,6 +28,9 @@ export function renderTriggerSurface(
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   controlOptions: ControlOption[],
   attachTooltip?: TooltipBinder,
+  modulePresetRecords: ModulePresetRecord[] = [],
+  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
+  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -35,15 +40,20 @@ export function renderTriggerSurface(
   const header = document.createElement("div");
   header.className = "surfaceHeader";
 
-  const identity = document.createElement("div");
-  identity.className = "surfaceIdentity";
-  const badge = document.createElement("div");
-  badge.className = "surfaceBadge";
-  badge.textContent = "TRIGGER";
-  const meta = document.createElement("div");
-  meta.className = "surfaceNameWrap";
-  meta.innerHTML = `<div class="name">${t.name}</div><div class="small">Preset: ${t.presetName ?? "Sparse Euclid"}</div><div class="small moduleId">${t.id.slice(-6).toUpperCase()}</div>`;
-  identity.append(badge, meta);
+  const presetControl = createModulePresetControl({
+    module: t,
+    records: modulePresetRecords,
+    onLoadPreset: (presetId) => onLoadModulePreset?.(t.id, presetId),
+    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(t.id, name, overwritePresetId),
+    attachTooltip,
+  });
+
+  const identity = createModuleIdentityMeta({
+    badgeText: "TRIGGER",
+    instanceName: t.name,
+    instanceId: t.id.slice(-6).toUpperCase(),
+    presetButton: presetControl.button,
+  });
 
   const right = document.createElement("div");
   right.className = "rightControls";

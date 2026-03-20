@@ -17,6 +17,7 @@ import { renderVisualSurface } from "../visualModule";
 import { renderAddModuleSlot } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
+import type { ModulePresetRecord } from "../persistence/modulePresetStore";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -31,6 +32,9 @@ type ModuleGridParams = {
   setVoiceTab: (id: string, tab: VoiceTab) => void;
   led: (moduleId: string) => { active: boolean; hit: boolean };
   attachTooltip: TooltipBinder;
+  modulePresetRecords: ModulePresetRecord[];
+  onLoadModulePreset: (moduleId: string, presetId: string) => void;
+  onSaveModulePreset: (moduleId: string, name: string, overwritePresetId?: string | null) => void;
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
@@ -271,6 +275,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           onRoutingChange,
           controlOptions,
           params.attachTooltip,
+          params.modulePresetRecords,
+          params.onLoadModulePreset,
+          params.onSaveModulePreset,
           () => removeModule(module.id),
         );
         const surface = surfaceRoot.firstElementChild as HTMLElement;
@@ -290,6 +297,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
           controlOptions,
+          onLoadModulePreset: params.onLoadModulePreset,
+          onSaveModulePreset: params.onSaveModulePreset,
+          modulePresetRecords: params.modulePresetRecords,
+          attachTooltip: params.attachTooltip,
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
@@ -309,6 +320,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
           triggerOptions,
           controlOptions,
+          onLoadModulePreset: params.onLoadModulePreset,
+          onSaveModulePreset: params.onSaveModulePreset,
+          modulePresetRecords: params.modulePresetRecords,
+          attachTooltip: params.attachTooltip,
           onRemove: () => removeModule(module.id),
         });
         const surface = surfaceRoot.firstElementChild as HTMLElement;
@@ -318,7 +333,17 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
 
       if (module.type === "control") {
-        const upd = renderControlSurface(surfaceRoot, module, routing, params.onPatchChange, () => removeModule(module.id));
+        const upd = renderControlSurface(
+          surfaceRoot,
+          module,
+          routing,
+          params.onPatchChange,
+          params.modulePresetRecords,
+          params.onLoadModulePreset,
+          params.onSaveModulePreset,
+          params.attachTooltip,
+          () => removeModule(module.id),
+        );
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, "control", surface, position);
         updaters.push(upd);
@@ -326,7 +351,17 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
 
       if (module.type === "visual") {
-        const upd = renderVisualSurface(surfaceRoot, params.engine, module, routing, () => removeModule(module.id));
+        const upd = renderVisualSurface(
+          surfaceRoot,
+          params.engine,
+          module,
+          routing,
+          () => removeModule(module.id),
+          params.modulePresetRecords,
+          params.onLoadModulePreset,
+          params.onSaveModulePreset,
+          params.attachTooltip,
+        );
         const surface = surfaceRoot.firstElementChild as HTMLElement;
         registerModuleSurface(module.id, module.kind, surface, position);
         updaters.push(upd);

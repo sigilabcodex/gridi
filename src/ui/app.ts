@@ -1,4 +1,4 @@
-import type { Patch } from "../patch";
+import type { Module, Patch } from "../patch";
 import { clamp, defaultPatch, getSoundModules, getTriggers } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
@@ -19,6 +19,13 @@ import {
   type PresetRecord,
   type PresetSession,
 } from "./persistence/presetStore";
+import {
+  applyModulePreset,
+  loadModulePresetLibrary,
+  saveModulePresetFromModule,
+  saveModulePresetLibrary,
+  type ModulePresetRecord,
+} from "./persistence/modulePresetStore";
 import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
@@ -65,6 +72,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const clonePreset = (preset: PresetRecord): PresetRecord => structuredClone(preset);
 
   let session: PresetSession = loadPresetSession();
+  let modulePresetLibrary: ModulePresetRecord[] = loadModulePresetLibrary();
 
   const selectedPreset = () => {
     return (
@@ -94,6 +102,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   };
 
   const saveSession = () => savePresetSession(session);
+  const saveModulePresetLibraryState = () => saveModulePresetLibrary(modulePresetLibrary);
 
   const saveCurrentPreset = () => {
     const idx = session.presets.findIndex((preset) => preset.id === session.selectedPresetId);
@@ -114,6 +123,39 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const maybeAutosaveCurrentPreset = () => {
     if (settings.data.autosave) saveCurrentPreset();
     else header.updatePresetUI();
+  };
+
+  const refreshAfterModulePresetChange = () => {
+    gridRenderer.rerender();
+    header.updatePresetUI();
+    header.updateStatus();
+  };
+
+  const loadModulePresetIntoModule = (moduleId: string, presetId: string) => {
+    const preset = modulePresetLibrary.find((record) => record.id === presetId);
+    if (!preset) return;
+
+    onPatchChange((draft) => {
+      const module = draft.modules.find((item) => item.id === moduleId) as Module | undefined;
+      if (!module) return;
+      applyModulePreset(module, preset);
+    }, { regen: preset.family === "trigger" });
+
+    refreshAfterModulePresetChange();
+  };
+
+  const saveModulePresetFromInstance = (moduleId: string, name: string, overwritePresetId?: string | null) => {
+    let didSaveLibrary = false;
+    onPatchChange((draft) => {
+      const module = draft.modules.find((item) => item.id === moduleId) as Module | undefined;
+      if (!module) return;
+      const saved = saveModulePresetFromModule(modulePresetLibrary, module, { name, overwritePresetId });
+      if (!saved) return;
+      didSaveLibrary = true;
+    }, { regen: false });
+
+    if (didSaveLibrary) saveModulePresetLibraryState();
+    refreshAfterModulePresetChange();
   };
 
   const applyPatch = (nextPatch: Patch) => {
@@ -353,6 +395,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     setVoiceTab,
     led,
     attachTooltip: tooltips.attachTooltip,
+    modulePresetRecords: modulePresetLibrary,
+    onLoadModulePreset: loadModulePresetIntoModule,
+    onSaveModulePreset: saveModulePresetFromInstance,
   });
 
   const header = createTransportHeader({

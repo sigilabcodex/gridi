@@ -1,7 +1,10 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createModuleTabShell } from "./moduleShell";
+import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModulePresetControl } from "./modulePresetControl";
+import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import type { TooltipBinder } from "./tooltip";
 import {
   createCompactSelectField,
   createModuleRefChip,
@@ -32,22 +35,31 @@ type SurfaceParams = {
   ui: UiState;
   triggerOptions: TriggerOption[];
   controlOptions: ControlOption[];
+  onLoadModulePreset: (moduleId: string, presetId: string) => void;
+  onSaveModulePreset: (moduleId: string, name: string, overwritePresetId?: string | null) => void;
+  modulePresetRecords: ModulePresetRecord[];
+  attachTooltip?: TooltipBinder;
   onRemove?: () => void;
 };
 
-function makeHeader(v: SoundModule, badgeText: string, onPatchChange: SurfaceParams["onPatchChange"], onRemove?: () => void) {
+function makeHeader(v: SoundModule, badgeText: string, params: Pick<SurfaceParams, "onPatchChange" | "onLoadModulePreset" | "onSaveModulePreset" | "modulePresetRecords" | "attachTooltip">, onRemove?: () => void) {
   const header = document.createElement("div");
   header.className = "surfaceHeader";
 
-  const left = document.createElement("div");
-  left.className = "surfaceIdentity";
-  const badge = document.createElement("div");
-  badge.className = "surfaceBadge";
-  badge.textContent = badgeText;
-  const nameWrap = document.createElement("div");
-  nameWrap.className = "surfaceNameWrap";
-  nameWrap.innerHTML = `<div class="name">${v.name}</div><div class="small">Preset: ${v.presetName ?? (v.type === "drum" ? "Deep Kick" : "Rubber Bass")}</div><div class="small moduleId">${v.id.slice(-6).toUpperCase()}</div>`;
-  left.append(badge, nameWrap);
+  const presetControl = createModulePresetControl({
+    module: v,
+    records: params.modulePresetRecords,
+    onLoadPreset: (presetId) => params.onLoadModulePreset(v.id, presetId),
+    onSavePreset: (name, overwritePresetId) => params.onSaveModulePreset(v.id, name, overwritePresetId),
+    attachTooltip: params.attachTooltip,
+  });
+
+  const left = createModuleIdentityMeta({
+    badgeText,
+    instanceName: v.name,
+    instanceId: v.id.slice(-6).toUpperCase(),
+    presetButton: presetControl.button,
+  });
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -62,7 +74,7 @@ function makeHeader(v: SoundModule, badgeText: string, onPatchChange: SurfacePar
     toggle.className = v.enabled ? "primary" : "";
   };
   syncToggle();
-  toggle.onclick = () => onPatchChange((p) => {
+  toggle.onclick = () => params.onPatchChange((p) => {
     const m = p.modules.find((x) => x.id === v.id);
     if (m && (m.type === "drum" || m.type === "tonal")) m.enabled = !m.enabled;
   }, { regen: false });
@@ -212,7 +224,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   surface.className = "moduleSurface drumSurface";
   surface.dataset.type = "drum";
 
-  const h = makeHeader(v, "DRUM", onPatchChange, onRemove);
+  const h = makeHeader(v, "DRUM", params, onRemove);
   const main = document.createElement("div");
   main.className = "surfaceTabPanel drumSurfaceBody";
   main.append(
@@ -260,7 +272,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.className = "moduleSurface synthSurface";
   surface.dataset.type = "tonal";
 
-  const h = makeHeader(v, "SYNTH", onPatchChange, onRemove);
+  const h = makeHeader(v, "SYNTH", params, onRemove);
   const main = document.createElement("div");
   main.className = "surfaceTabPanel synthSurfaceBody";
   main.append(

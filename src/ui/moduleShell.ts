@@ -89,3 +89,40 @@ export function createModuleTabShell<T extends string>(params: {
   setTab(params.activeTab);
   return { face, tabs, setTab };
 }
+
+
+export function createModuleIdentityMeta(params: {
+  badgeText: string;
+  instanceName: string;
+  instanceId: string;
+  presetButton: HTMLElement;
+}) {
+  const identity = document.createElement("div");
+  identity.className = "surfaceIdentity";
+
+  const badge = document.createElement("div");
+  badge.className = "surfaceBadge";
+  badge.textContent = params.badgeText;
+
+  const meta = document.createElement("div");
+  meta.className = "surfaceNameWrap";
+
+  const name = document.createElement("div");
+  name.className = "name";
+  name.textContent = params.instanceName;
+
+  const presetRow = document.createElement("div");
+  presetRow.className = "surfacePresetRow";
+  const presetLabel = document.createElement("div");
+  presetLabel.className = "small surfaceMetaLabel";
+  presetLabel.textContent = "Preset";
+  presetRow.append(presetLabel, params.presetButton);
+
+  const moduleId = document.createElement("div");
+  moduleId.className = "small moduleId";
+  moduleId.textContent = params.instanceId;
+
+  meta.append(name, presetRow, moduleId);
+  identity.append(badge, meta);
+  return identity;
+}
