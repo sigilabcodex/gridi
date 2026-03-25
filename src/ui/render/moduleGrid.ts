@@ -41,6 +41,7 @@ type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "co
 
 const MIN_VISIBLE_COLUMNS = 1;
 const MOBILE_BREAKPOINT = 760;
+const MOBILE_PORTRAIT_MAX_COLUMNS = 1;
 const MOBILE_LANDSCAPE_MAX_COLUMNS = 2;
 const CLEAN_FIT_ALLOWANCE_PX = 24;
 
@@ -108,11 +109,14 @@ function readVisibleColumnCount(main: HTMLElement) {
   const fittedColumns = Math.max(MIN_VISIBLE_COLUMNS, fitted || 0);
 
   if (isMobilePortraitViewport()) {
-    const cleanTwoColumnWidth = padding + (cellWidth * 2) + gap + CLEAN_FIT_ALLOWANCE_PX;
-    if (availableWidth < cleanTwoColumnWidth) return 1;
+    return Math.min(MOBILE_PORTRAIT_MAX_COLUMNS, fittedColumns);
   }
 
-  if (isMobileLandscapeViewport()) return Math.min(MOBILE_LANDSCAPE_MAX_COLUMNS, fittedColumns);
+  if (isMobileLandscapeViewport()) {
+    if (fittedColumns < 2) return MIN_VISIBLE_COLUMNS;
+    const cleanTwoColumnWidth = padding + (cellWidth * 2) + gap + CLEAN_FIT_ALLOWANCE_PX;
+    return availableWidth >= cleanTwoColumnWidth ? MOBILE_LANDSCAPE_MAX_COLUMNS : MIN_VISIBLE_COLUMNS;
+  }
 
   return fittedColumns;
 }

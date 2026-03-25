@@ -31,6 +31,7 @@ type HeaderParams = {
 
 export function createTransportHeader(params: HeaderParams) {
   const header = document.createElement("header");
+  header.classList.add("transportHeader");
   const titleWrap = document.createElement("div");
   titleWrap.className = "transportTitle";
   const h1 = document.createElement("h1");
@@ -44,6 +45,7 @@ export function createTransportHeader(params: HeaderParams) {
   status.className = "small";
 
   const btnSettings = el("button", "iconBtn", "⚙");
+  btnSettings.classList.add("transportSettings");
   btnSettings.onclick = params.onOpenSettings;
   params.attachTooltip(btnSettings, {
     text: "Open app settings and UI preferences.",
@@ -195,11 +197,11 @@ export function createTransportHeader(params: HeaderParams) {
   spacer.className = "spacer";
 
   const transportCluster = document.createElement("div");
-  transportCluster.className = "headerCluster";
+  transportCluster.className = "headerCluster transportCluster";
   transportCluster.append(btnAudio, btnPlay, btnMute, btnReset, btnReseed, btnRandom, btnRegen);
 
   const sceneCluster = document.createElement("div");
-  sceneCluster.className = "headerCluster";
+  sceneCluster.className = "headerCluster sceneCluster";
   sceneCluster.append(presetWrap, bpmWrap, masterWrap);
 
   status.classList.add("transportStatus");
