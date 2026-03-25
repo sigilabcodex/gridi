@@ -1627,7 +1627,13 @@ button.danger.armed {
   }
 
   .workspaceViewportInner {
+    justify-content: flex-start;
+    width: 100%;
     min-width: 100%;
+  }
+
+  .workspaceViewport {
+    scrollbar-gutter: auto;
   }
 
   .moduleCell {

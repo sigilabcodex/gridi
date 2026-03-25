@@ -71,9 +71,23 @@ function parseCssLengthPx(value: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function measureCssVariablePx(main: HTMLElement, variableName: string, fallback: number) {
+  const probe = document.createElement("div");
+  probe.style.position = "absolute";
+  probe.style.visibility = "hidden";
+  probe.style.pointerEvents = "none";
+  probe.style.inlineSize = `var(${variableName})`;
+  main.appendChild(probe);
+  const measured = probe.getBoundingClientRect().width;
+  probe.remove();
+  if (Number.isFinite(measured) && measured > 0) return measured;
+  const rootStyles = getComputedStyle(document.documentElement);
+  return parseCssLengthPx(rootStyles.getPropertyValue(variableName), fallback);
+}
+
 function readVisibleColumnCount(main: HTMLElement) {
   const rootStyles = getComputedStyle(document.documentElement);
-  const cellWidth = parseCssLengthPx(rootStyles.getPropertyValue("--module-cell-w"), 330);
+  const cellWidth = measureCssVariablePx(main, "--module-cell-w", 330);
   const gap = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-gap"), 10);
   const padding = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-pad"), 8) * 2;
   const availableWidth = Math.max(main.clientWidth, cellWidth + padding);
