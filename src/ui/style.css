@@ -1337,7 +1337,9 @@ button.danger.armed {
   width: 100%;
   overflow-x: auto;
   padding-bottom: 8px;
+  padding-inline: var(--workspace-side-gutter, 0px);
   scrollbar-gutter: stable both-edges;
+  box-sizing: border-box;
 }
 
 .workspaceViewportInner {
