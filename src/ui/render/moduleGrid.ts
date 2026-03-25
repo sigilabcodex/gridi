@@ -40,6 +40,9 @@ type ModuleGridParams = {
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
 
 const MIN_VISIBLE_COLUMNS = 1;
+const MOBILE_BREAKPOINT = 760;
+const MOBILE_LANDSCAPE_MAX_COLUMNS = 2;
+const CLEAN_FIT_ALLOWANCE_PX = 24;
 
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
   const cell = document.createElement("div");
@@ -85,6 +88,16 @@ function measureCssVariablePx(main: HTMLElement, variableName: string, fallback:
   return parseCssLengthPx(rootStyles.getPropertyValue(variableName), fallback);
 }
 
+function isMobilePortraitViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px) and (orientation: portrait)`).matches;
+}
+
+function isMobileLandscapeViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px) and (orientation: landscape)`).matches;
+}
+
 function readVisibleColumnCount(main: HTMLElement) {
   const rootStyles = getComputedStyle(document.documentElement);
   const cellWidth = measureCssVariablePx(main, "--module-cell-w", 330);
@@ -92,7 +105,16 @@ function readVisibleColumnCount(main: HTMLElement) {
   const padding = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-pad"), 8) * 2;
   const availableWidth = Math.max(main.clientWidth, cellWidth + padding);
   const fitted = Math.floor((availableWidth - padding + gap) / (cellWidth + gap));
-  return Math.max(MIN_VISIBLE_COLUMNS, fitted || 0);
+  const fittedColumns = Math.max(MIN_VISIBLE_COLUMNS, fitted || 0);
+
+  if (isMobilePortraitViewport()) {
+    const cleanTwoColumnWidth = padding + (cellWidth * 2) + gap + CLEAN_FIT_ALLOWANCE_PX;
+    if (availableWidth < cleanTwoColumnWidth) return 1;
+  }
+
+  if (isMobileLandscapeViewport()) return Math.min(MOBILE_LANDSCAPE_MAX_COLUMNS, fittedColumns);
+
+  return fittedColumns;
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
@@ -386,6 +408,13 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
     const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
     renderedColumns = Math.max(visibleColumns, maxOccupiedX + 1, MIN_VISIBLE_COLUMNS);
+    const rootStyles = getComputedStyle(document.documentElement);
+    const cellWidth = measureCssVariablePx(params.main, "--module-cell-w", 330);
+    const gap = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-gap"), 10);
+    const padding = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-pad"), 8) * 2;
+    const visibleSpanWidth = (visibleColumns * cellWidth) + (Math.max(visibleColumns - 1, 0) * gap) + padding;
+    const sideGutter = Math.max(0, Math.floor((params.main.clientWidth - visibleSpanWidth) / 2));
+    workspaceViewport.style.setProperty("--workspace-side-gutter", `${sideGutter}px`);
     workspaceGrid.style.setProperty("--workspace-visible-columns", String(visibleColumns));
     workspaceGrid.style.setProperty("--workspace-render-columns", String(renderedColumns));
 
