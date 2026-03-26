@@ -45,15 +45,27 @@ export function openSettingsModal(params: SettingsModalParams) {
   }
 
   for (const [section, defs] of grouped) {
-    const sectionWrap = el("div", "settingsBlock");
-    sectionWrap.appendChild(el("div", "small", section));
+    const sectionWrap = el("section", "settingsSection");
+    const sectionHead = el("div", "settingsSectionHead");
+    sectionHead.append(
+      el("div", "small settingsSectionTitle", section),
+      el("div", "small settingsSectionMeta", `${defs.length} control${defs.length === 1 ? "" : "s"}`),
+    );
+    sectionWrap.appendChild(sectionHead);
 
     for (const def of defs) {
-      const row = el("div", "settingsBlock");
+      const row = el("div", "settingsRow");
       const currentValue = getSettingValue(settings, def.key);
+      const labelWrap = el("div", "settingsLabelWrap");
+      labelWrap.append(
+        el("div", "small settingsItemLabel", def.label),
+        el("div", "small settingsItemMeta", def.key),
+      );
 
       if (def.type === "boolean") {
-        const label = el("label", "chkRow");
+        row.classList.add("settingsRowToggle");
+        row.appendChild(labelWrap);
+        const label = el("label", "chkRow settingsToggle");
         const input = document.createElement("input");
         input.type = "checkbox";
         input.checked = Boolean(currentValue);
@@ -64,10 +76,14 @@ export function openSettingsModal(params: SettingsModalParams) {
           if (def.key === "ui.customCss") applyUserCss(String(getSettingValue(settings, def.key) ?? ""));
           if (def.key === "ux.tooltips") onTooltipsChange?.(input.checked);
         };
-        label.append(input, el("span", "small", def.label));
+        label.append(input, el("span", "small", input.checked ? "On" : "Off"));
+        input.addEventListener("change", () => {
+          const state = label.querySelector("span");
+          if (state) state.textContent = input.checked ? "On" : "Off";
+        });
         row.appendChild(label);
       } else if (def.type === "number") {
-        const label = el("div", "small", def.label);
+        row.appendChild(labelWrap);
         const input = document.createElement("input");
         input.type = "number";
         if (def.min != null) input.min = String(def.min);
@@ -81,9 +97,9 @@ export function openSettingsModal(params: SettingsModalParams) {
           saveSettings(settings);
           input.value = String(next);
         };
-        row.append(label, input);
+        row.append(input);
       } else if (def.type === "select") {
-        const label = el("div", "small", def.label);
+        row.appendChild(labelWrap);
         const input = document.createElement("select");
         for (const opt of def.options ?? []) {
           const option = document.createElement("option");
@@ -96,9 +112,10 @@ export function openSettingsModal(params: SettingsModalParams) {
           setSettingValue(settings, def.key, input.value);
           saveSettings(settings);
         };
-        row.append(label, input);
+        row.append(input);
       } else if (def.type === "textarea") {
-        const label = el("div", "small", def.label);
+        row.classList.add("settingsRowTextArea");
+        row.append(labelWrap);
         const input = document.createElement("textarea");
         input.className = def.key === "ui.customCss" ? "cssBox" : "jsonBox";
         input.value = String(currentValue ?? def.default ?? "");
@@ -120,8 +137,10 @@ export function openSettingsModal(params: SettingsModalParams) {
           if (def.key === "ui.customCss") applyUserCss("");
         };
 
-        btns.append(btnSave, btnClear);
-        row.append(label, input, btns);
+        btns.append(btnClear, btnSave);
+        const editor = el("div", "settingsEditor");
+        editor.append(input, btns);
+        row.append(editor);
       }
 
       sectionWrap.appendChild(row);

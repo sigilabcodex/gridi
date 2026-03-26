@@ -517,9 +517,9 @@ main { margin-top: 8px; }
 }
 
 .settingsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid rgba(42,52,63,0.35);
@@ -564,8 +564,72 @@ main { margin-top: 8px; }
   font-style: italic;
 }
 .settingsIntro {
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   line-height: 1.35;
+}
+
+.settingsSection {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid rgba(207, 214, 221, 0.13);
+  border-radius: 12px;
+  background: rgba(7, 12, 17, 0.35);
+  display: grid;
+  gap: 8px;
+}
+
+.settingsSectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid rgba(207, 214, 221, 0.12);
+}
+
+.settingsSectionTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+
+.settingsSectionMeta {
+  opacity: 0.6;
+}
+
+.settingsLabelWrap {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.settingsItemMeta {
+  opacity: 0.58;
+  font-size: 11px;
+}
+
+.settingsRow > input,
+.settingsRow > select {
+  justify-self: end;
+  min-width: 170px;
+}
+
+.settingsEditor {
+  min-width: min(460px, 100%);
+  width: min(460px, 100%);
+  display: grid;
+  gap: 8px;
+}
+
+.settingsRowTextArea {
+  align-items: start;
+}
+
+.settingsRowToggle {
+  align-items: center;
+}
+
+.settingsToggle {
+  margin-top: 0;
 }
 
 .presetList {
@@ -1144,14 +1208,70 @@ header {
 .transportTitle {
   display: grid;
   gap: 3px;
+  padding: 2px 4px 0;
 }
 .transportSubtitle {
   letter-spacing: 0.6px;
   opacity: 0.72;
   text-transform: uppercase;
 }
+.transportMain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.transportGroup {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(207, 214, 221, 0.14);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(22, 30, 38, 0.78), rgba(11, 16, 22, 0.8));
+}
+
+.transportGroupLabel {
+  text-transform: uppercase;
+  letter-spacing: 0.75px;
+  opacity: 0.72;
+}
+
+.transportGroupBody {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transportGroupBody > .bpmWrap,
+.transportGroupBody > .presetWrap {
+  width: 100%;
+}
+
+.transportActionRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.transportActionRow > button {
+  flex: 1 1 96px;
+}
+
 .transportStatus {
-  margin-top: 4px;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.transportStatusActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.transportStatusActions .transportSettings {
+  flex: 0 0 auto;
 }
 
 /* === Unified workspace grid + face modes === */
@@ -2444,48 +2564,18 @@ button:focus-visible,
 @media (max-width: 760px) {
   .transportHeader {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 8px;
     padding: 8px 10px;
   }
 
-  .transportHeader > .spacer {
-    display: none;
-  }
-
   .transportTitle {
-    grid-column: 1;
     min-width: 0;
   }
 
-  .transportSettings {
-    grid-column: 2;
-    justify-self: end;
-  }
-
-  .transportCluster,
-  .sceneCluster,
-  .transportStatus {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .transportCluster {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-  }
-
-  .transportCluster > button {
-    width: 100%;
-    min-height: 40px;
-    padding: 7px 8px;
-  }
-
-  .sceneCluster {
-    display: grid;
-    gap: 8px;
+  .transportMain {
+    grid-template-columns: 1fr;
   }
 
   .presetWrap,
@@ -2496,7 +2586,7 @@ button:focus-visible,
 
   .presetWrap {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 6px;
     padding: 6px;
   }
@@ -2520,8 +2610,29 @@ button:focus-visible,
   }
 
   .transportStatus {
-    margin-top: 0;
     line-height: 1.3;
+  }
+
+  .transportStatusActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .transportActionRow > button {
+    min-height: 38px;
+  }
+
+  .settingsRow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .settingsRow > input,
+  .settingsRow > select,
+  .settingsEditor {
+    min-width: 0;
+    width: 100%;
   }
 }
 

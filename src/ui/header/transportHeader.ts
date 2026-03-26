@@ -161,7 +161,7 @@ export function createTransportHeader(params: HeaderParams) {
     ariaLabel: "Open preset manager",
   });
 
-  presetWrap.append(presetLabel, presetSelect, btnSavePreset, btnPresetManager);
+  presetWrap.append(presetLabel, presetSelect);
 
   const bpmWrap = document.createElement("div");
   bpmWrap.className = "bpmWrap";
@@ -193,19 +193,46 @@ export function createTransportHeader(params: HeaderParams) {
   });
   bpmWrap.append(bpmLabel, bpm, bpmNum);
 
-  const spacer = document.createElement("div");
-  spacer.className = "spacer";
-
-  const transportCluster = document.createElement("div");
-  transportCluster.className = "headerCluster transportCluster";
-  transportCluster.append(btnAudio, btnPlay, btnMute, btnReset, btnReseed, btnRandom, btnRegen);
-
-  const sceneCluster = document.createElement("div");
-  sceneCluster.className = "headerCluster sceneCluster";
-  sceneCluster.append(presetWrap, bpmWrap, masterWrap);
-
   status.classList.add("transportStatus");
-  header.append(titleWrap, transportCluster, sceneCluster, spacer, status, btnSettings);
+
+  const makeGroup = (title: string, className: string) => {
+    const group = document.createElement("section");
+    group.className = `transportGroup ${className}`;
+
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "small transportGroupLabel";
+    groupLabel.textContent = title;
+
+    const groupBody = document.createElement("div");
+    groupBody.className = "transportGroupBody";
+
+    group.append(groupLabel, groupBody);
+    return { group, groupBody };
+  };
+
+  const transportGroup = makeGroup("Transport", "transportGroupTransport");
+  transportGroup.groupBody.append(btnAudio, btnPlay, btnMute);
+
+  const sessionGroup = makeGroup("Patch / Session", "transportGroupSession");
+  const sessionActions = document.createElement("div");
+  sessionActions.className = "transportActionRow";
+  sessionActions.append(btnSavePreset, btnPresetManager, btnReset, btnReseed, btnRandom, btnRegen);
+  sessionGroup.groupBody.append(presetWrap, sessionActions);
+
+  const masterGroup = makeGroup("Tempo / Master", "transportGroupMaster");
+  masterGroup.groupBody.append(bpmWrap, masterWrap);
+
+  const statusGroup = makeGroup("Status", "transportGroupStatus");
+  const statusActions = document.createElement("div");
+  statusActions.className = "transportStatusActions";
+  statusActions.append(status, btnSettings);
+  statusGroup.groupBody.append(statusActions);
+
+  const main = document.createElement("div");
+  main.className = "transportMain";
+  main.append(transportGroup.group, sessionGroup.group, masterGroup.group, statusGroup.group);
+
+  header.append(titleWrap, main);
 
   params.root.appendChild(header);
 
