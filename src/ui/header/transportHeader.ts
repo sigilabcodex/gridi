@@ -39,6 +39,11 @@ export function createTransportHeader(params: HeaderParams) {
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
   subtitle.textContent = "Modular workspace";
+
+  const mobileToggle = document.createElement("button");
+  mobileToggle.className = "transportMobileToggle";
+  mobileToggle.type = "button";
+  mobileToggle.textContent = "Controls";
   titleWrap.append(h1, subtitle);
 
   const status = document.createElement("div");
@@ -231,8 +236,42 @@ export function createTransportHeader(params: HeaderParams) {
   const main = document.createElement("div");
   main.className = "transportMain";
   main.append(transportGroup.group, sessionGroup.group, masterGroup.group, statusGroup.group);
+  main.id = "transport-main-controls";
 
+  mobileToggle.setAttribute("aria-controls", main.id);
+
+  titleWrap.appendChild(mobileToggle);
   header.append(titleWrap, main);
+
+  const mobileMql = typeof window === "undefined" || typeof window.matchMedia !== "function"
+    ? null
+    : window.matchMedia("(max-width: 760px)");
+
+  let mobileExpanded = false;
+  const syncMobileHeaderState = () => {
+    const mobileActive = mobileMql?.matches ?? false;
+    header.classList.toggle("isMobile", mobileActive);
+    header.classList.toggle("mobileCollapsed", mobileActive && !mobileExpanded);
+    mobileToggle.setAttribute("aria-expanded", mobileExpanded ? "true" : "false");
+    mobileToggle.textContent = mobileExpanded ? "Hide" : "Controls";
+    mobileToggle.hidden = !mobileActive;
+  };
+
+  const setMobileExpanded = (next: boolean) => {
+    mobileExpanded = next;
+    syncMobileHeaderState();
+  };
+
+  mobileToggle.onclick = () => setMobileExpanded(!mobileExpanded);
+
+  if (mobileMql) {
+    mobileMql.addEventListener("change", () => {
+      if (!mobileMql.matches) mobileExpanded = false;
+      syncMobileHeaderState();
+    });
+  }
+
+  syncMobileHeaderState();
 
   params.root.appendChild(header);
 

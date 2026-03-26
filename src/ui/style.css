@@ -2578,6 +2578,31 @@ button:focus-visible,
     grid-template-columns: 1fr;
   }
 
+  .transportMobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 4px 9px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+    justify-self: end;
+  }
+
+  .transportHeader.mobileCollapsed .transportGroupSession,
+  .transportHeader.mobileCollapsed .transportGroupMaster {
+    display: none;
+  }
+
+  .transportHeader.mobileCollapsed .transportGroup {
+    padding: 5px;
+    gap: 4px;
+  }
+
+  .transportHeader.mobileCollapsed .transportStatus {
+    font-size: 11px;
+  }
+
   .presetWrap,
   .bpmWrap,
   .bankWrap {
@@ -2638,7 +2663,7 @@ button:focus-visible,
 
 @media (max-width: 760px) and (orientation: portrait) {
   :root {
-    --module-cell-w: min(100%, 336px);
+    --module-cell-w: min(100%, 344px);
     --workspace-grid-pad: 6px;
   }
 
@@ -2649,6 +2674,9 @@ button:focus-visible,
   }
 
   .transportTitle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     gap: 1px;
     padding: 1px 2px 0;
   }
@@ -2749,11 +2777,16 @@ button:focus-visible,
 
 @media (max-width: 760px) and (orientation: landscape) {
   :root {
-    --module-cell-w: min(100%, 300px);
+    --module-cell-w: min(100%, 272px);
     --workspace-grid-pad: 6px;
   }
 
   .workspaceViewportInner {
     justify-content: flex-start;
+  }
+
+  .transportHeader {
+    margin-bottom: 6px;
+    padding: 5px 8px;
   }
 }

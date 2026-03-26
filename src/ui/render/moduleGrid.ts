@@ -42,7 +42,10 @@ type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "co
 const MIN_VISIBLE_COLUMNS = 1;
 const MOBILE_BREAKPOINT = 760;
 const MOBILE_PORTRAIT_MAX_COLUMNS = 1;
-const MOBILE_LANDSCAPE_MAX_COLUMNS = 2;
+const MOBILE_LANDSCAPE_DEFAULT_COLUMNS = 2;
+const MOBILE_LANDSCAPE_MAX_COLUMNS = 3;
+const MOBILE_LANDSCAPE_MAX_WIDTH = 960;
+const MOBILE_LANDSCAPE_MAX_HEIGHT = 560;
 const CLEAN_FIT_ALLOWANCE_PX = 24;
 
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
@@ -96,7 +99,9 @@ function isMobilePortraitViewport() {
 
 function isMobileLandscapeViewport() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
-  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px) and (orientation: landscape)`).matches;
+  return window.matchMedia(
+    `(orientation: landscape) and (max-width: ${MOBILE_LANDSCAPE_MAX_WIDTH}px) and (max-height: ${MOBILE_LANDSCAPE_MAX_HEIGHT}px)`,
+  ).matches;
 }
 
 function readVisibleColumnCount(main: HTMLElement) {
@@ -115,7 +120,14 @@ function readVisibleColumnCount(main: HTMLElement) {
   if (isMobileLandscapeViewport()) {
     if (fittedColumns < 2) return MIN_VISIBLE_COLUMNS;
     const cleanTwoColumnWidth = padding + (cellWidth * 2) + gap + CLEAN_FIT_ALLOWANCE_PX;
-    return availableWidth >= cleanTwoColumnWidth ? MOBILE_LANDSCAPE_MAX_COLUMNS : MIN_VISIBLE_COLUMNS;
+    if (availableWidth < cleanTwoColumnWidth) return MIN_VISIBLE_COLUMNS;
+
+    if (fittedColumns >= MOBILE_LANDSCAPE_MAX_COLUMNS) {
+      const cleanThreeColumnWidth = padding + (cellWidth * 3) + (gap * 2) + CLEAN_FIT_ALLOWANCE_PX;
+      if (availableWidth >= cleanThreeColumnWidth) return MOBILE_LANDSCAPE_MAX_COLUMNS;
+    }
+
+    return MOBILE_LANDSCAPE_DEFAULT_COLUMNS;
   }
 
   return fittedColumns;
