@@ -109,6 +109,24 @@ export function getModulePresetSubtype(module: Module) {
   return module.type;
 }
 
+export function isModulePresetSubtypeCompatible(record: Pick<ModulePresetRecord, "family" | "subtype" | "state">, module: Module) {
+  if (record.family !== getModulePresetFamily(module)) return false;
+
+  if (module.type === "control") {
+    const recordSubtype = String(record.subtype || "").trim();
+    const stateKind = (record.state as Partial<ControlPresetState>).kind;
+    return recordSubtype === module.kind || stateKind === module.kind;
+  }
+
+  if (module.type === "visual") {
+    const recordSubtype = String(record.subtype || "").trim();
+    const stateKind = (record.state as Partial<VisualPresetState>).kind;
+    return recordSubtype === module.kind || stateKind === module.kind;
+  }
+
+  return true;
+}
+
 export function getModulePresetFamilyLabel(module: Module) {
   if (module.type === "tonal") return "Synth";
   return module.type.charAt(0).toUpperCase() + module.type.slice(1);
@@ -229,12 +247,19 @@ function normalizePresetRecord(input: any, index: number): ModulePresetRecord | 
   if (!input.state || typeof input.state !== "object") return null;
 
   const now = Date.now();
+  const state = structuredClone(input.state);
+  const normalizedSubtype = typeof input.subtype === "string" && input.subtype.trim()
+    ? input.subtype
+    : family === "control" || family === "visual"
+      ? String((state as Partial<ControlPresetState | VisualPresetState>).kind ?? family)
+      : family;
+
   return {
     id: typeof input.id === "string" && input.id.trim() ? input.id : uid("modulepreset"),
     name: sanitizeModulePresetName(typeof input.name === "string" ? input.name : "", `Preset ${index + 1}`),
     family,
-    subtype: typeof input.subtype === "string" && input.subtype.trim() ? input.subtype : family,
-    state: structuredClone(input.state),
+    subtype: normalizedSubtype,
+    state,
     createdAt: typeof input.createdAt === "number" ? input.createdAt : now,
     updatedAt: typeof input.updatedAt === "number" ? input.updatedAt : now,
   } satisfies ModulePresetRecord;
@@ -279,7 +304,7 @@ export function listModulePresetsForModule(records: ModulePresetRecord[], module
   return records.filter((record) => {
     if (record.family !== family) return false;
     if (module.type === "drum" || module.type === "tonal") return record.family === module.type;
-    return true;
+    return isModulePresetSubtypeCompatible(record, module);
   });
 }
 

@@ -3,6 +3,7 @@ import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel
 import {
   findLinkedModulePreset,
   getModulePresetFamilyLabel,
+  getModulePresetSubtype,
   getModulePresetSubtypeLabel,
   listModulePresetsForModule,
   sanitizeModulePresetName,
@@ -27,7 +28,8 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
   const linkedPreset = findLinkedModulePreset(params.records, params.module);
   const availablePresets = listModulePresetsForModule(params.records, params.module)
     .slice()
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const moduleSubtype = getModulePresetSubtype(params.module);
 
   const syncButton = () => {
     presetButton.textContent = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
@@ -74,7 +76,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     title.textContent = "Module preset";
     const subtitle = document.createElement("div");
     subtitle.className = "small modulePresetPanelSubtitle";
-    subtitle.textContent = `${getModulePresetFamilyLabel(params.module)} presets only`;
+    subtitle.textContent = `${getModulePresetFamilyLabel(params.module)} · ${moduleSubtype.toUpperCase()} presets only`;
     titleWrap.append(title, subtitle);
 
     const typeBadge = document.createElement("div");
@@ -84,24 +86,31 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
     const summary = document.createElement("div");
     summary.className = "modulePresetSummary";
-    summary.innerHTML = `
-      <div class="small modulePresetSummaryLabel">Instance</div>
-      <div class="modulePresetSummaryValue">${params.module.name}</div>
-      <div class="small modulePresetSummaryLabel">Preset</div>
-      <div class="modulePresetSummaryValue">${params.module.presetName ?? "Unnamed preset"}</div>
-    `;
+    const instanceNameLabel = document.createElement("div");
+    instanceNameLabel.className = "small modulePresetSummaryLabel";
+    instanceNameLabel.textContent = "Instance";
+    const instanceNameValue = document.createElement("div");
+    instanceNameValue.className = "modulePresetSummaryValue";
+    instanceNameValue.textContent = params.module.name;
+    const presetNameLabel = document.createElement("div");
+    presetNameLabel.className = "small modulePresetSummaryLabel";
+    presetNameLabel.textContent = "Current preset";
+    const presetNameValue = document.createElement("div");
+    presetNameValue.className = "modulePresetSummaryValue";
+    presetNameValue.textContent = params.module.presetName ?? "Unnamed preset";
+    summary.append(instanceNameLabel, instanceNameValue, presetNameLabel, presetNameValue);
 
     const linkedRow = document.createElement("div");
     linkedRow.className = "small modulePresetLinkedRow";
     linkedRow.textContent = linkedPreset
-      ? `Linked preset: ${linkedPreset.name}`
-      : "Linked preset: none yet";
+      ? `Linked: ${linkedPreset.name}`
+      : "Linked: none yet";
 
     const saveBlock = document.createElement("div");
     saveBlock.className = "modulePresetSaveBlock";
     const saveLabel = document.createElement("label");
     saveLabel.className = "small modulePresetInputLabel";
-    saveLabel.textContent = "Save name";
+    saveLabel.textContent = "Save current state as";
     const saveInput = document.createElement("input");
     saveInput.type = "text";
     saveInput.value = params.module.presetName ?? linkedPreset?.name ?? `${params.module.name} Preset`;
@@ -138,7 +147,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     listTitle.className = "small modulePresetListTitle";
     listTitle.textContent = availablePresets.length
       ? `Load ${availablePresets.length} compatible preset${availablePresets.length === 1 ? "" : "s"}`
-      : "No compatible presets saved yet";
+      : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
     listWrap.appendChild(listTitle);
 
     const list = document.createElement("div");

@@ -116,7 +116,7 @@ test('preset import preserves explicit module coordinates', () => {
 
 test('module preset filtering only returns compatible family/type entries', () => {
   const drum = makeSound('drum', 0);
-  const control = makeControl('lfo', 0);
+  const control = makeControl('drift', 0);
   const records = [
     { id: 'drum-a', name: 'Deep Kick', family: 'drum', subtype: 'drum', state: { enabled: true, amp: 0.3, pan: 0, basePitch: 0.42, decay: 0.3, transient: 0.6, snap: 0.25, noise: 0.2, bodyTone: 0.5, pitchEnvAmt: 0.55, pitchEnvDecay: 0.25, tone: 0.45 }, createdAt: 1, updatedAt: 1 },
     { id: 'synth-a', name: 'Rubber Bass', family: 'tonal', subtype: 'tonal', state: { enabled: true, amp: 0.2, pan: 0, waveform: 0.25, coarseTune: 0, fineTune: 0, attack: 0.02, decay: 0.3, sustain: 0.6, release: 0.5, cutoff: 0.55, resonance: 0.2, glide: 0.08, modDepth: 0.15, modRate: 0.25 }, createdAt: 1, updatedAt: 1 },
