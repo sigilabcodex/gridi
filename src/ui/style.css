@@ -2642,8 +2642,108 @@ button:focus-visible,
     --workspace-grid-pad: 6px;
   }
 
+  .transportHeader {
+    gap: 6px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+  }
+
+  .transportTitle {
+    gap: 1px;
+    padding: 1px 2px 0;
+  }
+
+  .transportTitle h1 {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 0.45px;
+  }
+
+  .transportSubtitle {
+    display: none;
+  }
+
+  .transportMain {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .transportGroup {
+    gap: 4px;
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .transportGroupLabel {
+    font-size: 10px;
+    letter-spacing: 0.55px;
+  }
+
+  .transportGroupTransport {
+    grid-column: 1;
+  }
+
+  .transportGroupStatus {
+    grid-column: 2;
+  }
+
+  .transportGroupSession,
+  .transportGroupMaster {
+    grid-column: 1 / -1;
+  }
+
+  .transportGroupTransport .transportGroupBody {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .transportGroupTransport .transportGroupBody > button {
+    min-height: 34px;
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+
+  .transportStatus {
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .transportStatusActions .transportSettings {
+    width: 32px;
+    height: 32px;
+  }
+
+  .transportActionRow {
+    gap: 5px;
+  }
+
+  .transportActionRow > button {
+    min-height: 34px;
+    padding-inline: 8px;
+  }
+
+  .appTooltip {
+    width: min(196px, calc(100vw - 16px));
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
   .workspaceViewportInner {
     justify-content: center;
+  }
+}
+
+@media (max-width: 420px) and (orientation: portrait) {
+  .transportMain {
+    grid-template-columns: 1fr;
+  }
+
+  .transportGroupTransport,
+  .transportGroupStatus,
+  .transportGroupSession,
+  .transportGroupMaster {
+    grid-column: 1;
   }
 }
 

@@ -15,6 +15,29 @@ type TooltipControllerParams = {
 const DEFAULT_HOVER_DELAY_MS = 720;
 let nextTooltipId = 0;
 
+function resolveTooltipPlacement(options: TooltipBindOptions): FloatingPanelOptions {
+  const isNarrowPortrait = window.matchMedia("(max-width: 760px) and (orientation: portrait)").matches;
+  const baseMaxWidth = options.maxWidth ?? 220;
+
+  if (!isNarrowPortrait) {
+    return {
+      preferredSide: options.preferredSide ?? "bottom",
+      align: options.align ?? "center",
+      offset: options.offset ?? 10,
+      padding: options.padding ?? 10,
+      maxWidth: baseMaxWidth,
+    };
+  }
+
+  return {
+    preferredSide: options.preferredSide ?? "top",
+    align: options.align ?? "center",
+    offset: options.offset ?? 8,
+    padding: options.padding ?? 8,
+    maxWidth: Math.min(baseMaxWidth, 196),
+  };
+}
+
 function mergeDescribedBy(target: HTMLElement, tooltipId: string) {
   const tokens = new Set((target.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean));
   tokens.add(tooltipId);
@@ -67,27 +90,16 @@ export function createTooltipController(params: TooltipControllerParams) {
     activeTarget = target;
     tooltip.textContent = options.text;
     tooltip.classList.remove("hidden");
+    const placement = resolveTooltipPlacement(options);
 
     if (!tooltip.isConnected) document.body.appendChild(tooltip);
-    placeFloatingPanel(tooltip, target.getBoundingClientRect(), {
-      preferredSide: options.preferredSide ?? "bottom",
-      align: options.align ?? "center",
-      offset: options.offset ?? 10,
-      padding: options.padding ?? 10,
-      maxWidth: options.maxWidth ?? 220,
-    });
+    placeFloatingPanel(tooltip, target.getBoundingClientRect(), placement);
 
     repositionCleanup?.destroy();
     repositionCleanup = bindFloatingPanelReposition(
       tooltip,
       () => (target.isConnected ? target.getBoundingClientRect() : null),
-      {
-        preferredSide: options.preferredSide ?? "bottom",
-        align: options.align ?? "center",
-        offset: options.offset ?? 10,
-        padding: options.padding ?? 10,
-        maxWidth: options.maxWidth ?? 220,
-      },
+      placement,
     );
 
     mergeDescribedBy(target, tooltip.id);
