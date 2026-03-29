@@ -24,21 +24,40 @@ Why: preserve instrument feel and avoid mini-app panels.
 - Tab changes should not resize module cards.
 - Main face is for immediate, performance-relevant controls.
 - Secondary tabs handle routing/settings and less-frequent controls.
+- MAIN/primary tab should stay playable without requiring navigation into setup-heavy flows.
 
 ## 4) Main-face philosophy
 
 - Keep the first face compact, legible, and playable.
 - Prefer grouped controls with clear musical meaning over long forms.
 - Module headers should be preset-first: the preset chip is the primary visible identity, while module family and instance name remain secondary metadata.
+- Identity hierarchy is: **engine** (runtime semantics) → **preset** (reusable flavor) → **instance** (local workspace label).
 - Show setup/configuration detail only when needed (via tabs).
 
-## 5) Workspace composition philosophy
+Why: preserve clear mental models and avoid conflating runtime behavior with UI naming.
+
+## 5) Transport/header philosophy
+
+- Keep transport/header controls minimal and instrument-like.
+- Primary transport actions (audio/play/mute/tempo/master/output status) stay immediately reachable.
+- Session-level actions (preset management and utilities) should be grouped without dominating workspace focus.
+- Header composition should support compact layouts first, including narrow/mobile widths.
+
+## 6) Workspace composition philosophy
 
 - The workspace is a modular grid, not a scrolling dashboard.
 - Add/remove actions are local to grid cells.
 - Interaction should emphasize patch-building and performance flow, not menu depth.
 
-## 6) Shared control and transient-UI policy
+## 7) Module shell expectations
+
+- The shell is fixed-size and deterministic: no per-module card growth based on tab content.
+- Identity metadata should stay concise to protect vertical space for playable controls.
+- Avoid hidden dependencies where shell state changes runtime behavior indirectly.
+
+Why: shell constraints are part of runtime usability, not only visual styling.
+
+## 8) Shared control and transient-UI policy
 
 - Continuous controls keep direct play on the module face, but precise value entry should open a lightweight floating editor instead of a full inspector.
 - If a parameter already supports controller/modulation assignment, that assignment should be reachable from the same floating edit surface when practical.
@@ -47,3 +66,5 @@ Why: preserve instrument feel and avoid mini-app panels.
 - Keyboard flow must remain first-class: visible focus, Enter/Space activation, arrow-key tab/menu travel where appropriate, and Escape to dismiss transient UI.
 
 Why: preserve a compact instrument surface while keeping editing precise, reachable, and playable.
+
+Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md), [`docs/status.md`](status.md).
