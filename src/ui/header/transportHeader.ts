@@ -139,18 +139,6 @@ export function createTransportHeader(params: HeaderParams) {
   masterNum.step = "0.001";
   masterNum.className = "transportDialNumber";
 
-  const masterStepDown = document.createElement("button");
-  masterStepDown.type = "button";
-  masterStepDown.className = "transportStepBtn";
-  masterStepDown.textContent = "−";
-  masterStepDown.onclick = () => params.onSetMasterGain(parseFloat(master.value) - 0.02);
-
-  const masterStepUp = document.createElement("button");
-  masterStepUp.type = "button";
-  masterStepUp.className = "transportStepBtn";
-  masterStepUp.textContent = "+";
-  masterStepUp.onclick = () => params.onSetMasterGain(parseFloat(master.value) + 0.02);
-
   master.oninput = () => params.onSetMasterGain(parseFloat(master.value));
   masterNum.onchange = () => params.onSetMasterGain(parseFloat(masterNum.value));
   params.attachTooltip(master, {
@@ -161,10 +149,10 @@ export function createTransportHeader(params: HeaderParams) {
     text: "Enter the master output level directly.",
     ariaLabel: "Master gain value",
   });
-  const masterStepWrap = document.createElement("div");
-  masterStepWrap.className = "transportStepWrap";
-  masterStepWrap.append(masterStepDown, masterNum, masterStepUp);
-  masterWrap.append(masterLab, master, masterStepWrap);
+  const masterValueWrap = document.createElement("div");
+  masterValueWrap.className = "transportValueRow";
+  masterValueWrap.append(masterNum);
+  masterWrap.append(masterLab, master, masterValueWrap);
 
   const bpmWrap = document.createElement("div");
   bpmWrap.className = "bpmWrap transportDial";
@@ -185,18 +173,6 @@ export function createTransportHeader(params: HeaderParams) {
   bpmNum.max = "240";
   bpmNum.className = "transportDialNumber";
 
-  const bpmStepDown = document.createElement("button");
-  bpmStepDown.type = "button";
-  bpmStepDown.className = "transportStepBtn";
-  bpmStepDown.textContent = "−";
-  bpmStepDown.onclick = () => params.onSetBpm(parseInt(bpm.value, 10) - 1);
-
-  const bpmStepUp = document.createElement("button");
-  bpmStepUp.type = "button";
-  bpmStepUp.className = "transportStepBtn";
-  bpmStepUp.textContent = "+";
-  bpmStepUp.onclick = () => params.onSetBpm(parseInt(bpm.value, 10) + 1);
-
   bpm.oninput = () => params.onSetBpm(parseInt(bpm.value, 10));
   bpmNum.onchange = () => params.onSetBpm(parseInt(bpmNum.value, 10));
   params.attachTooltip(bpm, {
@@ -207,10 +183,10 @@ export function createTransportHeader(params: HeaderParams) {
     text: "Enter the tempo in beats per minute.",
     ariaLabel: "Tempo value",
   });
-  const bpmStepWrap = document.createElement("div");
-  bpmStepWrap.className = "transportStepWrap";
-  bpmStepWrap.append(bpmStepDown, bpmNum, bpmStepUp);
-  bpmWrap.append(bpmLabel, bpm, bpmStepWrap);
+  const bpmValueWrap = document.createElement("div");
+  bpmValueWrap.className = "transportValueRow";
+  bpmValueWrap.append(bpmNum);
+  bpmWrap.append(bpmLabel, bpm, bpmValueWrap);
 
   const tempoCluster = document.createElement("section");
   tempoCluster.className = "transportCluster transportClusterTempo";
@@ -221,6 +197,13 @@ export function createTransportHeader(params: HeaderParams) {
   statusCluster.className = "transportCluster transportClusterStatus";
   statusCluster.setAttribute("aria-label", "Status and settings");
   statusCluster.append(btnAudio, outputCenter, status);
+
+  const sessionCluster = document.createElement("section");
+  sessionCluster.className = "transportCluster transportClusterSession";
+  sessionCluster.setAttribute("aria-label", "Session and utilities");
+
+  const sessionBlock = document.createElement("div");
+  sessionBlock.className = "transportSessionBlock";
 
   const presetWrap = document.createElement("div");
   presetWrap.className = "presetWrap transportPresetWrap";
@@ -244,7 +227,11 @@ export function createTransportHeader(params: HeaderParams) {
     ariaLabel: "Save preset",
   });
 
-  presetWrap.append(presetLabel, presetSelect);
+  const sessionSelectRow = document.createElement("div");
+  sessionSelectRow.className = "transportSessionSelectRow";
+  sessionSelectRow.append(presetSelect, btnSavePreset);
+
+  presetWrap.append(presetLabel, sessionSelectRow);
 
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
@@ -254,7 +241,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   const utilitySummary = document.createElement("summary");
   utilitySummary.className = "transportGhostBtn transportUtilitySummary";
-  utilitySummary.textContent = "Menu";
+  utilitySummary.textContent = "Actions";
   utilitySummary.setAttribute("aria-label", "Open session and utility actions");
 
   const utilityPanel = document.createElement("div");
@@ -286,17 +273,34 @@ export function createTransportHeader(params: HeaderParams) {
     "Settings",
   );
   const btnReset = makeUtilityBtn("Reset patch", params.onReset, "Reset the current patch back to the default layout.", "Reset patch");
-  const btnReseed = makeUtilityBtn("Re-seed", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
-  const btnRandom = makeUtilityBtn("Randomize", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
-  const btnRegen = makeUtilityBtn("Regen patterns", params.onRegen, "Regenerate pattern outputs without rebuilding the patch.", "Regenerate patterns");
+  const variationMenu = document.createElement("details");
+  variationMenu.className = "transportUtilitySubmenu";
+  const variationSummary = document.createElement("summary");
+  variationSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySubmenuSummary";
+  variationSummary.textContent = "Variation actions";
 
-  utilityPanel.append(btnSavePreset, btnPresetManager, btnSettingsMenu, btnReset, btnReseed, btnRandom, btnRegen);
+  const variationPanel = document.createElement("div");
+  variationPanel.className = "transportUtilitySubpanel";
+  const btnReseed = makeUtilityBtn("Reseed all", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
+  const btnRandom = makeUtilityBtn("Randomize all", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
+  const btnRegen = makeUtilityBtn(
+    "Regenerate patterns",
+    params.onRegen,
+    "Regenerate pattern outputs without rebuilding the patch.",
+    "Regenerate patterns",
+  );
+  variationPanel.append(btnRandom, btnReseed, btnRegen);
+  variationMenu.append(variationSummary, variationPanel);
+
+  utilityPanel.append(btnPresetManager, btnSettingsMenu, btnReset, variationMenu);
   utilityMenu.append(utilitySummary, utilityPanel);
 
   sessionActions.append(utilityMenu, btnSettings);
+  sessionBlock.append(presetWrap, sessionActions);
+  sessionCluster.append(sessionBlock);
 
   transportRow.append(transportCluster, tempoCluster, statusCluster);
-  sessionRow.append(presetWrap, sessionActions);
+  sessionRow.append(sessionCluster);
 
   const main = document.createElement("div");
   main.className = "transportMain";

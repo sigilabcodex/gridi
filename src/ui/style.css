@@ -1496,6 +1496,11 @@ button.danger.armed {
   height: var(--module-cell-h);
 }
 
+.moduleCell,
+.moduleCell * {
+  box-sizing: border-box;
+}
+
 .moduleCellSubstrate,
 .moduleCellBed {
   box-sizing: border-box;
@@ -1547,7 +1552,7 @@ button.danger.armed {
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
   gap: var(--module-shell-gap);
   padding: var(--module-shell-pad);
-  overflow: clip;
+  overflow: hidden;
 }
 
 .surfaceHeader {
@@ -1626,7 +1631,7 @@ button.danger.armed {
   min-height: 0;
   margin: 0;
   padding: 8px;
-  overflow: clip;
+  overflow: hidden;
   align-content: start;
 }
 
@@ -2795,9 +2800,9 @@ button:focus-visible,
 .transportHeader {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  align-items: start;
+  gap: 12px;
+  padding: 8px 10px;
 }
 
 .transportTitle {
@@ -2820,23 +2825,23 @@ button:focus-visible,
 
 .transportMain {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
 }
 
 .transportRow {
-  display: flex;
-  align-items: center;
+  display: grid;
+  align-items: stretch;
   gap: 6px;
   min-width: 0;
 }
 
 .transportRowPrimary {
-  flex-wrap: nowrap;
+  grid-template-columns: minmax(112px, auto) minmax(220px, 1fr) minmax(180px, auto);
 }
 
 .transportRowSession {
-  flex-wrap: nowrap;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .transportCluster {
@@ -2851,18 +2856,20 @@ button:focus-visible,
 }
 
 .transportClusterPrimary {
-  flex: 0 1 auto;
+  min-width: 112px;
 }
 
 .transportClusterTempo {
-  flex: 1 1 460px;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .transportClusterStatus {
-  margin-left: 0;
-  flex: 1 1 330px;
   justify-content: flex-end;
+  padding-right: 6px;
+}
+
+.transportClusterSession {
+  justify-content: space-between;
   padding-right: 6px;
 }
 
@@ -2918,18 +2925,10 @@ button:focus-visible,
   padding: 4px 6px;
 }
 
-.transportStepWrap {
+.transportValueRow {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-}
-
-.transportStepBtn {
-  min-height: 28px;
-  min-width: 26px;
-  padding: 0 6px;
-  font-size: 14px;
-  line-height: 1;
+  justify-content: flex-end;
 }
 
 .transportStatus {
@@ -2952,11 +2951,25 @@ button:focus-visible,
 
 .transportPresetWrap {
   display: grid;
-  grid-template-columns: auto minmax(160px, 240px);
+  grid-template-columns: auto minmax(170px, 260px);
   align-items: center;
   gap: 6px;
   padding: 4px 7px;
-  flex: 0 1 auto;
+}
+
+.transportSessionBlock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.transportSessionSelectRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: center;
 }
 
 .transportPresetLabel {
@@ -2965,7 +2978,7 @@ button:focus-visible,
 
 .transportActionRow {
   display: flex;
-  flex: 1 1 260px;
+  flex: 0 0 auto;
   gap: 6px;
   flex-wrap: nowrap;
   justify-content: flex-end;
@@ -2986,12 +2999,12 @@ button:focus-visible,
 .transportOutputMeter {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
-  width: clamp(78px, 9vw, 108px);
-  height: 12px;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+  width: clamp(64px, 8vw, 84px);
+  height: 16px;
   padding: 2px;
-  border-radius: 999px;
+  border-radius: 10px;
   overflow: hidden;
   background: rgba(8, 12, 17, 0.85);
   border: 1px solid rgba(207, 214, 221, 0.14);
@@ -3074,6 +3087,22 @@ button:focus-visible,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
 }
 
+.transportUtilitySubmenu {
+  display: grid;
+  gap: 4px;
+}
+
+.transportUtilitySubmenuSummary {
+  width: 100%;
+  text-align: left;
+}
+
+.transportUtilitySubpanel {
+  display: grid;
+  gap: 4px;
+  padding-left: 8px;
+}
+
 .transportUtilityBtn {
   justify-content: flex-start;
   text-align: left;
@@ -3100,14 +3129,13 @@ button:focus-visible,
     display: none;
   }
 
-  .transportClusterStatus {
-    flex: 1 1 100%;
-    justify-content: flex-start;
+  .transportRowPrimary {
+    grid-template-columns: minmax(112px, auto) minmax(260px, 1fr);
   }
 
-  .transportRowPrimary,
-  .transportRowSession {
-    flex-wrap: wrap;
+  .transportClusterStatus {
+    grid-column: 1 / -1;
+    justify-content: space-between;
   }
 
   .transportStatus {
@@ -3136,6 +3164,7 @@ button:focus-visible,
 
   .transportRow {
     gap: 5px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .transportCluster {
@@ -3169,7 +3198,7 @@ button:focus-visible,
     text-align: center;
   }
 
-  .transportStepWrap {
+  .transportValueRow {
     justify-content: flex-end;
     width: 100%;
   }
@@ -3183,6 +3212,10 @@ button:focus-visible,
   .transportPresetWrap {
     grid-template-columns: auto minmax(0, 1fr);
     width: 100%;
+  }
+
+  .transportSessionBlock {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .transportActionRow {
@@ -3311,7 +3344,8 @@ button:focus-visible,
 }
 
 .knobCtl {
-  width: 72px;
+  width: 68px;
+  max-width: 100%;
 }
 
 @media (max-width: 1180px) and (min-width: 761px) {
@@ -3323,11 +3357,11 @@ button:focus-visible,
 /* === Final integration stabilization pass === */
 @media (max-width: 1320px) and (min-width: 1101px) {
   .transportRowPrimary {
-    flex-wrap: wrap;
+    grid-template-columns: minmax(112px, auto) minmax(220px, 1fr);
   }
 
   .transportClusterStatus {
-    flex: 1 1 100%;
+    grid-column: 1 / -1;
     justify-content: flex-start;
     padding-right: 4px;
   }
