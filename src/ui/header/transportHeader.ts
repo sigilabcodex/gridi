@@ -13,6 +13,7 @@ type HeaderParams = {
   settingsExperimental: () => boolean;
   audioState: () => "running" | string;
   isPlaying: () => boolean;
+  getMasterActivity: () => { level: number; transient: number; active: boolean };
   onOpenSettings: () => void;
   onOpenPresetManager: () => void;
   onSelectPreset: (presetId: string) => void;
@@ -59,6 +60,27 @@ export function createTransportHeader(params: HeaderParams) {
   const status = document.createElement("div");
   status.className = "small transportStatus";
 
+  const outputCenter = document.createElement("div");
+  outputCenter.className = "transportOutputCenter";
+  outputCenter.setAttribute("aria-label", "Main output activity");
+
+  const outputLabel = document.createElement("span");
+  outputLabel.className = "small transportOutputLabel";
+  outputLabel.textContent = "Main Out";
+
+  const outputMeter = document.createElement("div");
+  outputMeter.className = "transportOutputMeter";
+  outputMeter.setAttribute("aria-hidden", "true");
+
+  const outputFill = document.createElement("div");
+  outputFill.className = "transportOutputFill";
+
+  const outputTransient = document.createElement("div");
+  outputTransient.className = "transportOutputTransient";
+
+  outputMeter.append(outputFill, outputTransient);
+  outputCenter.append(outputLabel, outputMeter);
+
   const btnSettings = el("button", "iconBtn", "⚙");
   btnSettings.classList.add("transportSettings");
   btnSettings.onclick = params.onOpenSettings;
@@ -94,7 +116,7 @@ export function createTransportHeader(params: HeaderParams) {
   const transportCluster = document.createElement("section");
   transportCluster.className = "transportCluster transportClusterPrimary";
   transportCluster.setAttribute("aria-label", "Transport");
-  transportCluster.append(btnPlay, btnMute, btnAudio);
+  transportCluster.append(btnPlay, btnMute);
 
   const masterWrap = el("div", "bpmWrap");
   masterWrap.classList.add("transportDial");
@@ -161,7 +183,7 @@ export function createTransportHeader(params: HeaderParams) {
   const statusCluster = document.createElement("section");
   statusCluster.className = "transportCluster transportClusterStatus";
   statusCluster.setAttribute("aria-label", "Status and settings");
-  statusCluster.append(status, btnSettings);
+  statusCluster.append(outputCenter, status, btnAudio, btnSettings);
 
   const presetWrap = document.createElement("div");
   presetWrap.className = "presetWrap transportPresetWrap";
@@ -199,43 +221,39 @@ export function createTransportHeader(params: HeaderParams) {
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
 
-  const btnReset = document.createElement("button");
-  btnReset.className = "transportGhostBtn";
-  btnReset.textContent = "Reset";
-  btnReset.onclick = params.onReset;
-  params.attachTooltip(btnReset, {
-    text: "Reset the current patch back to the default layout.",
-    ariaLabel: "Reset patch",
-  });
+  const utilityMenu = document.createElement("details");
+  utilityMenu.className = "transportUtilityMenu";
 
-  const btnReseed = document.createElement("button");
-  btnReseed.className = "transportGhostBtn";
-  btnReseed.textContent = "Re-seed";
-  btnReseed.onclick = params.onReseed;
-  params.attachTooltip(btnReseed, {
-    text: "Give all trigger modules fresh random seeds.",
-    ariaLabel: "Reseed triggers",
-  });
+  const utilitySummary = document.createElement("summary");
+  utilitySummary.className = "transportGhostBtn transportUtilitySummary";
+  utilitySummary.textContent = "Utilities";
+  utilitySummary.setAttribute("aria-label", "Open utility patch actions");
 
-  const btnRandom = document.createElement("button");
-  btnRandom.className = "transportGhostBtn";
-  btnRandom.textContent = "Randomize";
-  btnRandom.onclick = params.onRandomize;
-  params.attachTooltip(btnRandom, {
-    text: "Randomize trigger and voice parameters in the patch.",
-    ariaLabel: "Randomize patch",
-  });
+  const utilityPanel = document.createElement("div");
+  utilityPanel.className = "transportUtilityPanel";
 
-  const btnRegen = document.createElement("button");
-  btnRegen.className = "transportGhostBtn";
-  btnRegen.textContent = "Regen";
-  btnRegen.onclick = params.onRegen;
-  params.attachTooltip(btnRegen, {
-    text: "Regenerate pattern outputs without rebuilding the patch.",
-    ariaLabel: "Regenerate patterns",
-  });
+  const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "transportGhostBtn transportUtilityBtn";
+    btn.textContent = label;
+    btn.onclick = () => {
+      onClick();
+      utilityMenu.removeAttribute("open");
+    };
+    params.attachTooltip(btn, { text: tooltip, ariaLabel });
+    return btn;
+  };
 
-  sessionActions.append(btnSavePreset, btnPresetManager, btnReset, btnReseed, btnRandom, btnRegen);
+  const btnReset = makeUtilityBtn("Reset patch", params.onReset, "Reset the current patch back to the default layout.", "Reset patch");
+  const btnReseed = makeUtilityBtn("Re-seed", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
+  const btnRandom = makeUtilityBtn("Randomize", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
+  const btnRegen = makeUtilityBtn("Regen patterns", params.onRegen, "Regenerate pattern outputs without rebuilding the patch.", "Regenerate patterns");
+
+  utilityPanel.append(btnReset, btnReseed, btnRandom, btnRegen);
+  utilityMenu.append(utilitySummary, utilityPanel);
+
+  sessionActions.append(btnSavePreset, btnPresetManager, utilityMenu);
 
   transportRow.append(transportCluster, tempoCluster, statusCluster);
   sessionRow.append(presetWrap, sessionActions);
@@ -283,15 +301,22 @@ export function createTransportHeader(params: HeaderParams) {
 
   const updateStatus = () => {
     const play = params.isPlaying() ? "PLAY" : "STOP";
-    const audio = params.audioState() === "running" ? "AUDIO ON" : "AUDIO OFF";
+    const audio = params.audioState() === "running" ? "AUDIO READY" : "AUDIO SUSP";
     const experimental = params.settingsExperimental() ? " • EXP" : "";
     status.textContent = `${play} • ${audio}${experimental}`;
   };
 
   const updateAudioBtn = () => {
     const running = params.audioState() === "running";
-    btnAudio.textContent = running ? "Audio On" : "Audio Off";
+    btnAudio.textContent = running ? "Audio: On" : "Audio: Off";
     btnAudio.classList.toggle("isOn", running);
+  };
+
+  const updateOutputMeter = () => {
+    const activity = params.getMasterActivity();
+    outputFill.style.transform = `scaleX(${activity.level.toFixed(3)})`;
+    outputTransient.style.opacity = activity.transient.toFixed(3);
+    outputCenter.classList.toggle("isActive", activity.active);
   };
 
   const updatePlayBtn = () => {
@@ -345,5 +370,6 @@ export function createTransportHeader(params: HeaderParams) {
     updateMasterGainUI,
     updatePresetUI,
     updateBpmUI,
+    updateOutputMeter,
   };
 }

@@ -5,6 +5,7 @@ import type { Scheduler } from "../engine/scheduler";
 import { loadSettings } from "../settings/store";
 import { createTransportHeader } from "./header/transportHeader";
 import { createAmbientBackgroundLayer } from "./ambientBackground";
+import { setControlStylePreference } from "./env";
 import { createUndoRedoHistory } from "./history/undoRedo";
 import { openPresetManagerModal } from "./modals/presetManagerModal";
 import { openSettingsModal } from "./modals/settingsModal";
@@ -63,6 +64,7 @@ function downloadJSON(filename: string, value: unknown) {
 
 export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const settings = loadSettings();
+  setControlStylePreference(settings.ui.controlStyle);
   applyUserCss(settings.ui.customCss);
   const tooltips = createTooltipController({
     getEnabled: () => settings.ux.tooltips,
@@ -410,6 +412,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     settingsExperimental: () => settings.ui.experimental,
     audioState: () => engine.ctx.state,
     isPlaying: () => sched.running,
+    getMasterActivity: () => engine.getMasterActivity(),
     onOpenSettings: () =>
       openSettingsModal({
         settings,
@@ -579,6 +582,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const frame = (timestamp: number) => {
     background.updateFrame(timestamp);
     gridRenderer.updateFrame();
+    header.updateOutputMeter();
     requestAnimationFrame(frame);
   };
 
