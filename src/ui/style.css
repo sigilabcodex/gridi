@@ -3258,3 +3258,55 @@ button:focus-visible,
     --module-cell-h: 346px;
   }
 }
+
+/* === Final integration stabilization pass === */
+@media (max-width: 1320px) and (min-width: 1101px) {
+  .transportRowPrimary {
+    flex-wrap: wrap;
+  }
+
+  .transportClusterStatus {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-right: 4px;
+  }
+}
+
+.transportStatus {
+  max-width: 190px;
+  text-align: right;
+}
+
+.transportUtilityMenu[open] .transportUtilitySummary {
+  border-color: rgba(125, 212, 255, 0.42);
+  background: rgba(60, 118, 160, 0.2);
+}
+
+.surfaceTabs {
+  display: flex;
+}
+
+.surfaceTabs .modTab {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.addModuleSlot {
+  padding: var(--module-shell-pad);
+}
+
+.addModulePlus {
+  align-self: center;
+}
+
+.addModuleSlotLabel {
+  margin-bottom: 2px;
+}
+
+@media (max-width: 1100px) {
+  .transportStatus {
+    text-align: left;
+  }
+}
