@@ -2825,52 +2825,49 @@ button:focus-visible,
 
 .transportMain {
   display: grid;
-  gap: 6px;
   min-width: 0;
 }
 
 .transportRow {
   display: grid;
   align-items: stretch;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
-.transportRowPrimary {
-  grid-template-columns: minmax(112px, auto) minmax(220px, 1fr) minmax(180px, auto);
-}
-
-.transportRowSession {
-  grid-template-columns: minmax(0, 1fr);
+.transportRowMain {
+  grid-template-columns:
+    minmax(172px, auto)
+    minmax(320px, 1fr)
+    minmax(260px, auto)
+    minmax(190px, auto)
+    auto;
 }
 
 .transportCluster {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid rgba(207, 214, 221, 0.12);
   border-radius: 10px;
-  padding: 4px;
+  padding: 6px 8px;
   background: linear-gradient(180deg, rgba(20, 28, 36, 0.74), rgba(11, 16, 23, 0.76));
   min-width: 0;
 }
 
-.transportClusterPrimary {
-  min-width: 112px;
+.transportClusterPrimary,
+.transportClusterStatus {
+  justify-content: flex-start;
 }
 
 .transportClusterTempo {
-  justify-content: center;
-}
-
-.transportClusterStatus {
-  justify-content: flex-end;
-  padding-right: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 8px;
 }
 
 .transportClusterSession {
-  justify-content: space-between;
-  padding-right: 6px;
+  justify-content: stretch;
 }
 
 .transportPrimaryBtn,
@@ -2907,9 +2904,10 @@ button:focus-visible,
 
 .transportDial {
   display: grid;
-  grid-template-columns: auto minmax(90px, 1fr) auto;
-  align-items: center;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: start;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2920,41 +2918,61 @@ button:focus-visible,
   opacity: 0.74;
 }
 
+.transportDial input[type="range"] {
+  width: 100%;
+}
+
 .transportDialNumber {
-  width: 64px;
-  padding: 4px 6px;
+  width: 100%;
+  max-width: 92px;
+  padding: 4px 8px;
+}
+
+.transportChipInput {
+  border-radius: 999px;
+  border-color: rgba(74, 163, 255, 0.34);
+  background: rgba(11, 19, 27, 0.78);
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .transportValueRow {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .transportStatus {
   margin: 0;
-  font-size: 9px;
+  display: grid;
+  gap: 3px;
+  font-size: 10px;
   letter-spacing: 0.35px;
-  opacity: 0.72;
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 152px;
+  opacity: 0.78;
+  text-transform: lowercase;
+}
+
+.transportSettingsDock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .transportSettings.iconBtn {
-  width: 30px;
-  height: 30px;
+  min-width: 74px;
+  width: auto;
+  height: 32px;
   border-radius: 8px;
+  font-size: 11px;
 }
 
 .transportPresetWrap {
   display: grid;
-  grid-template-columns: auto minmax(170px, 260px);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 4px 7px;
+  width: 100%;
 }
 
 .transportSessionBlock {
@@ -2974,19 +2992,14 @@ button:focus-visible,
 
 .transportPresetLabel {
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .transportActionRow {
   display: flex;
-  flex: 0 0 auto;
   gap: 6px;
-  flex-wrap: nowrap;
   justify-content: flex-end;
-}
-
-.transportActionRow > button,
-.transportActionRow > .transportUtilityMenu {
-  flex: 0 0 auto;
 }
 
 .transportOutputCenter {
@@ -3077,7 +3090,7 @@ button:focus-visible,
   z-index: 30;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 148px;
+  min-width: 168px;
   display: grid;
   gap: 4px;
   padding: 6px;
@@ -3087,30 +3100,30 @@ button:focus-visible,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
 }
 
-.transportUtilitySubmenu {
-  display: grid;
-  gap: 4px;
-}
-
-.transportUtilitySubmenuSummary {
-  width: 100%;
-  text-align: left;
-}
-
-.transportUtilitySubpanel {
-  display: grid;
-  gap: 4px;
-  padding-left: 8px;
-}
-
 .transportUtilityBtn {
   justify-content: flex-start;
   text-align: left;
   width: 100%;
 }
 
+.transportUtilityBtn.isPlaceholder {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .transportMobileToggle {
   display: none;
+}
+
+@media (max-width: 1320px) {
+  .transportRowMain {
+    grid-template-columns: minmax(172px, auto) minmax(280px, 1fr) minmax(220px, auto) minmax(180px, auto);
+  }
+
+  .transportSettingsDock {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 1100px) {
@@ -3129,17 +3142,18 @@ button:focus-visible,
     display: none;
   }
 
-  .transportRowPrimary {
-    grid-template-columns: minmax(112px, auto) minmax(260px, 1fr);
+  .transportRowMain {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .transportClusterTempo,
+  .transportClusterSession,
   .transportClusterStatus {
-    grid-column: 1 / -1;
-    justify-content: space-between;
+    grid-column: span 2;
   }
 
-  .transportStatus {
-    max-width: none;
+  .transportSettingsDock {
+    grid-column: span 2;
   }
 }
 
@@ -3158,60 +3172,21 @@ button:focus-visible,
     font-size: 11px;
   }
 
-  .transportMain {
-    gap: 5px;
-  }
-
-  .transportRow {
-    gap: 5px;
+  .transportRowMain {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .transportCluster {
+  .transportCluster,
+  .transportClusterTempo,
+  .transportClusterSession,
+  .transportClusterStatus,
+  .transportSettingsDock {
+    grid-column: auto;
     width: 100%;
   }
 
   .transportClusterTempo {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-  }
-
-  .transportClusterStatus {
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  .transportDial {
-    grid-template-columns: auto auto;
-    gap: 5px;
-    flex: 1 1 100%;
-  }
-
-  .transportDial input[type="range"] {
-    display: none;
-  }
-
-  .transportDialNumber {
-    width: 60px;
-    text-align: center;
-  }
-
-  .transportValueRow {
-    justify-content: flex-end;
-    width: 100%;
-  }
-
-  .transportSecondaryMenu .transportUtilityPanel {
-    left: 0;
-    right: auto;
-    min-width: 180px;
-  }
-
-  .transportPresetWrap {
-    grid-template-columns: auto minmax(0, 1fr);
-    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .transportSessionBlock {
@@ -3219,29 +3194,15 @@ button:focus-visible,
   }
 
   .transportActionRow {
-    width: 100%;
-    flex: 1 1 auto;
+    justify-content: flex-start;
   }
 
-  .transportHeader.mobileCollapsed .transportRowSession {
-    display: none;
+  .transportSecondaryMenu .transportUtilityPanel {
+    left: 0;
+    right: auto;
+    min-width: 180px;
   }
-
-  .transportHeader.mobileCollapsed .transportCluster {
-    padding: 3px;
-  }
-
-  .transportHeader.mobileCollapsed .transportClusterStatus {
-    margin-left: auto;
-    flex: 0 1 auto;
-  }
-
-  .transportHeader.mobileCollapsed .transportStatus {
-    display: none;
-  }
-
 }
-
 /* === Header compact preset-first pass === */
 :root {
   --module-header-h: 50px;
@@ -3355,22 +3316,6 @@ button:focus-visible,
 }
 
 /* === Final integration stabilization pass === */
-@media (max-width: 1320px) and (min-width: 1101px) {
-  .transportRowPrimary {
-    grid-template-columns: minmax(112px, auto) minmax(220px, 1fr);
-  }
-
-  .transportClusterStatus {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    padding-right: 4px;
-  }
-}
-
-.transportStatus {
-  max-width: 190px;
-  text-align: right;
-}
 
 .transportUtilityMenu[open] .transportUtilitySummary {
   border-color: rgba(125, 212, 255, 0.42);
@@ -3398,10 +3343,4 @@ button:focus-visible,
 
 .addModuleSlotLabel {
   margin-bottom: 2px;
-}
-
-@media (max-width: 1100px) {
-  .transportStatus {
-    text-align: left;
-  }
 }
