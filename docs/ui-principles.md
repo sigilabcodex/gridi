@@ -29,6 +29,7 @@ Why: preserve instrument feel and avoid mini-app panels.
 
 - Keep the first face compact, legible, and playable.
 - Prefer grouped controls with clear musical meaning over long forms.
+- Module headers should be preset-first: the preset chip is the primary visible identity, while module family and instance name remain secondary metadata.
 - Show setup/configuration detail only when needed (via tabs).
 
 ## 5) Workspace composition philosophy

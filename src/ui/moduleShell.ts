@@ -100,29 +100,26 @@ export function createModuleIdentityMeta(params: {
   const identity = document.createElement("div");
   identity.className = "surfaceIdentity";
 
+  const primary = document.createElement("div");
+  primary.className = "surfacePresetPrimary";
+  primary.appendChild(params.presetButton);
+
+  const secondary = document.createElement("div");
+  secondary.className = "surfaceSecondaryIdentity";
+
   const badge = document.createElement("div");
   badge.className = "surfaceBadge";
   badge.textContent = params.badgeText;
 
-  const meta = document.createElement("div");
-  meta.className = "surfaceNameWrap";
-
-  const name = document.createElement("div");
-  name.className = "name";
-  name.textContent = params.instanceName;
-
-  const presetRow = document.createElement("div");
-  presetRow.className = "surfacePresetRow";
-  const presetLabel = document.createElement("div");
-  presetLabel.className = "small surfaceMetaLabel";
-  presetLabel.textContent = "Preset";
-  presetRow.append(presetLabel, params.presetButton);
+  const instance = document.createElement("div");
+  instance.className = "small surfaceInstanceName";
+  instance.textContent = params.instanceName;
 
   const moduleId = document.createElement("div");
   moduleId.className = "small moduleId";
   moduleId.textContent = params.instanceId;
 
-  meta.append(name, presetRow, moduleId);
-  identity.append(badge, meta);
+  secondary.append(badge, instance, moduleId);
+  identity.append(primary, secondary);
   return identity;
 }
