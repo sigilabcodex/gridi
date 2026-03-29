@@ -3094,3 +3094,60 @@ button:focus-visible,
 .surfaceSecondaryIdentity .moduleId {
   opacity: 0.66;
 }
+
+/* === Module shell layout polish (fixed-grid safe) === */
+:root {
+  --module-cell-h: 360px;
+  --module-shell-pad: 11px;
+  --module-shell-gap: 9px;
+  --module-header-h: 56px;
+  --module-tabs-h: 36px;
+}
+
+.transportHeader {
+  margin-bottom: 10px;
+}
+
+.surfaceFace > .surfaceTabPanel {
+  padding: 10px 10px 8px;
+}
+
+.surfaceTabs {
+  gap: 6px;
+  align-items: end;
+}
+
+.surfaceTabs .modTab {
+  min-height: 30px;
+  line-height: 1.15;
+  padding: 6px 9px;
+}
+
+.surfaceSecondaryIdentity {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
+.surfaceSecondaryIdentity .surfaceBadge {
+  flex: 0 0 auto;
+}
+
+.routingSummaryValues,
+.routingChipList {
+  align-items: center;
+}
+
+.routingChip {
+  max-width: 100%;
+  line-height: 1.2;
+}
+
+.knobCtl {
+  width: 72px;
+}
+
+@media (max-width: 1180px) and (min-width: 761px) {
+  :root {
+    --module-cell-h: 346px;
+  }
+}
