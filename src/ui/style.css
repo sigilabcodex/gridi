@@ -2963,28 +2963,31 @@ button:focus-visible,
 }
 
 .transportOutputCenter {
-  display: grid;
-  grid-template-columns: auto minmax(68px, 86px);
+  display: flex;
   align-items: center;
-  gap: 6px;
   min-width: 0;
-}
-
-.transportOutputLabel {
-  font-size: 9px;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  opacity: 0.66;
-  white-space: nowrap;
+  min-height: 18px;
 }
 
 .transportOutputMeter {
   position: relative;
-  height: 7px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  width: clamp(78px, 9vw, 108px);
+  height: 12px;
+  padding: 2px;
   border-radius: 999px;
   overflow: hidden;
   background: rgba(8, 12, 17, 0.85);
   border: 1px solid rgba(207, 214, 221, 0.14);
+}
+
+.transportOutputBar {
+  position: relative;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(9, 16, 22, 0.86);
 }
 
 .transportOutputFill {
@@ -2992,18 +2995,29 @@ button:focus-visible,
   inset: 0;
   transform-origin: left center;
   transform: scaleX(0);
-  background: linear-gradient(90deg, rgba(95, 219, 156, 0.86), rgba(255, 204, 102, 0.8));
+  transition: transform 82ms linear;
+  background: linear-gradient(90deg, rgba(95, 219, 156, 0.72), rgba(255, 204, 102, 0.66));
 }
 
 .transportOutputTransient {
   position: absolute;
   inset: 0;
-  background: rgba(255, 236, 182, 0.7);
+  background: rgba(255, 236, 182, 0.5);
   opacity: 0;
+  transition: opacity 110ms ease-out;
 }
 
-.transportOutputCenter.isActive .transportOutputLabel {
-  opacity: 0.84;
+.transportOutputBarLeft .transportOutputFill {
+  background: linear-gradient(90deg, rgba(95, 219, 156, 0.74), rgba(122, 208, 255, 0.7));
+}
+
+.transportOutputBarRight .transportOutputFill {
+  background: linear-gradient(90deg, rgba(95, 219, 156, 0.68), rgba(255, 204, 102, 0.72));
+}
+
+.transportOutputCenter.isActive .transportOutputMeter {
+  border-color: rgba(134, 224, 170, 0.42);
+  box-shadow: 0 0 0 1px rgba(74, 174, 133, 0.12), 0 0 14px rgba(64, 150, 116, 0.16);
 }
 
 .transportUtilityMenu {

@@ -24,7 +24,7 @@ export type Engine = {
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
   getSpectrumData(out?: Float32Array): Float32Array; // 0..1 (normalized)
-  getMasterActivity(): { level: number; transient: number; active: boolean };
+  getMasterActivity(): { level: number; transient: number; active: boolean; left: number; right: number };
 };
 
 const EPS = 1e-5;
@@ -85,7 +85,16 @@ export function createEngine(): Engine {
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 2048;
 
+  const stereoSplitter = ctx.createChannelSplitter(2);
+  const analyserLeft = ctx.createAnalyser();
+  const analyserRight = ctx.createAnalyser();
+  analyserLeft.fftSize = 256;
+  analyserRight.fftSize = 256;
+
   master.connect(analyser);
+  master.connect(stereoSplitter);
+  stereoSplitter.connect(analyserLeft, 0);
+  stereoSplitter.connect(analyserRight, 1);
   analyser.connect(ctx.destination);
 
   const effectModules = new Map<string, AudioModuleInstance>();
@@ -96,6 +105,8 @@ export function createEngine(): Engine {
   const scopeByte = new Uint8Array(analyser.fftSize);
   const specFloat = new Float32Array(analyser.frequencyBinCount);
   const specByte = new Uint8Array(analyser.frequencyBinCount);
+  const scopeLeft = new Float32Array(analyserLeft.fftSize);
+  const scopeRight = new Float32Array(analyserRight.fftSize);
   let lastActivityLevel = 0;
   let smoothedActivityLevel = 0;
   let transientActivity = 0;
@@ -202,7 +213,10 @@ export function createEngine(): Engine {
     }
     effectModules.clear();
     master.disconnect();
+    stereoSplitter.disconnect();
     analyser.disconnect();
+    analyserLeft.disconnect();
+    analyserRight.disconnect();
     void ctx.close();
   }
 
@@ -246,12 +260,30 @@ export function createEngine(): Engine {
 
   function getMasterActivity() {
     getScopeData(scopeBuf);
+    const anyLeft = analyserLeft as any;
+    const anyRight = analyserRight as any;
+    if (typeof anyLeft.getFloatTimeDomainData === "function") {
+      anyLeft.getFloatTimeDomainData(scopeLeft);
+      anyRight.getFloatTimeDomainData(scopeRight);
+    } else {
+      analyserLeft.getByteTimeDomainData(scopeByte);
+      for (let i = 0; i < scopeLeft.length; i += 1) scopeLeft[i] = (scopeByte[i] - 128) / 128;
+      analyserRight.getByteTimeDomainData(scopeByte);
+      for (let i = 0; i < scopeRight.length; i += 1) scopeRight[i] = (scopeByte[i] - 128) / 128;
+    }
+
     let peak = 0;
     let rmsSum = 0;
     for (let i = 0; i < scopeBuf.length; i += 1) {
       const sample = Math.abs(scopeBuf[i]);
       peak = Math.max(peak, sample);
       rmsSum += sample * sample;
+    }
+    let leftPeak = 0;
+    let rightPeak = 0;
+    for (let i = 0; i < scopeLeft.length; i += 1) {
+      leftPeak = Math.max(leftPeak, Math.abs(scopeLeft[i]));
+      rightPeak = Math.max(rightPeak, Math.abs(scopeRight[i]));
     }
 
     const rms = Math.sqrt(rmsSum / Math.max(1, scopeBuf.length));
@@ -265,6 +297,8 @@ export function createEngine(): Engine {
       level: smoothedActivityLevel,
       transient: clamp01(transientActivity),
       active: smoothedActivityLevel > 0.018 || transientActivity > 0.03,
+      left: clamp01(leftPeak * 0.95),
+      right: clamp01(rightPeak * 0.95),
     };
   }
 

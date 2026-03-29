@@ -13,7 +13,7 @@ type HeaderParams = {
   settingsExperimental: () => boolean;
   audioState: () => "running" | string;
   isPlaying: () => boolean;
-  getMasterActivity: () => { level: number; transient: number; active: boolean };
+  getMasterActivity: () => { level: number; transient: number; active: boolean; left: number; right: number };
   onOpenSettings: () => void;
   onOpenPresetManager: () => void;
   onSelectPreset: (presetId: string) => void;
@@ -64,22 +64,27 @@ export function createTransportHeader(params: HeaderParams) {
   outputCenter.className = "transportOutputCenter";
   outputCenter.setAttribute("aria-label", "Main output activity");
 
-  const outputLabel = document.createElement("span");
-  outputLabel.className = "small transportOutputLabel";
-  outputLabel.textContent = "Main Out";
-
   const outputMeter = document.createElement("div");
   outputMeter.className = "transportOutputMeter";
   outputMeter.setAttribute("aria-hidden", "true");
 
-  const outputFill = document.createElement("div");
-  outputFill.className = "transportOutputFill";
+  const outputBarLeft = document.createElement("div");
+  outputBarLeft.className = "transportOutputBar transportOutputBarLeft";
+  const outputFillLeft = document.createElement("div");
+  outputFillLeft.className = "transportOutputFill";
+  outputBarLeft.appendChild(outputFillLeft);
+
+  const outputBarRight = document.createElement("div");
+  outputBarRight.className = "transportOutputBar transportOutputBarRight";
+  const outputFillRight = document.createElement("div");
+  outputFillRight.className = "transportOutputFill";
+  outputBarRight.appendChild(outputFillRight);
 
   const outputTransient = document.createElement("div");
   outputTransient.className = "transportOutputTransient";
 
-  outputMeter.append(outputFill, outputTransient);
-  outputCenter.append(outputLabel, outputMeter);
+  outputMeter.append(outputBarLeft, outputBarRight, outputTransient);
+  outputCenter.append(outputMeter);
 
   const btnSettings = el("button", "iconBtn", "⚙");
   btnSettings.classList.add("transportSettings");
@@ -314,7 +319,10 @@ export function createTransportHeader(params: HeaderParams) {
 
   const updateOutputMeter = () => {
     const activity = params.getMasterActivity();
-    outputFill.style.transform = `scaleX(${activity.level.toFixed(3)})`;
+    const left = Number.isFinite(activity.left) ? activity.left : activity.level;
+    const right = Number.isFinite(activity.right) ? activity.right : activity.level;
+    outputFillLeft.style.transform = `scaleX(${left.toFixed(3)})`;
+    outputFillRight.style.transform = `scaleX(${right.toFixed(3)})`;
     outputTransient.style.opacity = activity.transient.toFixed(3);
     outputCenter.classList.toggle("isActive", activity.active);
   };
