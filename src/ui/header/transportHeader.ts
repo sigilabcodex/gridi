@@ -32,10 +32,13 @@ type HeaderParams = {
 export function createTransportHeader(params: HeaderParams) {
   const header = document.createElement("header");
   header.classList.add("transportHeader");
+
   const titleWrap = document.createElement("div");
   titleWrap.className = "transportTitle";
+
   const h1 = document.createElement("h1");
   h1.textContent = APP_DISPLAY_NAME;
+
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
   subtitle.textContent = "Modular workspace";
@@ -44,10 +47,17 @@ export function createTransportHeader(params: HeaderParams) {
   mobileToggle.className = "transportMobileToggle";
   mobileToggle.type = "button";
   mobileToggle.textContent = "Controls";
-  titleWrap.append(h1, subtitle);
+
+  titleWrap.append(h1, subtitle, mobileToggle);
+
+  const transportRow = document.createElement("div");
+  transportRow.className = "transportRow transportRowPrimary";
+
+  const sessionRow = document.createElement("div");
+  sessionRow.className = "transportRow transportRowSession";
 
   const status = document.createElement("div");
-  status.className = "small";
+  status.className = "small transportStatus";
 
   const btnSettings = el("button", "iconBtn", "⚙");
   btnSettings.classList.add("transportSettings");
@@ -58,7 +68,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnAudio = document.createElement("button");
-  btnAudio.className = "primary";
+  btnAudio.className = "transportAudioChip";
   btnAudio.onclick = params.onToggleAudio;
   params.attachTooltip(btnAudio, {
     text: "Start or suspend the audio engine for this tab.",
@@ -66,6 +76,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnPlay = document.createElement("button");
+  btnPlay.className = "transportPrimaryBtn";
   btnPlay.onclick = params.onTogglePlay;
   params.attachTooltip(btnPlay, {
     text: "Play or stop the current patch.",
@@ -73,13 +84,20 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnMute = document.createElement("button");
+  btnMute.className = "transportGhostBtn";
   btnMute.onclick = params.onToggleMute;
   params.attachTooltip(btnMute, {
     text: "Mute or unmute the master output.",
     ariaLabel: "Master mute",
   });
 
+  const transportCluster = document.createElement("section");
+  transportCluster.className = "transportCluster transportClusterPrimary";
+  transportCluster.setAttribute("aria-label", "Transport");
+  transportCluster.append(btnPlay, btnMute, btnAudio);
+
   const masterWrap = el("div", "bpmWrap");
+  masterWrap.classList.add("transportDial");
   const masterLab = el("div", "small", "Master");
   const master = document.createElement("input");
   master.type = "range";
@@ -105,71 +123,8 @@ export function createTransportHeader(params: HeaderParams) {
   });
   masterWrap.append(masterLab, master, masterNum);
 
-  const btnReset = document.createElement("button");
-  btnReset.textContent = "Reset";
-  btnReset.onclick = params.onReset;
-  params.attachTooltip(btnReset, {
-    text: "Reset the current patch back to the default layout.",
-    ariaLabel: "Reset patch",
-  });
-
-  const btnReseed = document.createElement("button");
-  btnReseed.textContent = "Re-seed";
-  btnReseed.onclick = params.onReseed;
-  params.attachTooltip(btnReseed, {
-    text: "Give all trigger modules fresh random seeds.",
-    ariaLabel: "Reseed triggers",
-  });
-
-  const btnRandom = document.createElement("button");
-  btnRandom.textContent = "Randomize";
-  btnRandom.onclick = params.onRandomize;
-  params.attachTooltip(btnRandom, {
-    text: "Randomize trigger and voice parameters in the patch.",
-    ariaLabel: "Randomize patch",
-  });
-
-  const btnRegen = document.createElement("button");
-  btnRegen.textContent = "Regen";
-  btnRegen.onclick = params.onRegen;
-  params.attachTooltip(btnRegen, {
-    text: "Regenerate pattern outputs without rebuilding the patch.",
-    ariaLabel: "Regenerate patterns",
-  });
-
-  const presetWrap = document.createElement("div");
-  presetWrap.className = "presetWrap";
-
-  const presetLabel = document.createElement("div");
-  presetLabel.className = "small";
-
-  const presetSelect = document.createElement("select");
-  presetSelect.className = "presetSelect";
-  presetSelect.onchange = () => params.onSelectPreset(presetSelect.value);
-  params.attachTooltip(presetSelect, {
-    text: "Choose the active preset for the current session.",
-    ariaLabel: "Preset selector",
-  });
-
-  const btnSavePreset = document.createElement("button");
-  btnSavePreset.onclick = params.onSavePreset;
-  params.attachTooltip(btnSavePreset, {
-    text: "Save the current patch into the selected preset.",
-    ariaLabel: "Save preset",
-  });
-
-  const btnPresetManager = document.createElement("button");
-  btnPresetManager.textContent = "Presets";
-  btnPresetManager.onclick = params.onOpenPresetManager;
-  params.attachTooltip(btnPresetManager, {
-    text: "Open preset management actions like import and export.",
-    ariaLabel: "Open preset manager",
-  });
-
-  presetWrap.append(presetLabel, presetSelect);
-
   const bpmWrap = document.createElement("div");
-  bpmWrap.className = "bpmWrap";
+  bpmWrap.className = "bpmWrap transportDial";
 
   const bpmLabel = document.createElement("div");
   bpmLabel.className = "small";
@@ -198,54 +153,105 @@ export function createTransportHeader(params: HeaderParams) {
   });
   bpmWrap.append(bpmLabel, bpm, bpmNum);
 
-  status.classList.add("transportStatus");
+  const tempoCluster = document.createElement("section");
+  tempoCluster.className = "transportCluster transportClusterTempo";
+  tempoCluster.setAttribute("aria-label", "Tempo and master");
+  tempoCluster.append(bpmWrap, masterWrap);
 
-  const makeGroup = (title: string, className: string) => {
-    const group = document.createElement("section");
-    group.className = `transportGroup ${className}`;
+  const statusCluster = document.createElement("section");
+  statusCluster.className = "transportCluster transportClusterStatus";
+  statusCluster.setAttribute("aria-label", "Status and settings");
+  statusCluster.append(status, btnSettings);
 
-    const groupLabel = document.createElement("div");
-    groupLabel.className = "small transportGroupLabel";
-    groupLabel.textContent = title;
+  const presetWrap = document.createElement("div");
+  presetWrap.className = "presetWrap transportPresetWrap";
 
-    const groupBody = document.createElement("div");
-    groupBody.className = "transportGroupBody";
+  const presetLabel = document.createElement("div");
+  presetLabel.className = "small transportPresetLabel";
 
-    group.append(groupLabel, groupBody);
-    return { group, groupBody };
-  };
+  const presetSelect = document.createElement("select");
+  presetSelect.className = "presetSelect";
+  presetSelect.onchange = () => params.onSelectPreset(presetSelect.value);
+  params.attachTooltip(presetSelect, {
+    text: "Choose the active preset for the current session.",
+    ariaLabel: "Preset selector",
+  });
 
-  const transportGroup = makeGroup("Transport", "transportGroupTransport");
-  transportGroup.groupBody.append(btnAudio, btnPlay, btnMute);
+  const btnSavePreset = document.createElement("button");
+  btnSavePreset.className = "transportGhostBtn";
+  btnSavePreset.onclick = params.onSavePreset;
+  params.attachTooltip(btnSavePreset, {
+    text: "Save the current patch into the selected preset.",
+    ariaLabel: "Save preset",
+  });
 
-  const sessionGroup = makeGroup("Patch / Session", "transportGroupSession");
+  const btnPresetManager = document.createElement("button");
+  btnPresetManager.className = "transportGhostBtn";
+  btnPresetManager.textContent = "Presets";
+  btnPresetManager.onclick = params.onOpenPresetManager;
+  params.attachTooltip(btnPresetManager, {
+    text: "Open preset management actions like import and export.",
+    ariaLabel: "Open preset manager",
+  });
+
+  presetWrap.append(presetLabel, presetSelect);
+
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
+
+  const btnReset = document.createElement("button");
+  btnReset.className = "transportGhostBtn";
+  btnReset.textContent = "Reset";
+  btnReset.onclick = params.onReset;
+  params.attachTooltip(btnReset, {
+    text: "Reset the current patch back to the default layout.",
+    ariaLabel: "Reset patch",
+  });
+
+  const btnReseed = document.createElement("button");
+  btnReseed.className = "transportGhostBtn";
+  btnReseed.textContent = "Re-seed";
+  btnReseed.onclick = params.onReseed;
+  params.attachTooltip(btnReseed, {
+    text: "Give all trigger modules fresh random seeds.",
+    ariaLabel: "Reseed triggers",
+  });
+
+  const btnRandom = document.createElement("button");
+  btnRandom.className = "transportGhostBtn";
+  btnRandom.textContent = "Randomize";
+  btnRandom.onclick = params.onRandomize;
+  params.attachTooltip(btnRandom, {
+    text: "Randomize trigger and voice parameters in the patch.",
+    ariaLabel: "Randomize patch",
+  });
+
+  const btnRegen = document.createElement("button");
+  btnRegen.className = "transportGhostBtn";
+  btnRegen.textContent = "Regen";
+  btnRegen.onclick = params.onRegen;
+  params.attachTooltip(btnRegen, {
+    text: "Regenerate pattern outputs without rebuilding the patch.",
+    ariaLabel: "Regenerate patterns",
+  });
+
   sessionActions.append(btnSavePreset, btnPresetManager, btnReset, btnReseed, btnRandom, btnRegen);
-  sessionGroup.groupBody.append(presetWrap, sessionActions);
 
-  const masterGroup = makeGroup("Tempo / Master", "transportGroupMaster");
-  masterGroup.groupBody.append(bpmWrap, masterWrap);
-
-  const statusGroup = makeGroup("Status", "transportGroupStatus");
-  const statusActions = document.createElement("div");
-  statusActions.className = "transportStatusActions";
-  statusActions.append(status, btnSettings);
-  statusGroup.groupBody.append(statusActions);
+  transportRow.append(transportCluster, tempoCluster, statusCluster);
+  sessionRow.append(presetWrap, sessionActions);
 
   const main = document.createElement("div");
   main.className = "transportMain";
-  main.append(transportGroup.group, sessionGroup.group, masterGroup.group, statusGroup.group);
+  main.append(transportRow, sessionRow);
   main.id = "transport-main-controls";
 
   mobileToggle.setAttribute("aria-controls", main.id);
-
-  titleWrap.appendChild(mobileToggle);
   header.append(titleWrap, main);
 
-  const mobileMql = typeof window === "undefined" || typeof window.matchMedia !== "function"
-    ? null
-    : window.matchMedia("(max-width: 760px)");
+  const mobileMql =
+    typeof window === "undefined" || typeof window.matchMedia !== "function"
+      ? null
+      : window.matchMedia("(max-width: 760px)");
 
   let mobileExpanded = false;
   const syncMobileHeaderState = () => {
@@ -276,23 +282,27 @@ export function createTransportHeader(params: HeaderParams) {
   params.root.appendChild(header);
 
   const updateStatus = () => {
-    status.textContent = `status: ${params.isPlaying() ? "playing" : "stopped"} | audio: ${params.audioState()}${
-      params.settingsExperimental() ? " | experimental: ON" : ""
-    }`;
+    const play = params.isPlaying() ? "PLAY" : "STOP";
+    const audio = params.audioState() === "running" ? "AUDIO ON" : "AUDIO OFF";
+    const experimental = params.settingsExperimental() ? " • EXP" : "";
+    status.textContent = `${play} • ${audio}${experimental}`;
   };
 
   const updateAudioBtn = () => {
-    btnAudio.textContent = params.audioState() === "running" ? "Audio ON" : "Audio OFF";
+    const running = params.audioState() === "running";
+    btnAudio.textContent = running ? "Audio On" : "Audio Off";
+    btnAudio.classList.toggle("isOn", running);
   };
 
   const updatePlayBtn = () => {
-    btnPlay.textContent = params.isPlaying() ? "Stop" : "Play";
+    const playing = params.isPlaying();
+    btnPlay.textContent = playing ? "■ Stop" : "▶ Play";
   };
 
   const updateMuteBtn = () => {
     const patch = params.patch();
-    btnMute.textContent = patch.masterMute ? "Unmute" : "Mute";
-    btnMute.className = patch.masterMute ? "primary" : "";
+    btnMute.textContent = patch.masterMute ? "🔇 Unmute" : "🔈 Mute";
+    btnMute.classList.toggle("isOn", patch.masterMute);
   };
 
   const updateMasterGainUI = () => {
@@ -317,7 +327,7 @@ export function createTransportHeader(params: HeaderParams) {
     });
 
     btnSavePreset.textContent = params.hasUnsavedChanges() ? "Save*" : "Save";
-    btnSavePreset.className = params.hasUnsavedChanges() ? "primary" : "";
+    btnSavePreset.classList.toggle("primary", params.hasUnsavedChanges());
   };
 
   const updateBpmUI = () => {
