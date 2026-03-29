@@ -3040,3 +3040,57 @@ button:focus-visible,
     font-size: 9px;
   }
 }
+
+/* === Header compact preset-first pass === */
+:root {
+  --module-header-h: 50px;
+}
+
+.surfaceHeader {
+  align-items: center;
+}
+
+.surfaceIdentity {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.surfacePresetPrimary {
+  min-width: 0;
+}
+
+.surfacePresetPrimary .modulePresetChip {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.surfaceSecondaryIdentity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.8;
+}
+
+.surfaceSecondaryIdentity .surfaceBadge {
+  padding: 2px 6px;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+}
+
+.surfaceInstanceName,
+.surfaceSecondaryIdentity .moduleId {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.surfaceSecondaryIdentity .moduleId {
+  opacity: 0.66;
+}
