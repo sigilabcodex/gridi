@@ -2790,3 +2790,253 @@ button:focus-visible,
     padding: 5px 8px;
   }
 }
+
+/* === Transport header minimal instrument pass (v0.32.x) === */
+.transportHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+}
+
+.transportTitle {
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  padding: 0 2px;
+}
+
+.transportTitle h1 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.7px;
+}
+
+.transportSubtitle {
+  font-size: 10px;
+  letter-spacing: 0.7px;
+}
+
+.transportMain {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transportRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transportRowPrimary {
+  flex-wrap: wrap;
+}
+
+.transportRowSession {
+  flex-wrap: wrap;
+}
+
+.transportCluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(207, 214, 221, 0.12);
+  border-radius: 10px;
+  padding: 4px;
+  background: linear-gradient(180deg, rgba(20, 28, 36, 0.74), rgba(11, 16, 23, 0.76));
+  min-width: 0;
+}
+
+.transportClusterPrimary {
+  flex: 0 1 auto;
+}
+
+.transportClusterTempo {
+  flex: 1 1 520px;
+  justify-content: flex-start;
+}
+
+.transportClusterStatus {
+  margin-left: auto;
+  flex: 0 1 auto;
+  padding-right: 6px;
+}
+
+.transportPrimaryBtn,
+.transportGhostBtn,
+.transportAudioChip {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.transportPrimaryBtn {
+  border-color: rgba(74, 163, 255, 0.72);
+  box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.25) inset;
+}
+
+.transportAudioChip {
+  border-color: rgba(207, 214, 221, 0.2);
+  background: rgba(15, 22, 28, 0.66);
+  font-size: 11px;
+  padding-inline: 8px;
+  opacity: 0.92;
+}
+
+.transportAudioChip.isOn {
+  border-color: rgba(98, 214, 139, 0.5);
+  color: rgba(186, 240, 208, 0.98);
+}
+
+.transportGhostBtn.isOn {
+  border-color: rgba(255, 204, 102, 0.4);
+}
+
+.transportDial {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 1fr) 64px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transportDial > .small {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.74;
+}
+
+.transportDial input[type="number"] {
+  width: 64px;
+  padding: 4px 6px;
+}
+
+.transportStatus {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.45px;
+  opacity: 0.72;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.transportSettings.iconBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.transportPresetWrap {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 240px);
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px;
+  flex: 0 1 auto;
+}
+
+.transportPresetLabel {
+  white-space: nowrap;
+}
+
+.transportActionRow {
+  display: flex;
+  flex: 1 1 380px;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.transportActionRow > button {
+  flex: 1 1 88px;
+}
+
+.transportMobileToggle {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .transportHeader {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+  }
+
+  .transportTitle {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .transportSubtitle {
+    display: none;
+  }
+
+  .transportClusterStatus {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .transportHeader {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+  }
+
+  .transportMobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .transportMain {
+    gap: 5px;
+  }
+
+  .transportRow {
+    gap: 5px;
+  }
+
+  .transportCluster {
+    width: 100%;
+  }
+
+  .transportClusterTempo {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .transportClusterStatus {
+    justify-content: space-between;
+  }
+
+  .transportPresetWrap {
+    grid-template-columns: auto minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .transportActionRow {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  .transportHeader.mobileCollapsed .transportRowSession,
+  .transportHeader.mobileCollapsed .transportClusterTempo {
+    display: none;
+  }
+
+  .transportHeader.mobileCollapsed .transportCluster {
+    padding: 3px;
+  }
+
+  .transportHeader.mobileCollapsed .transportStatus {
+    font-size: 9px;
+  }
+}
