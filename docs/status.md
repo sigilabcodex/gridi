@@ -15,14 +15,17 @@
 - Patch-based architecture with migration and persistence.
 - Look-ahead scheduler with deterministic window rendering tests.
 - Foundational routing model (`modules`, `buses`, `connections`).
-- Basic visual modules (scope/spectrum) and transport/header controls.
+- Basic visual modules (scope/spectrum).
+- Compact transport/header control strip and preset/session utility grouping.
+- Preset-first module identity shell in fixed-size module cards.
 
 ## Current priorities
 
 1. Preserve deterministic scheduler + pattern behavior.
 2. Reduce hidden coupling between UI handlers and patch mutation paths.
-3. Improve architecture/security documentation for new contributors.
-4. Keep dependency tree lean and reproducible.
+3. Keep module main faces compact/playable while secondary concerns stay in tabs.
+4. Improve architecture/security documentation for new contributors.
+5. Keep dependency tree lean and reproducible.
 
 ## Known limitations
 
@@ -36,3 +39,5 @@
 - Better routing UX and validation visibility.
 - Clock/transport abstraction hardening for external sync.
 - Additional pattern engines once scheduler boundaries are fully stabilized.
+
+See also: [`docs/ui-principles.md`](ui-principles.md), [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md).

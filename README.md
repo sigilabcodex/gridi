@@ -26,13 +26,13 @@ See also: [`docs/module-types.md`](docs/module-types.md).
 
 ### Engine vs preset vs instance
 
-Each module has three identities:
+Each module has three identities (in strict hierarchy):
 
 - **Engine identity** (`engine`): stable runtime family (`trigger`, `drum`, `synth`, `visual`, `control`).
-- **Preset identity** (`presetName`, optional `presetMeta`): sound/pattern label + metadata.
-- **Instance identity** (`name`): how that specific module is labeled in the current workspace.
+- **Preset identity** (`presetName`, optional `presetMeta`): reusable sound/pattern identity layered on top of the engine.
+- **Instance identity** (`name`): local label for one placed module in the current workspace.
 
-This separation keeps runtime behavior stable while allowing user-facing variation.
+Use this order when reasoning about behavior: engine defines runtime semantics, preset defines reusable flavor, instance defines local context.
 
 ## 3) Workspace model
 
@@ -46,11 +46,15 @@ More detail: [`docs/ui-principles.md`](docs/ui-principles.md), [`docs/architectu
 
 ## 4) UI philosophy
 
+- **Transport/header minimalism**: the top header is a compact control strip for play/stop, tempo/master, output status, preset session actions, and utilities.
 - **Main face first**: each module exposes a compact primary surface for performance-critical controls.
 - **Tabbed secondary faces**: routing/settings/debug-adjacent controls move to tabs.
 - **Minimal primary surface**: keep the top-level view focused and playable.
+- **Stable module shell**: tabs and identity metadata operate inside a fixed shell; switching tabs should not change card size or introduce internal scrolling.
 - **No internal scroll panels** in module surfaces.
 - **Instrument-like interaction** over form-heavy UI.
+
+Reference: [`docs/ui-principles.md`](docs/ui-principles.md).
 
 ## 5) Current state
 
@@ -66,7 +70,7 @@ More detail: [`docs/ui-principles.md`](docs/ui-principles.md), [`docs/architectu
 
 - Control/modulation routing depth and UX are still being refined.
 - Preset identity exists, but full preset management (browser/save/load workflows) is not complete.
-- Some advanced tabs remain intentionally lean while the shell model stabilizes.
+- Some advanced tabs remain intentionally lean while shell boundaries and routing ergonomics stabilize.
 
 ### Experimental
 
@@ -82,7 +86,7 @@ Near-term direction:
 1. **Control/modulation system**: clearer mapping, stronger feedback, safer defaults.
 2. **Preset system**: explicit preset workflows on top of existing preset identity.
 3. **Routing improvements**: better UX and validation visibility.
-4. **UI refinement**: continue simplifying module faces and tab behavior while preserving fixed-grid stability.
+4. **Stabilization discipline**: reduce hidden UI↔engine coupling and preserve deterministic behavior while refining shell ergonomics.
 
 ## Development
 
