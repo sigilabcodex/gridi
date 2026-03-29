@@ -2820,7 +2820,7 @@ button:focus-visible,
 
 .transportMain {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
 }
 
@@ -2832,11 +2832,11 @@ button:focus-visible,
 }
 
 .transportRowPrimary {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .transportRowSession {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .transportCluster {
@@ -2855,13 +2855,14 @@ button:focus-visible,
 }
 
 .transportClusterTempo {
-  flex: 1 1 520px;
+  flex: 1 1 460px;
   justify-content: flex-start;
 }
 
 .transportClusterStatus {
-  margin-left: auto;
-  flex: 0 1 auto;
+  margin-left: 0;
+  flex: 1 1 330px;
+  justify-content: flex-end;
   padding-right: 6px;
 }
 
@@ -2881,9 +2882,10 @@ button:focus-visible,
 
 .transportAudioChip {
   border-color: rgba(207, 214, 221, 0.2);
-  background: rgba(15, 22, 28, 0.66);
+  background: rgba(13, 19, 26, 0.62);
   font-size: 11px;
-  padding-inline: 8px;
+  min-height: 28px;
+  padding: 4px 8px;
   opacity: 0.92;
 }
 
@@ -2918,11 +2920,14 @@ button:focus-visible,
 
 .transportStatus {
   margin: 0;
-  font-size: 10px;
-  letter-spacing: 0.45px;
+  font-size: 9px;
+  letter-spacing: 0.35px;
   opacity: 0.72;
   text-transform: uppercase;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 152px;
 }
 
 .transportSettings.iconBtn {
@@ -2946,13 +2951,104 @@ button:focus-visible,
 
 .transportActionRow {
   display: flex;
-  flex: 1 1 380px;
+  flex: 1 1 260px;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
-.transportActionRow > button {
-  flex: 1 1 88px;
+.transportActionRow > button,
+.transportActionRow > .transportUtilityMenu {
+  flex: 0 0 auto;
+}
+
+.transportOutputCenter {
+  display: grid;
+  grid-template-columns: auto minmax(68px, 86px);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transportOutputLabel {
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.66;
+  white-space: nowrap;
+}
+
+.transportOutputMeter {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(8, 12, 17, 0.85);
+  border: 1px solid rgba(207, 214, 221, 0.14);
+}
+
+.transportOutputFill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform: scaleX(0);
+  background: linear-gradient(90deg, rgba(95, 219, 156, 0.86), rgba(255, 204, 102, 0.8));
+}
+
+.transportOutputTransient {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 236, 182, 0.7);
+  opacity: 0;
+}
+
+.transportOutputCenter.isActive .transportOutputLabel {
+  opacity: 0.84;
+}
+
+.transportUtilityMenu {
+  position: relative;
+}
+
+.transportUtilitySummary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.transportUtilitySummary::-webkit-details-marker {
+  display: none;
+}
+
+.transportUtilitySummary::after {
+  content: "▾";
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.transportUtilityMenu[open] .transportUtilitySummary::after {
+  content: "▴";
+}
+
+.transportUtilityPanel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 148px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(207, 214, 221, 0.18);
+  background: rgba(10, 15, 21, 0.97);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+.transportUtilityBtn {
+  justify-content: flex-start;
+  text-align: left;
 }
 
 .transportMobileToggle {
@@ -2976,7 +3072,17 @@ button:focus-visible,
   }
 
   .transportClusterStatus {
-    margin-left: 0;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  .transportRowPrimary,
+  .transportRowSession {
+    flex-wrap: wrap;
+  }
+
+  .transportStatus {
+    max-width: none;
   }
 }
 
@@ -3015,6 +3121,7 @@ button:focus-visible,
 
   .transportClusterStatus {
     justify-content: space-between;
+    flex-wrap: wrap;
   }
 
   .transportPresetWrap {

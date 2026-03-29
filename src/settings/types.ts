@@ -8,6 +8,7 @@ export type AppSettings = {
   customCss: string
   theme: "dark" | "light"
   reduceMotion: boolean
+  controlStyle: "auto" | "knobs" | "sliders"
   }
 
   audio: {

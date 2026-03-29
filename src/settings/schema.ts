@@ -17,6 +17,18 @@ export const settingsSchema: SettingDef[] = [
     ]
   },
   {
+    key: "ui.controlStyle",
+    section: "General",
+    label: "Control style",
+    type: "select",
+    default: "auto",
+    options: [
+      { label: "Auto", value: "auto" },
+      { label: "Knobs", value: "knobs" },
+      { label: "Sliders", value: "sliders" }
+    ]
+  },
+  {
     key: "ui.customCss",
     section: "General",
     label: "Custom CSS",
