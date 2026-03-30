@@ -123,6 +123,12 @@ export function createTransportHeader(params: HeaderParams) {
 
   const transportRow = document.createElement("div");
   transportRow.className = "transportRow transportRowMain";
+  const zonePrimary = document.createElement("div");
+  zonePrimary.className = "transportZone transportZonePrimary";
+  const zoneSession = document.createElement("div");
+  zoneSession.className = "transportZone transportZoneSession";
+  const zoneStatus = document.createElement("div");
+  zoneStatus.className = "transportZone transportZoneStatus";
 
   const status = document.createElement("div");
   status.className = "small transportStatus";
@@ -354,9 +360,9 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   const btnReset = makeUtilityBtn("Reset patch", params.onReset, "Reset the current patch back to the default layout.", "Reset patch");
-  const btnRandom = makeUtilityBtn("Randomize", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
+  const btnRandom = makeUtilityBtn("Randomize all", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
   const btnRegen = makeUtilityBtn("Regen", params.onRegen, "Regenerate pattern outputs without rebuilding the patch.", "Regenerate patterns");
-  const btnReseed = makeUtilityBtn("Reseed", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
+  const btnReseed = makeUtilityBtn("Reseed all", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
 
   const makePlaceholderBtn = (label: string) => {
     const btn = document.createElement("button");
@@ -366,11 +372,22 @@ export function createTransportHeader(params: HeaderParams) {
     btn.disabled = true;
     return btn;
   };
+  const randomizeSelectedPlaceholder = makePlaceholderBtn("Randomize selected (soon)");
+  const randomizeGroupsPlaceholder = makePlaceholderBtn("Randomize groups (soon)");
   const saveAsPlaceholder = makePlaceholderBtn("Save As (soon)");
-  const undoPlaceholder = makePlaceholderBtn("Undo (soon)");
-  const redoPlaceholder = makePlaceholderBtn("Redo (soon)");
 
-  utilityPanel.append(btnReset, btnRandom, btnRegen, btnReseed, saveAsPlaceholder, undoPlaceholder, redoPlaceholder);
+  const appendUtilitySection = (title: string, buttons: HTMLButtonElement[]) => {
+    const label = document.createElement("div");
+    label.className = "small transportUtilitySectionLabel";
+    label.textContent = title;
+    const row = document.createElement("div");
+    row.className = "transportUtilitySection";
+    row.append(...buttons);
+    utilityPanel.append(label, row);
+  };
+
+  appendUtilitySection("Session", [btnReset, btnRegen, saveAsPlaceholder]);
+  appendUtilitySection("Randomize", [btnRandom, btnReseed, randomizeSelectedPlaceholder, randomizeGroupsPlaceholder]);
   utilityMenu.append(utilitySummary);
 
   sessionActions.append(utilityMenu);
@@ -381,7 +398,10 @@ export function createTransportHeader(params: HeaderParams) {
   settingsDock.className = "transportSettingsDock";
   settingsDock.append(btnSettings);
 
-  transportRow.append(transportCluster, tempoCluster, sessionCluster, statusCluster, settingsDock);
+  zonePrimary.append(transportCluster, tempoCluster);
+  zoneSession.append(sessionCluster);
+  zoneStatus.append(statusCluster, settingsDock);
+  transportRow.append(zonePrimary, zoneSession, zoneStatus);
 
   const main = document.createElement("div");
   main.className = "transportMain";
@@ -655,7 +675,7 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   const updatePresetUI = () => {
-    presetLabel.textContent = `Bank • ${params.presetLabel()}`;
+    presetLabel.textContent = `Bank / Session${params.hasUnsavedChanges() ? " • unsaved" : ""}`;
 
     const names = params.presetNames();
     const selected = names.find((preset) => preset.id === params.selectedPresetId());
