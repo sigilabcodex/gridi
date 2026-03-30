@@ -3103,13 +3103,8 @@ button:focus-visible,
 }
 
 .transportUtilitySummary {
-  list-style: none;
   cursor: pointer;
   user-select: none;
-}
-
-.transportUtilitySummary::-webkit-details-marker {
-  display: none;
 }
 
 .transportUtilitySummary::after {
@@ -3119,15 +3114,13 @@ button:focus-visible,
   opacity: 0.7;
 }
 
-.transportUtilityMenu[open] .transportUtilitySummary::after {
+.transportUtilitySummary[aria-expanded="true"]::after {
   content: "▴";
 }
 
+.transportPresetPanel,
 .transportUtilityPanel {
-  position: absolute;
-  z-index: 320;
-  top: calc(100% + 6px);
-  right: 0;
+  z-index: 360;
   min-width: 168px;
   display: grid;
   gap: 4px;
@@ -3136,6 +3129,37 @@ button:focus-visible,
   border: 1px solid rgba(207, 214, 221, 0.18);
   background: rgba(10, 15, 21, 0.97);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+.transportPresetTrigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.transportPresetTrigger::after {
+  content: "▾";
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.transportPresetTrigger[aria-expanded="true"]::after {
+  content: "▴";
+}
+
+.transportPresetOption {
+  justify-content: flex-start;
+  text-align: left;
+  width: 100%;
+}
+
+.transportPresetOption.isSelected {
+  border-color: rgba(74, 163, 255, 0.48);
+}
+
+.transportPresetOption.isActive {
+  background: rgba(74, 163, 255, 0.2);
 }
 
 .transportPresetWrap .presetSelect {
@@ -3245,8 +3269,6 @@ button:focus-visible,
   }
 
   .transportSecondaryMenu .transportUtilityPanel {
-    left: 0;
-    right: auto;
     min-width: 180px;
   }
 }

@@ -1,5 +1,6 @@
 import type { Patch } from "../../patch";
 import { APP_DISPLAY_NAME } from "../../version";
+import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
 
@@ -295,10 +296,13 @@ export function createTransportHeader(params: HeaderParams) {
   const presetLabel = document.createElement("div");
   presetLabel.className = "small transportPresetLabel";
 
-  const presetSelect = document.createElement("select");
-  presetSelect.className = "presetSelect";
-  presetSelect.onchange = () => params.onSelectPreset(presetSelect.value);
-  params.attachTooltip(presetSelect, {
+  const presetButton = document.createElement("button");
+  presetButton.type = "button";
+  presetButton.className = "presetSelect transportPresetTrigger";
+  presetButton.setAttribute("aria-haspopup", "listbox");
+  presetButton.setAttribute("aria-expanded", "false");
+  presetButton.textContent = "Select preset";
+  params.attachTooltip(presetButton, {
     text: "Choose the active preset for the current session.",
     ariaLabel: "Preset selector",
   });
@@ -313,32 +317,37 @@ export function createTransportHeader(params: HeaderParams) {
 
   const sessionSelectRow = document.createElement("div");
   sessionSelectRow.className = "transportSessionSelectRow";
-  sessionSelectRow.append(presetSelect, btnSavePreset);
+  sessionSelectRow.append(presetButton, btnSavePreset);
 
   presetWrap.append(presetLabel, sessionSelectRow);
 
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
 
-  const utilityMenu = document.createElement("details");
+  const utilityMenu = document.createElement("div");
   utilityMenu.className = "transportUtilityMenu transportSecondaryMenu";
 
-  const utilitySummary = document.createElement("summary");
+  const utilitySummary = document.createElement("button");
+  utilitySummary.type = "button";
   utilitySummary.className = "transportGhostBtn transportUtilitySummary transportIconBtn";
   utilitySummary.append(makeIcon("actions"));
   utilitySummary.setAttribute("aria-label", "Open session and utility actions");
+  utilitySummary.setAttribute("aria-haspopup", "menu");
+  utilitySummary.setAttribute("aria-expanded", "false");
 
   const utilityPanel = document.createElement("div");
-  utilityPanel.className = "transportUtilityPanel";
+  utilityPanel.className = "floatingPanel transportUtilityPanel hidden";
+  utilityPanel.setAttribute("role", "menu");
 
   const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "transportGhostBtn transportUtilityBtn";
     btn.textContent = label;
+    btn.setAttribute("role", "menuitem");
     btn.onclick = () => {
       onClick();
-      utilityMenu.removeAttribute("open");
+      closeUtilityMenu();
     };
     params.attachTooltip(btn, { text: tooltip, ariaLabel });
     return btn;
@@ -362,7 +371,7 @@ export function createTransportHeader(params: HeaderParams) {
   const redoPlaceholder = makePlaceholderBtn("Redo (soon)");
 
   utilityPanel.append(btnReset, btnRandom, btnRegen, btnReseed, saveAsPlaceholder, undoPlaceholder, redoPlaceholder);
-  utilityMenu.append(utilitySummary, utilityPanel);
+  utilityMenu.append(utilitySummary);
 
   sessionActions.append(utilityMenu);
   sessionBlock.append(presetWrap, sessionActions);
@@ -415,6 +424,190 @@ export function createTransportHeader(params: HeaderParams) {
 
   params.root.appendChild(header);
 
+  const presetPanel = document.createElement("div");
+  presetPanel.className = "floatingPanel transportPresetPanel hidden";
+  presetPanel.setAttribute("role", "listbox");
+  presetPanel.setAttribute("aria-label", "Session preset list");
+  document.body.appendChild(presetPanel);
+
+  let presetPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let activePresetIndex = -1;
+  let presetOptions: HTMLButtonElement[] = [];
+
+  const updatePresetHighlight = () => {
+    presetOptions.forEach((option, index) => {
+      const active = index === activePresetIndex;
+      option.classList.toggle("isActive", active);
+      option.setAttribute("aria-selected", active ? "true" : "false");
+    });
+  };
+
+  const closePresetMenu = () => {
+    if (presetPanel.classList.contains("hidden")) return;
+    presetPanel.classList.add("hidden");
+    presetButton.setAttribute("aria-expanded", "false");
+    presetPanelCleanup?.destroy();
+    presetPanelCleanup = null;
+    activePresetIndex = -1;
+  };
+
+  const openPresetMenu = (focusActive = false) => {
+    const names = params.presetNames();
+    const selectedId = params.selectedPresetId();
+    presetPanel.innerHTML = "";
+    presetOptions = names.map((preset, index) => {
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "transportGhostBtn transportPresetOption";
+      option.textContent = preset.name;
+      option.value = preset.id;
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      option.classList.toggle("isSelected", preset.id === selectedId);
+      option.onclick = () => {
+        params.onSelectPreset(preset.id);
+        closePresetMenu();
+        presetButton.focus();
+      };
+      if (preset.id === selectedId) activePresetIndex = index;
+      return option;
+    });
+    if (activePresetIndex < 0) activePresetIndex = 0;
+    presetPanel.append(...presetOptions);
+    updatePresetHighlight();
+    presetPanel.classList.remove("hidden");
+    presetButton.setAttribute("aria-expanded", "true");
+    placeFloatingPanel(presetPanel, presetButton.getBoundingClientRect(), {
+      offset: 8,
+      align: "start",
+      preferredSide: "bottom",
+      minWidth: 200,
+      matchAnchorWidth: true,
+      maxWidth: 320,
+    });
+    presetPanelCleanup = bindFloatingPanelReposition(
+      presetPanel,
+      () => (presetButton.isConnected ? presetButton.getBoundingClientRect() : null),
+      {
+        offset: 8,
+        align: "start",
+        preferredSide: "bottom",
+        minWidth: 200,
+        matchAnchorWidth: true,
+        maxWidth: 320,
+      }
+    );
+    if (focusActive) presetOptions[activePresetIndex]?.focus();
+  };
+
+  const movePresetHighlight = (delta: number) => {
+    if (!presetOptions.length) return;
+    activePresetIndex = (activePresetIndex + delta + presetOptions.length) % presetOptions.length;
+    updatePresetHighlight();
+    presetOptions[activePresetIndex]?.scrollIntoView({ block: "nearest" });
+  };
+
+  presetButton.onclick = () => {
+    if (presetPanel.classList.contains("hidden")) openPresetMenu();
+    else closePresetMenu();
+  };
+
+  presetButton.addEventListener("keydown", (event) => {
+    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && presetPanel.classList.contains("hidden")) {
+      event.preventDefault();
+      openPresetMenu(true);
+      movePresetHighlight(event.key === "ArrowDown" ? 1 : -1);
+    }
+  });
+
+  presetPanel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closePresetMenu();
+      presetButton.focus();
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      movePresetHighlight(1);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      movePresetHighlight(-1);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      presetOptions[activePresetIndex]?.click();
+    }
+  });
+
+  let utilityPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+
+  const closeUtilityMenu = () => {
+    if (utilityPanel.classList.contains("hidden")) return;
+    utilityPanel.classList.add("hidden");
+    utilitySummary.setAttribute("aria-expanded", "false");
+    utilityPanelCleanup?.destroy();
+    utilityPanelCleanup = null;
+  };
+
+  const openUtilityMenu = () => {
+    if (utilityPanel.isConnected) utilityPanel.remove();
+    document.body.appendChild(utilityPanel);
+    utilityPanel.classList.remove("hidden");
+    utilitySummary.setAttribute("aria-expanded", "true");
+    placeFloatingPanel(utilityPanel, utilitySummary.getBoundingClientRect(), {
+      offset: 8,
+      align: "end",
+      preferredSide: "bottom",
+      minWidth: 180,
+      maxWidth: 220,
+    });
+    utilityPanelCleanup = bindFloatingPanelReposition(
+      utilityPanel,
+      () => (utilitySummary.isConnected ? utilitySummary.getBoundingClientRect() : null),
+      {
+        offset: 8,
+        align: "end",
+        preferredSide: "bottom",
+        minWidth: 180,
+        maxWidth: 220,
+      }
+    );
+  };
+
+  utilitySummary.onclick = () => {
+    if (utilityPanel.classList.contains("hidden")) openUtilityMenu();
+    else closeUtilityMenu();
+  };
+
+  utilityPanel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeUtilityMenu();
+      utilitySummary.focus();
+    }
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target as Node | null;
+    if (target && !presetPanel.classList.contains("hidden")) {
+      if (!presetPanel.contains(target) && !presetButton.contains(target)) closePresetMenu();
+    }
+    if (target && !utilityPanel.classList.contains("hidden")) {
+      if (!utilityPanel.contains(target) && !utilitySummary.contains(target)) closeUtilityMenu();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closePresetMenu();
+      closeUtilityMenu();
+    }
+  });
+
   const updateStatus = () => {
     const play = params.isPlaying() ? "playing" : "stopped";
     const audio = params.audioState() === "running" ? "ready" : "suspended";
@@ -464,17 +657,11 @@ export function createTransportHeader(params: HeaderParams) {
   const updatePresetUI = () => {
     presetLabel.textContent = `Bank • ${params.presetLabel()}`;
 
-    const selected = params.selectedPresetId();
     const names = params.presetNames();
-
-    presetSelect.innerHTML = "";
-    names.forEach((preset) => {
-      const option = document.createElement("option");
-      option.value = preset.id;
-      option.textContent = preset.name;
-      if (preset.id === selected) option.selected = true;
-      presetSelect.appendChild(option);
-    });
+    const selected = names.find((preset) => preset.id === params.selectedPresetId());
+    presetButton.textContent = selected?.name ?? "Select preset";
+    presetButton.title = selected?.name ?? "Select preset";
+    if (!presetPanel.classList.contains("hidden")) openPresetMenu();
 
     btnSavePreset.replaceChildren(makeIcon("save"));
     btnSavePreset.classList.toggle("primary", params.hasUnsavedChanges());
