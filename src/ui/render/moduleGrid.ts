@@ -66,7 +66,7 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   return cell;
 }
 
-function createModuleRenderErrorSurface(moduleId: string, moduleType: string, error: unknown) {
+function createModuleRenderErrorSurface(moduleId: string, moduleType: string) {
   const surface = document.createElement("section");
   surface.className = "moduleSurface moduleSurfaceRenderError";
   surface.dataset.type = moduleType;
@@ -97,8 +97,18 @@ function createModuleRenderErrorSurface(moduleId: string, moduleType: string, er
   tabs.appendChild(tab);
 
   surface.append(header, body, tabs);
-  console.error("[moduleGrid] module render failed", { moduleId, moduleType, error });
   return surface;
+}
+
+function formatUnknownError(error: unknown) {
+  if (typeof error === "string") return error;
+  if (error === null) return "null";
+  if (typeof error === "undefined") return "undefined";
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
 }
 
 function focusFirstInteractive(surface: HTMLElement) {
@@ -360,9 +370,11 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
     const renderModuleSurface = (module: Patch["modules"][number], position: GridPosition) => {
       const surfaceRoot = document.createElement("div");
+      let rendererPath = "unknown";
 
       try {
         if (module.type === "trigger") {
+          rendererPath = "renderTriggerSurface";
           const upd = renderTriggerSurface(
             surfaceRoot,
             module,
@@ -383,6 +395,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         }
 
         if (module.type === "drum") {
+          rendererPath = "renderDrumModuleSurface";
           const upd = renderDrumModuleSurface({
             root: surfaceRoot,
             v: module,
@@ -406,6 +419,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         }
 
         if (module.type === "tonal") {
+          rendererPath = "renderSynthModuleSurface";
           const upd = renderSynthModuleSurface({
             root: surfaceRoot,
             v: module,
@@ -429,6 +443,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         }
 
         if (module.type === "control") {
+          rendererPath = "renderControlSurface";
           const upd = renderControlSurface(
             surfaceRoot,
             module,
@@ -447,6 +462,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         }
 
         if (module.type === "visual") {
+          rendererPath = "renderVisualSurface";
           const upd = renderVisualSurface(
             surfaceRoot,
             params.engine,
@@ -464,10 +480,31 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           return surface;
         }
       } catch (error) {
-        return createModuleRenderErrorSurface(module.id, module.type, error);
+        const errorDetails = error instanceof Error
+          ? {
+            isErrorInstance: true,
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+          : {
+            isErrorInstance: false,
+            name: typeof error,
+            message: formatUnknownError(error),
+            stack: undefined,
+          };
+
+        console.error("[moduleGrid] module renderer exception", {
+          moduleFamily: module.type,
+          moduleId: module.id,
+          rendererPath,
+          ...errorDetails,
+          rawError: error,
+        });
+        return createModuleRenderErrorSurface(module.id, module.type);
       }
 
-      return createModuleRenderErrorSurface(module.id, module.type, new Error(`Unsupported module type: ${module.type}`));
+      return createModuleRenderErrorSurface(module.id, module.type);
     };
 
     const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
