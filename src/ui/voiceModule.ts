@@ -100,6 +100,27 @@ function createVoiceSummary(v: SoundModule, routing: RoutingSnapshot) {
   ]);
 }
 
+
+
+function createVoiceMainLayout(v: SoundModule, routing: RoutingSnapshot, primaryControls: HTMLElement[], bottomControls: HTMLElement[]) {
+  const main = document.createElement("div");
+  main.className = "surfaceTabPanel surfaceMainLayout voiceMainLayout";
+
+  const summary = createVoiceSummary(v, routing);
+  summary.classList.add("surfaceMainIo");
+
+  const primaryGrid = document.createElement("div");
+  primaryGrid.className = "voiceControlGrid voicePrimaryGrid";
+  primaryGrid.append(...primaryControls);
+
+  const bottomStrip = document.createElement("div");
+  bottomStrip.className = "voiceControlGrid voiceBottomStrip";
+  bottomStrip.append(...bottomControls);
+
+  main.append(summary, primaryGrid, bottomStrip);
+  return main;
+}
+
 function createFaceTabs(
   ui: UiState,
   mainPanel: HTMLElement,
@@ -219,11 +240,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "drum";
 
   const h = makeHeader(v, "DRUM", params, onRemove);
-  const main = document.createElement("div");
-  main.className = "surfaceTabPanel drumSurfaceBody";
-  const drumControls = document.createElement("div");
-  drumControls.className = "voiceControlGrid voiceControlGrid-drum";
-  drumControls.append(
+  const drumKnobs = [
     ctlFloat({
       label: "Pitch",
       value: d.basePitch,
@@ -239,11 +256,9 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) }),
     ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) }),
     ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
-  );
-  main.append(
-    createVoiceSummary(v, routing),
-    drumControls,
-  );
+  ];
+
+  const main = createVoiceMainLayout(v, routing, drumKnobs.slice(0, 4), drumKnobs.slice(4));
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   surface.append(h.header, shell.face, shell.tabs);
@@ -266,11 +281,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
-  const main = document.createElement("div");
-  main.className = "surfaceTabPanel synthSurfaceBody";
-  const synthControls = document.createElement("div");
-  synthControls.className = "voiceControlGrid voiceControlGrid-synth";
-  synthControls.append(
+  const synthKnobs = [
     ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
     ctlFloat({
       label: "Cutoff",
@@ -286,11 +297,9 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) }),
     ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) }),
     ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) }),
-  );
-  main.append(
-    createVoiceSummary(v, routing),
-    synthControls,
-  );
+  ];
+
+  const main = createVoiceMainLayout(v, routing, synthKnobs.slice(0, 5), synthKnobs.slice(5));
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   surface.append(h.header, shell.face, shell.tabs);

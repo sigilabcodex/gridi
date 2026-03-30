@@ -3963,3 +3963,90 @@ button:focus-visible,
     justify-content: flex-start;
   }
 }
+
+/* === PR86: module main-face layout discipline === */
+.surfaceFace > .surfaceTabPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 8px;
+}
+
+.surfaceMainLayout {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+  align-content: start;
+}
+
+.surfaceMainIo {
+  display: grid;
+  gap: 8px;
+}
+
+.surfaceMainFeature {
+  min-height: 0;
+}
+
+.surfaceMainControls {
+  min-height: 0;
+  align-content: start;
+}
+
+.surfaceMainBottom {
+  align-self: end;
+}
+
+.voicePrimaryGrid,
+.voiceBottomStrip,
+.triggerPulseRack,
+.controlMainKnobGrid,
+.moduleKnobGrid {
+  column-gap: 12px;
+  row-gap: 8px;
+}
+
+.voicePrimaryGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.voiceBottomStrip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.triggerPrimary {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.triggerPulseRail {
+  min-height: 0;
+}
+
+.triggerBottomRack {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.controlBody {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.controlTypeRow {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visualMainLayout {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.visualDisplayWrap {
+  min-height: 160px;
+}
+
+.utilityPanel {
+  gap: 8px;
+}

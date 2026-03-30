@@ -87,14 +87,15 @@ export function renderTriggerSurface(
   const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
 
   const panelMain = document.createElement("div");
-  panelMain.className = "triggerPrimary";
-  panelMain.appendChild(createRoutingSummaryStrip([
+  panelMain.className = "surfaceTabPanel surfaceMainLayout triggerPrimary";
+  const summaryStrip = createRoutingSummaryStrip([
     createRoutingSummary("Out", outgoingVoices.map((voice) => createModuleRefChip(voice)), "No voices"),
     createRoutingSummary("Mod", incomingMods.map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel)), "No mod"),
-  ]));
+  ]);
+  summaryStrip.classList.add("surfaceMainIo");
 
   const pulseRail = document.createElement("div");
-  pulseRail.className = "triggerPulseRail";
+  pulseRail.className = "triggerPulseRail surfaceMainFeature";
 
   const generatorReadout = document.createElement("button");
   generatorReadout.className = "triggerGeneratorReadout";
@@ -212,7 +213,8 @@ export function renderTriggerSurface(
       onChange: (x) => setParam("weird", x),
     }),
   );
-  panelMain.append(pulseRail, mainControlRack);
+  mainControlRack.classList.add("surfaceMainBottom", "triggerBottomRack");
+  panelMain.append(summaryStrip, pulseRail, mainControlRack);
 
   const panelRouting = document.createElement("div");
   panelRouting.className = "utilityPanel utilityPanel--triggerRouting";

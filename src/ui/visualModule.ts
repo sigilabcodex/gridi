@@ -70,13 +70,14 @@ export function renderVisualSurface(
 
   const visualSource = routing.visualSources.get(vm.id);
 
-  const panelMain = el("div", "visualSurfaceBody");
+  const panelMain = el("div", "surfaceTabPanel surfaceMainLayout visualSurfaceBody visualMainLayout");
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
   canvas.width = 800;
   canvas.height = 260;
-  const readout = el("div", "visualReadout small");
+  const readout = el("div", "visualReadout small surfaceMainBottom");
+  canvasWrap.classList.add("surfaceMainFeature");
   canvasWrap.append(canvas);
   panelMain.append(canvasWrap, readout);
 

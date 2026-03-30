@@ -73,12 +73,11 @@ export function renderControlSurface(
   const controlTargets = routing.controlTargets.get(mod.id) ?? [];
 
   const panelMain = document.createElement("div");
-  panelMain.className = "surfaceTabPanel controlBody";
-  panelMain.append(
-    createRoutingSummaryStrip([
-      createRoutingSummary("To", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
-    ]),
-  );
+  panelMain.className = "surfaceTabPanel surfaceMainLayout controlBody";
+  const summaryStrip = createRoutingSummaryStrip([
+    createRoutingSummary("To", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
+  ]);
+  summaryStrip.classList.add("surfaceMainIo");
 
   const kindField = createCompactSelectField({
     label: "Mode",
@@ -101,7 +100,7 @@ export function renderControlSurface(
   });
 
   const typeRow = document.createElement("div");
-  typeRow.className = "controlTypeRow";
+  typeRow.className = "controlTypeRow surfaceMainFeature";
   typeRow.append(kindField.wrap, waveField.wrap);
 
   const meter = document.createElement("div");
@@ -111,7 +110,7 @@ export function renderControlSurface(
   meter.appendChild(meterFill);
 
   const mainKnobGrid = document.createElement("div");
-  mainKnobGrid.className = "moduleKnobGrid controlMainKnobGrid";
+  mainKnobGrid.className = "moduleKnobGrid controlMainKnobGrid surfaceMainControls";
   mainKnobGrid.append(
     ctlFloat({ label: "Speed", value: mod.speed, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
@@ -127,7 +126,10 @@ export function renderControlSurface(
     }, { regen: false }) }),
   );
 
+  meter.classList.add("surfaceMainBottom");
+
   panelMain.append(
+    summaryStrip,
     typeRow,
     mainKnobGrid,
     meter,
