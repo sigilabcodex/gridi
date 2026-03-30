@@ -31,6 +31,75 @@ type HeaderParams = {
 };
 
 export function createTransportHeader(params: HeaderParams) {
+  const makeIcon = (name: "play" | "stop" | "mute" | "unmute" | "audioOn" | "audioOff" | "settings" | "actions" | "save") => {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.classList.add("transportIconGlyph");
+    const stroke = (d: string) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "currentColor");
+      path.setAttribute("stroke-width", "1.8");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linejoin", "round");
+      icon.appendChild(path);
+    };
+    const fill = (d: string) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("fill", "currentColor");
+      icon.appendChild(path);
+    };
+    if (name === "play") fill("M8 6l10 6-10 6z");
+    if (name === "stop") fill("M7 7h10v10H7z");
+    if (name === "mute") {
+      stroke("M4 10h4l5-4v12l-5-4H4z");
+      stroke("M16 9l4 6");
+      stroke("M20 9l-4 6");
+    }
+    if (name === "unmute") {
+      stroke("M4 10h4l5-4v12l-5-4H4z");
+      stroke("M17 9.5a4 4 0 010 5");
+      stroke("M19.5 7a7.5 7.5 0 010 10");
+    }
+    if (name === "audioOn") {
+      stroke("M12 2v6");
+      stroke("M7.5 5A7 7 0 1016.5 5");
+    }
+    if (name === "audioOff") {
+      stroke("M12 2v6");
+      stroke("M7.5 5A7 7 0 1016.5 5");
+      stroke("M5 5l14 14");
+    }
+    if (name === "settings") {
+      stroke("M12 8.2A3.8 3.8 0 1112 16a3.8 3.8 0 010-7.8z");
+      stroke("M12 2.7v2.2");
+      stroke("M12 19.1v2.2");
+      stroke("M3.8 12h2.2");
+      stroke("M18 12h2.2");
+      stroke("M5.8 5.8l1.5 1.5");
+      stroke("M16.7 16.7l1.5 1.5");
+      stroke("M18.2 5.8l-1.5 1.5");
+      stroke("M7.3 16.7l-1.5 1.5");
+    }
+    if (name === "actions") {
+      stroke("M7 6h10");
+      stroke("M7 12h10");
+      stroke("M7 18h10");
+      fill("M4.5 5.2h1.8v1.8H4.5z");
+      fill("M4.5 11.2h1.8V13H4.5z");
+      fill("M4.5 17.2h1.8V19H4.5z");
+    }
+    if (name === "save") {
+      stroke("M5 4h12l2 2v14H5z");
+      stroke("M8 4v6h8");
+      stroke("M9 18h6");
+    }
+    return icon;
+  };
+
   const header = document.createElement("header");
   header.classList.add("transportHeader");
 
@@ -89,9 +158,9 @@ export function createTransportHeader(params: HeaderParams) {
   outputCenter.append(outputMeter);
 
   const btnSettings = document.createElement("button");
-  btnSettings.className = "iconBtn transportSettings";
+  btnSettings.className = "iconBtn transportSettings transportIconBtn";
   btnSettings.type = "button";
-  btnSettings.textContent = "Settings";
+  btnSettings.append(makeIcon("settings"));
   btnSettings.onclick = params.onOpenSettings;
   params.attachTooltip(btnSettings, {
     text: "Open app settings and UI preferences.",
@@ -99,7 +168,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnAudio = document.createElement("button");
-  btnAudio.className = "transportAudioChip";
+  btnAudio.className = "transportAudioChip transportIconBtn";
   btnAudio.onclick = params.onToggleAudio;
   params.attachTooltip(btnAudio, {
     text: "Start or suspend the audio engine for this tab.",
@@ -107,7 +176,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnPlay = document.createElement("button");
-  btnPlay.className = "transportPrimaryBtn";
+  btnPlay.className = "transportPrimaryBtn transportIconBtn";
   btnPlay.onclick = params.onTogglePlay;
   params.attachTooltip(btnPlay, {
     text: "Play or stop the current patch.",
@@ -115,7 +184,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnMute = document.createElement("button");
-  btnMute.className = "transportGhostBtn";
+  btnMute.className = "transportGhostBtn transportIconBtn";
   btnMute.onclick = params.onToggleMute;
   params.attachTooltip(btnMute, {
     text: "Mute or unmute the master output.",
@@ -126,9 +195,9 @@ export function createTransportHeader(params: HeaderParams) {
   transportCluster.className = "transportCluster transportClusterPrimary";
   transportCluster.setAttribute("aria-label", "Transport");
   const btnStop = document.createElement("button");
-  btnStop.className = "transportGhostBtn";
+  btnStop.className = "transportGhostBtn transportIconBtn";
   btnStop.type = "button";
-  btnStop.textContent = "Stop";
+  btnStop.append(makeIcon("stop"));
   btnStop.onclick = params.onTogglePlay;
   params.attachTooltip(btnStop, {
     text: "Stop the current patch playback.",
@@ -235,7 +304,7 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   const btnSavePreset = document.createElement("button");
-  btnSavePreset.className = "transportGhostBtn";
+  btnSavePreset.className = "transportGhostBtn transportIconBtn transportSaveBtn";
   btnSavePreset.onclick = params.onSavePreset;
   params.attachTooltip(btnSavePreset, {
     text: "Save the current patch into the selected preset.",
@@ -255,8 +324,8 @@ export function createTransportHeader(params: HeaderParams) {
   utilityMenu.className = "transportUtilityMenu transportSecondaryMenu";
 
   const utilitySummary = document.createElement("summary");
-  utilitySummary.className = "transportGhostBtn transportUtilitySummary";
-  utilitySummary.textContent = "Actions";
+  utilitySummary.className = "transportGhostBtn transportUtilitySummary transportIconBtn";
+  utilitySummary.append(makeIcon("actions"));
   utilitySummary.setAttribute("aria-label", "Open session and utility actions");
 
   const utilityPanel = document.createElement("div");
@@ -356,8 +425,9 @@ export function createTransportHeader(params: HeaderParams) {
 
   const updateAudioBtn = () => {
     const running = params.audioState() === "running";
-    btnAudio.textContent = running ? "Audio: On" : "Audio: Off";
+    btnAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
     btnAudio.classList.toggle("isOn", running);
+    btnAudio.setAttribute("aria-pressed", running ? "true" : "false");
   };
 
   const updateOutputMeter = () => {
@@ -372,14 +442,17 @@ export function createTransportHeader(params: HeaderParams) {
 
   const updatePlayBtn = () => {
     const playing = params.isPlaying();
-    btnPlay.textContent = playing ? "Pause" : "Play";
+    btnPlay.replaceChildren(makeIcon("play"));
+    btnPlay.classList.toggle("isOn", playing);
+    btnPlay.setAttribute("aria-pressed", playing ? "true" : "false");
     btnStop.disabled = !playing;
   };
 
   const updateMuteBtn = () => {
     const patch = params.patch();
-    btnMute.textContent = patch.masterMute ? "Unmute" : "Mute";
+    btnMute.replaceChildren(makeIcon(patch.masterMute ? "mute" : "unmute"));
     btnMute.classList.toggle("isOn", patch.masterMute);
+    btnMute.setAttribute("aria-pressed", patch.masterMute ? "true" : "false");
   };
 
   const updateMasterGainUI = () => {
@@ -403,8 +476,9 @@ export function createTransportHeader(params: HeaderParams) {
       presetSelect.appendChild(option);
     });
 
-    btnSavePreset.textContent = params.hasUnsavedChanges() ? "Save*" : "Save";
+    btnSavePreset.replaceChildren(makeIcon("save"));
     btnSavePreset.classList.toggle("primary", params.hasUnsavedChanges());
+    btnSavePreset.classList.toggle("hasPending", params.hasUnsavedChanges());
   };
 
   const updateBpmUI = () => {

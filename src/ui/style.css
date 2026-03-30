@@ -2801,10 +2801,12 @@ button:focus-visible,
 .transportHeader {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
-  padding: 8px 10px;
-  overflow: hidden;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  overflow: visible;
+  z-index: 220;
+  isolation: isolate;
 }
 
 .transportTitle {
@@ -2828,7 +2830,7 @@ button:focus-visible,
 .transportMain {
   display: grid;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .transportRow {
@@ -2840,10 +2842,10 @@ button:focus-visible,
 
 .transportRowMain {
   grid-template-columns:
-    minmax(160px, 220px)
-    minmax(260px, 360px)
-    minmax(240px, 320px)
-    minmax(170px, 220px)
+    minmax(132px, 178px)
+    minmax(260px, 330px)
+    minmax(218px, 300px)
+    minmax(158px, 208px)
     auto;
   justify-content: space-between;
 }
@@ -2851,15 +2853,15 @@ button:focus-visible,
 .transportCluster {
   display: flex;
   align-items: center;
-  gap: 8px;
-  border: 1px solid rgba(207, 214, 221, 0.12);
-  border-radius: 10px;
-  padding: 6px 8px;
-  background: linear-gradient(180deg, rgba(20, 28, 36, 0.74), rgba(11, 16, 23, 0.76));
+  gap: 6px;
+  border: 1px solid rgba(207, 214, 221, 0.08);
+  border-radius: 8px;
+  padding: 4px 6px;
+  background: linear-gradient(180deg, rgba(17, 24, 32, 0.62), rgba(10, 15, 22, 0.62));
   min-width: 0;
   width: 100%;
   max-width: 100%;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .transportClusterPrimary,
@@ -2881,9 +2883,9 @@ button:focus-visible,
 .transportPrimaryBtn,
 .transportGhostBtn,
 .transportAudioChip {
-  min-height: 30px;
-  padding: 5px 10px;
-  font-size: 12px;
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
   letter-spacing: 0.2px;
 }
 
@@ -2893,11 +2895,9 @@ button:focus-visible,
 }
 
 .transportAudioChip {
-  border-color: rgba(207, 214, 221, 0.2);
-  background: rgba(13, 19, 26, 0.62);
-  font-size: 11px;
-  min-height: 28px;
-  padding: 4px 8px;
+  border-color: rgba(207, 214, 221, 0.16);
+  background: rgba(11, 17, 24, 0.64);
+  min-width: 30px;
   opacity: 0.92;
 }
 
@@ -2910,19 +2910,37 @@ button:focus-visible,
   border-color: rgba(255, 204, 102, 0.4);
 }
 
+.transportIconBtn {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+  display: inline-flex;
+}
+
+.transportIconGlyph {
+  width: 14px;
+  height: 14px;
+}
+
+.transportSaveBtn.hasPending {
+  box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.22) inset;
+}
+
 .transportDial {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto;
   align-items: start;
-  gap: 4px;
+  gap: 3px;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
 }
 
 .transportDial > .small {
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   opacity: 0.74;
@@ -2932,12 +2950,13 @@ button:focus-visible,
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  height: 16px;
 }
 
 .transportDialNumber {
   width: 100%;
-  max-width: 92px;
-  padding: 4px 8px;
+  max-width: 76px;
+  padding: 3px 6px;
 }
 
 .transportChipInput {
@@ -2946,6 +2965,7 @@ button:focus-visible,
   background: rgba(11, 19, 27, 0.78);
   font-size: 11px;
   line-height: 1.2;
+  text-align: right;
 }
 
 .transportValueRow {
@@ -2958,9 +2978,9 @@ button:focus-visible,
   margin: 0;
   display: grid;
   gap: 3px;
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.35px;
-  opacity: 0.78;
+  opacity: 0.66;
   text-transform: lowercase;
 }
 
@@ -2971,9 +2991,9 @@ button:focus-visible,
 }
 
 .transportSettings.iconBtn {
-  min-width: 74px;
-  width: auto;
-  height: 32px;
+  min-width: 30px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   font-size: 11px;
 }
@@ -2983,7 +3003,7 @@ button:focus-visible,
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 5px;
-  padding: 4px 7px;
+  padding: 3px 5px;
   width: 100%;
 }
 
@@ -2991,7 +3011,7 @@ button:focus-visible,
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -3001,7 +3021,7 @@ button:focus-visible,
 .transportSessionSelectRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
+  gap: 5px;
   align-items: center;
   min-width: 0;
   max-width: 100%;
@@ -3015,7 +3035,7 @@ button:focus-visible,
 
 .transportActionRow {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   justify-content: flex-end;
   min-width: 0;
 }
@@ -3105,7 +3125,7 @@ button:focus-visible,
 
 .transportUtilityPanel {
   position: absolute;
-  z-index: 30;
+  z-index: 320;
   top: calc(100% + 6px);
   right: 0;
   min-width: 168px;
@@ -3116,6 +3136,14 @@ button:focus-visible,
   border: 1px solid rgba(207, 214, 221, 0.18);
   background: rgba(10, 15, 21, 0.97);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+.transportPresetWrap .presetSelect {
+  min-width: 136px;
+  max-width: 220px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border-color: rgba(207, 214, 221, 0.2);
 }
 
 .transportUtilityBtn {
