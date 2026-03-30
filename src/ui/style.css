@@ -3286,6 +3286,9 @@ button:focus-visible,
   --module-tabs-h: 34px;
   --workspace-grid-gap: 10px;
   --workspace-grid-pad: 8px;
+  --faceplate-gap-xs: 4px;
+  --faceplate-gap-sm: 8px;
+  --faceplate-gap-md: 12px;
 }
 
 .moduleCell {
@@ -3313,8 +3316,8 @@ button:focus-visible,
   flex-direction: column;
   min-height: 0;
   margin: 0;
-  padding: 8px;
-  gap: 8px;
+  padding: var(--faceplate-gap-sm);
+  gap: var(--faceplate-gap-sm);
   overflow: hidden;
 }
 
@@ -3339,11 +3342,51 @@ button:focus-visible,
 
 .surfaceMainLayout {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-rows: auto minmax(120px, 1fr) minmax(0, 1fr) auto;
+  gap: var(--faceplate-gap-sm);
   min-height: 0;
   height: 100%;
   align-content: start;
+}
+
+.faceplatePanel {
+  min-height: 0;
+}
+
+.faceplateMainPanel {
+  min-height: 0;
+}
+
+.faceplateStackPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-sm);
+}
+
+.faceplateSection {
+  min-height: 0;
+}
+
+.faceplateSection--io {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-xs);
+}
+
+.faceplateSection--feature {
+  min-height: 96px;
+}
+
+.faceplateSection--controls,
+.faceplateSection--secondary {
+  display: grid;
+  gap: var(--faceplate-gap-sm);
+}
+
+.faceplateSection--bottom {
+  display: grid;
+  gap: var(--faceplate-gap-xs);
+  align-self: end;
 }
 
 .surfaceMainBottom {
@@ -3364,14 +3407,23 @@ button:focus-visible,
 .triggerPulseRack,
 .voicePrimaryGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--faceplate-gap-sm);
 }
 
 .voiceBottomStrip {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--faceplate-gap-sm);
 }
 
 .controlBody {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.utilityPanel,
+.surfaceSettingsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-sm);
 }
 
 .transportRowMain {

@@ -1,6 +1,7 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -103,21 +104,20 @@ function createVoiceSummary(v: SoundModule, routing: RoutingSnapshot) {
 
 
 function createVoiceMainLayout(v: SoundModule, routing: RoutingSnapshot, primaryControls: HTMLElement[], bottomControls: HTMLElement[]) {
-  const main = document.createElement("div");
-  main.className = "surfaceTabPanel surfaceMainLayout voiceMainLayout";
+  const main = createFaceplateMainPanel();
+  main.classList.add("voiceMainLayout");
 
   const summary = createVoiceSummary(v, routing);
-  summary.classList.add("surfaceMainIo");
+  const summarySection = createFaceplateSection("io", "surfaceMainIo");
+  summarySection.append(summary);
 
-  const primaryGrid = document.createElement("div");
-  primaryGrid.className = "voiceControlGrid voicePrimaryGrid";
+  const primaryGrid = createFaceplateSection("controls", "voiceControlGrid voicePrimaryGrid");
   primaryGrid.append(...primaryControls);
 
-  const bottomStrip = document.createElement("div");
-  bottomStrip.className = "voiceControlGrid voiceBottomStrip";
+  const bottomStrip = createFaceplateSection("bottom", "voiceControlGrid voiceBottomStrip");
   bottomStrip.append(...bottomControls);
 
-  main.append(summary, primaryGrid, bottomStrip);
+  main.append(summarySection, primaryGrid, bottomStrip);
   return main;
 }
 
@@ -130,8 +130,7 @@ function createFaceTabs(
   routing: RoutingSnapshot,
   onRoutingChange: SurfaceParams["onRoutingChange"],
 ) {
-  const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel utilityPanel--voiceRouting";
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--voiceRouting");
 
   const incoming = routing.voiceIncoming.get(v.id);
 
@@ -164,12 +163,7 @@ function createFaceTabs(
   modulationCard.appendChild(createVoiceRoutingSelectors(v, controlOptions, onRoutingChange));
   panelRouting.appendChild(modulationCard);
 
-  const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceSettingsPanel";
-  const settingsHint = document.createElement("div");
-  settingsHint.className = "surfaceSettingsHint small";
-  settingsHint.textContent = "No secondary controls.";
-  panelSettings.append(settingsHint);
+  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel");
 
   return createModuleTabShell({
     specs: [
@@ -240,8 +234,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "drum";
 
   const h = makeHeader(v, "DRUM", params, onRemove);
-  const drumKnobs = [
-    ctlFloat({
+  const pitchCtl = ctlFloat({
       label: "Pitch",
       value: d.basePitch,
       min: 24,
@@ -249,18 +242,20 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       step: 1,
       integer: true,
       onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }),
-    }),
-    ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) }),
-    ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) }),
-    ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) }),
-    ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) }),
-    ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) }),
-    ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) }),
-  ];
+    });
+  const decayCtl = ctlFloat({ label: "Decay", value: d.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.decay = x; }, { regen: false }) });
+  const toneCtl = ctlFloat({ label: "Tone", value: d.tone, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.tone = x; }, { regen: false }) });
+  const levelCtl = ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) });
+  const panCtl = ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) });
+  const snapCtl = ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) });
+  const noiseCtl = ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout(v, routing, drumKnobs.slice(0, 4), drumKnobs.slice(4));
+  const main = createVoiceMainLayout(v, routing, [pitchCtl, decayCtl, toneCtl], [levelCtl, panCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
+  const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
+  drumSettingsGrid.append(snapCtl, noiseCtl);
+  shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
@@ -281,27 +276,28 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
-  const synthKnobs = [
-    ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) }),
-    ctlFloat({
+  const waveCtl = ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) });
+  const cutoffCtl = ctlFloat({
       label: "Cutoff",
       value: t.cutoff,
       min: 0,
       max: 1,
       step: 0.001,
       onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }),
-    }),
-    ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) }),
-    ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) }),
-    ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) }),
-    ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) }),
-    ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) }),
-    ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) }),
-  ];
+    });
+  const resoCtl = ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) });
+  const attackCtl = ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) });
+  const decayCtl = ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) });
+  const levelCtl = ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) });
+  const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
+  const modCtl = ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout(v, routing, synthKnobs.slice(0, 5), synthKnobs.slice(5));
+  const main = createVoiceMainLayout(v, routing, [waveCtl, cutoffCtl, resoCtl, attackCtl], [decayCtl, levelCtl, panCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
+  const synthSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
+  synthSettingsGrid.append(modCtl);
+  shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
 
