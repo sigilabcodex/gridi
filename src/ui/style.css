@@ -3272,540 +3272,34 @@ button:focus-visible,
     min-width: 180px;
   }
 }
-/* === Header compact preset-first pass === */
+
+/* === Canonical layout authority (PR88) ===
+   Shell + face + transport zone geometry is defined here.
+   Do not introduce additional late-pass overrides for these selectors.
+*/
 :root {
-  --module-header-h: 50px;
-}
-
-.surfaceHeader {
-  align-items: center;
-}
-
-.surfaceIdentity {
-  display: grid;
-  grid-template-rows: auto auto;
-  gap: 4px;
-  align-items: center;
-}
-
-.surfacePresetPrimary {
-  min-width: 0;
-}
-
-.surfacePresetPrimary .modulePresetChip {
-  width: fit-content;
-  max-width: 100%;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.surfaceSecondaryIdentity {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  opacity: 0.8;
-}
-
-.surfaceSecondaryIdentity .surfaceBadge {
-  padding: 2px 6px;
-  font-size: 9px;
-  letter-spacing: 0.8px;
-}
-
-.surfaceInstanceName,
-.surfaceSecondaryIdentity .moduleId {
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.surfaceSecondaryIdentity .moduleId {
-  opacity: 0.66;
-}
-
-/* === Module shell layout polish (fixed-grid safe) === */
-:root {
+  --module-cell-w: 330px;
   --module-cell-h: 360px;
-  --module-shell-pad: 11px;
-  --module-shell-gap: 9px;
-  --module-header-h: 56px;
-  --module-tabs-h: 36px;
-}
-
-.transportHeader {
-  margin-bottom: 10px;
-}
-
-.surfaceFace > .surfaceTabPanel {
-  padding: 10px 10px 8px;
-}
-
-.surfaceTabs {
-  gap: 6px;
-  align-items: end;
-}
-
-.surfaceTabs .modTab {
-  min-height: 30px;
-  line-height: 1.15;
-  padding: 6px 9px;
-}
-
-.surfaceSecondaryIdentity {
-  flex-wrap: wrap;
-  row-gap: 3px;
-}
-
-.surfaceSecondaryIdentity .surfaceBadge {
-  flex: 0 0 auto;
-}
-
-.routingSummaryValues,
-.routingChipList {
-  align-items: center;
-}
-
-.routingChip {
-  max-width: 100%;
-  line-height: 1.2;
-}
-
-.knobCtl {
-  width: 68px;
-  max-width: 100%;
-}
-
-@media (max-width: 1180px) and (min-width: 761px) {
-  :root {
-    --module-cell-h: 346px;
-  }
-}
-
-/* === Final integration stabilization pass === */
-
-.transportUtilityMenu[open] .transportUtilitySummary {
-  border-color: rgba(125, 212, 255, 0.42);
-  background: rgba(60, 118, 160, 0.2);
-}
-
-.surfaceTabs {
-  display: flex;
-}
-
-.surfaceTabs .modTab {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.addModuleSlot {
-  padding: var(--module-shell-pad);
-}
-
-.addModulePlus {
-  align-self: center;
-}
-
-.addModuleSlotLabel {
-  margin-bottom: 2px;
-}
-
-/* === Fixed faceplate density pass === */
-:root {
-  --module-cell-h: 360px;
-}
-
-.moduleSurface {
-  padding: 8px;
-}
-
-.surfaceHeader {
-  min-height: 50px;
-  margin-bottom: 6px;
-}
-
-.surfaceIdentity {
-  gap: 3px;
-}
-
-.surfacePresetPrimary .modulePresetChip {
-  padding: 3px 9px;
-}
-
-.surfaceSecondaryIdentity {
-  gap: 4px;
-  opacity: 0.72;
-}
-
-.surfaceSecondaryIdentity .surfaceBadge {
-  padding: 1px 6px;
-}
-
-.surfaceFace {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-}
-
-.surfaceFace > .surfaceTabPanel {
-  flex: 1 1 auto;
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  padding: 8px 8px 6px;
-  margin-top: 6px;
-  min-height: 0;
-}
-
-.surfaceTabs {
-  margin-top: 6px;
-  padding-top: 6px;
-}
-
-.surfaceTabs .modTab {
-  min-height: 28px;
-  padding: 5px 8px;
-}
-
-.routingSummaryStrip {
-  gap: 6px;
-}
-
-.routingSummaryBlock {
-  padding: 5px 6px;
-}
-
-.routingSummaryValues,
-.routingChipList {
-  gap: 4px;
-}
-
-.utilityPanel,
-.controlBody,
-.surfaceSettingsPanel {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-}
-
-.utilityRouteCard {
-  padding: 7px;
-  gap: 5px;
-}
-
-.compactSelectField {
-  gap: 3px;
-}
-
-.compactSelectInput,
-.compactSelectField select {
-  min-height: 28px;
-  padding: 4px 24px 4px 8px;
-  border-color: rgba(126, 175, 255, 0.35);
-  background:
-    linear-gradient(180deg, rgba(8, 13, 19, 0.96), rgba(5, 9, 14, 0.96));
-  color: rgba(220, 230, 240, 0.92);
-}
-
-.voiceControlGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  align-content: start;
-}
-
-.voiceControlGrid .knobCtl {
-  width: auto;
-}
-
-.triggerPrimary {
-  gap: 6px;
-}
-
-.triggerPulseRail {
-  padding: 6px;
-  gap: 5px;
-}
-
-.triggerPulseRack {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.triggerGeneratorReadout,
-.triggerSeedReadout {
-  padding: 4px 6px;
-}
-
-.controlTypeRow {
-  gap: 6px;
-}
-
-.controlMeter {
-  min-height: 8px;
-}
-
-.surfaceSettingsHint {
-  border: 1px dashed rgba(207, 214, 221, 0.22);
-  border-radius: 8px;
-  padding: 7px;
-  opacity: 0.74;
-}
-
-.visualSurfaceBody {
-  grid-template-rows: 1fr auto;
-}
-
-.visualDisplayWrap {
-  min-height: 190px;
-}
-
-/* === Corrective pass: fixed faceplate internal grids === */
-.surfaceFace > .surfaceTabPanel {
-  overflow: hidden;
-}
-
-.moduleKnobGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  align-content: start;
-  min-width: 0;
-}
-
-.moduleKnobGrid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.moduleKnobGrid > .knobCtl,
-.controlMainKnobGrid > .knobCtl {
-  width: auto;
-  min-width: 0;
-}
-
-.triggerPrimary,
-.controlBody,
-.surfaceSettingsPanel,
-.utilityPanel {
-  min-height: 0;
-}
-
-.controlMainKnobGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.triggerSettingsPanel,
-.controlSettingsPanel {
-  grid-template-columns: 1fr;
-}
-
-.utilityPanel--voiceRouting,
-.utilityPanel--triggerRouting {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.utilityPanel--voiceRouting > .routingCard,
-.utilityPanel--triggerRouting > .routingCard {
-  min-width: 0;
-}
-
-.utilityPanel--controlRouting,
-.utilityPanel--visualRouting,
-.visualSettingsPanel {
-  grid-template-columns: 1fr;
-}
-
-.visualSurfaceBody {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-
-/* === Layout rescue pass: fixed-face compact readability === */
-:root {
-  --module-cell-h: 360px;
-}
-
-.surfaceFace > .surfaceTabPanel {
-  gap: 5px;
-  padding: 7px 7px 5px;
-}
-
-.surfaceTabs .modTab {
-  min-height: 27px;
-  padding: 5px 7px;
-}
-
-.knobCtl {
-  width: 68px;
-  gap: 4px;
-}
-
-.knobCtl > label {
-  min-height: 22px;
-  display: grid;
-  place-items: end center;
-  text-align: center;
-  line-height: 1.05;
-  letter-spacing: 0.25px;
-}
-
-.knobVal,
-.ctlValueButton {
-  min-height: 16px;
-}
-
-.voiceControlGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 5px 7px;
-}
-
-.voiceControlGrid-drum {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.voiceControlGrid-synth {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.triggerPrimary {
-  gap: 5px;
-}
-
-.triggerPulseRail {
-  padding: 6px 7px;
-  gap: 4px;
-}
-
-.triggerPulseRack {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 5px 7px;
-}
-
-.triggerStepGrid {
-  gap: 2px;
-}
-
-.triggerStepCell {
-  height: 6px;
-}
-
-.routingSummaryStrip {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px;
-}
-
-.routingSummaryBlock {
-  padding: 5px 6px;
-}
-
-.routingSummaryValues,
-.routingChipList,
-.routingSelectors {
-  gap: 4px;
-}
-
-.utilityPanel {
-  gap: 5px;
-}
-
-.utilityPanel--voiceRouting,
-.utilityPanel--triggerRouting {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.utilityPanel--voiceRouting > .routingCard,
-.utilityPanel--triggerRouting > .routingCard {
-  padding: 6px;
-}
-
-.utilityPanel--controlRouting,
-.utilityPanel--visualRouting {
-  grid-template-columns: 1fr;
-}
-
-.routingSelectors > .compactSelectField {
-  flex: 1 1 120px;
-}
-
-.compactSelectField {
-  gap: 3px;
-}
-
-.compactSelectInput,
-.compactSelectField select {
-  min-height: 27px;
-  padding: 4px 22px 4px 8px;
-  border-color: rgba(126, 175, 255, 0.32);
-  background: linear-gradient(180deg, rgba(9, 14, 20, 0.97), rgba(6, 10, 15, 0.97));
-}
-
-.surfaceSettingsPanel {
-  gap: 6px;
-}
-
-.triggerSettingsPanel,
-.controlSettingsPanel,
-.visualSettingsPanel {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 8px;
-}
-
-.triggerSettingsPanel .moduleKnobGrid,
-.controlSettingsPanel .moduleKnobGrid,
-.visualSettingsPanel .visualControlDock {
-  grid-column: 1 / -1;
-}
-
-.moduleKnobGrid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px 8px;
-}
-
-.controlBody {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px 8px;
-}
-
-.controlTypeRow,
-.controlMeter,
-.routingSummaryStrip {
-  grid-column: 1 / -1;
-}
-
-.visualSurfaceBody {
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 6px;
-}
-
-.visualDisplayWrap {
-  min-height: 0;
-  padding: 2px;
-}
-
-.visualControlDock {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-}
-
-/* === Final authority overrides: shell/header integrity === */
-:root {
-  --module-cell-h: 360px;
+  --module-shell-pad: 9px;
+  --module-shell-gap: 8px;
   --module-header-h: 54px;
   --module-tabs-h: 34px;
-  --module-shell-pad: 9px;
+  --workspace-grid-gap: 10px;
+  --workspace-grid-pad: 8px;
 }
 
 .moduleCell {
+  width: var(--module-cell-w);
   min-height: var(--module-cell-h);
   max-height: var(--module-cell-h);
+  height: var(--module-cell-h);
 }
 
 .moduleSurface {
+  display: grid;
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
+  gap: var(--module-shell-gap);
+  padding: var(--module-shell-pad);
   overflow: hidden;
 }
 
@@ -3815,14 +3309,69 @@ button:focus-visible,
 }
 
 .surfaceFace > .surfaceTabPanel {
-  margin-top: 0;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  margin: 0;
+  padding: 8px;
+  gap: 8px;
   overflow: hidden;
 }
 
-.visualDisplayWrap {
+.surfaceTabs {
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  align-self: end;
+  display: flex;
+  gap: 6px;
+}
+
+.surfaceTabs .modTab {
+  min-height: 28px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.surfaceMainLayout {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
   min-height: 0;
   height: 100%;
+  align-content: start;
+}
+
+.surfaceMainBottom {
+  align-self: end;
+}
+
+.triggerPulseRack,
+.voicePrimaryGrid,
+.voiceBottomStrip,
+.controlMainKnobGrid,
+.moduleKnobGrid,
+.controlBody,
+.utilityPanel,
+.surfaceSettingsPanel {
+  min-height: 0;
+}
+
+.triggerPulseRack,
+.voicePrimaryGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.voiceBottomStrip {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.controlBody {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .transportRowMain {
@@ -3839,96 +3388,23 @@ button:focus-visible,
 .transportZone {
   min-width: 0;
   display: flex;
-  flex-direction: row;
   align-items: center;
   gap: 12px;
   flex-wrap: nowrap;
 }
 
-.transportZoneIdentity {
-  flex: 0 0 auto;
-  gap: 8px;
-}
+.transportZoneIdentity { flex: 0 0 auto; }
+.transportZoneCenter { flex: 1 1 auto; justify-content: center; }
+.transportZoneRight { flex: 0 0 auto; justify-content: flex-end; gap: 8px; }
 
-.transportZoneCenter {
-  flex: 1 1 auto;
-  justify-content: center;
-}
-
-.transportZoneRight {
-  flex: 0 0 auto;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.transportCenterGroup {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  flex-wrap: nowrap;
-}
-
-.transportCluster {
-  width: auto;
-  gap: 8px;
-  padding: 4px 8px;
-}
-
-.transportClusterPrimary,
-.transportClusterTempo,
-.transportClusterSession,
-.transportClusterStatus {
-  flex-wrap: nowrap;
-  width: auto;
-}
-
-.transportClusterTempo {
-  display: flex;
-  grid-template-columns: none;
-  gap: 12px;
-}
-
+.transportCenterGroup,
 .transportSessionBlock,
 .transportSessionSelectRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: auto;
-}
-
-.transportPresetWrap {
-  width: auto;
-  gap: 4px;
-  padding: 4px 8px;
-}
-
-.transportOutputMeter {
-  width: clamp(56px, 6vw, 74px);
-  height: 18px;
-}
-
-.transportUtilitySectionLabel {
-  margin: 4px 3px 2px;
-  opacity: 0.66;
-  letter-spacing: 0.55px;
-  text-transform: uppercase;
-}
-
-.transportUtilitySection {
-  display: grid;
-  gap: 4px;
-}
-
-@media (max-width: 1320px) {
-  .transportRowMain {
-    gap: 12px;
-  }
-
-  .transportZoneCenter {
-    justify-content: flex-start;
-  }
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 @media (max-width: 1100px) {
@@ -3950,11 +3426,28 @@ button:focus-visible,
   }
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
+  :root {
+    --module-cell-w: min(100%, 330px);
+  }
+
+  .workspaceViewportInner {
+    justify-content: flex-start;
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .workspaceViewport {
+    scrollbar-gutter: auto;
+  }
+
+  .moduleCell {
+    width: 100%;
+  }
+
   .transportRowMain,
   .transportZone,
-  .transportCenterGroup,
-  .transportClusterTempo {
+  .transportCenterGroup {
     flex-wrap: wrap;
   }
 
@@ -3962,91 +3455,4 @@ button:focus-visible,
   .transportZoneRight {
     justify-content: flex-start;
   }
-}
-
-/* === PR86: module main-face layout discipline === */
-.surfaceFace > .surfaceTabPanel {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  gap: 8px;
-}
-
-.surfaceMainLayout {
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 8px;
-  min-height: 0;
-  height: 100%;
-  align-content: start;
-}
-
-.surfaceMainIo {
-  display: grid;
-  gap: 8px;
-}
-
-.surfaceMainFeature {
-  min-height: 0;
-}
-
-.surfaceMainControls {
-  min-height: 0;
-  align-content: start;
-}
-
-.surfaceMainBottom {
-  align-self: end;
-}
-
-.voicePrimaryGrid,
-.voiceBottomStrip,
-.triggerPulseRack,
-.controlMainKnobGrid,
-.moduleKnobGrid {
-  column-gap: 12px;
-  row-gap: 8px;
-}
-
-.voicePrimaryGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.voiceBottomStrip {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.triggerPrimary {
-  grid-template-rows: auto minmax(0, 1fr) auto;
-}
-
-.triggerPulseRail {
-  min-height: 0;
-}
-
-.triggerBottomRack {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.controlBody {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.controlTypeRow {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.visualMainLayout {
-  grid-template-rows: minmax(0, 1fr) auto;
-}
-
-.visualDisplayWrap {
-  min-height: 160px;
-}
-
-.utilityPanel {
-  gap: 8px;
 }
