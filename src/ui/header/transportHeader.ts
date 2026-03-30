@@ -400,11 +400,11 @@ export function createTransportHeader(params: HeaderParams) {
 
   const centerGroup = document.createElement("div");
   centerGroup.className = "transportCenterGroup";
-  centerGroup.append(transportCluster, tempoCluster);
+  centerGroup.append(transportCluster, tempoCluster, sessionCluster);
 
   zoneIdentity.append(titleWrap);
   zoneCenter.append(centerGroup);
-  zoneRight.append(sessionCluster, statusCluster, settingsDock);
+  zoneRight.append(statusCluster, settingsDock);
   transportRow.append(zoneIdentity, zoneCenter, zoneRight);
 
   const main = document.createElement("div");
