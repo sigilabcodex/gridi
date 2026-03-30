@@ -215,7 +215,7 @@ export function renderTriggerSurface(
   panelMain.append(pulseRail, mainControlRack);
 
   const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel";
+  panelRouting.className = "utilityPanel utilityPanel--triggerRouting";
 
   const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
   const targetsList = document.createElement("div");
@@ -249,8 +249,10 @@ export function renderTriggerSurface(
   panelRouting.appendChild(modulationCard);
 
   const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceSettingsPanel";
-  panelSettings.append(
+  panelSettings.className = "surfaceSettingsPanel triggerSettingsPanel";
+  const settingsGrid = document.createElement("div");
+  settingsGrid.className = "moduleKnobGrid moduleKnobGrid-2";
+  settingsGrid.append(
     ctlFloat({
       label: "Rotate",
       value: t.euclidRot,
@@ -294,6 +296,7 @@ export function renderTriggerSurface(
       onChange: (x) => setParam("gravity", x),
     }),
   );
+  panelSettings.append(settingsGrid);
 
   const shell = createModuleTabShell({
     specs: [

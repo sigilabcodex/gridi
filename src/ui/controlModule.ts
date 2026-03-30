@@ -110,8 +110,9 @@ export function renderControlSurface(
   meterFill.className = "controlMeterFill";
   meter.appendChild(meterFill);
 
-  panelMain.append(
-    typeRow,
+  const mainKnobGrid = document.createElement("div");
+  mainKnobGrid.className = "moduleKnobGrid controlMainKnobGrid";
+  mainKnobGrid.append(
     ctlFloat({ label: "Speed", value: mod.speed, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.speed = x;
@@ -124,11 +125,16 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.rate = x;
     }, { regen: false }) }),
+  );
+
+  panelMain.append(
+    typeRow,
+    mainKnobGrid,
     meter,
   );
 
   const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel";
+  panelRouting.className = "utilityPanel utilityPanel--controlRouting";
   const targetCard = createRoutingCard("Targets", controlTargets.length ? `${controlTargets.length} lane${controlTargets.length === 1 ? "" : "s"}` : "No routes");
   const targetList = document.createElement("div");
   targetList.className = "routingChipList";
@@ -141,8 +147,10 @@ export function renderControlSurface(
   panelRouting.appendChild(targetCard);
 
   const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceSettingsPanel";
-  panelSettings.append(
+  panelSettings.className = "surfaceSettingsPanel controlSettingsPanel";
+  const settingsKnobGrid = document.createElement("div");
+  settingsKnobGrid.className = "moduleKnobGrid moduleKnobGrid-2";
+  settingsKnobGrid.append(
     ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.phase = x;
@@ -152,6 +160,7 @@ export function renderControlSurface(
       if (m?.type === "control") m.randomness = x;
     }, { regen: false }) }),
   );
+  panelSettings.append(settingsKnobGrid);
 
   const shell = createModuleTabShell({
     specs: [

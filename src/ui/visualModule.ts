@@ -79,7 +79,7 @@ export function renderVisualSurface(
   canvasWrap.append(canvas);
   panelMain.append(canvasWrap, readout);
 
-  const panelRouting = el("div", "utilityPanel");
+  const panelRouting = el("div", "utilityPanel utilityPanel--visualRouting");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
   sourceCard.appendChild(createRoutingSummaryStrip([
     createRoutingSummary("In", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master"),
@@ -90,7 +90,7 @@ export function renderVisualSurface(
   sourceCard.appendChild(contributors);
   panelRouting.appendChild(sourceCard);
 
-  const panelSettings = el("div", "surfaceSettingsPanel");
+  const panelSettings = el("div", "surfaceSettingsPanel visualSettingsPanel");
   const dock = el("div", "visualControlDock");
   const modeField = createCompactSelectField({
     label: "View",
