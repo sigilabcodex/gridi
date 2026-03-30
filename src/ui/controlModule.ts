@@ -11,8 +11,6 @@ import {
   createCompactSelectField,
   createRoutingCard,
   createRoutingChip,
-  createRoutingSummary,
-  createRoutingSummaryStrip,
   type RoutingSnapshot,
 } from "./routingVisibility";
 
@@ -75,11 +73,6 @@ export function renderControlSurface(
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("controlBody");
-  const summaryStrip = createRoutingSummaryStrip([
-    createRoutingSummary("To", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
-  ]);
-  const summarySection = createFaceplateSection("io", "surfaceMainIo");
-  summarySection.append(summaryStrip);
 
   const kindField = createCompactSelectField({
     label: "Mode",
@@ -131,7 +124,6 @@ export function renderControlSurface(
   bottomSection.append(meter);
 
   panelMain.append(
-    summarySection,
     typeRow,
     mainKnobGrid,
     bottomSection,

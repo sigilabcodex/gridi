@@ -11,8 +11,6 @@ import {
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
-  createRoutingSummary,
-  createRoutingSummaryStrip,
   type RoutingSnapshot,
 } from "./routingVisibility";
 
@@ -90,26 +88,9 @@ function makeHeader(v: SoundModule, badgeText: string, params: Pick<SurfaceParam
   return { header, ledA, ledHit, syncToggle };
 }
 
-function createVoiceSummary(v: SoundModule, routing: RoutingSnapshot) {
-  const incoming = routing.voiceIncoming.get(v.id);
-  const triggerChip = incoming?.trigger ? [createModuleRefChip(incoming.trigger)] : [];
-  const modChips = (incoming?.modulations ?? []).map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel));
-
-  return createRoutingSummaryStrip([
-    createRoutingSummary("Trig", triggerChip, "No trig"),
-    createRoutingSummary("Mod", modChips, "No mod"),
-  ]);
-}
-
-
-
-function createVoiceMainLayout(v: SoundModule, routing: RoutingSnapshot, primaryControls: HTMLElement[], bottomControls: HTMLElement[]) {
+function createVoiceMainLayout(primaryControls: HTMLElement[], bottomControls: HTMLElement[]) {
   const main = createFaceplateMainPanel();
   main.classList.add("voiceMainLayout");
-
-  const summary = createVoiceSummary(v, routing);
-  const summarySection = createFaceplateSection("io", "surfaceMainIo");
-  summarySection.append(summary);
 
   const primaryGrid = createFaceplateSection("controls", "voiceControlGrid voicePrimaryGrid");
   primaryGrid.append(...primaryControls);
@@ -117,7 +98,7 @@ function createVoiceMainLayout(v: SoundModule, routing: RoutingSnapshot, primary
   const bottomStrip = createFaceplateSection("bottom", "voiceControlGrid voiceBottomStrip");
   bottomStrip.append(...bottomControls);
 
-  main.append(summarySection, primaryGrid, bottomStrip);
+  main.append(primaryGrid, bottomStrip);
   return main;
 }
 
@@ -250,7 +231,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const snapCtl = ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) });
   const noiseCtl = ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout(v, routing, [pitchCtl, decayCtl, toneCtl], [levelCtl, panCtl]);
+  const main = createVoiceMainLayout([pitchCtl, decayCtl, toneCtl], [levelCtl, panCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
@@ -292,7 +273,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
   const modCtl = ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout(v, routing, [waveCtl, cutoffCtl, resoCtl, attackCtl], [decayCtl, levelCtl, panCtl]);
+  const main = createVoiceMainLayout([waveCtl, cutoffCtl, resoCtl, attackCtl], [decayCtl, levelCtl, panCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const synthSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
