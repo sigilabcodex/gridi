@@ -155,19 +155,6 @@ export function renderTriggerSurface(
       min: 0,
       max: 1,
       step: 0.001,
-      modulation: {
-        label: "Density mod",
-        options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
-        selected: t.modulations?.density,
-        attachTooltip,
-        onChange: (value) => onRoutingChange((p) => {
-          const m = p.modules.find((x) => x.id === t.id);
-          if (m?.type !== "trigger") return;
-          m.modulations = m.modulations ?? {};
-          if (value) m.modulations.density = value;
-          else delete m.modulations.density;
-        }, { regen: false }),
-      },
       tooltip: "Adjust how often this trigger lane produces steps.",
       attachTooltip,
       onChange: (x) => setParam("density", x),
@@ -262,6 +249,7 @@ export function renderTriggerSurface(
   panelRouting.appendChild(modulationCard);
 
   const panelSettings = document.createElement("div");
+  panelSettings.className = "surfaceSettingsPanel";
   panelSettings.append(
     ctlFloat({
       label: "Rotate",
