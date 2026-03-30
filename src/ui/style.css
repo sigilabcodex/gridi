@@ -3790,3 +3790,98 @@ button:focus-visible,
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
+
+/* === Final authority overrides: shell/header integrity === */
+:root {
+  --module-cell-h: 360px;
+  --module-header-h: 54px;
+  --module-tabs-h: 34px;
+  --module-shell-pad: 9px;
+}
+
+.moduleCell {
+  min-height: var(--module-cell-h);
+  max-height: var(--module-cell-h);
+}
+
+.moduleSurface {
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h);
+  overflow: hidden;
+}
+
+.surfaceFace {
+  display: grid;
+  min-height: 0;
+}
+
+.surfaceFace > .surfaceTabPanel {
+  margin-top: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.visualDisplayWrap {
+  min-height: 0;
+  height: 100%;
+}
+
+.transportRowMain {
+  grid-template-columns: minmax(340px, 1.5fr) minmax(230px, 1fr) minmax(190px, 0.9fr);
+}
+
+.transportZone {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.transportZonePrimary {
+  grid-template-columns: minmax(132px, 176px) minmax(220px, 1fr);
+}
+
+.transportZoneSession {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.transportZoneStatus {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.transportOutputMeter {
+  width: clamp(56px, 6vw, 74px);
+  height: 18px;
+}
+
+.transportUtilitySectionLabel {
+  margin: 4px 3px 2px;
+  opacity: 0.66;
+  letter-spacing: 0.55px;
+  text-transform: uppercase;
+}
+
+.transportUtilitySection {
+  display: grid;
+  gap: 4px;
+}
+
+@media (max-width: 1320px) {
+  .transportRowMain {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .transportZoneStatus {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 980px) {
+  .transportRowMain,
+  .transportZone,
+  .transportZonePrimary,
+  .transportZoneSession,
+  .transportZoneStatus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
