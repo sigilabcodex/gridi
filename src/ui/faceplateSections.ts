@@ -1,9 +1,18 @@
 export type FaceplateSectionKind = "io" | "feature" | "controls" | "secondary" | "bottom";
 
+function addClasses(target: HTMLElement, classNames?: string) {
+  if (!classNames) return;
+  classNames
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .forEach((token) => target.classList.add(token));
+}
+
 export function createFaceplatePanel(className?: string) {
   const panel = document.createElement("div");
   panel.className = "surfaceTabPanel faceplatePanel";
-  if (className) panel.classList.add(className);
+  addClasses(panel, className);
   return panel;
 }
 
@@ -17,7 +26,7 @@ export function createFaceplateSection(kind: FaceplateSectionKind, className?: s
   const section = document.createElement("div");
   section.className = `faceplateSection faceplateSection--${kind}`;
   if (kind === "bottom") section.classList.add("surfaceMainBottom");
-  if (className) section.classList.add(className);
+  addClasses(section, className);
   return section;
 }
 
