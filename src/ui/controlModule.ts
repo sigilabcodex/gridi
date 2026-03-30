@@ -139,7 +139,11 @@ export function renderControlSurface(
   const targetList = document.createElement("div");
   targetList.className = "routingChipList";
   if (controlTargets.length) {
-    controlTargets.forEach((target) => targetList.appendChild(createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")));
+    const visibleTargets = controlTargets.slice(0, 8);
+    visibleTargets.forEach((target) => targetList.appendChild(createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")));
+    if (controlTargets.length > visibleTargets.length) {
+      targetList.appendChild(createRoutingChip(`+${controlTargets.length - visibleTargets.length} more`, "muted"));
+    }
   } else {
     targetList.appendChild(createRoutingChip("Unassigned", "muted"));
   }

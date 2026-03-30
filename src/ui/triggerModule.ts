@@ -220,8 +220,13 @@ export function renderTriggerSurface(
   const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
   const targetsList = document.createElement("div");
   targetsList.className = "routingChipList";
-  if (outgoingVoices.length) outgoingVoices.forEach((voice) => targetsList.appendChild(createModuleRefChip(voice)));
-  else targetsList.appendChild(createRoutingChip("Unassigned", "muted"));
+  if (outgoingVoices.length) {
+    const visibleTargets = outgoingVoices.slice(0, 6);
+    visibleTargets.forEach((voice) => targetsList.appendChild(createModuleRefChip(voice)));
+    if (outgoingVoices.length > visibleTargets.length) {
+      targetsList.appendChild(createRoutingChip(`+${outgoingVoices.length - visibleTargets.length} more`, "muted"));
+    }
+  } else targetsList.appendChild(createRoutingChip("Unassigned", "muted"));
   targetsCard.appendChild(targetsList);
   panelRouting.appendChild(targetsCard);
 
@@ -243,8 +248,13 @@ export function renderTriggerSurface(
   });
   const modList = document.createElement("div");
   modList.className = "routingChipList";
-  if (incomingMods.length) incomingMods.forEach((modulation) => modList.appendChild(createModuleRefChip(modulation.source, modulation.parameterLabel)));
-  else modList.appendChild(createRoutingChip("No mod", "muted"));
+  if (incomingMods.length) {
+    const visibleMods = incomingMods.slice(0, 6);
+    visibleMods.forEach((modulation) => modList.appendChild(createModuleRefChip(modulation.source, modulation.parameterLabel)));
+    if (incomingMods.length > visibleMods.length) {
+      modList.appendChild(createRoutingChip(`+${incomingMods.length - visibleMods.length} more`, "muted"));
+    }
+  } else modList.appendChild(createRoutingChip("No mod", "muted"));
   modulationCard.append(modField.wrap, modList);
   panelRouting.appendChild(modulationCard);
 

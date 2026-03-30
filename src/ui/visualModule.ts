@@ -9,6 +9,7 @@ import {
   createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
+  createRoutingChip,
   createRoutingSummary,
   createRoutingSummaryStrip,
   type RoutingSnapshot,
@@ -86,7 +87,11 @@ export function renderVisualSurface(
     createRoutingSummary("Mix", (visualSource?.contributors ?? []).slice(0, 4).map((ref) => createModuleRefChip(ref)), "No voices"),
   ]));
   const contributors = el("div", "routingChipList");
-  (visualSource?.contributors ?? []).forEach((ref) => contributors.appendChild(createModuleRefChip(ref)));
+  const visibleContributors = (visualSource?.contributors ?? []).slice(0, 8);
+  visibleContributors.forEach((ref) => contributors.appendChild(createModuleRefChip(ref)));
+  if ((visualSource?.contributors?.length ?? 0) > visibleContributors.length) {
+    contributors.appendChild(createRoutingChip(`+${(visualSource?.contributors?.length ?? 0) - visibleContributors.length} more`, "muted"));
+  }
   sourceCard.appendChild(contributors);
   panelRouting.appendChild(sourceCard);
 
