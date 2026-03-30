@@ -123,12 +123,12 @@ export function createTransportHeader(params: HeaderParams) {
 
   const transportRow = document.createElement("div");
   transportRow.className = "transportRow transportRowMain";
-  const zonePrimary = document.createElement("div");
-  zonePrimary.className = "transportZone transportZonePrimary";
-  const zoneSession = document.createElement("div");
-  zoneSession.className = "transportZone transportZoneSession";
-  const zoneStatus = document.createElement("div");
-  zoneStatus.className = "transportZone transportZoneStatus";
+  const zoneIdentity = document.createElement("div");
+  zoneIdentity.className = "transportZone transportZoneIdentity";
+  const zoneCenter = document.createElement("div");
+  zoneCenter.className = "transportZone transportZoneCenter";
+  const zoneRight = document.createElement("div");
+  zoneRight.className = "transportZone transportZoneRight";
 
   const status = document.createElement("div");
   status.className = "small transportStatus";
@@ -398,10 +398,14 @@ export function createTransportHeader(params: HeaderParams) {
   settingsDock.className = "transportSettingsDock";
   settingsDock.append(btnSettings);
 
-  zonePrimary.append(transportCluster, tempoCluster);
-  zoneSession.append(sessionCluster);
-  zoneStatus.append(statusCluster, settingsDock);
-  transportRow.append(zonePrimary, zoneSession, zoneStatus);
+  const centerGroup = document.createElement("div");
+  centerGroup.className = "transportCenterGroup";
+  centerGroup.append(transportCluster, tempoCluster);
+
+  zoneIdentity.append(titleWrap);
+  zoneCenter.append(centerGroup);
+  zoneRight.append(sessionCluster, statusCluster, settingsDock);
+  transportRow.append(zoneIdentity, zoneCenter, zoneRight);
 
   const main = document.createElement("div");
   main.className = "transportMain";
@@ -409,7 +413,7 @@ export function createTransportHeader(params: HeaderParams) {
   main.id = "transport-main-controls";
 
   mobileToggle.setAttribute("aria-controls", main.id);
-  header.append(titleWrap, main);
+  header.append(main);
 
   const mobileMql =
     typeof window === "undefined" || typeof window.matchMedia !== "function"
