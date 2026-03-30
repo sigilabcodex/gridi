@@ -66,6 +66,41 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
   return cell;
 }
 
+function createModuleRenderErrorSurface(moduleId: string, moduleType: string, error: unknown) {
+  const surface = document.createElement("section");
+  surface.className = "moduleSurface moduleSurfaceRenderError";
+  surface.dataset.type = moduleType;
+
+  const header = document.createElement("div");
+  header.className = "surfaceHeader";
+  const title = document.createElement("strong");
+  title.textContent = `Render error · ${moduleType.toUpperCase()}`;
+  const id = document.createElement("span");
+  id.className = "small moduleId";
+  id.textContent = moduleId.slice(-6).toUpperCase();
+  header.append(title, id);
+
+  const body = document.createElement("div");
+  body.className = "surfaceFace";
+  const panel = document.createElement("div");
+  panel.className = "surfaceTabPanel";
+  panel.textContent = "Module failed to render. Open console for details.";
+  body.appendChild(panel);
+
+  const tabs = document.createElement("div");
+  tabs.className = "surfaceTabs";
+  const tab = document.createElement("button");
+  tab.type = "button";
+  tab.className = "modTab active";
+  tab.textContent = "Error";
+  tab.disabled = true;
+  tabs.appendChild(tab);
+
+  surface.append(header, body, tabs);
+  console.error("[moduleGrid] module render failed", { moduleId, moduleType, error });
+  return surface;
+}
+
 function focusFirstInteractive(surface: HTMLElement) {
   const target = surface.querySelector<HTMLElement>(
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -315,111 +350,124 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.addEventListener("focusin", inspect);
     };
 
+    const resolveRenderedSurface = (moduleRoot: HTMLElement, moduleType: string, moduleId: string) => {
+      const surface = moduleRoot.firstElementChild;
+      if (!(surface instanceof HTMLElement)) {
+        throw new Error(`Renderer for module ${moduleId} (${moduleType}) did not append a root HTMLElement.`);
+      }
+      return surface;
+    };
+
     const renderModuleSurface = (module: Patch["modules"][number], position: GridPosition) => {
       const surfaceRoot = document.createElement("div");
 
-      if (module.type === "trigger") {
-        const upd = renderTriggerSurface(
-          surfaceRoot,
-          module,
-          routing,
-          params.onPatchChange,
-          onRoutingChange,
-          controlOptions,
-          params.attachTooltip,
-          params.modulePresetRecords,
-          params.onLoadModulePreset,
-          params.onSaveModulePreset,
-          () => removeModule(module.id),
-        );
-        const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "trigger", surface, position);
-        updaters.push(upd);
-        return surface;
+      try {
+        if (module.type === "trigger") {
+          const upd = renderTriggerSurface(
+            surfaceRoot,
+            module,
+            routing,
+            params.onPatchChange,
+            onRoutingChange,
+            controlOptions,
+            params.attachTooltip,
+            params.modulePresetRecords,
+            params.onLoadModulePreset,
+            params.onSaveModulePreset,
+            () => removeModule(module.id),
+          );
+          const surface = resolveRenderedSurface(surfaceRoot, "trigger", module.id);
+          registerModuleSurface(module.id, "trigger", surface, position);
+          updaters.push(upd);
+          return surface;
+        }
+
+        if (module.type === "drum") {
+          const upd = renderDrumModuleSurface({
+            root: surfaceRoot,
+            v: module,
+            routing,
+            getLedState: params.led,
+            onPatchChange: params.onPatchChange,
+            onRoutingChange,
+            ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
+            triggerOptions,
+            controlOptions,
+            onLoadModulePreset: params.onLoadModulePreset,
+            onSaveModulePreset: params.onSaveModulePreset,
+            modulePresetRecords: params.modulePresetRecords,
+            attachTooltip: params.attachTooltip,
+            onRemove: () => removeModule(module.id),
+          });
+          const surface = resolveRenderedSurface(surfaceRoot, "drum", module.id);
+          registerModuleSurface(module.id, "drum", surface, position);
+          updaters.push(upd);
+          return surface;
+        }
+
+        if (module.type === "tonal") {
+          const upd = renderSynthModuleSurface({
+            root: surfaceRoot,
+            v: module,
+            routing,
+            getLedState: params.led,
+            onPatchChange: params.onPatchChange,
+            onRoutingChange,
+            ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
+            triggerOptions,
+            controlOptions,
+            onLoadModulePreset: params.onLoadModulePreset,
+            onSaveModulePreset: params.onSaveModulePreset,
+            modulePresetRecords: params.modulePresetRecords,
+            attachTooltip: params.attachTooltip,
+            onRemove: () => removeModule(module.id),
+          });
+          const surface = resolveRenderedSurface(surfaceRoot, "tonal", module.id);
+          registerModuleSurface(module.id, "tonal", surface, position);
+          updaters.push(upd);
+          return surface;
+        }
+
+        if (module.type === "control") {
+          const upd = renderControlSurface(
+            surfaceRoot,
+            module,
+            routing,
+            params.onPatchChange,
+            params.modulePresetRecords,
+            params.onLoadModulePreset,
+            params.onSaveModulePreset,
+            params.attachTooltip,
+            () => removeModule(module.id),
+          );
+          const surface = resolveRenderedSurface(surfaceRoot, "control", module.id);
+          registerModuleSurface(module.id, "control", surface, position);
+          updaters.push(upd);
+          return surface;
+        }
+
+        if (module.type === "visual") {
+          const upd = renderVisualSurface(
+            surfaceRoot,
+            params.engine,
+            module,
+            routing,
+            () => removeModule(module.id),
+            params.modulePresetRecords,
+            params.onLoadModulePreset,
+            params.onSaveModulePreset,
+            params.attachTooltip,
+          );
+          const surface = resolveRenderedSurface(surfaceRoot, module.kind, module.id);
+          registerModuleSurface(module.id, module.kind, surface, position);
+          updaters.push(upd);
+          return surface;
+        }
+      } catch (error) {
+        return createModuleRenderErrorSurface(module.id, module.type, error);
       }
 
-      if (module.type === "drum") {
-        const upd = renderDrumModuleSurface({
-          root: surfaceRoot,
-          v: module,
-          routing,
-          getLedState: params.led,
-          onPatchChange: params.onPatchChange,
-          onRoutingChange,
-          ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
-          triggerOptions,
-          controlOptions,
-          onLoadModulePreset: params.onLoadModulePreset,
-          onSaveModulePreset: params.onSaveModulePreset,
-          modulePresetRecords: params.modulePresetRecords,
-          attachTooltip: params.attachTooltip,
-          onRemove: () => removeModule(module.id),
-        });
-        const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "drum", surface, position);
-        updaters.push(upd);
-        return surface;
-      }
-
-      if (module.type === "tonal") {
-        const upd = renderSynthModuleSurface({
-          root: surfaceRoot,
-          v: module,
-          routing,
-          getLedState: params.led,
-          onPatchChange: params.onPatchChange,
-          onRoutingChange,
-          ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
-          triggerOptions,
-          controlOptions,
-          onLoadModulePreset: params.onLoadModulePreset,
-          onSaveModulePreset: params.onSaveModulePreset,
-          modulePresetRecords: params.modulePresetRecords,
-          attachTooltip: params.attachTooltip,
-          onRemove: () => removeModule(module.id),
-        });
-        const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "tonal", surface, position);
-        updaters.push(upd);
-        return surface;
-      }
-
-      if (module.type === "control") {
-        const upd = renderControlSurface(
-          surfaceRoot,
-          module,
-          routing,
-          params.onPatchChange,
-          params.modulePresetRecords,
-          params.onLoadModulePreset,
-          params.onSaveModulePreset,
-          params.attachTooltip,
-          () => removeModule(module.id),
-        );
-        const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, "control", surface, position);
-        updaters.push(upd);
-        return surface;
-      }
-
-      if (module.type === "visual") {
-        const upd = renderVisualSurface(
-          surfaceRoot,
-          params.engine,
-          module,
-          routing,
-          () => removeModule(module.id),
-          params.modulePresetRecords,
-          params.onLoadModulePreset,
-          params.onSaveModulePreset,
-          params.attachTooltip,
-        );
-        const surface = surfaceRoot.firstElementChild as HTMLElement;
-        registerModuleSurface(module.id, module.kind, surface, position);
-        updaters.push(upd);
-        return surface;
-      }
-      return surfaceRoot;
+      return createModuleRenderErrorSurface(module.id, module.type, new Error(`Unsupported module type: ${module.type}`));
     };
 
     const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
