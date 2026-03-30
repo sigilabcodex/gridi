@@ -3307,11 +3307,15 @@ button:focus-visible,
 }
 
 .surfaceFace {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-.surfaceFace > .surfaceTabPanel {
+.surfaceFace > .surfaceTabPanel,
+.module-face {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3341,12 +3345,14 @@ button:focus-visible,
 }
 
 .surfaceMainLayout {
-  display: grid;
-  grid-template-rows: auto minmax(120px, 1fr) minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: var(--faceplate-gap-sm);
   min-height: 0;
   height: 100%;
   align-content: start;
+  position: relative;
+  overflow: hidden;
 }
 
 .faceplatePanel {
@@ -3363,8 +3369,23 @@ button:focus-visible,
   gap: var(--faceplate-gap-sm);
 }
 
-.faceplateSection {
+.triggerPrimary,
+.voiceMainLayout,
+.visualMainLayout,
+.controlBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-sm);
   min-height: 0;
+}
+
+.faceplateSection {
+  width: 100%;
+  min-height: 0;
+}
+
+.face-section {
+  width: 100%;
 }
 
 .faceplateSection--io {
@@ -3384,9 +3405,15 @@ button:focus-visible,
 }
 
 .faceplateSection--bottom {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--faceplate-gap-xs);
-  align-self: end;
+  margin-top: auto;
+}
+
+.face-bottom {
+  margin-top: auto;
+  width: 100%;
 }
 
 .surfaceMainBottom {
@@ -3406,16 +3433,27 @@ button:focus-visible,
 
 .triggerPulseRack,
 .voicePrimaryGrid {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--faceplate-gap-sm);
 }
 
 .voiceBottomStrip {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--faceplate-gap-sm);
 }
 
-.controlBody {
+.controlMainKnobGrid,
+.moduleKnobGrid {
+  display: grid;
+}
+
+.controlMainKnobGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.moduleKnobGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 

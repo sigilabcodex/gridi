@@ -11,8 +11,6 @@ import {
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
-  createRoutingSummary,
-  createRoutingSummaryStrip,
   type RoutingSnapshot,
 } from "./routingVisibility";
 import type { TooltipBinder } from "./tooltip";
@@ -89,12 +87,6 @@ export function renderTriggerSurface(
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("triggerPrimary");
-  const summaryStrip = createRoutingSummaryStrip([
-    createRoutingSummary("Out", outgoingVoices.map((voice) => createModuleRefChip(voice)), "No voices"),
-    createRoutingSummary("Mod", incomingMods.map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel)), "No mod"),
-  ]);
-  const summarySection = createFaceplateSection("io", "surfaceMainIo");
-  summarySection.appendChild(summaryStrip);
 
   const pulseRail = createFaceplateSection("feature", "triggerPulseRail");
   pulseRail.classList.add("surfaceMainFeature");
@@ -215,7 +207,7 @@ export function renderTriggerSurface(
     }),
   );
   mainControlRack.classList.add("triggerBottomRack");
-  panelMain.append(summarySection, pulseRail, mainControlRack);
+  panelMain.append(pulseRail, mainControlRack);
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
 

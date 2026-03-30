@@ -11,7 +11,7 @@ function addClasses(target: HTMLElement, classNames?: string) {
 
 export function createFaceplatePanel(className?: string) {
   const panel = document.createElement("div");
-  panel.className = "surfaceTabPanel faceplatePanel";
+  panel.className = "surfaceTabPanel faceplatePanel module-face";
   addClasses(panel, className);
   return panel;
 }
@@ -24,8 +24,8 @@ export function createFaceplateMainPanel() {
 
 export function createFaceplateSection(kind: FaceplateSectionKind, className?: string) {
   const section = document.createElement("div");
-  section.className = `faceplateSection faceplateSection--${kind}`;
-  if (kind === "bottom") section.classList.add("surfaceMainBottom");
+  section.className = `faceplateSection face-section faceplateSection--${kind}`;
+  if (kind === "bottom") section.classList.add("surfaceMainBottom", "face-bottom");
   addClasses(section, className);
   return section;
 }
