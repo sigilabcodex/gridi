@@ -2,6 +2,7 @@ import type { ControlKind, LfoWaveform, Patch, ControlModule } from "../patch";
 import { sampleControl01 } from "../engine/control";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -72,12 +73,13 @@ export function renderControlSurface(
 
   const controlTargets = routing.controlTargets.get(mod.id) ?? [];
 
-  const panelMain = document.createElement("div");
-  panelMain.className = "surfaceTabPanel surfaceMainLayout controlBody";
+  const panelMain = createFaceplateMainPanel();
+  panelMain.classList.add("controlBody");
   const summaryStrip = createRoutingSummaryStrip([
     createRoutingSummary("To", controlTargets.map((target) => createRoutingChip(`${target.targetName} · ${target.parameterLabel}`, "connected")), "No targets"),
   ]);
-  summaryStrip.classList.add("surfaceMainIo");
+  const summarySection = createFaceplateSection("io", "surfaceMainIo");
+  summarySection.append(summaryStrip);
 
   const kindField = createCompactSelectField({
     label: "Mode",
@@ -99,8 +101,8 @@ export function renderControlSurface(
     }, { regen: false }),
   });
 
-  const typeRow = document.createElement("div");
-  typeRow.className = "controlTypeRow surfaceMainFeature";
+  const typeRow = createFaceplateSection("feature", "controlTypeRow");
+  typeRow.classList.add("surfaceMainFeature");
   typeRow.append(kindField.wrap, waveField.wrap);
 
   const meter = document.createElement("div");
@@ -109,8 +111,7 @@ export function renderControlSurface(
   meterFill.className = "controlMeterFill";
   meter.appendChild(meterFill);
 
-  const mainKnobGrid = document.createElement("div");
-  mainKnobGrid.className = "moduleKnobGrid controlMainKnobGrid surfaceMainControls";
+  const mainKnobGrid = createFaceplateSection("controls", "moduleKnobGrid controlMainKnobGrid surfaceMainControls");
   mainKnobGrid.append(
     ctlFloat({ label: "Speed", value: mod.speed, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
@@ -126,17 +127,17 @@ export function renderControlSurface(
     }, { regen: false }) }),
   );
 
-  meter.classList.add("surfaceMainBottom");
+  const bottomSection = createFaceplateSection("bottom");
+  bottomSection.append(meter);
 
   panelMain.append(
-    summaryStrip,
+    summarySection,
     typeRow,
     mainKnobGrid,
-    meter,
+    bottomSection,
   );
 
-  const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel utilityPanel--controlRouting";
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--controlRouting");
   const targetCard = createRoutingCard("Targets", controlTargets.length ? `${controlTargets.length} lane${controlTargets.length === 1 ? "" : "s"}` : "No routes");
   const targetList = document.createElement("div");
   targetList.className = "routingChipList";
@@ -152,10 +153,8 @@ export function renderControlSurface(
   targetCard.appendChild(targetList);
   panelRouting.appendChild(targetCard);
 
-  const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceSettingsPanel controlSettingsPanel";
-  const settingsKnobGrid = document.createElement("div");
-  settingsKnobGrid.className = "moduleKnobGrid moduleKnobGrid-2";
+  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel controlSettingsPanel");
+  const settingsKnobGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   settingsKnobGrid.append(
     ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);

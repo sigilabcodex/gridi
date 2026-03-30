@@ -2,6 +2,7 @@ import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -86,16 +87,17 @@ export function renderTriggerSurface(
   const outgoingVoices = routing.triggerTargets.get(t.id) ?? [];
   const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
 
-  const panelMain = document.createElement("div");
-  panelMain.className = "surfaceTabPanel surfaceMainLayout triggerPrimary";
+  const panelMain = createFaceplateMainPanel();
+  panelMain.classList.add("triggerPrimary");
   const summaryStrip = createRoutingSummaryStrip([
     createRoutingSummary("Out", outgoingVoices.map((voice) => createModuleRefChip(voice)), "No voices"),
     createRoutingSummary("Mod", incomingMods.map((modulation) => createModuleRefChip(modulation.source, modulation.parameterLabel)), "No mod"),
   ]);
-  summaryStrip.classList.add("surfaceMainIo");
+  const summarySection = createFaceplateSection("io", "surfaceMainIo");
+  summarySection.appendChild(summaryStrip);
 
-  const pulseRail = document.createElement("div");
-  pulseRail.className = "triggerPulseRail surfaceMainFeature";
+  const pulseRail = createFaceplateSection("feature", "triggerPulseRail");
+  pulseRail.classList.add("surfaceMainFeature");
 
   const generatorReadout = document.createElement("button");
   generatorReadout.className = "triggerGeneratorReadout";
@@ -147,8 +149,7 @@ export function renderTriggerSurface(
 
   pulseRail.append(generatorReadout, seedReadout, stepGrid, transportReadout);
 
-  const mainControlRack = document.createElement("div");
-  mainControlRack.className = "triggerPulseRack";
+  const mainControlRack = createFaceplateSection("bottom", "triggerPulseRack");
   mainControlRack.append(
     ctlFloat({
       label: "Dense",
@@ -213,11 +214,10 @@ export function renderTriggerSurface(
       onChange: (x) => setParam("weird", x),
     }),
   );
-  mainControlRack.classList.add("surfaceMainBottom", "triggerBottomRack");
-  panelMain.append(summaryStrip, pulseRail, mainControlRack);
+  mainControlRack.classList.add("triggerBottomRack");
+  panelMain.append(summarySection, pulseRail, mainControlRack);
 
-  const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel utilityPanel--triggerRouting";
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
 
   const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
   const targetsList = document.createElement("div");
@@ -260,10 +260,8 @@ export function renderTriggerSurface(
   modulationCard.append(modField.wrap, modList);
   panelRouting.appendChild(modulationCard);
 
-  const panelSettings = document.createElement("div");
-  panelSettings.className = "surfaceSettingsPanel triggerSettingsPanel";
-  const settingsGrid = document.createElement("div");
-  settingsGrid.className = "moduleKnobGrid moduleKnobGrid-2";
+  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
+  const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   settingsGrid.append(
     ctlFloat({
       label: "Rotate",

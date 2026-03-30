@@ -1,6 +1,7 @@
 import type { Engine } from "../engine/audio";
 import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -70,18 +71,20 @@ export function renderVisualSurface(
 
   const visualSource = routing.visualSources.get(vm.id);
 
-  const panelMain = el("div", "surfaceTabPanel surfaceMainLayout visualSurfaceBody visualMainLayout");
-  const canvasWrap = el("div", "visualDisplayWrap");
+  const panelMain = createFaceplateMainPanel();
+  panelMain.classList.add("visualSurfaceBody", "visualMainLayout");
+  const canvasWrap = createFaceplateSection("feature", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
   canvas.width = 800;
   canvas.height = 260;
-  const readout = el("div", "visualReadout small surfaceMainBottom");
-  canvasWrap.classList.add("surfaceMainFeature");
+  const readout = el("div", "visualReadout small");
+  const readoutSection = createFaceplateSection("bottom");
+  readoutSection.append(readout);
   canvasWrap.append(canvas);
-  panelMain.append(canvasWrap, readout);
+  panelMain.append(canvasWrap, readoutSection);
 
-  const panelRouting = el("div", "utilityPanel utilityPanel--visualRouting");
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--visualRouting");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
   sourceCard.appendChild(createRoutingSummaryStrip([
     createRoutingSummary("In", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master"),
@@ -96,8 +99,8 @@ export function renderVisualSurface(
   sourceCard.appendChild(contributors);
   panelRouting.appendChild(sourceCard);
 
-  const panelSettings = el("div", "surfaceSettingsPanel visualSettingsPanel");
-  const dock = el("div", "visualControlDock");
+  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel visualSettingsPanel");
+  const dock = createFaceplateSection("controls", "visualControlDock");
   const modeField = createCompactSelectField({
     label: "View",
     options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
