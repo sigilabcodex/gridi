@@ -11,6 +11,10 @@ export function createModuleTabShell<T extends string>(params: {
   activeTab: T;
   onTabChange?: (tab: T) => void;
 }) {
+  if (!params.specs.length) {
+    throw new Error("createModuleTabShell requires at least one tab spec.");
+  }
+
   const shellId = ++nextTabShellId;
   const face = document.createElement("div");
   face.className = "surfaceFace";
@@ -72,11 +76,16 @@ export function createModuleTabShell<T extends string>(params: {
     buttons.set(spec.id, btn);
   }
 
+  const hasTab = (tab: T) => tabOrder.includes(tab);
+  const fallbackTab = tabOrder[0];
+
   const setTab = (tab: T) => {
-    params.onTabChange?.(tab);
+    const resolvedTab = hasTab(tab) ? tab : fallbackTab;
+    params.onTabChange?.(resolvedTab);
     for (const spec of params.specs) {
-      const active = spec.id === tab;
+      const active = spec.id === resolvedTab;
       spec.panel.classList.toggle("hidden", !active);
+      spec.panel.hidden = !active;
       spec.panel.setAttribute("aria-hidden", String(!active));
 
       const btn = buttons.get(spec.id);
