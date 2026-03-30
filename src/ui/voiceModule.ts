@@ -110,7 +110,7 @@ function createFaceTabs(
   onRoutingChange: SurfaceParams["onRoutingChange"],
 ) {
   const panelRouting = document.createElement("div");
-  panelRouting.className = "utilityPanel";
+  panelRouting.className = "utilityPanel utilityPanel--voiceRouting";
 
   const incoming = routing.voiceIncoming.get(v.id);
 
