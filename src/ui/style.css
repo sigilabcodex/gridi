@@ -23,6 +23,7 @@
 }
 
 html, body { height: 100%; }
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
   margin: 0;
@@ -2803,6 +2804,7 @@ button:focus-visible,
   align-items: start;
   gap: 12px;
   padding: 8px 10px;
+  overflow: hidden;
 }
 
 .transportTitle {
@@ -2826,6 +2828,7 @@ button:focus-visible,
 .transportMain {
   display: grid;
   min-width: 0;
+  overflow: hidden;
 }
 
 .transportRow {
@@ -2837,11 +2840,12 @@ button:focus-visible,
 
 .transportRowMain {
   grid-template-columns:
-    minmax(172px, auto)
-    minmax(320px, 1fr)
-    minmax(260px, auto)
-    minmax(190px, auto)
+    minmax(160px, 220px)
+    minmax(260px, 360px)
+    minmax(240px, 320px)
+    minmax(170px, 220px)
     auto;
+  justify-content: space-between;
 }
 
 .transportCluster {
@@ -2853,6 +2857,9 @@ button:focus-visible,
   padding: 6px 8px;
   background: linear-gradient(180deg, rgba(20, 28, 36, 0.74), rgba(11, 16, 23, 0.76));
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .transportClusterPrimary,
@@ -2864,6 +2871,7 @@ button:focus-visible,
   display: grid;
   grid-template-columns: repeat(2, minmax(130px, 1fr));
   gap: 8px;
+  max-width: 100%;
 }
 
 .transportClusterSession {
@@ -2909,6 +2917,8 @@ button:focus-visible,
   align-items: start;
   gap: 4px;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .transportDial > .small {
@@ -2920,6 +2930,8 @@ button:focus-visible,
 
 .transportDial input[type="range"] {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .transportDialNumber {
@@ -2981,6 +2993,9 @@ button:focus-visible,
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .transportSessionSelectRow {
@@ -2988,6 +3003,8 @@ button:focus-visible,
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .transportPresetLabel {
@@ -3000,6 +3017,7 @@ button:focus-visible,
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .transportOutputCenter {
@@ -3117,7 +3135,7 @@ button:focus-visible,
 
 @media (max-width: 1320px) {
   .transportRowMain {
-    grid-template-columns: minmax(172px, auto) minmax(280px, 1fr) minmax(220px, auto) minmax(180px, auto);
+    grid-template-columns: minmax(160px, 220px) minmax(240px, 1fr) minmax(220px, 300px) minmax(170px, 220px);
   }
 
   .transportSettingsDock {
@@ -3144,6 +3162,7 @@ button:focus-visible,
 
   .transportRowMain {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
   }
 
   .transportClusterTempo,
