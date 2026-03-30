@@ -120,17 +120,9 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.amount = x;
     }, { regen: false }) }),
-    ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
-      const m = p.modules.find((z) => z.id === mod.id);
-      if (m?.type === "control") m.phase = x;
-    }, { regen: false }) }),
     ctlFloat({ label: "Rate", value: mod.rate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.rate = x;
-    }, { regen: false }) }),
-    ctlFloat({ label: "Rand", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
-      const m = p.modules.find((z) => z.id === mod.id);
-      if (m?.type === "control") m.randomness = x;
     }, { regen: false }) }),
     meter,
   );
@@ -148,10 +140,24 @@ export function renderControlSurface(
   targetCard.appendChild(targetList);
   panelRouting.appendChild(targetCard);
 
+  const panelSettings = document.createElement("div");
+  panelSettings.className = "surfaceSettingsPanel";
+  panelSettings.append(
+    ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === mod.id);
+      if (m?.type === "control") m.phase = x;
+    }, { regen: false }) }),
+    ctlFloat({ label: "Rand", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === mod.id);
+      if (m?.type === "control") m.randomness = x;
+    }, { regen: false }) }),
+  );
+
   const shell = createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
+      { id: "SETTINGS", label: "Settings", panel: panelSettings },
     ],
     activeTab: "MAIN",
   });

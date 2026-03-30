@@ -70,10 +70,6 @@ export function renderVisualSurface(
   const visualSource = routing.visualSources.get(vm.id);
 
   const panelMain = el("div", "visualSurfaceBody");
-  panelMain.appendChild(createRoutingSummaryStrip([
-    createRoutingSummary("In", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master"),
-    createRoutingSummary("Mix", (visualSource?.contributors ?? []).slice(0, 3).map((ref) => createModuleRefChip(ref)), "No voices"),
-  ]));
   const canvasWrap = el("div", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
@@ -85,12 +81,16 @@ export function renderVisualSurface(
 
   const panelRouting = el("div", "utilityPanel");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
+  sourceCard.appendChild(createRoutingSummaryStrip([
+    createRoutingSummary("In", visualSource ? [createModuleRefChip({ id: vm.id, name: visualSource.sourceLabel, family: "visual", shortId: "MIX", label: visualSource.sourceLabel })] : [], "Master"),
+    createRoutingSummary("Mix", (visualSource?.contributors ?? []).slice(0, 4).map((ref) => createModuleRefChip(ref)), "No voices"),
+  ]));
   const contributors = el("div", "routingChipList");
   (visualSource?.contributors ?? []).forEach((ref) => contributors.appendChild(createModuleRefChip(ref)));
   sourceCard.appendChild(contributors);
   panelRouting.appendChild(sourceCard);
 
-  const panelSettings = el("div");
+  const panelSettings = el("div", "surfaceSettingsPanel");
   const dock = el("div", "visualControlDock");
   const modeField = createCompactSelectField({
     label: "View",

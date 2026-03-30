@@ -3363,3 +3363,153 @@ button:focus-visible,
 .addModuleSlotLabel {
   margin-bottom: 2px;
 }
+
+/* === Fixed faceplate density pass === */
+:root {
+  --module-cell-h: 360px;
+}
+
+.moduleSurface {
+  padding: 8px;
+}
+
+.surfaceHeader {
+  min-height: 50px;
+  margin-bottom: 6px;
+}
+
+.surfaceIdentity {
+  gap: 3px;
+}
+
+.surfacePresetPrimary .modulePresetChip {
+  padding: 3px 9px;
+}
+
+.surfaceSecondaryIdentity {
+  gap: 4px;
+  opacity: 0.72;
+}
+
+.surfaceSecondaryIdentity .surfaceBadge {
+  padding: 1px 6px;
+}
+
+.surfaceFace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+}
+
+.surfaceFace > .surfaceTabPanel {
+  flex: 1 1 auto;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  margin-top: 6px;
+  min-height: 0;
+}
+
+.surfaceTabs {
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.surfaceTabs .modTab {
+  min-height: 28px;
+  padding: 5px 8px;
+}
+
+.routingSummaryStrip {
+  gap: 6px;
+}
+
+.routingSummaryBlock {
+  padding: 5px 6px;
+}
+
+.routingSummaryValues,
+.routingChipList {
+  gap: 4px;
+}
+
+.utilityPanel,
+.controlBody,
+.surfaceSettingsPanel {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.utilityRouteCard {
+  padding: 7px;
+  gap: 5px;
+}
+
+.compactSelectField {
+  gap: 3px;
+}
+
+.compactSelectInput,
+.compactSelectField select {
+  min-height: 28px;
+  padding: 4px 24px 4px 8px;
+  border-color: rgba(126, 175, 255, 0.35);
+  background:
+    linear-gradient(180deg, rgba(8, 13, 19, 0.96), rgba(5, 9, 14, 0.96));
+  color: rgba(220, 230, 240, 0.92);
+}
+
+.voiceControlGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.voiceControlGrid .knobCtl {
+  width: auto;
+}
+
+.triggerPrimary {
+  gap: 6px;
+}
+
+.triggerPulseRail {
+  padding: 6px;
+  gap: 5px;
+}
+
+.triggerPulseRack {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.triggerGeneratorReadout,
+.triggerSeedReadout {
+  padding: 4px 6px;
+}
+
+.controlTypeRow {
+  gap: 6px;
+}
+
+.controlMeter {
+  min-height: 8px;
+}
+
+.surfaceSettingsHint {
+  border: 1px dashed rgba(207, 214, 221, 0.22);
+  border-radius: 8px;
+  padding: 7px;
+  opacity: 0.74;
+}
+
+.visualSurfaceBody {
+  grid-template-rows: 1fr auto;
+}
+
+.visualDisplayWrap {
+  min-height: 190px;
+}
