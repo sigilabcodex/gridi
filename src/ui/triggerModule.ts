@@ -91,6 +91,9 @@ export function renderTriggerSurface(
   const pulseRail = createFaceplateSection("feature", "triggerPulseRail");
   pulseRail.classList.add("surfaceMainFeature");
 
+  const machineRow = document.createElement("div");
+  machineRow.className = "triggerMachineRow";
+
   const generatorReadout = document.createElement("button");
   generatorReadout.className = "triggerGeneratorReadout";
   generatorReadout.type = "button";
@@ -134,12 +137,17 @@ export function renderTriggerSurface(
     if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
   }, { regen: true });
 
+  const patternStage = document.createElement("div");
+  patternStage.className = "triggerPatternStage";
   const stepGrid = document.createElement("div");
   stepGrid.className = "triggerStepGrid";
+  patternStage.appendChild(stepGrid);
+
   const transportReadout = document.createElement("div");
   transportReadout.className = "triggerTransportReadout small";
 
-  pulseRail.append(generatorReadout, seedReadout, stepGrid, transportReadout);
+  machineRow.append(generatorReadout, seedReadout);
+  pulseRail.append(machineRow, patternStage);
 
   const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryRack");
   mainControlRack.append(
@@ -164,19 +172,12 @@ export function renderTriggerSurface(
       attachTooltip,
       onChange: (x) => setParam("length", x),
     }),
-    ctlFloat({
-      label: "Div",
-      value: t.subdiv,
-      min: 1,
-      max: 8,
-      step: 1,
-      integer: true,
-      tooltip: "Change the timing division for this trigger lane.",
-      attachTooltip,
-      onChange: (x) => setParam("subdiv", x),
-    }),
   );
-  panelMain.append(pulseRail, mainControlRack, createFaceplateSpacer());
+
+  const mainBottom = createFaceplateSection("bottom", "triggerMainBottom");
+  mainBottom.appendChild(transportReadout);
+
+  panelMain.append(pulseRail, mainControlRack, createFaceplateSpacer(), mainBottom);
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
 
@@ -224,6 +225,17 @@ export function renderTriggerSurface(
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
   const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   settingsGrid.append(
+    ctlFloat({
+      label: "Div",
+      value: t.subdiv,
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Change the timing division for this trigger lane.",
+      attachTooltip,
+      onChange: (x) => setParam("subdiv", x),
+    }),
     ctlFloat({
       label: "Drop",
       value: t.drop,

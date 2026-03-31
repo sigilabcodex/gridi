@@ -3244,11 +3244,34 @@ button:focus-visible,
 }
 
 .triggerPulseRail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-sm);
+  min-height: 0;
+}
+
+.triggerMachineRow {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--faceplate-gap-sm);
+}
+
+.triggerPatternStage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(207, 214, 221, 0.12);
+  background: rgba(9, 14, 20, 0.45);
 }
 
 .triggerStepGrid {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 3px;
   align-content: start;
 }
 
@@ -3298,7 +3321,15 @@ button:focus-visible,
 }
 
 .triggerPrimaryRack {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.triggerMainBottom {
+  align-items: center;
+}
+
+.triggerMainBottom .triggerTransportReadout {
+  letter-spacing: 0.5px;
 }
 
 .voiceBottomStrip {
