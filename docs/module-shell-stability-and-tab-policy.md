@@ -10,11 +10,14 @@ Instrument modules no longer rely on generic internal scrolling regions. The sur
 
 ## Per-family tab policy
 
-Tabs are now contextual by family:
+Tabs are now contextual by family in implementation:
 
-- **Trigger**: `Main`, `Settings`
+- **Trigger**: `Main`, `Routing`, `Settings`
 - **Drum / Synth**: `Main`, `Routing`, `Settings`
-- **Visual**: `Main`, `Settings`
+- **Control**: `Main`, `Routing`, `Settings`
+- **Visual**: `Main`, `Routing`, `Settings`
+
+Architecture naming target is **Main / Routing / Advanced**, with current `Settings` treated as the Advanced-equivalent until implementation alignment is scheduled.
 
 Removed first-class tabs that were placeholder-only or not meaningful yet (for example global MIDI/Debug tabs on voice cards, routing/debug tabs on trigger cards).
 
@@ -46,3 +49,6 @@ Delete uses a lightweight two-tap arm/confirm flow directly on the close button:
 - arm state times out automatically
 
 This reduces accidental removals while staying fast and preserving the existing undo-first workflow (Ctrl/Cmd+Z).
+
+
+See also: [`docs/faceplate-architecture-v1.md`](faceplate-architecture-v1.md).

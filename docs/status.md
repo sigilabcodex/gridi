@@ -26,6 +26,12 @@
 3. Keep module main faces compact/playable while secondary concerns stay in tabs.
 4. Improve architecture/security documentation for new contributors.
 5. Keep dependency tree lean and reproducible.
+## Versioning recommendation
+
+- Source-of-truth version is maintained in both `package.json` (`version`) and `src/version.ts` (`APP_VERSION`).
+- For pre-1.0 GRIDI, use **minor bumps** for architecture milestones that constrain future implementation behavior, and **patch bumps** for narrow fixes/clarifications.
+- This PR is documentation-first and does not require an immediate version bump unless released as a standalone architecture milestone.
+
 
 ## Known limitations
 
