@@ -35,3 +35,11 @@ export function createFaceplateStackPanel(className?: string) {
   panel.classList.add("faceplateStackPanel");
   return panel;
 }
+
+export function createFaceplateSpacer(className?: string) {
+  const spacer = document.createElement("div");
+  spacer.className = "faceplateSpacer";
+  addClasses(spacer, className);
+  spacer.setAttribute("aria-hidden", "true");
+  return spacer;
+}
