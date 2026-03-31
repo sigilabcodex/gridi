@@ -33,7 +33,9 @@ Spacing rhythm uses shared tokens only:
 
 - **Main**: compact IO summary (optional), family primary feature block, playable controls, anchored bottom strip where applicable.
 - **Routing**: source/target assignment and connectivity-specific editing only.
-- **Settings**: secondary/advanced controls only; avoid empty placeholders.
+- **Advanced** (current code label: `Settings`): secondary controls only; avoid empty placeholders.
+
+For the full canonical rule set (zones, density limits, accessibility, MIDI-readiness, and module-family matrix), see [`docs/faceplate-architecture-v1.md`](faceplate-architecture-v1.md).
 
 ## Family application notes
 

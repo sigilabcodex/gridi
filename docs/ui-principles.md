@@ -68,3 +68,10 @@ Why: shell constraints are part of runtime usability, not only visual styling.
 Why: preserve a compact instrument surface while keeping editing precise, reachable, and playable.
 
 Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md), [`docs/status.md`](status.md).
+
+## 9) Faceplate architecture authority (v1)
+
+- The canonical architecture contract for module faceplates is defined in [`docs/faceplate-architecture-v1.md`](faceplate-architecture-v1.md).
+- When there is ambiguity about module-zone composition, Main/Routing/Advanced responsibilities, or control density priorities, the v1 faceplate architecture document is authoritative.
+- Current implementation naming may still use `Settings` in code paths; architecture guidance treats this as the Advanced-equivalent until code alignment is scheduled.
+
