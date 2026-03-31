@@ -2,7 +2,7 @@ import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -141,7 +141,7 @@ export function renderTriggerSurface(
 
   pulseRail.append(generatorReadout, seedReadout, stepGrid, transportReadout);
 
-  const mainControlRack = createFaceplateSection("bottom", "triggerPulseRack");
+  const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryRack");
   mainControlRack.append(
     ctlFloat({
       label: "Dense",
@@ -165,16 +165,6 @@ export function renderTriggerSurface(
       onChange: (x) => setParam("length", x),
     }),
     ctlFloat({
-      label: "Drop",
-      value: t.drop,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Thin the pattern by dropping hits after generation.",
-      attachTooltip,
-      onChange: (x) => setParam("drop", x),
-    }),
-    ctlFloat({
       label: "Div",
       value: t.subdiv,
       min: 1,
@@ -185,29 +175,8 @@ export function renderTriggerSurface(
       attachTooltip,
       onChange: (x) => setParam("subdiv", x),
     }),
-    ctlFloat({
-      label: "Det",
-      value: t.determinism,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Bias the generator toward repeatable results.",
-      attachTooltip,
-      onChange: (x) => setParam("determinism", x),
-    }),
-    ctlFloat({
-      label: "Weird",
-      value: t.weird,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Add more surprising variations to the pattern.",
-      attachTooltip,
-      onChange: (x) => setParam("weird", x),
-    }),
   );
-  mainControlRack.classList.add("triggerBottomRack");
-  panelMain.append(pulseRail, mainControlRack);
+  panelMain.append(pulseRail, mainControlRack, createFaceplateSpacer());
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
 
@@ -255,6 +224,36 @@ export function renderTriggerSurface(
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
   const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   settingsGrid.append(
+    ctlFloat({
+      label: "Drop",
+      value: t.drop,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Thin the pattern by dropping hits after generation.",
+      attachTooltip,
+      onChange: (x) => setParam("drop", x),
+    }),
+    ctlFloat({
+      label: "Det",
+      value: t.determinism,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Bias the generator toward repeatable results.",
+      attachTooltip,
+      onChange: (x) => setParam("determinism", x),
+    }),
+    ctlFloat({
+      label: "Weird",
+      value: t.weird,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Add more surprising variations to the pattern.",
+      attachTooltip,
+      onChange: (x) => setParam("weird", x),
+    }),
     ctlFloat({
       label: "Rotate",
       value: t.euclidRot,

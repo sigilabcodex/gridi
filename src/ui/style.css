@@ -3243,6 +3243,20 @@ button:focus-visible,
   min-height: 96px;
 }
 
+.triggerPulseRail {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.triggerStepGrid {
+  align-content: start;
+}
+
+.faceplateSpacer {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .faceplateSection--controls,
 .faceplateSection--secondary {
   display: grid;
@@ -3283,6 +3297,10 @@ button:focus-visible,
   gap: var(--faceplate-gap-sm);
 }
 
+.triggerPrimaryRack {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .voiceBottomStrip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3300,6 +3318,10 @@ button:focus-visible,
 
 .moduleKnobGrid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.moduleKnobGrid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .utilityPanel,

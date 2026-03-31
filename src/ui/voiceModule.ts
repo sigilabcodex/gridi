@@ -1,7 +1,7 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
-import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
+import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -98,7 +98,7 @@ function createVoiceMainLayout(primaryControls: HTMLElement[], bottomControls: H
   const bottomStrip = createFaceplateSection("bottom", "voiceControlGrid voiceBottomStrip");
   bottomStrip.append(...bottomControls);
 
-  main.append(primaryGrid, bottomStrip);
+  main.append(primaryGrid, bottomStrip, createFaceplateSpacer());
   return main;
 }
 
@@ -231,11 +231,11 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const snapCtl = ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) });
   const noiseCtl = ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout([pitchCtl, decayCtl, toneCtl], [levelCtl, panCtl]);
+  const main = createVoiceMainLayout([pitchCtl, decayCtl, toneCtl], [levelCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  drumSettingsGrid.append(snapCtl, noiseCtl);
+  drumSettingsGrid.append(snapCtl, noiseCtl, panCtl);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
@@ -273,11 +273,11 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
   const modCtl = ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout([waveCtl, cutoffCtl, resoCtl, attackCtl], [decayCtl, levelCtl, panCtl]);
+  const main = createVoiceMainLayout([waveCtl, cutoffCtl, resoCtl], [attackCtl, levelCtl]);
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const synthSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  synthSettingsGrid.append(modCtl);
+  synthSettingsGrid.append(decayCtl, panCtl, modCtl);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
