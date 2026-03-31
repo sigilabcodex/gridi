@@ -3246,33 +3246,78 @@ button:focus-visible,
 .triggerPulseRail {
   display: flex;
   flex-direction: column;
-  gap: var(--faceplate-gap-sm);
+  gap: var(--faceplate-gap-xs);
   min-height: 0;
+  padding: 6px 7px;
+  border-radius: 11px;
+  border: 1px solid rgba(198, 127, 255, 0.3);
+  background: linear-gradient(180deg, rgba(31, 14, 45, 0.58), rgba(13, 18, 28, 0.5));
+}
+
+.triggerPrimary > .triggerPulseRail {
+  flex: 1 1 auto;
+  min-height: 130px;
+  margin-bottom: var(--faceplate-gap-md);
 }
 
 .triggerMachineRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--faceplate-gap-sm);
+  gap: var(--faceplate-gap-xs);
+  align-items: start;
+}
+
+.triggerGeneratorReadout,
+.triggerSeedReadout {
+  padding: 5px 7px;
+  border-color: rgba(198, 127, 255, 0.28);
+  background: rgba(15, 10, 22, 0.62);
+}
+
+.triggerReadoutLabel {
+  font-size: 9px;
+  letter-spacing: 1px;
+  opacity: 0.62;
+}
+
+.triggerReadoutValue {
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.triggerReadoutHint {
+  margin-top: 1px;
+  font-size: 9px;
+  opacity: 0.58;
 }
 
 .triggerPatternStage {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
+  min-height: 86px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 6px 8px;
+  padding: 8px 9px;
   border-radius: 10px;
-  border: 1px solid rgba(207, 214, 221, 0.12);
-  background: rgba(9, 14, 20, 0.45);
+  border: 1px solid rgba(208, 169, 236, 0.4);
+  background: rgba(8, 12, 19, 0.72);
 }
 
 .triggerStepGrid {
   display: grid;
   grid-template-columns: repeat(16, minmax(0, 1fr));
-  gap: 3px;
+  gap: 4px;
   align-content: start;
+}
+
+.triggerStepCell {
+  height: 10px;
+  border-radius: 4px;
+}
+
+.triggerStepCell.on {
+  box-shadow: 0 0 10px rgba(198, 127, 255, 0.45);
 }
 
 .faceplateSpacer {
@@ -3322,6 +3367,11 @@ button:focus-visible,
 
 .triggerPrimaryRack {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.triggerPrimary > .triggerPrimaryRack {
+  opacity: 0.9;
 }
 
 .triggerMainBottom {
