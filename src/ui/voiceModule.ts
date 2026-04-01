@@ -85,9 +85,10 @@ function makeHeader(
   ledHit.className = "led";
 
   const toggle = document.createElement("button");
+  toggle.className = "surfaceHeaderAction";
   const syncToggle = () => {
     toggle.textContent = v.enabled ? "On" : "Off";
-    toggle.className = v.enabled ? "primary" : "";
+    toggle.classList.toggle("primary", v.enabled);
   };
   syncToggle();
   toggle.onclick = () => params.onPatchChange((p) => {
@@ -96,7 +97,7 @@ function makeHeader(
   }, { regen: false });
 
   const btnX = document.createElement("button");
-  btnX.className = "danger";
+  btnX.className = "danger surfaceHeaderAction";
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
 
@@ -131,7 +132,7 @@ function createDrumFeatureZone(d: DrumModule) {
 
   const summary = document.createElement("div");
   summary.className = "drumFeatureSummary small";
-  summary.textContent = `Pitch ${Math.round(d.basePitch)} · Decay ${Math.round(d.decay * 100)}% · Boost ${Math.round(d.boost * 100)}%`;
+  summary.textContent = "Transient ↔ body contour";
 
   head.append(title, summary);
 
@@ -139,60 +140,55 @@ function createDrumFeatureZone(d: DrumModule) {
   stage.className = "drumEnvelopeStage";
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 120 52");
+  svg.setAttribute("viewBox", "0 0 156 56");
   svg.setAttribute("class", "drumEnvelopeGraph");
   svg.setAttribute("role", "img");
   svg.setAttribute(
     "aria-label",
-    `Drum envelope preview. Snap ${Math.round(d.snap * 100)} percent, decay ${Math.round(d.decay * 100)} percent, noise ${Math.round(d.noise * 100)} percent.`,
+    `Drum envelope preview reacting to snap, decay, noise, comp, and boost.`,
   );
 
   const baseline = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  baseline.setAttribute("d", "M 6 45 L 114 45");
+  baseline.setAttribute("d", "M 8 48 L 148 48");
   baseline.setAttribute("class", "drumEnvelopeBaseline");
 
-  const peak = 8 + d.snap * 13 + d.boost * 7;
-  const transientTilt = d.snap * 0.55 + d.comp * 0.25;
-  const knee = 20 + d.decay * 24 + d.comp * 6;
-  const tail = Math.max(24, 42 - d.decay * 20 + d.comp * 4);
+  const attackX = 16 - d.snap * 6;
+  const peakY = 14 - (d.snap * 12 + d.boost * 6);
+  const bodyX = 34 + d.comp * 14;
+  const bodyY = 20 + d.comp * 8 - d.boost * 3;
+  const kneeX = 68 + d.decay * 48;
+  const tailLift = 18 - d.decay * 12 + d.comp * 5;
   const curve = document.createElementNS("http://www.w3.org/2000/svg", "path");
   curve.setAttribute("class", "drumEnvelopeCurve");
   curve.setAttribute(
     "d",
-    `M 8 45 C 13 ${44 - peak}, 22 ${30 - peak * transientTilt}, 30 ${14 - peak / 2} S ${knee} ${tail}, 112 45`,
+    `M 8 48 C ${attackX} ${peakY}, ${bodyX} ${bodyY}, ${48 + d.snap * 10} ${28 - d.boost * 8} S ${kneeX} ${tailLift}, 148 48`,
   );
+  curve.setAttribute("style", `stroke-width:${2.1 + d.boost * 1.2}`);
 
-  const contour = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  contour.setAttribute("class", "drumEnvelopeContour");
-  contour.setAttribute(
+  const compContour = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  compContour.setAttribute("class", "drumEnvelopeContour");
+  compContour.setAttribute(
     "d",
-    `M 8 45 C 13 ${44 - peak * 0.65}, 24 ${34 - d.tone * 16}, 32 ${22 - d.noise * 8} S ${knee + 8} ${tail + 2}, 112 45`,
+    `M 8 48 C ${18 - d.snap * 5} ${24 - d.snap * 9}, ${44 + d.comp * 8} ${24 - d.comp * 10}, ${72 + d.decay * 34} ${30 - d.comp * 5} S ${126 + d.decay * 10} ${34 + d.comp * 5}, 148 48`,
   );
+  compContour.setAttribute("style", `opacity:${0.34 + d.comp * 0.5}`);
 
-  svg.append(baseline, contour, curve);
+  const noiseContour = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  noiseContour.setAttribute("class", "drumEnvelopeNoise");
+  const noiseAmp = 1.2 + d.noise * 5;
+  const noisePoints: string[] = [];
+  for (let x = 10; x <= 148; x += 9) {
+    const wave = Math.sin((x * 0.24) + d.snap * 5) * noiseAmp;
+    const drift = Math.cos((x * 0.11) + d.decay * 4) * (noiseAmp * 0.35);
+    const y = 48 - wave - drift;
+    noisePoints.push(`${x} ${y.toFixed(2)}`);
+  }
+  noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
+  noiseContour.setAttribute("style", `opacity:${0.08 + d.noise * 0.55}`);
 
-  const meter = document.createElement("div");
-  meter.className = "drumFeatureMeter";
-
-  const createMeterRow = (label: string, value: number) => {
-    const row = document.createElement("div");
-    row.className = "drumFeatureMeterRow";
-    const rowLabel = document.createElement("span");
-    rowLabel.textContent = label;
-    const rowValue = document.createElement("strong");
-    rowValue.textContent = `${Math.round(value * 100)}%`;
-    row.append(rowLabel, rowValue);
-    return row;
-  };
-
-  const transient = createMeterRow("Transient", Math.min(1, d.snap * 0.78 + d.boost * 0.22));
-  const body = createMeterRow("Body", Math.min(1, d.tone * 0.72 + d.comp * 0.28));
-  const texture = createMeterRow("Noise", d.noise);
-  const dynamics = createMeterRow("Comp", d.comp);
-  const boost = createMeterRow(`Boost:${d.boostTarget[0].toUpperCase()}`, d.boost);
-
-  meter.append(transient, body, texture, dynamics, boost);
-  stage.append(svg, meter);
+  svg.append(baseline, noiseContour, compContour, curve);
+  stage.append(svg);
   feature.append(head, stage);
   return feature;
 }
@@ -267,7 +263,7 @@ function createFaceTabs(
     specs: [
       { id: "MAIN", label: "Main", panel: mainPanel },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+      { id: "SETTINGS", label: v.type === "drum" ? "Advanced" : "Settings", panel: panelSettings },
     ],
     activeTab: ui.tab,
     onTabChange: (tab) => ui.setTab(tab),
@@ -328,7 +324,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const d = v as DrumModule;
 
   const surface = document.createElement("section");
-  surface.className = "moduleSurface drumSurface";
+  surface.className = "moduleSurface drumSurface drumSurface--withStatus";
   surface.dataset.type = "drum";
 
   const h = makeHeader(v, "DRUM", params, onRemove);
@@ -361,7 +357,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const characterGrid = createFaceplateSection("secondary", "voiceControlGrid drumMainSecondaryGrid");
   characterGrid.append(snapCtl, noiseCtl, compCtl, boostCtl);
 
-  main.append(feature, primaryGrid, characterGrid, createDrumInfoBar(d), createFaceplateSpacer());
+  main.append(feature, primaryGrid, characterGrid, createFaceplateSpacer());
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
@@ -382,7 +378,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   });
   shell.face.querySelector(".surfaceSettingsPanel")?.append(boostTargetField.wrap);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
-  surface.append(h.header, shell.face, shell.tabs);
+  surface.append(h.header, shell.face, shell.tabs, createDrumInfoBar(d));
   root.appendChild(surface);
 
   return () => {
