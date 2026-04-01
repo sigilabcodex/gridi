@@ -3373,24 +3373,24 @@ button:focus-visible,
 }
 
 .drumMainPrimaryGrid {
-  gap: 6px;
+  gap: 4px;
 }
 
 .drumMainSecondaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
 }
 
 .drumMainFeature {
   display: flex;
   flex-direction: column;
-  gap: var(--faceplate-gap-xs);
+  gap: 3px;
   border: 1px solid rgba(74, 163, 255, 0.35);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
-  padding: 6px 8px;
-  min-height: 98px;
+  padding: 5px 7px;
+  min-height: 74px;
 }
 
 .drumFeatureHead {
@@ -3422,7 +3422,7 @@ button:focus-visible,
 .drumEnvelopeGraph {
   width: 100%;
   height: 100%;
-  min-height: 64px;
+  min-height: 46px;
 }
 
 .drumEnvelopeBaseline {
@@ -3458,20 +3458,24 @@ button:focus-visible,
 .drumInfoBar {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-height: 18px;
-  padding: 2px 6px;
-  border-radius: 7px;
+  gap: 6px;
+  min-height: 14px;
+  padding: 0 6px;
+  border-radius: 0;
   border: 1px solid rgba(119, 154, 180, 0.24);
-  background: rgba(8, 14, 22, 0.58);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  background: rgba(8, 14, 22, 0.42);
   overflow: hidden;
   white-space: nowrap;
 }
 
 .drumInfoToken {
-  font-size: 9px;
-  letter-spacing: 0.55px;
-  opacity: 0.82;
+  font-size: 8px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  opacity: 0.8;
 }
 
 .drumInfoToken--meta {
@@ -3510,7 +3514,7 @@ button:focus-visible,
 }
 
 .drumSurface .knobCtl {
-  width: 64px;
+  width: 60px;
   gap: 1px;
 }
 
@@ -3520,13 +3524,13 @@ button:focus-visible,
 }
 
 .drumSurface .knob {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .drumSurface .knob svg {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
 }
 
 .drumSurface .knobVal {
@@ -3549,11 +3553,11 @@ button:focus-visible,
 }
 
 .drumSurface--withStatus {
-  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 22px;
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 15px;
 }
 
 .drumSurface--withStatus .surfaceTabPanel {
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .drumSurface--withStatus .surfaceSettingsPanel,
