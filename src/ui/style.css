@@ -3225,6 +3225,10 @@ button:focus-visible,
   min-height: 0;
 }
 
+.drumMainLayout {
+  gap: var(--faceplate-gap-xs);
+}
+
 .faceplateSection {
   width: 100%;
   min-height: 0;
@@ -3368,10 +3372,14 @@ button:focus-visible,
   gap: var(--faceplate-gap-sm);
 }
 
+.drumMainPrimaryGrid {
+  gap: 6px;
+}
+
 .drumMainSecondaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--faceplate-gap-sm);
+  gap: 6px;
 }
 
 .drumMainFeature {
@@ -3381,8 +3389,8 @@ button:focus-visible,
   border: 1px solid rgba(74, 163, 255, 0.35);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
-  padding: 7px 8px;
-  min-height: 108px;
+  padding: 6px 8px;
+  min-height: 98px;
 }
 
 .drumFeatureHead {
@@ -3405,9 +3413,8 @@ button:focus-visible,
 }
 
 .drumEnvelopeStage {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: var(--faceplate-gap-sm);
+  display: flex;
+  gap: 0;
   align-items: stretch;
   min-height: 0;
 }
@@ -3415,7 +3422,7 @@ button:focus-visible,
 .drumEnvelopeGraph {
   width: 100%;
   height: 100%;
-  min-height: 58px;
+  min-height: 64px;
 }
 
 .drumEnvelopeBaseline {
@@ -3440,31 +3447,15 @@ button:focus-visible,
   stroke-dasharray: 3 2;
 }
 
-.drumFeatureMeter {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.drumFeatureMeterRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  padding: 3px 6px;
-  border-radius: 7px;
-  border: 1px solid rgba(126, 160, 188, 0.26);
-  background: rgba(9, 16, 24, 0.72);
-}
-
-.drumFeatureMeterRow strong {
-  font-variant-numeric: tabular-nums;
-  font-size: 10px;
+.drumEnvelopeNoise {
+  fill: none;
+  stroke: rgba(173, 213, 246, 0.7);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-dasharray: 2 2;
 }
 
 .drumInfoBar {
-  margin-top: auto;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -3515,11 +3506,12 @@ button:focus-visible,
 
 .drumSurface .surfaceHeader {
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .drumSurface .knobCtl {
-  width: 68px;
-  gap: 2px;
+  width: 64px;
+  gap: 1px;
 }
 
 .drumSurface .ctlLabel {
@@ -3540,7 +3532,43 @@ button:focus-visible,
 .drumSurface .knobVal {
   font-size: 9px;
   line-height: 1;
-  padding-top: 1px;
+  padding-top: 0;
+}
+
+.drumSurface .surfaceHeaderAction {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.drumSurface .rightControls {
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.drumSurface--withStatus {
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 22px;
+}
+
+.drumSurface--withStatus .surfaceTabPanel {
+  padding-top: 6px;
+}
+
+.drumSurface--withStatus .surfaceSettingsPanel,
+.drumSurface--withStatus .utilityPanel--voiceRouting {
+  padding-top: 2px;
+}
+
+.drumSurface .routingCard {
+  padding: 6px 7px;
+}
+
+.drumSurface .compactSelectField select,
+.drumSurface .compactSelectInput {
+  background: rgba(8, 13, 20, 0.92);
+  border-color: rgba(101, 132, 155, 0.52);
 }
 
 .triggerPrimaryRack {
