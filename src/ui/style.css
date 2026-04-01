@@ -3216,6 +3216,7 @@ button:focus-visible,
 
 .triggerPrimary,
 .voiceMainLayout,
+.drumMainLayout,
 .visualMainLayout,
 .controlBody {
   display: flex;
@@ -3349,6 +3350,7 @@ button:focus-visible,
 
 .triggerPulseRack,
 .voicePrimaryGrid,
+.drumMainPrimaryGrid,
 .voiceBottomStrip,
 .controlMainKnobGrid,
 .moduleKnobGrid,
@@ -3359,10 +3361,98 @@ button:focus-visible,
 }
 
 .triggerPulseRack,
-.voicePrimaryGrid {
+.voicePrimaryGrid,
+.drumMainPrimaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--faceplate-gap-sm);
+}
+
+.drumMainSecondaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--faceplate-gap-sm);
+}
+
+.drumMainFeature {
+  display: flex;
+  flex-direction: column;
+  gap: var(--faceplate-gap-xs);
+  border: 1px solid rgba(74, 163, 255, 0.35);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
+  padding: 7px 8px;
+  min-height: 108px;
+}
+
+.drumFeatureHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.drumFeatureTitle {
+  font-size: 10px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.drumFeatureSummary {
+  font-size: 10px;
+  opacity: 0.72;
+}
+
+.drumEnvelopeStage {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--faceplate-gap-sm);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.drumEnvelopeGraph {
+  width: 100%;
+  height: 100%;
+  min-height: 58px;
+}
+
+.drumEnvelopeBaseline {
+  fill: none;
+  stroke: rgba(156, 192, 223, 0.4);
+  stroke-width: 1.2;
+}
+
+.drumEnvelopeCurve {
+  fill: none;
+  stroke: rgba(74, 163, 255, 0.92);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.drumFeatureMeter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drumFeatureMeterRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(126, 160, 188, 0.26);
+  background: rgba(9, 16, 24, 0.72);
+}
+
+.drumFeatureMeterRow strong {
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
 }
 
 .triggerPrimaryRack {

@@ -102,6 +102,74 @@ function createVoiceMainLayout(primaryControls: HTMLElement[], bottomControls: H
   return main;
 }
 
+function createDrumFeatureZone(d: DrumModule) {
+  const feature = createFaceplateSection("feature", "drumMainFeature");
+
+  const head = document.createElement("div");
+  head.className = "drumFeatureHead";
+
+  const title = document.createElement("div");
+  title.className = "drumFeatureTitle";
+  title.textContent = "Envelope";
+
+  const summary = document.createElement("div");
+  summary.className = "drumFeatureSummary small";
+  summary.textContent = `Pitch ${Math.round(d.basePitch)} · Decay ${Math.round(d.decay * 100)}%`;
+
+  head.append(title, summary);
+
+  const stage = document.createElement("div");
+  stage.className = "drumEnvelopeStage";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 120 52");
+  svg.setAttribute("class", "drumEnvelopeGraph");
+  svg.setAttribute("role", "img");
+  svg.setAttribute(
+    "aria-label",
+    `Drum envelope preview. Snap ${Math.round(d.snap * 100)} percent, decay ${Math.round(d.decay * 100)} percent, noise ${Math.round(d.noise * 100)} percent.`,
+  );
+
+  const baseline = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  baseline.setAttribute("d", "M 6 45 L 114 45");
+  baseline.setAttribute("class", "drumEnvelopeBaseline");
+
+  const peak = 6 + d.snap * 16;
+  const knee = 18 + d.decay * 28;
+  const tail = Math.max(25, 44 - d.decay * 24);
+  const curve = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  curve.setAttribute("class", "drumEnvelopeCurve");
+  curve.setAttribute(
+    "d",
+    `M 8 45 C 12 ${44 - peak}, 22 ${30 - peak}, 30 ${14 - peak / 2} S ${knee} ${tail}, 112 45`,
+  );
+
+  svg.append(baseline, curve);
+
+  const meter = document.createElement("div");
+  meter.className = "drumFeatureMeter";
+
+  const createMeterRow = (label: string, value: number) => {
+    const row = document.createElement("div");
+    row.className = "drumFeatureMeterRow";
+    const rowLabel = document.createElement("span");
+    rowLabel.textContent = label;
+    const rowValue = document.createElement("strong");
+    rowValue.textContent = `${Math.round(value * 100)}%`;
+    row.append(rowLabel, rowValue);
+    return row;
+  };
+
+  const transient = createMeterRow("Transient", d.snap);
+  const body = createMeterRow("Body", d.tone);
+  const texture = createMeterRow("Noise", d.noise);
+
+  meter.append(transient, body, texture);
+  stage.append(svg, meter);
+  feature.append(head, stage);
+  return feature;
+}
+
 function createFaceTabs(
   ui: UiState,
   mainPanel: HTMLElement,
@@ -231,11 +299,22 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const snapCtl = ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) });
   const noiseCtl = ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) });
 
-  const main = createVoiceMainLayout([pitchCtl, decayCtl, toneCtl], [levelCtl]);
+  const main = createFaceplateMainPanel();
+  main.classList.add("drumMainLayout");
+
+  const feature = createDrumFeatureZone(d);
+
+  const primaryGrid = createFaceplateSection("controls", "voiceControlGrid drumMainPrimaryGrid");
+  primaryGrid.append(pitchCtl, decayCtl, toneCtl, levelCtl);
+
+  const characterGrid = createFaceplateSection("secondary", "voiceControlGrid drumMainSecondaryGrid");
+  characterGrid.append(snapCtl, noiseCtl);
+
+  main.append(feature, primaryGrid, characterGrid, createFaceplateSpacer());
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  drumSettingsGrid.append(snapCtl, noiseCtl, panCtl);
+  drumSettingsGrid.append(panCtl);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);
