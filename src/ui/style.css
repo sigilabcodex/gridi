@@ -3125,9 +3125,9 @@ button:focus-visible,
 :root {
   --module-cell-w: 330px;
   --module-cell-h: 360px;
-  --module-shell-pad: 9px;
-  --module-shell-gap: 8px;
-  --module-header-h: 54px;
+  --module-shell-pad: 7px;
+  --module-shell-gap: 6px;
+  --module-header-h: 50px;
   --module-tabs-h: 34px;
   --workspace-grid-gap: 10px;
   --workspace-grid-pad: 8px;
@@ -3223,6 +3223,10 @@ button:focus-visible,
   flex-direction: column;
   gap: var(--faceplate-gap-sm);
   min-height: 0;
+}
+
+.drumMainLayout {
+  gap: 6px;
 }
 
 .faceplateSection {
@@ -3368,21 +3372,25 @@ button:focus-visible,
   gap: var(--faceplate-gap-sm);
 }
 
+.drumMainPrimaryGrid {
+  gap: 6px;
+}
+
 .drumMainSecondaryGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--faceplate-gap-sm);
+  gap: 6px;
 }
 
 .drumMainFeature {
   display: flex;
   flex-direction: column;
-  gap: var(--faceplate-gap-xs);
+  gap: 3px;
   border: 1px solid rgba(74, 163, 255, 0.35);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
-  padding: 7px 8px;
-  min-height: 108px;
+  padding: 6px 7px;
+  min-height: 100px;
 }
 
 .drumFeatureHead {
@@ -3407,7 +3415,7 @@ button:focus-visible,
 .drumEnvelopeStage {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: var(--faceplate-gap-sm);
+  gap: 6px;
   align-items: stretch;
   min-height: 0;
 }
@@ -3465,11 +3473,12 @@ button:focus-visible,
 
 .drumInfoBar {
   margin-top: auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
   align-items: center;
-  gap: 5px;
-  min-height: 18px;
-  padding: 2px 6px;
+  column-gap: 5px;
+  min-height: 16px;
+  padding: 1px 6px;
   border-radius: 7px;
   border: 1px solid rgba(119, 154, 180, 0.24);
   background: rgba(8, 14, 22, 0.58);
@@ -3478,8 +3487,8 @@ button:focus-visible,
 }
 
 .drumInfoToken {
-  font-size: 9px;
-  letter-spacing: 0.55px;
+  font-size: 8px;
+  letter-spacing: 0.45px;
   opacity: 0.82;
 }
 
@@ -3514,16 +3523,17 @@ button:focus-visible,
 }
 
 .drumSurface .surfaceHeader {
-  align-items: center;
+  align-items: start;
+  margin-bottom: 2px;
 }
 
 .drumSurface .knobCtl {
-  width: 68px;
-  gap: 2px;
+  width: 64px;
+  gap: 1px;
 }
 
 .drumSurface .ctlLabel {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.2px;
 }
 
@@ -3538,9 +3548,9 @@ button:focus-visible,
 }
 
 .drumSurface .knobVal {
-  font-size: 9px;
+  font-size: 8px;
   line-height: 1;
-  padding-top: 1px;
+  padding-top: 0;
 }
 
 .triggerPrimaryRack {
