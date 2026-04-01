@@ -3370,7 +3370,7 @@ button:focus-visible,
 
 .drumMainSecondaryGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--faceplate-gap-sm);
 }
 
@@ -3432,10 +3432,18 @@ button:focus-visible,
   stroke-linejoin: round;
 }
 
+.drumEnvelopeContour {
+  fill: none;
+  stroke: rgba(195, 224, 248, 0.56);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-dasharray: 3 2;
+}
+
 .drumFeatureMeter {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .drumFeatureMeterRow {
@@ -3453,6 +3461,86 @@ button:focus-visible,
 .drumFeatureMeterRow strong {
   font-variant-numeric: tabular-nums;
   font-size: 10px;
+}
+
+.drumInfoBar {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 18px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(119, 154, 180, 0.24);
+  background: rgba(8, 14, 22, 0.58);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.drumInfoToken {
+  font-size: 9px;
+  letter-spacing: 0.55px;
+  opacity: 0.82;
+}
+
+.drumInfoToken--meta {
+  margin-left: auto;
+  opacity: 0.68;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drumIdentity {
+  gap: 6px;
+}
+
+.surfaceBadge--drumFamily {
+  position: relative;
+  padding-left: 11px;
+  border-style: solid;
+}
+
+.surfaceBadge--drumFamily::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 3px;
+  height: 11px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+.drumSurface .surfaceHeader {
+  align-items: center;
+}
+
+.drumSurface .knobCtl {
+  width: 68px;
+  gap: 2px;
+}
+
+.drumSurface .ctlLabel {
+  font-size: 10px;
+  letter-spacing: 0.2px;
+}
+
+.drumSurface .knob {
+  width: 40px;
+  height: 40px;
+}
+
+.drumSurface .knob svg {
+  width: 40px;
+  height: 40px;
+}
+
+.drumSurface .knobVal {
+  font-size: 9px;
+  line-height: 1;
+  padding-top: 1px;
 }
 
 .triggerPrimaryRack {

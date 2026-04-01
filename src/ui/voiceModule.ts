@@ -41,7 +41,12 @@ type SurfaceParams = {
   onRemove?: () => void;
 };
 
-function makeHeader(v: SoundModule, badgeText: string, params: Pick<SurfaceParams, "onPatchChange" | "onLoadModulePreset" | "onSaveModulePreset" | "modulePresetRecords" | "attachTooltip">, onRemove?: () => void) {
+function makeHeader(
+  v: SoundModule,
+  badgeText: string,
+  params: Pick<SurfaceParams, "onPatchChange" | "onLoadModulePreset" | "onSaveModulePreset" | "modulePresetRecords" | "attachTooltip">,
+  onRemove?: () => void,
+) {
   const header = document.createElement("div");
   header.className = "surfaceHeader";
 
@@ -53,12 +58,24 @@ function makeHeader(v: SoundModule, badgeText: string, params: Pick<SurfaceParam
     attachTooltip: params.attachTooltip,
   });
 
-  const left = createModuleIdentityMeta({
-    badgeText,
-    instanceName: v.name,
-    instanceId: v.id.slice(-6).toUpperCase(),
-    presetButton: presetControl.button,
-  });
+  const left = v.type === "drum"
+    ? (() => {
+      const drumIdentity = document.createElement("div");
+      drumIdentity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
+
+      const badge = document.createElement("div");
+      badge.className = "surfaceBadge surfaceBadge--drumFamily";
+      badge.textContent = badgeText;
+
+      drumIdentity.append(badge, presetControl.button);
+      return drumIdentity;
+    })()
+    : createModuleIdentityMeta({
+      badgeText,
+      instanceName: v.name,
+      instanceId: v.id.slice(-6).toUpperCase(),
+      presetButton: presetControl.button,
+    });
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -114,7 +131,7 @@ function createDrumFeatureZone(d: DrumModule) {
 
   const summary = document.createElement("div");
   summary.className = "drumFeatureSummary small";
-  summary.textContent = `Pitch ${Math.round(d.basePitch)} · Decay ${Math.round(d.decay * 100)}%`;
+  summary.textContent = `Pitch ${Math.round(d.basePitch)} · Decay ${Math.round(d.decay * 100)}% · Boost ${Math.round(d.boost * 100)}%`;
 
   head.append(title, summary);
 
@@ -134,17 +151,25 @@ function createDrumFeatureZone(d: DrumModule) {
   baseline.setAttribute("d", "M 6 45 L 114 45");
   baseline.setAttribute("class", "drumEnvelopeBaseline");
 
-  const peak = 6 + d.snap * 16;
-  const knee = 18 + d.decay * 28;
-  const tail = Math.max(25, 44 - d.decay * 24);
+  const peak = 8 + d.snap * 13 + d.boost * 7;
+  const transientTilt = d.snap * 0.55 + d.comp * 0.25;
+  const knee = 20 + d.decay * 24 + d.comp * 6;
+  const tail = Math.max(24, 42 - d.decay * 20 + d.comp * 4);
   const curve = document.createElementNS("http://www.w3.org/2000/svg", "path");
   curve.setAttribute("class", "drumEnvelopeCurve");
   curve.setAttribute(
     "d",
-    `M 8 45 C 12 ${44 - peak}, 22 ${30 - peak}, 30 ${14 - peak / 2} S ${knee} ${tail}, 112 45`,
+    `M 8 45 C 13 ${44 - peak}, 22 ${30 - peak * transientTilt}, 30 ${14 - peak / 2} S ${knee} ${tail}, 112 45`,
   );
 
-  svg.append(baseline, curve);
+  const contour = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  contour.setAttribute("class", "drumEnvelopeContour");
+  contour.setAttribute(
+    "d",
+    `M 8 45 C 13 ${44 - peak * 0.65}, 24 ${34 - d.tone * 16}, 32 ${22 - d.noise * 8} S ${knee + 8} ${tail + 2}, 112 45`,
+  );
+
+  svg.append(baseline, contour, curve);
 
   const meter = document.createElement("div");
   meter.className = "drumFeatureMeter";
@@ -160,14 +185,38 @@ function createDrumFeatureZone(d: DrumModule) {
     return row;
   };
 
-  const transient = createMeterRow("Transient", d.snap);
-  const body = createMeterRow("Body", d.tone);
+  const transient = createMeterRow("Transient", Math.min(1, d.snap * 0.78 + d.boost * 0.22));
+  const body = createMeterRow("Body", Math.min(1, d.tone * 0.72 + d.comp * 0.28));
   const texture = createMeterRow("Noise", d.noise);
+  const dynamics = createMeterRow("Comp", d.comp);
+  const boost = createMeterRow(`Boost:${d.boostTarget[0].toUpperCase()}`, d.boost);
 
-  meter.append(transient, body, texture);
+  meter.append(transient, body, texture, dynamics, boost);
   stage.append(svg, meter);
   feature.append(head, stage);
   return feature;
+}
+
+function createDrumInfoBar(d: DrumModule) {
+  const info = createFaceplateSection("bottom", "drumInfoBar");
+  const id = document.createElement("span");
+  id.className = "drumInfoToken";
+  id.textContent = d.id.slice(-6).toUpperCase();
+
+  const state = document.createElement("span");
+  state.className = "drumInfoToken";
+  state.textContent = d.enabled ? "ACTIVE" : "BYPASS";
+
+  const route = document.createElement("span");
+  route.className = "drumInfoToken";
+  route.textContent = d.triggerSource ? `TRG ${d.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+
+  const meta = document.createElement("span");
+  meta.className = "drumInfoToken drumInfoToken--meta";
+  meta.textContent = `COMP ${Math.round(d.comp * 100)} · BOOST ${Math.round(d.boost * 100)} ${d.boostTarget.toUpperCase()}`;
+
+  info.append(id, state, route, meta);
+  return info;
 }
 
 function createFaceTabs(
@@ -298,6 +347,8 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const panCtl = ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) });
   const snapCtl = ctlFloat({ label: "Snap", value: d.snap, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.snap = x; }, { regen: false }) });
   const noiseCtl = ctlFloat({ label: "Noise", value: d.noise, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.noise = x; }, { regen: false }) });
+  const compCtl = ctlFloat({ label: "Comp", value: d.comp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.comp = x; }, { regen: false }) });
+  const boostCtl = ctlFloat({ label: "Boost", value: d.boost, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.boost = x; }, { regen: false }) });
 
   const main = createFaceplateMainPanel();
   main.classList.add("drumMainLayout");
@@ -308,13 +359,28 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   primaryGrid.append(pitchCtl, decayCtl, toneCtl, levelCtl);
 
   const characterGrid = createFaceplateSection("secondary", "voiceControlGrid drumMainSecondaryGrid");
-  characterGrid.append(snapCtl, noiseCtl);
+  characterGrid.append(snapCtl, noiseCtl, compCtl, boostCtl);
 
-  main.append(feature, primaryGrid, characterGrid, createFaceplateSpacer());
+  main.append(feature, primaryGrid, characterGrid, createDrumInfoBar(d), createFaceplateSpacer());
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   drumSettingsGrid.append(panCtl);
+  const boostTargetField = createCompactSelectField({
+    label: "Boost target",
+    options: [
+      { value: "body", label: "Body" },
+      { value: "attack", label: "Attack" },
+      { value: "air", label: "Air" },
+    ],
+    selected: d.boostTarget,
+    emptyLabel: "Body",
+    onChange: (value) => onPatchChange((p) => {
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m?.type === "drum") m.boostTarget = value === "attack" || value === "air" ? value : "body";
+    }, { regen: false }),
+  });
+  shell.face.querySelector(".surfaceSettingsPanel")?.append(boostTargetField.wrap);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
   surface.append(h.header, shell.face, shell.tabs);
   root.appendChild(surface);

@@ -345,6 +345,9 @@ export function createEngine(): Engine {
       const pitchEnvDecay = 0.01 + clamp01(safe(v.pitchEnvDecay, 0.25)) * 0.4;
       const noiseAmt = clamp01(safe(v.noise, 0.2));
       const tone = clamp01(safe(v.tone, 0.45));
+      const comp = clamp01(safe(v.comp, 0.32));
+      const boost = clamp01(safe(v.boost, 0.24));
+      const boostTarget = v.boostTarget === "attack" || v.boostTarget === "air" ? v.boostTarget : "body";
       const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9);
 
       bodyOsc.type = bodyTone < 0.55 ? "sine" : "triangle";
@@ -353,12 +356,12 @@ export function createEngine(): Engine {
       bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(30, baseFreq), now + pitchEnvDecay);
 
       toneFilter.type = "lowpass";
-      toneFilter.frequency.value = 300 + tone * 6400;
+      toneFilter.frequency.value = 300 + tone * 6400 + (boostTarget === "body" ? boost * 800 : 0);
       toneFilter.Q.value = 0.4 + tone * 2.2;
 
       noiseFilter.type = "bandpass";
-      noiseFilter.frequency.value = 300 + tone * 5200;
-      noiseFilter.Q.value = 0.7 + snap * 10;
+      noiseFilter.frequency.value = 300 + tone * 5200 + (boostTarget === "air" ? boost * 1800 : 0);
+      noiseFilter.Q.value = 0.7 + snap * 10 + (boostTarget === "attack" ? boost * 2 : 0);
 
       bodyOsc.connect(bodyGain);
       bodyGain.connect(toneFilter);
@@ -375,18 +378,24 @@ export function createEngine(): Engine {
 
       const clickOsc = ctx.createOscillator();
       clickOsc.type = "square";
-      clickOsc.frequency.value = 1200 + snap * 2600;
+      clickOsc.frequency.value = 1200 + snap * 2600 + (boostTarget === "attack" ? boost * 1200 : 0);
       clickOsc.connect(clickGain);
       clickGain.connect(panNode);
 
-      bodyGain.gain.setValueAtTime(EPS, now);
-      bodyGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp * (0.6 + transient * 0.4)), now + 0.002);
-      bodyGain.gain.exponentialRampToValueAtTime(EPS, now + decay);
+      const compPeak = amp * (0.56 + transient * 0.34) * (1 - comp * 0.36);
+      const compTail = decay * (0.92 + comp * 0.4);
+      const bodyBoost = boostTarget === "body" ? boost : boost * 0.25;
+      const attackBoost = boostTarget === "attack" ? boost : boost * 0.2;
+      const airBoost = boostTarget === "air" ? boost : boost * 0.2;
 
-      noiseGain.gain.setValueAtTime(Math.max(EPS, amp * noiseAmt * 0.8), now);
+      bodyGain.gain.setValueAtTime(EPS, now);
+      bodyGain.gain.exponentialRampToValueAtTime(Math.max(EPS, compPeak + bodyBoost * amp * 0.26), now + 0.002);
+      bodyGain.gain.exponentialRampToValueAtTime(EPS, now + compTail);
+
+      noiseGain.gain.setValueAtTime(Math.max(EPS, amp * noiseAmt * (0.76 + airBoost * 0.55)), now);
       noiseGain.gain.exponentialRampToValueAtTime(EPS, now + 0.01 + decay * 0.65);
 
-      clickGain.gain.setValueAtTime(Math.max(EPS, amp * (0.08 + transient * 0.3 + snap * 0.2)), now);
+      clickGain.gain.setValueAtTime(Math.max(EPS, amp * (0.08 + transient * 0.3 + snap * 0.2 + attackBoost * 0.22)), now);
       clickGain.gain.exponentialRampToValueAtTime(EPS, now + 0.006 + (1 - snap) * 0.01);
 
       const stopAt = now + decay + 0.08;

@@ -82,6 +82,9 @@ export type DrumSynthModule = SoundBase & {
   pitchEnvAmt: number;
   pitchEnvDecay: number;
   tone: number;
+  comp: number;
+  boost: number;
+  boostTarget: "body" | "attack" | "air";
 };
 
 export type TonalSynthModule = SoundBase & {
@@ -275,6 +278,9 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
       pitchEnvAmt: 0.55,
       pitchEnvDecay: 0.25,
       tone: 0.45,
+      comp: 0.32,
+      boost: 0.24,
+      boostTarget: "body",
     };
   }
 
@@ -411,6 +417,9 @@ function normalizeDrumModule(raw: any): DrumModule {
     pitchEnvAmt: clamp(typeof raw?.pitchEnvAmt === "number" ? raw.pitchEnvAmt : 0.3 + legacyTimbre * 0.4, 0, 1),
     pitchEnvDecay: clamp(typeof raw?.pitchEnvDecay === "number" ? raw.pitchEnvDecay : 0.2 + legacyTimbre * 0.3, 0, 1),
     tone: clamp(typeof raw?.tone === "number" ? raw.tone : legacyTimbre, 0, 1),
+    comp: clamp(typeof raw?.comp === "number" ? raw.comp : 0.32, 0, 1),
+    boost: clamp(typeof raw?.boost === "number" ? raw.boost : 0.24, 0, 1),
+    boostTarget: raw?.boostTarget === "attack" || raw?.boostTarget === "air" ? raw.boostTarget : "body",
     modulations: typeof raw?.modulations === "object" && raw.modulations ? raw.modulations : {},
   };
 }
