@@ -34,6 +34,9 @@ type DrumPresetState = Pick<DrumModule,
   | "pitchEnvAmt"
   | "pitchEnvDecay"
   | "tone"
+  | "comp"
+  | "boost"
+  | "boostTarget"
 >;
 
 type TonalPresetState = Pick<TonalModule,
@@ -173,6 +176,9 @@ function snapshotModulePresetState(module: Module): ModulePresetState | null {
       pitchEnvAmt: module.pitchEnvAmt,
       pitchEnvDecay: module.pitchEnvDecay,
       tone: module.tone,
+      comp: module.comp,
+      boost: module.boost,
+      boostTarget: module.boostTarget,
     };
     return state;
   }
