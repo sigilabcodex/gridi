@@ -1,4 +1,4 @@
-import type { TriggerModule } from "../patch";
+import type { Mode, TriggerModule } from "../patch";
 
 type TriggerDisplayParams = {
   module: TriggerModule;
@@ -8,6 +8,43 @@ type TriggerDisplayParams = {
 type TriggerDisplayApi = {
   wrap: HTMLElement;
   sync: (module: TriggerModule) => void;
+};
+
+type DisplayRenderer = (canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams) => void;
+
+const MODE_LABELS: Record<Mode, string> = {
+  "step-sequencer": "Step Sequencer",
+  "cellular-automata": "Cellular Automata",
+  euclidean: "Euclidean",
+  "non-euclidean": "Non-Euclidean",
+  fractal: "Fractal",
+  hybrid: "Hybrid",
+  "markov-chains": "Markov Chains",
+  "l-systems": "L-Systems",
+  xronomorph: "XronoMorph",
+  "genetic-algorithms": "Genetic Algorithms",
+  "one-over-f-noise": "1/f Noise",
+};
+
+const DISPLAY_RENDERERS: Partial<Record<Mode, DisplayRenderer>> = {
+  "step-sequencer": (canvas, module, params) => {
+    canvas.appendChild(renderStepFamilyGrid(module, params.getStepPattern()));
+  },
+  euclidean: (canvas, module) => {
+    canvas.appendChild(renderEuclideanRing(module));
+  },
+  "cellular-automata": (canvas, module) => {
+    canvas.appendChild(renderCellularField(module));
+  },
+  fractal: (canvas, module) => {
+    canvas.appendChild(renderFractalTrace(module));
+  },
+  hybrid: (canvas, module, params) => {
+    const host = document.createElement("div");
+    host.className = "triggerDisplayHybrid";
+    host.append(renderStepFamilyGrid(module, params.getStepPattern()), renderEuclideanRing(module));
+    canvas.appendChild(host);
+  },
 };
 
 export function createTriggerDisplaySurface(params: TriggerDisplayParams): TriggerDisplayApi {
@@ -23,29 +60,39 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   wrap.append(modeCaption, canvas);
 
   const sync = (module: TriggerModule) => {
-    modeCaption.textContent = `${module.mode.toUpperCase()} view`;
-    renderMode(canvas, module, params.getStepPattern());
+    modeCaption.textContent = `${MODE_LABELS[module.mode]} Display Surface`;
+    renderMode(canvas, module, params);
   };
 
   sync(params.module);
   return { wrap, sync };
 }
 
-function renderMode(canvas: HTMLElement, module: TriggerModule, patternPreview: string) {
+function renderMode(canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams) {
   canvas.textContent = "";
   canvas.dataset.mode = module.mode;
 
-  if (module.mode === "ca") {
-    canvas.appendChild(renderCellularField(module));
+  const renderer = DISPLAY_RENDERERS[module.mode];
+  if (renderer) {
+    renderer(canvas, module, params);
     return;
   }
 
-  if (module.mode === "fractal") {
-    canvas.appendChild(renderFractalTrace(module));
-    return;
-  }
+  canvas.appendChild(renderModePlaceholder(module.mode));
+}
 
-  canvas.appendChild(renderStepFamilyGrid(module, patternPreview));
+function renderModePlaceholder(mode: Mode) {
+  const placeholder = document.createElement("div");
+  placeholder.className = "triggerDisplayPlaceholder";
+
+  const title = document.createElement("strong");
+  title.textContent = MODE_LABELS[mode];
+
+  const hint = document.createElement("span");
+  hint.textContent = "Renderer host ready. Mode-specific visualization is planned for next pass.";
+
+  placeholder.append(title, hint);
+  return placeholder;
 }
 
 function renderStepFamilyGrid(module: TriggerModule, patternPreview: string) {
@@ -70,6 +117,28 @@ function renderStepFamilyGrid(module: TriggerModule, patternPreview: string) {
   }
 
   return grid;
+}
+
+function renderEuclideanRing(module: TriggerModule) {
+  const ring = document.createElement("div");
+  ring.className = "triggerDisplayEuclideanRing";
+
+  const steps = clamp(module.length, 8, 24);
+  const pulses = Math.max(1, Math.round(steps * module.density));
+
+  for (let i = 0; i < steps; i++) {
+    const dot = document.createElement("span");
+    dot.className = "triggerDisplayEuclideanDot";
+    const angle = (Math.PI * 2 * i) / steps - Math.PI / 2;
+    const x = Math.cos(angle) * 38;
+    const y = Math.sin(angle) * 38;
+    dot.style.setProperty("--dot-x", `${x.toFixed(2)}px`);
+    dot.style.setProperty("--dot-y", `${y.toFixed(2)}px`);
+    if (i < pulses) dot.classList.add("on");
+    ring.appendChild(dot);
+  }
+
+  return ring;
 }
 
 function renderCellularField(module: TriggerModule) {

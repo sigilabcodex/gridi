@@ -3853,8 +3853,41 @@ button:focus-visible,
   color: rgba(228, 210, 244, 0.94);
   font-size: 10px;
   letter-spacing: 0.5px;
-  padding: 4px 10px;
+  padding: 3px 10px;
   white-space: nowrap;
+}
+
+.triggerMetaChip--gen {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.triggerMetaChipLabel,
+.triggerSeedLabel {
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  opacity: 0.84;
+}
+
+.triggerModeSelect {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 11px;
+  line-height: 1.2;
+  min-width: 132px;
+  padding: 0;
+}
+
+.triggerModeSelect:focus {
+  outline: none;
+}
+
+.triggerModeSelect option {
+  color: #e5d8f6;
+  background: #161225;
 }
 
 .triggerSeedGroup {
@@ -3863,8 +3896,9 @@ button:focus-visible,
   border-radius: 999px;
   background: rgba(14, 13, 26, 0.66);
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
+  gap: 6px;
   padding: 1px 2px 1px 8px;
 }
 
@@ -3960,6 +3994,52 @@ button:focus-visible,
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+
+.triggerDisplayHybrid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 8px;
+}
+
+.triggerDisplayEuclideanRing {
+  position: relative;
+  margin: 0 auto;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  border: 1px solid rgba(206, 157, 239, 0.35);
+}
+
+.triggerDisplayEuclideanDot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(198, 127, 255, 0.2);
+  transform: translate(calc(-50% + var(--dot-x)), calc(-50% + var(--dot-y)));
+}
+
+.triggerDisplayEuclideanDot.on {
+  background: rgba(222, 182, 250, 0.94);
+  box-shadow: 0 0 8px rgba(198, 127, 255, 0.4);
+}
+
+.triggerDisplayPlaceholder {
+  height: 100%;
+  border: 1px dashed rgba(190, 140, 230, 0.34);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  color: rgba(228, 214, 243, 0.82);
 }
 
 .triggerPrimaryControls {
