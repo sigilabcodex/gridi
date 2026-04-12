@@ -31,6 +31,183 @@ const GENERATOR_MODES: Array<{ value: Mode; label: string }> = [
 ];
 
 type ControlOption = { id: string; label: string };
+type TriggerControlKey =
+  | "density"
+  | "length"
+  | "subdiv"
+  | "weird"
+  | "drop"
+  | "determinism"
+  | "gravity"
+  | "euclidRot"
+  | "caRule"
+  | "caInit";
+
+type TriggerModeControlSpec = {
+  label: string;
+  key: TriggerControlKey;
+  min: number;
+  max: number;
+  step: number;
+  integer?: boolean;
+  tooltip: string;
+  format?: (value: number) => string;
+};
+
+const BASE_STEP_CONTROLS: TriggerModeControlSpec[] = [
+  {
+    label: "Dense",
+    key: "density",
+    min: 0,
+    max: 1,
+    step: 0.001,
+    tooltip: "Adjust how often this generator lane produces steps.",
+  },
+  {
+    label: "Len",
+    key: "length",
+    min: 1,
+    max: 128,
+    step: 1,
+    integer: true,
+    tooltip: "Set the loop length in sequencer steps.",
+  },
+  {
+    label: "Div",
+    key: "subdiv",
+    min: 1,
+    max: 8,
+    step: 1,
+    integer: true,
+    tooltip: "Change the timing division for this generator lane.",
+  },
+  {
+    label: "Var",
+    key: "weird",
+    min: 0,
+    max: 1,
+    step: 0.001,
+    tooltip: "Add more surprising variations to the pattern.",
+  },
+];
+
+const MODE_CONTROL_REGISTRY: Record<Mode, TriggerModeControlSpec[]> = {
+  "step-sequencer": BASE_STEP_CONTROLS,
+  "euclidean": [
+    {
+      label: "Pulse",
+      key: "density",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Set Euclidean pulse count as a normalized intensity.",
+    },
+    {
+      label: "Steps",
+      key: "length",
+      min: 1,
+      max: 128,
+      step: 1,
+      integer: true,
+      tooltip: "Set the Euclidean cycle length in steps.",
+    },
+    {
+      label: "Rotate",
+      key: "euclidRot",
+      min: -32,
+      max: 32,
+      step: 1,
+      integer: true,
+      tooltip: "Rotate Euclidean hits around the loop.",
+    },
+    {
+      label: "Spread",
+      key: "weird",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Spread pulses with controlled irregularity.",
+    },
+  ],
+  "cellular-automata": [
+    {
+      label: "Rule",
+      key: "caRule",
+      min: 0,
+      max: 255,
+      step: 1,
+      integer: true,
+      tooltip: "Select the cellular automata rule number.",
+    },
+    {
+      label: "Density",
+      key: "caInit",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Set initial CA fill density.",
+    },
+    {
+      label: "Decay",
+      key: "drop",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Thin generated hits after each pass.",
+    },
+    {
+      label: "Mutate",
+      key: "weird",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Introduce controlled CA mutations.",
+    },
+  ],
+  "fractal": [
+    {
+      label: "Depth",
+      key: "length",
+      min: 1,
+      max: 128,
+      step: 1,
+      integer: true,
+      tooltip: "Set the effective fractal recursion horizon.",
+    },
+    {
+      label: "Scale",
+      key: "subdiv",
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Scale subdivision depth for fractal timing.",
+    },
+    {
+      label: "Branch",
+      key: "gravity",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Bias branching toward clustered structures.",
+    },
+    {
+      label: "Jitter",
+      key: "weird",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Add timing and density jitter to fractal branches.",
+    },
+  ],
+  "non-euclidean": BASE_STEP_CONTROLS,
+  "hybrid": BASE_STEP_CONTROLS,
+  "markov-chains": BASE_STEP_CONTROLS,
+  "l-systems": BASE_STEP_CONTROLS,
+  "xronomorph": BASE_STEP_CONTROLS,
+  "genetic-algorithms": BASE_STEP_CONTROLS,
+  "one-over-f-noise": BASE_STEP_CONTROLS,
+};
 
 export function renderTriggerSurface(
   root: HTMLElement,
@@ -238,50 +415,24 @@ export function renderTriggerSurface(
   });
 
   const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryControls");
-  mainControlRack.append(
-    ctlFloat({
-      label: "Dense",
-      value: t.density,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Adjust how often this generator lane produces steps.",
-      attachTooltip,
-      onChange: (x) => setParam("density", x),
-    }),
-    ctlFloat({
-      label: "Len",
-      value: t.length,
-      min: 1,
-      max: 128,
-      step: 1,
-      integer: true,
-      tooltip: "Set the loop length in sequencer steps.",
-      attachTooltip,
-      onChange: (x) => setParam("length", x),
-    }),
-    ctlFloat({
-      label: "Div",
-      value: t.subdiv,
-      min: 1,
-      max: 8,
-      step: 1,
-      integer: true,
-      tooltip: "Change the timing division for this generator lane.",
-      attachTooltip,
-      onChange: (x) => setParam("subdiv", x),
-    }),
-    ctlFloat({
-      label: "Weird",
-      value: t.weird,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Add more surprising variations to the pattern.",
-      attachTooltip,
-      onChange: (x) => setParam("weird", x),
-    }),
-  );
+  const renderModeControls = () => {
+    const modeControls = MODE_CONTROL_REGISTRY[t.mode] ?? BASE_STEP_CONTROLS;
+    mainControlRack.replaceChildren(
+      ...modeControls.map((spec) => ctlFloat({
+        label: spec.label,
+        value: t[spec.key],
+        min: spec.min,
+        max: spec.max,
+        step: spec.step,
+        integer: spec.integer,
+        tooltip: spec.tooltip,
+        format: spec.format,
+        attachTooltip,
+        onChange: (x) => setParam(spec.key, x),
+      })),
+    );
+  };
+  renderModeControls();
 
   const idToken = document.createElement("span");
   idToken.className = "drumInfoToken";
@@ -435,6 +586,7 @@ export function renderTriggerSurface(
   }
 
   function syncTriggerFace() {
+    renderModeControls();
     generatorSelect.value = t.mode;
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
@@ -444,10 +596,16 @@ export function renderTriggerSurface(
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }
 
-  function setParam(key: keyof TriggerModule, value: number) {
+  function setParam(key: TriggerControlKey, value: number) {
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
-      if (m?.type === "trigger") (m as TriggerModule)[key] = value as never;
+      if (m?.type === "trigger") {
+        if (key === "length" || key === "subdiv" || key === "euclidRot" || key === "caRule") {
+          (m as TriggerModule)[key] = Math.round(value) as never;
+        } else {
+          (m as TriggerModule)[key] = value as never;
+        }
+      }
     }, { regen: true });
   }
 
