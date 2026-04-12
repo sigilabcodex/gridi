@@ -505,6 +505,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   drumSettingsGrid.append(panCtl);
   const boostTargetField = createCompactSelectField({
     label: "Focus",
+    className: "drumFocusField",
     options: [
       { value: "body", label: "Low body" },
       { value: "attack", label: "High punch" },
