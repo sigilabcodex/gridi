@@ -103,7 +103,7 @@ The display must react to:
 
 ### Control row
 
-- four carefully selected performance knobs (mode-dependent emphasis allowed, count remains constrained).
+- six carefully selected performance knobs (mode-dependent emphasis allowed, count remains constrained).
 
 ### Tabs
 
