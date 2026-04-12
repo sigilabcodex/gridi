@@ -13,22 +13,26 @@ import {
   createRoutingChip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import type { TooltipBinder } from "./tooltip";
 
-const GENERATOR_MODES: Array<{ value: Mode; label: string }> = [
-  { value: "step-sequencer", label: "Step Sequencer" },
-  { value: "cellular-automata", label: "Cellular Automata" },
-  { value: "euclidean", label: "Euclidean" },
-  { value: "non-euclidean", label: "Non-Euclidean" },
-  { value: "fractal", label: "Fractal" },
-  { value: "hybrid", label: "Hybrid" },
-  { value: "markov-chains", label: "Markov Chains" },
-  { value: "l-systems", label: "L-Systems" },
-  { value: "xronomorph", label: "XronoMorph" },
-  { value: "genetic-algorithms", label: "Genetic Algorithms" },
-  { value: "one-over-f-noise", label: "1/f Noise" },
-];
+const GENERATOR_MODE_LABELS: Record<Mode, { full: string; short: string }> = {
+  "step-sequencer": { full: "Step Sequencer", short: "SSEQ" },
+  "cellular-automata": { full: "Cellular Automata", short: "CA" },
+  "euclidean": { full: "Euclidean", short: "EUC" },
+  "non-euclidean": { full: "Non-Euclidean", short: "NEUC" },
+  "fractal": { full: "Fractal", short: "FRACT" },
+  "hybrid": { full: "Hybrid", short: "HYB" },
+  "markov-chains": { full: "Markov Chains", short: "MARKOV" },
+  "l-systems": { full: "L-Systems", short: "LSYS" },
+  "xronomorph": { full: "XronoMorph", short: "XRM" },
+  "genetic-algorithms": { full: "Genetic Algorithms", short: "GA" },
+  "one-over-f-noise": { full: "1/f Noise", short: "1/F" },
+};
+
+const GENERATOR_MODES: Array<{ value: Mode; label: string }> = (Object.entries(GENERATOR_MODE_LABELS) as Array<[Mode, { full: string }]>)
+  .map(([value, labels]) => ({ value, label: labels.full }));
 
 type ControlOption = { id: string; label: string };
 type TriggerControlKey =
@@ -712,8 +716,6 @@ export function renderTriggerSurface(
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("triggerPrimary");
 
-  let selectTab: (tab: "MAIN" | "ROUTING" | "SETTINGS") => void = () => {};
-
   const metaRow = createFaceplateSection("io", "triggerMetaRow");
 
   const generatorChip = document.createElement("div");
@@ -743,8 +745,10 @@ export function renderTriggerSurface(
     text: "Select the active generator mode for this module.",
     ariaLabel: `${t.name} generator mode`,
   });
+  const generatorValue = document.createElement("span");
+  generatorValue.className = "triggerModeValue";
 
-  generatorChip.append(generatorLabel, generatorSelect);
+  generatorChip.append(generatorLabel, generatorSelect, generatorValue);
 
   const seedGroup = document.createElement("div");
   seedGroup.className = "triggerSeedGroup";
@@ -835,11 +839,125 @@ export function renderTriggerSurface(
   const routingChip = document.createElement("button");
   routingChip.className = "triggerMetaChip triggerMetaChip--routing";
   routingChip.type = "button";
-  routingChip.onclick = () => selectTab("ROUTING");
+  routingChip.setAttribute("aria-haspopup", "dialog");
   attachTooltip?.(routingChip, {
-    text: "Open generator routing controls.",
+    text: "Assign trigger output targets from the main face.",
     ariaLabel: `${t.name} routing`,
   });
+  let routingPanel: HTMLElement | null = null;
+  let routingPanelCleanup: { destroy: () => void } | null = null;
+  const closeRoutingPanel = () => {
+    if (routingPanelCleanup) {
+      routingPanelCleanup.destroy();
+      routingPanelCleanup = null;
+    }
+    routingPanel?.remove();
+    routingPanel = null;
+    routingChip.classList.remove("isOpen");
+    routingChip.setAttribute("aria-expanded", "false");
+  };
+
+  const buildRoutingRows = (panelList: HTMLElement) => {
+    panelList.replaceChildren();
+    const targetModules = routing.modules.size
+      ? [...routing.modules.values()].filter((moduleRef) => moduleRef.family === "drum" || moduleRef.family === "tonal")
+      : [];
+    targetModules.sort((a, b) => a.name.localeCompare(b.name));
+
+    if (!targetModules.length) {
+      const empty = document.createElement("div");
+      empty.className = "triggerRoutingSelectorEmpty";
+      empty.textContent = "No route targets";
+      panelList.appendChild(empty);
+      return;
+    }
+
+    targetModules.forEach((target) => {
+      const isConnected = (routing.triggerTargets.get(t.id) ?? []).some((voice) => voice.id === target.id);
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `triggerRoutingSelectorRow${isConnected ? " isSelected" : ""}`;
+
+      const mark = document.createElement("span");
+      mark.className = "triggerRoutingSelectorMark";
+      mark.textContent = isConnected ? "✓" : "";
+      const label = document.createElement("span");
+      label.className = "triggerRoutingSelectorLabel";
+      label.textContent = target.name;
+      const family = document.createElement("span");
+      family.className = "triggerRoutingSelectorFamily";
+      family.textContent = target.family === "drum" ? "DRUM" : "SYNTH";
+      row.append(mark, label, family);
+      row.onclick = () => {
+        closeRoutingPanel();
+        onRoutingChange((p) => {
+          const targetModule = p.modules.find((module) => module.id === target.id);
+          if (!targetModule || (targetModule.type !== "drum" && targetModule.type !== "tonal")) return;
+          targetModule.triggerSource = targetModule.triggerSource === t.id ? null : t.id;
+        }, { regen: true });
+      };
+      panelList.appendChild(row);
+    });
+  };
+
+  const openRoutingPanel = () => {
+    if (routingPanel) {
+      closeRoutingPanel();
+      return;
+    }
+
+    const panel = document.createElement("div");
+    panel.className = "floatingPanel triggerRoutingSelectorPanel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", `${t.name} routing targets`);
+    const panelList = document.createElement("div");
+    panelList.className = "triggerRoutingSelectorList";
+    buildRoutingRows(panelList);
+    panel.appendChild(panelList);
+    document.body.appendChild(panel);
+
+    const position = () => (routingChip.isConnected ? routingChip.getBoundingClientRect() : null);
+    placeFloatingPanel(panel, routingChip.getBoundingClientRect(), {
+      preferredSide: "bottom",
+      align: "end",
+      offset: 8,
+      minWidth: 210,
+      maxWidth: 250,
+    });
+    const reposition = bindFloatingPanelReposition(panel, position, {
+      preferredSide: "bottom",
+      align: "end",
+      offset: 8,
+      minWidth: 210,
+      maxWidth: 250,
+    });
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (panel.contains(target) || routingChip.contains(target)) return;
+      closeRoutingPanel();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeRoutingPanel();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    routingPanelCleanup = {
+      destroy() {
+        reposition.destroy();
+        document.removeEventListener("pointerdown", onPointerDown, true);
+        document.removeEventListener("keydown", onKeyDown, true);
+      },
+    };
+
+    routingPanel = panel;
+    routingChip.classList.add("isOpen");
+    routingChip.setAttribute("aria-expanded", "true");
+  };
+  routingChip.onclick = openRoutingPanel;
 
   metaRow.append(generatorChip, seedGroup, routingChip);
 
@@ -1021,7 +1139,6 @@ export function renderTriggerSurface(
     ],
     activeTab: "MAIN",
   });
-  selectTab = shell.setTab;
 
   surface.append(header, shell.face, shell.tabs, infoBar);
   root.appendChild(surface);
@@ -1032,12 +1149,18 @@ export function renderTriggerSurface(
   }
 
   function syncTriggerFace() {
+    if (!surface.isConnected) closeRoutingPanel();
     syncModeControlValues();
     generatorSelect.value = t.mode;
+    generatorValue.textContent = GENERATOR_MODE_LABELS[t.mode]?.short ?? "GEN";
+    if (routingPanel) {
+      const panelList = routingPanel.querySelector<HTMLElement>(".triggerRoutingSelectorList");
+      if (panelList) buildRoutingRows(panelList);
+    }
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
-    routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
+    routingChip.textContent = !outgoingVoices.length ? "ROUTING" : outgoingVoices.length >= 3 ? "ROUTING 3+" : `ROUTING ${outgoingVoices.length}`;
     stateToken.textContent = t.enabled ? "ACTIVE" : "BYPASS";
-    modeToken.textContent = `MODE ${GENERATOR_MODES.find((mode) => mode.value === t.mode)?.label ?? "GEN"}`;
+    modeToken.textContent = `MODE ${GENERATOR_MODE_LABELS[t.mode]?.full ?? "GEN"}`;
     display.sync(t);
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }
