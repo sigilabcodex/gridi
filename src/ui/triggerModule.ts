@@ -110,7 +110,7 @@ export function renderTriggerSurface(
 
   const generatorLabel = document.createElement("span");
   generatorLabel.className = "triggerMetaChipLabel";
-  generatorLabel.textContent = "GEN MODE";
+  generatorLabel.textContent = "MODE";
 
   const generatorSelect = document.createElement("select");
   generatorSelect.className = "triggerModeSelect";
@@ -146,16 +146,52 @@ export function renderTriggerSurface(
   seedInput.step = "1";
   seedInput.inputMode = "numeric";
   seedInput.setAttribute("aria-label", `${t.name} seed value`);
-  seedInput.addEventListener("change", () => {
-    const nextSeed = Number(seedInput.value);
-    if (!Number.isFinite(nextSeed)) return;
+  let seedDraft: string | null = null;
+
+  const parseSeedDraft = () => {
+    const raw = (seedDraft ?? seedInput.value).replace(/[^\d]/g, "");
+    if (!raw.length) return null;
+    const nextSeed = Number(raw);
+    if (!Number.isFinite(nextSeed)) return null;
+    return Math.max(0, Math.min(999_999, Math.round(nextSeed)));
+  };
+
+  const commitSeed = () => {
+    const nextSeed = parseSeedDraft();
+    if (nextSeed == null) {
+      seedInput.value = String(t.seed).padStart(6, "0");
+      seedDraft = null;
+      return;
+    }
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
-      if (m?.type === "trigger") m.seed = Math.max(0, Math.min(999_999, Math.round(nextSeed)));
+      if (m?.type === "trigger") m.seed = nextSeed;
     }, { regen: true });
+    seedDraft = null;
+  };
+
+  seedInput.addEventListener("focus", () => {
+    seedDraft = seedInput.value;
+  });
+  seedInput.addEventListener("input", () => {
+    seedInput.value = seedInput.value.replace(/[^\d]/g, "");
+    seedDraft = seedInput.value;
+  });
+  seedInput.addEventListener("blur", () => {
+    commitSeed();
   });
   seedInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") seedInput.blur();
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitSeed();
+      seedInput.blur();
+      return;
+    }
+    if (event.key === "Escape") {
+      seedDraft = null;
+      seedInput.value = String(t.seed).padStart(6, "0");
+      seedInput.blur();
+    }
   });
   attachTooltip?.(seedInput, {
     text: "Edit the deterministic seed value for this generator.",
@@ -180,6 +216,10 @@ export function renderTriggerSurface(
   seedLabel.textContent = "SEED";
 
   seedGroup.append(seedLabel, seedInput, randomizeSeed);
+  seedGroup.addEventListener("click", (event) => {
+    if (event.target === randomizeSeed) return;
+    seedInput.focus();
+  });
 
   const routingChip = document.createElement("button");
   routingChip.className = "triggerMetaChip triggerMetaChip--routing";
@@ -396,7 +436,7 @@ export function renderTriggerSurface(
 
   function syncTriggerFace() {
     generatorSelect.value = t.mode;
-    seedInput.value = String(t.seed).padStart(6, "0");
+    if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
     stateToken.textContent = t.enabled ? "ACTIVE" : "BYPASS";
     modeToken.textContent = `MODE ${GENERATOR_MODES.find((mode) => mode.value === t.mode)?.label ?? "GEN"}`;
