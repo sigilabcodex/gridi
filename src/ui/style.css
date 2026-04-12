@@ -3243,7 +3243,7 @@ button:focus-visible,
 }
 
 .drumMainLayout {
-  gap: 10px;
+  gap: 8px;
 }
 
 .faceplateSection {
@@ -3391,6 +3391,10 @@ button:focus-visible,
 
 .drumMainPrimaryGrid {
   gap: 8px;
+}
+
+.drumMainLayout > .drumMainSecondaryGrid {
+  margin-top: 3px;
 }
 
 .drumMainSecondaryGrid {
@@ -3661,9 +3665,9 @@ button:focus-visible,
 }
 
 .drumSurface--withStatus {
-  --module-header-h: 42px;
+  --module-header-h: 36px;
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 14px;
-  row-gap: 2px;
+  row-gap: 1px;
 }
 
 .drumSurface--withStatus .surfaceTabPanel {
@@ -3702,8 +3706,24 @@ button:focus-visible,
 
 .drumSurface .compactSelectField select,
 .drumSurface .compactSelectInput {
+  color-scheme: dark;
+  color: rgba(222, 236, 248, 0.94);
   background: rgba(8, 13, 20, 0.92);
   border-color: rgba(101, 132, 155, 0.52);
+}
+
+.drumSurface .compactSelectField select option,
+.drumSurface .compactSelectInput option {
+  color: rgba(222, 236, 248, 0.94);
+  background: rgba(10, 17, 26, 0.98);
+}
+
+.drumSurface .compactSelectField select option:checked,
+.drumSurface .compactSelectInput option:checked,
+.drumSurface .compactSelectField select option:hover,
+.drumSurface .compactSelectInput option:hover {
+  color: rgba(236, 246, 255, 0.98);
+  background: rgba(44, 94, 138, 0.72);
 }
 
 .triggerPrimaryRack {
