@@ -175,7 +175,7 @@ function createDrumFeatureZone(d: DrumModule) {
   });
 
   const accentValue = document.createElement("div");
-  accentValue.className = "drumFeatureSideValue";
+  accentValue.className = "drumFeatureSideValue drumFeatureSideValue--bias";
 
   side.append(routeValue.wrap, accentValue);
   stage.append(svg, side);
