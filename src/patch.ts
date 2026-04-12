@@ -231,7 +231,7 @@ function defaultSequencer(i: number): SequencerParams {
   };
 }
 
-export function makeTrigger(i = 0, name = `Trigger ${i + 1}`): TriggerModule {
+export function makeTrigger(i = 0, name = `Generator ${i + 1}`): TriggerModule {
   return {
     id: uid("trg"),
     type: "trigger",
@@ -550,7 +550,7 @@ export function migratePatch(patch: Patch): Patch {
         id: uid("trg"),
         type: "trigger",
         engine: "trigger",
-        name: `Trigger ${i + 1}`,
+        name: `Generator ${i + 1}`,
         presetName: "Sparse Euclid",
         enabled: legacy.enabled !== false,
         x: 0,

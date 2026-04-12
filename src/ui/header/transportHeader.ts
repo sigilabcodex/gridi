@@ -370,7 +370,7 @@ export function createTransportHeader(params: HeaderParams) {
   const btnReset = makeUtilityBtn("Reset patch", params.onReset, "Reset the current patch back to the default layout.", "Reset patch");
   const btnRandom = makeUtilityBtn("Randomize all", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
   const btnRegen = makeUtilityBtn("Regen", params.onRegen, "Regenerate pattern outputs without rebuilding the patch.", "Regenerate patterns");
-  const btnReseed = makeUtilityBtn("Reseed all", params.onReseed, "Give all trigger modules fresh random seeds.", "Reseed triggers");
+  const btnReseed = makeUtilityBtn("Reseed all", params.onReseed, "Give all generator modules fresh random seeds.", "Reseed generators");
 
   const makePlaceholderBtn = (label: string) => {
     const btn = document.createElement("button");
