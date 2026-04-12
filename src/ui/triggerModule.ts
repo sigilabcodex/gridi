@@ -13,6 +13,7 @@ import {
   createRoutingChip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import type { TooltipBinder } from "./tooltip";
 
 const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
@@ -48,14 +49,16 @@ export function renderTriggerSurface(
   });
 
   const identity = createModuleIdentityMeta({
-    badgeText: "TRIGGER",
+    badgeText: "TRG",
     instanceName: t.name,
     instanceId: t.id.slice(-6).toUpperCase(),
     presetButton: presetControl.button,
   });
+  identity.querySelector(".surfaceBadge")?.classList.add("surfaceBadge--triggerFamily");
 
   const right = document.createElement("div");
   right.className = "rightControls";
+
   const toggle = document.createElement("button");
   const syncToggle = () => {
     toggle.textContent = t.enabled ? "On" : "Off";
@@ -82,32 +85,21 @@ export function renderTriggerSurface(
   right.append(toggle, btnX);
   header.append(identity, right);
 
-  const outgoingVoices = routing.triggerTargets.get(t.id) ?? [];
-  const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
-
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("triggerPrimary");
 
-  const pulseRail = createFaceplateSection("feature", "triggerPulseRail");
-  pulseRail.classList.add("surfaceMainFeature");
+  let selectTab: (tab: "MAIN" | "ROUTING" | "SETTINGS") => void = () => {};
 
-  const machineRow = document.createElement("div");
-  machineRow.className = "triggerMachineRow";
+  const metaRow = createFaceplateSection("io", "triggerMetaRow");
 
-  const generatorReadout = document.createElement("button");
-  generatorReadout.className = "triggerGeneratorReadout";
-  generatorReadout.type = "button";
-  const generatorLabel = document.createElement("div");
-  generatorLabel.className = "triggerReadoutLabel";
-  generatorLabel.textContent = "gen";
-  const generatorValue = document.createElement("div");
-  generatorValue.className = "triggerReadoutValue";
-  generatorReadout.append(generatorLabel, generatorValue);
-  attachTooltip?.(generatorReadout, {
+  const generatorChip = document.createElement("button");
+  generatorChip.className = "triggerMetaChip triggerMetaChip--gen";
+  generatorChip.type = "button";
+  attachTooltip?.(generatorChip, {
     text: "Cycle the trigger generator mode.",
     ariaLabel: `${t.name} generator mode`,
   });
-  generatorReadout.onclick = () => {
+  generatorChip.onclick = () => {
     const idx = MODES.findIndex((mode) => mode === t.mode);
     const nextMode = MODES[(idx + 1) % MODES.length];
     onPatchChange((p) => {
@@ -116,40 +108,65 @@ export function renderTriggerSurface(
     }, { regen: true });
   };
 
-  const seedReadout = document.createElement("button");
-  seedReadout.className = "triggerSeedReadout";
-  seedReadout.type = "button";
-  const seedLabel = document.createElement("div");
-  seedLabel.className = "triggerReadoutLabel";
-  seedLabel.textContent = "seed";
-  const seedValue = document.createElement("div");
-  seedValue.className = "triggerReadoutValue";
-  const seedHint = document.createElement("div");
-  seedHint.className = "triggerReadoutHint";
-  seedHint.textContent = "tap = new";
-  seedReadout.append(seedLabel, seedValue, seedHint);
-  attachTooltip?.(seedReadout, {
-    text: "Generate a fresh seed for this pattern.",
-    ariaLabel: `${t.name} pattern seed`,
+  const seedGroup = document.createElement("div");
+  seedGroup.className = "triggerSeedGroup";
+
+  const seedInput = document.createElement("input");
+  seedInput.className = "triggerSeedInput";
+  seedInput.type = "number";
+  seedInput.min = "0";
+  seedInput.max = "999999";
+  seedInput.step = "1";
+  seedInput.inputMode = "numeric";
+  seedInput.setAttribute("aria-label", `${t.name} seed value`);
+  seedInput.addEventListener("change", () => {
+    const nextSeed = Number(seedInput.value);
+    if (!Number.isFinite(nextSeed)) return;
+    onPatchChange((p) => {
+      const m = p.modules.find((x) => x.id === t.id);
+      if (m?.type === "trigger") m.seed = Math.max(0, Math.min(999_999, Math.round(nextSeed)));
+    }, { regen: true });
   });
-  seedReadout.onclick = () => onPatchChange((p) => {
+  seedInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") seedInput.blur();
+  });
+  attachTooltip?.(seedInput, {
+    text: "Edit the deterministic seed value for this generator.",
+    ariaLabel: `${t.name} seed value`,
+  });
+
+  const randomizeSeed = document.createElement("button");
+  randomizeSeed.type = "button";
+  randomizeSeed.className = "triggerSeedRandomize";
+  randomizeSeed.textContent = "↻";
+  attachTooltip?.(randomizeSeed, {
+    text: "Generate a fresh seed value.",
+    ariaLabel: `${t.name} randomize seed`,
+  });
+  randomizeSeed.onclick = () => onPatchChange((p) => {
     const m = p.modules.find((x) => x.id === t.id);
     if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
   }, { regen: true });
 
-  const patternStage = document.createElement("div");
-  patternStage.className = "triggerPatternStage";
-  const stepGrid = document.createElement("div");
-  stepGrid.className = "triggerStepGrid";
-  patternStage.appendChild(stepGrid);
+  seedGroup.append(seedInput, randomizeSeed);
 
-  const transportReadout = document.createElement("div");
-  transportReadout.className = "triggerTransportReadout small";
+  const routingChip = document.createElement("button");
+  routingChip.className = "triggerMetaChip triggerMetaChip--routing";
+  routingChip.type = "button";
+  routingChip.onclick = () => selectTab("ROUTING");
+  attachTooltip?.(routingChip, {
+    text: "Open trigger routing controls.",
+    ariaLabel: `${t.name} routing`,
+  });
 
-  machineRow.append(generatorReadout, seedReadout);
-  pulseRail.append(machineRow, patternStage);
+  metaRow.append(generatorChip, seedGroup, routingChip);
 
-  const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryRack");
+  const display = createTriggerDisplaySurface({
+    module: t,
+    getStepPattern: () => patternPreviewText(),
+  });
+
+  const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryControls");
   mainControlRack.append(
     ctlFloat({
       label: "Dense",
@@ -172,12 +189,39 @@ export function renderTriggerSurface(
       attachTooltip,
       onChange: (x) => setParam("length", x),
     }),
+    ctlFloat({
+      label: "Div",
+      value: t.subdiv,
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Change the timing division for this trigger lane.",
+      attachTooltip,
+      onChange: (x) => setParam("subdiv", x),
+    }),
+    ctlFloat({
+      label: "Weird",
+      value: t.weird,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Add more surprising variations to the pattern.",
+      attachTooltip,
+      onChange: (x) => setParam("weird", x),
+    }),
   );
+
+  const transportReadout = document.createElement("div");
+  transportReadout.className = "triggerTransportReadout small";
 
   const mainBottom = createFaceplateSection("bottom", "triggerMainBottom");
   mainBottom.appendChild(transportReadout);
 
-  panelMain.append(pulseRail, mainControlRack, createFaceplateSpacer(), mainBottom);
+  panelMain.append(metaRow, display.wrap, mainControlRack, createFaceplateSpacer(), mainBottom);
+
+  const outgoingVoices = routing.triggerTargets.get(t.id) ?? [];
+  const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
 
@@ -226,17 +270,6 @@ export function renderTriggerSurface(
   const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   settingsGrid.append(
     ctlFloat({
-      label: "Div",
-      value: t.subdiv,
-      min: 1,
-      max: 8,
-      step: 1,
-      integer: true,
-      tooltip: "Change the timing division for this trigger lane.",
-      attachTooltip,
-      onChange: (x) => setParam("subdiv", x),
-    }),
-    ctlFloat({
       label: "Drop",
       value: t.drop,
       min: 0,
@@ -257,14 +290,14 @@ export function renderTriggerSurface(
       onChange: (x) => setParam("determinism", x),
     }),
     ctlFloat({
-      label: "Weird",
-      value: t.weird,
+      label: "Grav",
+      value: t.gravity,
       min: 0,
       max: 1,
       step: 0.001,
-      tooltip: "Add more surprising variations to the pattern.",
+      tooltip: "Pull generated hits toward denser clusters.",
       attachTooltip,
-      onChange: (x) => setParam("weird", x),
+      onChange: (x) => setParam("gravity", x),
     }),
     ctlFloat({
       label: "Rotate",
@@ -298,16 +331,6 @@ export function renderTriggerSurface(
       attachTooltip,
       onChange: (x) => setParam("caInit", x),
     }),
-    ctlFloat({
-      label: "Grav",
-      value: t.gravity,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Pull generated hits toward denser clusters.",
-      attachTooltip,
-      onChange: (x) => setParam("gravity", x),
-    }),
   );
   panelSettings.append(settingsGrid);
 
@@ -315,31 +338,25 @@ export function renderTriggerSurface(
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: "MAIN",
   });
+  selectTab = shell.setTab;
 
   surface.append(header, shell.face, shell.tabs);
   root.appendChild(surface);
-  syncPatternRail();
+  syncTriggerFace();
 
   function patternPreviewText() {
     return getPatternPreview(t, `${t.id}:preview`, 64);
   }
 
-  function syncPatternRail() {
-    generatorValue.textContent = t.mode.toUpperCase();
-    seedValue.textContent = String(t.seed).padStart(6, "0");
-
-    const compact = patternPreviewText().replace(/\s+/g, "").slice(0, 32);
-    stepGrid.textContent = "";
-    for (let i = 0; i < 32; i++) {
-      const cell = document.createElement("span");
-      const c = compact[i] ?? ".";
-      cell.className = `triggerStepCell ${c !== "." ? "on" : "off"}`;
-      stepGrid.appendChild(cell);
-    }
+  function syncTriggerFace() {
+    generatorChip.textContent = `GEN ${t.mode.toUpperCase()} ▾`;
+    seedInput.value = String(t.seed).padStart(6, "0");
+    routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
+    display.sync(t);
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }
 
@@ -352,7 +369,7 @@ export function renderTriggerSurface(
 
   return () => {
     syncToggle();
-    syncPatternRail();
+    syncTriggerFace();
   };
 }
 
