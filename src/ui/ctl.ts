@@ -29,6 +29,10 @@ export type CtlFloatOpts = {
   };
 };
 
+export type CtlFloatElement = HTMLElement & {
+  syncValue?: (x: number) => void;
+};
+
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 
 function defaultFormat(x: number, step: number) {
@@ -37,7 +41,7 @@ function defaultFormat(x: number, step: number) {
   return x.toFixed(3);
 }
 
-export function ctlFloat(o: CtlFloatOpts): HTMLElement {
+export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
   const doClamp = o.clamp ?? true;
 
   const normalize = (x: number) => {
@@ -232,7 +236,9 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
     }
     syncControlVisual = (x) => k.setValue(x, false);
     valueBtn = k.valueEl;
-    return k.el;
+    const knobWrap = k.el as CtlFloatElement;
+    knobWrap.syncValue = (x: number) => applyValue(x, { emit: false, syncControl: true });
+    return knobWrap;
   }
 
   const wrap = document.createElement("div");
@@ -276,5 +282,7 @@ export function ctlFloat(o: CtlFloatOpts): HTMLElement {
   });
 
   wrap.append(lab, r, valueBtn);
-  return wrap;
+  const sliderWrap = wrap as CtlFloatElement;
+  sliderWrap.syncValue = (x: number) => applyValue(x, { emit: false, syncControl: true });
+  return sliderWrap;
 }
