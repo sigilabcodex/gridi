@@ -168,22 +168,14 @@ function createDrumFeatureZone(d: DrumModule) {
   const routeValue = document.createElement("div");
   routeValue.className = "drumFeatureSideValue drumFeatureSideRoute";
 
-  const focusValue = document.createElement("div");
-  focusValue.className = "drumFeatureSideValue";
-
   const accentValue = document.createElement("div");
   accentValue.className = "drumFeatureSideValue";
 
-  side.append(routeValue, focusValue, accentValue);
+  side.append(routeValue, accentValue);
   stage.append(svg, side);
   feature.append(head, stage);
 
   const toneBiasLabel = (tone: number) => tone <= 0.33 ? "Warm" : tone >= 0.67 ? "Bright" : "Balanced";
-  const boostFocusLabel = (boostTarget: DrumModule["boostTarget"]) => {
-    if (boostTarget === "attack") return "High Punch";
-    if (boostTarget === "air") return "High Air";
-    return "Low Body";
-  };
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -200,7 +192,14 @@ function createDrumFeatureZone(d: DrumModule) {
       "d",
       `M 8 48 C ${attackX.toFixed(2)} ${peakY.toFixed(2)}, ${bodyX.toFixed(2)} ${bodyY.toFixed(2)}, ${(48 + state.snap * 10) * timeScale} ${28 - state.boost * 8 - pitchNorm * 1.5} S ${kneeX.toFixed(2)} ${tailLift.toFixed(2)}, 148 48`,
     );
-    curve.setAttribute("style", `stroke-width:${2 + state.boost * 1.15 + pitchNorm * 0.35}`);
+    const pitchStrokeR = Math.round(74 + pitchNorm * 30);
+    const pitchStrokeG = Math.round(163 + pitchNorm * 25);
+    const pitchStrokeB = Math.round(255 - pitchNorm * 22);
+    const pitchGlow = (0.08 + pitchNorm * 0.22).toFixed(2);
+    curve.setAttribute(
+      "style",
+      `stroke-width:${2 + state.boost * 1.15 + pitchNorm * 0.7};stroke:rgba(${pitchStrokeR}, ${pitchStrokeG}, ${pitchStrokeB}, 0.92);filter:drop-shadow(0 0 ${pitchGlow}rem rgba(${pitchStrokeR}, ${pitchStrokeG}, ${pitchStrokeB}, 0.45));`,
+    );
     compContour.setAttribute(
       "d",
       `M 8 48 C ${(18 - state.snap * 5) * timeScale} ${24 - state.snap * 9 - pitchNorm * 1.6}, ${(44 + state.comp * 8) * timeScale} ${24 - state.comp * 10}, ${(72 + state.decay * 34) * timeScale} ${30 - state.comp * 5} S ${(126 + state.decay * 10) * timeScale} ${34 + state.comp * 5}, 148 48`,
@@ -219,7 +218,6 @@ function createDrumFeatureZone(d: DrumModule) {
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
     noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
     routeValue.textContent = state.triggerSource ? `TRG ${state.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
-    focusValue.textContent = `FOCUS ${boostFocusLabel(state.boostTarget).toUpperCase()}`;
     accentValue.textContent = `BIAS ${toneBiasLabel(state.tone).toUpperCase()}`;
   };
 
@@ -506,7 +504,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   drumSettingsGrid.append(panCtl);
   const boostTargetField = createCompactSelectField({
-    label: "Boost focus",
+    label: "Focus",
     options: [
       { value: "body", label: "Low body" },
       { value: "attack", label: "High punch" },

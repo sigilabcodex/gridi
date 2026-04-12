@@ -3243,7 +3243,7 @@ button:focus-visible,
 }
 
 .drumMainLayout {
-  gap: 7px;
+  gap: 10px;
 }
 
 .faceplateSection {
@@ -3406,7 +3406,7 @@ button:focus-visible,
   border: 1px solid rgba(74, 163, 255, 0.35);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
-  padding: 5px 8px 6px;
+  padding: 4px 7px 5px;
   min-height: 92px;
 }
 
@@ -3432,7 +3432,7 @@ button:focus-visible,
 .drumEnvelopeStage {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 88px;
-  gap: 6px;
+  gap: 7px;
   align-items: stretch;
   min-height: 0;
 }
@@ -3447,7 +3447,7 @@ button:focus-visible,
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   align-content: start;
 }
 
@@ -3458,7 +3458,7 @@ button:focus-visible,
 }
 
 .drumFeatureSideValue {
-  min-height: 19px;
+  min-height: 18px;
   padding: 2px 6px 1px;
   border-radius: 7px;
   border: 1px solid rgba(125, 173, 208, 0.3);
@@ -3521,11 +3521,13 @@ button:focus-visible,
 
 .drumInfoBar {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
-  min-height: 13px;
-  height: 13px;
+  min-height: 15px;
+  height: 15px;
   padding: 0 3px;
+  margin-top: 0;
   border-radius: 0;
   border-top: 1px solid rgba(119, 154, 180, 0.2);
   border-left: 0;
@@ -3586,12 +3588,15 @@ button:focus-visible,
 
 .drumSurface .knobCtl {
   width: 64px;
-  gap: 1px;
+  gap: 3px;
+  padding-top: 1px;
 }
 
 .drumSurface .ctlLabel {
   font-size: 10px;
   letter-spacing: 0.2px;
+  line-height: 1;
+  min-height: 10px;
 }
 
 .drumSurface .knob {
@@ -3607,6 +3612,7 @@ button:focus-visible,
 .drumSurface .knobVal {
   font-size: 9px;
   line-height: 1;
+  margin-top: 1px;
   padding-top: 0;
 }
 
@@ -3624,17 +3630,22 @@ button:focus-visible,
 }
 
 .drumSurface--withStatus {
-  --module-header-h: 46px;
+  --module-header-h: 42px;
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 14px;
+  row-gap: 4px;
 }
 
 .drumSurface--withStatus .surfaceTabPanel {
-  padding-top: 2px;
+  padding-top: 0;
 }
 
 .drumSurface--withStatus .surfaceSettingsPanel,
 .drumSurface--withStatus .utilityPanel--voiceRouting {
   padding-top: 1px;
+}
+
+.transportSubtitle {
+  white-space: pre-line;
 }
 
 .drumSurface .routingCard {
