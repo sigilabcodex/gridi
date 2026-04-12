@@ -4169,37 +4169,38 @@ button:focus-visible,
 }
 
 .triggerPrimaryControls {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .triggerSurface .knobCtl {
-  width: 64px;
-  gap: 2px;
+  width: 52px;
+  gap: 1px;
   padding-top: 0;
 }
 
 .triggerSurface .ctlLabel {
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.2px;
   line-height: 1;
   min-height: 10px;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 
 .triggerSurface .knob {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
 }
 
 .triggerSurface .knob svg {
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
 }
 
 .triggerSurface .knobVal {
-  font-size: 9px;
+  font-size: 8px;
   line-height: 1;
-  margin-top: -1px;
+  margin-top: 0;
   padding-top: 0;
 }
 
