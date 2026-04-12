@@ -1,5 +1,5 @@
 import type { Patch } from "../../patch";
-import { APP_DISPLAY_NAME } from "../../version";
+import { APP_NAME, APP_SUBTITLE, getVersionTooltipText } from "../../version";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
@@ -108,11 +108,19 @@ export function createTransportHeader(params: HeaderParams) {
   titleWrap.className = "transportTitle";
 
   const h1 = document.createElement("h1");
-  h1.textContent = APP_DISPLAY_NAME;
+  h1.textContent = APP_NAME;
 
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
-  subtitle.textContent = "Modular workspace";
+  subtitle.textContent = APP_SUBTITLE;
+
+  titleWrap.tabIndex = 0;
+  params.attachTooltip(titleWrap, {
+    text: getVersionTooltipText(),
+    ariaLabel: `${APP_NAME} version details`,
+    preferredSide: "bottom",
+    align: "start",
+  });
 
   const mobileToggle = document.createElement("button");
   mobileToggle.className = "transportMobileToggle";

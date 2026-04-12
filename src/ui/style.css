@@ -2319,6 +2319,15 @@ button:focus-visible,
   transition: opacity 120ms ease, transform 120ms ease;
 }
 
+
+.settingsBuildInfo {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(207, 214, 221, 0.16);
+  border-radius: 10px;
+  background: rgba(10, 15, 22, 0.42);
+  line-height: 1.35;
+}
 .appTooltip.hidden {
   opacity: 0;
   transform: translateY(2px);
@@ -2689,12 +2698,15 @@ button:focus-visible,
 
   .transportTitle h1 {
     margin: 0;
-    font-size: 14px;
-    letter-spacing: 0.45px;
+    font-size: 18px;
+    letter-spacing: 0.8px;
   }
 
   .transportSubtitle {
-    display: none;
+    display: block;
+    font-size: 9px;
+    line-height: 1.2;
+    max-width: min(52vw, 280px);
   }
 
   .transportMain {
@@ -2813,13 +2825,18 @@ button:focus-visible,
 
 .transportTitle h1 {
   margin: 0;
-  font-size: 14px;
-  letter-spacing: 0.7px;
+  font-size: clamp(20px, 2.2vw, 26px);
+  line-height: 1.05;
+  letter-spacing: 1.1px;
+  font-weight: 700;
 }
 
 .transportSubtitle {
   font-size: 10px;
-  letter-spacing: 0.7px;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+  text-transform: none;
+  opacity: 0.68;
 }
 
 .transportMain { min-width: 0; overflow: visible; }

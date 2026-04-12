@@ -1,3 +1,4 @@
+import { APP_NAME, APP_SUBTITLE, getVersionDetails } from "../../version";
 import { settingsSchema } from "../../settings/schema";
 import { saveSettings } from "../../settings/store";
 import type { AppSettings } from "../../settings/types";
@@ -36,6 +37,18 @@ export function openSettingsModal(params: SettingsModalParams) {
   settingsIntro.textContent =
     "Tip: Audio can only start after a tap/click in this tab. Shortcuts: Space = Play/Stop, Ctrl/Cmd+S = Save preset, Ctrl/Cmd+Z = Undo, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y = Redo.";
   body.appendChild(settingsIntro);
+
+  const versionDetails = getVersionDetails();
+  const about = el("section", "settingsSection");
+  const aboutHead = el("div", "settingsSectionHead");
+  aboutHead.append(
+    el("div", "small settingsSectionTitle", "About"),
+    el("div", "small settingsSectionMeta", APP_NAME),
+  );
+  const aboutBody = el("div", "small settingsBuildInfo");
+  aboutBody.textContent = `${APP_SUBTITLE} • Version ${versionDetails.version} • Build ${versionDetails.build} • Branch ${versionDetails.branch}`;
+  about.append(aboutHead, aboutBody);
+  body.appendChild(about);
 
   const grouped = new Map<string, typeof settingsSchema>();
   for (const def of settingsSchema) {
