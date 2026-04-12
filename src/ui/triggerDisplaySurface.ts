@@ -10,6 +10,18 @@ type TriggerDisplayApi = {
   sync: (module: TriggerModule) => void;
 };
 
+type StepGridState = {
+  basePattern: Uint8Array;
+  overlayPattern: Int8Array;
+  finalPattern: Uint8Array;
+  pointerActive: boolean;
+  pointerMode: "paint" | "erase";
+  lastSeed: number;
+  stepCount: number;
+  cols: number;
+  rows: number;
+};
+
 type DisplayRenderer = (canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams) => void;
 
 const MODE_LABELS: Record<Mode, string> = {
@@ -27,9 +39,6 @@ const MODE_LABELS: Record<Mode, string> = {
 };
 
 const DISPLAY_RENDERERS: Partial<Record<Mode, DisplayRenderer>> = {
-  "step-sequencer": (canvas, module, params) => {
-    canvas.appendChild(renderStepFamilyGrid(module, params.getStepPattern()));
-  },
   euclidean: (canvas, module) => {
     canvas.appendChild(renderEuclideanRing(module));
   },
@@ -42,7 +51,7 @@ const DISPLAY_RENDERERS: Partial<Record<Mode, DisplayRenderer>> = {
   hybrid: (canvas, module, params) => {
     const host = document.createElement("div");
     host.className = "triggerDisplayHybrid";
-    host.append(renderStepFamilyGrid(module, params.getStepPattern()), renderEuclideanRing(module));
+    host.append(renderStepPreviewGrid(module, params.getStepPattern()), renderEuclideanRing(module));
     canvas.appendChild(host);
   },
 };
@@ -58,19 +67,35 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   canvas.className = "triggerDisplayCanvas";
 
   wrap.append(modeCaption, canvas);
+  const stepGridState: StepGridState = {
+    basePattern: new Uint8Array(0),
+    overlayPattern: new Int8Array(0),
+    finalPattern: new Uint8Array(0),
+    pointerActive: false,
+    pointerMode: "paint",
+    lastSeed: params.module.seed,
+    stepCount: 0,
+    cols: 16,
+    rows: 2,
+  };
 
   const sync = (module: TriggerModule) => {
     modeCaption.textContent = `${MODE_LABELS[module.mode]} Display Surface`;
-    renderMode(canvas, module, params);
+    renderMode(canvas, module, params, stepGridState);
   };
 
   sync(params.module);
   return { wrap, sync };
 }
 
-function renderMode(canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams) {
+function renderMode(canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams, stepGridState: StepGridState) {
   canvas.textContent = "";
   canvas.dataset.mode = module.mode;
+
+  if (module.mode === "step-sequencer") {
+    renderStepRenderer(canvas, module, params, stepGridState);
+    return;
+  }
 
   const renderer = DISPLAY_RENDERERS[module.mode];
   if (renderer) {
@@ -95,28 +120,144 @@ function renderModePlaceholder(mode: Mode) {
   return placeholder;
 }
 
-function renderStepFamilyGrid(module: TriggerModule, patternPreview: string) {
+function renderStepRenderer(canvas: HTMLElement, module: TriggerModule, params: TriggerDisplayParams, state: StepGridState) {
+  const layout = resolveStepGridLayout(module.length, module.subdiv);
+  const stepCount = layout.cols * layout.rows;
+  const basePattern = parsePatternPreview(params.getStepPattern(), stepCount);
+
+  if (state.lastSeed !== module.seed || state.stepCount !== stepCount) {
+    state.overlayPattern = new Int8Array(stepCount);
+  } else if (state.overlayPattern.length !== stepCount) {
+    const nextOverlay = new Int8Array(stepCount);
+    nextOverlay.set(state.overlayPattern.subarray(0, Math.min(stepCount, state.overlayPattern.length)));
+    state.overlayPattern = nextOverlay;
+  }
+
+  state.lastSeed = module.seed;
+  state.basePattern = basePattern;
+  state.stepCount = stepCount;
+  state.cols = layout.cols;
+  state.rows = layout.rows;
+  state.finalPattern = mergePattern(basePattern, state.overlayPattern);
+
+  canvas.appendChild(renderInteractiveStepGrid(module, state));
+}
+
+function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState) {
   const grid = document.createElement("div");
   grid.className = "triggerDisplayStepGrid";
+  grid.setAttribute("role", "grid");
+  grid.setAttribute("aria-label", `${module.name} step overlay editor`);
+  grid.style.setProperty("--trigger-display-cols", String(state.cols));
 
-  const cols = clamp(module.length, 8, 32);
-  const rows = clamp(module.subdiv + 1, 2, 8);
-  grid.style.setProperty("--trigger-display-cols", String(cols));
-
-  const compact = patternPreview.replace(/\s+/g, "");
-  const count = cols * rows;
-
-  for (let i = 0; i < count; i++) {
+  for (let i = 0; i < state.stepCount; i++) {
     const cell = document.createElement("span");
-    const stepIndex = i % cols;
-    const char = compact[stepIndex] ?? ".";
-    const active = char !== ".";
-    cell.className = `triggerDisplayCell ${active ? "on" : "off"}`;
-    if (active && i >= cols) cell.classList.add("echo");
+    cell.className = "triggerDisplayCell";
+    cell.dataset.index = String(i);
+    cell.setAttribute("role", "gridcell");
+    paintCell(cell, state, i);
+    cell.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      const erase = event.button === 2;
+      state.pointerActive = true;
+      state.pointerMode = erase ? "erase" : "paint";
+      if (erase) writeOverlay(state, i, 0);
+      else toggleOverlay(state, i);
+      paintCell(cell, state, i);
+    });
+    cell.addEventListener("pointerenter", (event) => {
+      if (!state.pointerActive) return;
+      if (!(event.buttons & 1) && !(event.buttons & 2)) {
+        state.pointerActive = false;
+        return;
+      }
+      writeOverlay(state, i, state.pointerMode === "paint" ? 1 : 0);
+      paintCell(cell, state, i);
+    });
     grid.appendChild(cell);
   }
 
+  grid.addEventListener("contextmenu", (event) => event.preventDefault());
+  const endPointer = () => {
+    state.pointerActive = false;
+  };
+  grid.addEventListener("pointerup", endPointer);
+  grid.addEventListener("pointerleave", (event) => {
+    if (!(event.buttons & 1) && !(event.buttons & 2)) endPointer();
+  });
+
   return grid;
+}
+
+function renderStepPreviewGrid(module: TriggerModule, patternPreview: string) {
+  const layout = resolveStepGridLayout(module.length, module.subdiv);
+  const steps = layout.cols * layout.rows;
+  const basePattern = parsePatternPreview(patternPreview, steps);
+  const grid = document.createElement("div");
+  grid.className = "triggerDisplayStepGrid";
+  grid.style.setProperty("--trigger-display-cols", String(layout.cols));
+  for (let i = 0; i < steps; i++) {
+    const cell = document.createElement("span");
+    cell.className = `triggerDisplayCell ${basePattern[i] === 1 ? "on" : "off"}`;
+    if (basePattern[i] === 1 && i >= layout.cols) cell.classList.add("echo");
+    grid.appendChild(cell);
+  }
+  return grid;
+}
+
+function paintCell(cell: HTMLElement, state: StepGridState, stepIndex: number) {
+  const baseOn = state.basePattern[stepIndex] === 1;
+  const finalOn = state.finalPattern[stepIndex] === 1;
+  const overlay = state.overlayPattern[stepIndex];
+  cell.classList.toggle("base-on", baseOn);
+  cell.classList.toggle("on", finalOn);
+  cell.classList.toggle("overlay-on", overlay === 1);
+  cell.classList.toggle("overlay-off", overlay === -1);
+}
+
+function parsePatternPreview(patternPreview: string, steps: number) {
+  const out = new Uint8Array(steps);
+  const compact = patternPreview.replace(/\s+/g, "");
+  for (let i = 0; i < steps; i++) {
+    const char = compact[i] ?? ".";
+    out[i] = char === "·" || char === "." ? 0 : 1;
+  }
+  return out;
+}
+
+function mergePattern(basePattern: Uint8Array, overlayPattern: Int8Array) {
+  const out = new Uint8Array(basePattern.length);
+  for (let i = 0; i < basePattern.length; i++) {
+    const overlay = overlayPattern[i] ?? 0;
+    out[i] = overlay === 0 ? basePattern[i] : overlay === 1 ? 1 : 0;
+  }
+  return out;
+}
+
+function toggleOverlay(state: StepGridState, index: number) {
+  const base = state.basePattern[index] ?? 0;
+  const currentOverlay = state.overlayPattern[index] ?? 0;
+  if (currentOverlay !== 0) writeOverlay(state, index, 0);
+  else writeOverlay(state, index, base ? 0 : 1);
+}
+
+function writeOverlay(state: StepGridState, index: number, nextFinalValue: 0 | 1) {
+  const base = state.basePattern[index] ?? 0;
+  state.overlayPattern[index] = nextFinalValue === base ? 0 : nextFinalValue ? 1 : -1;
+  state.finalPattern = mergePattern(state.basePattern, state.overlayPattern);
+}
+
+function resolveStepGridLayout(length: number, subdiv: number) {
+  const clampedLength = clamp(Math.round(length), 1, 128);
+  let rows = clamp(Math.round(subdiv), 1, 8);
+  let cols = Math.ceil(clampedLength / rows);
+  while (cols > 32 && rows < 8) {
+    rows += 1;
+    cols = Math.ceil(clampedLength / rows);
+  }
+  cols = clamp(cols, 1, 32);
+  rows = Math.ceil(clampedLength / cols);
+  return { cols, rows };
 }
 
 function renderEuclideanRing(module: TriggerModule) {

@@ -4067,15 +4067,37 @@ button:focus-visible,
   align-content: start;
 }
 
+.triggerDisplayStepGrid {
+  user-select: none;
+}
+
 .triggerDisplayCell {
   height: 8px;
   border-radius: 3px;
   background: rgba(198, 127, 255, 0.13);
+  border: 1px solid transparent;
+  cursor: crosshair;
 }
 
 .triggerDisplayCell.on {
   background: rgba(220, 176, 250, 0.88);
   box-shadow: 0 0 8px rgba(198, 127, 255, 0.33);
+}
+
+.triggerDisplayCell.base-on {
+  background: rgba(196, 153, 227, 0.48);
+}
+
+.triggerDisplayCell.overlay-on {
+  border-color: rgba(157, 251, 210, 0.9);
+  background: rgba(128, 252, 199, 0.82);
+  box-shadow: 0 0 10px rgba(128, 252, 199, 0.52);
+}
+
+.triggerDisplayCell.overlay-off {
+  border-color: rgba(255, 170, 231, 0.9);
+  background: rgba(255, 170, 231, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 170, 231, 0.28);
 }
 
 .triggerDisplayCell.echo {
