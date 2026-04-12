@@ -3497,6 +3497,37 @@ button:focus-visible,
   gap: 2px;
 }
 
+.drumFeatureSide .drumTrigField {
+  gap: 2px;
+}
+
+.drumFeatureSide .drumTrigField .compactSelectLabel {
+  font-size: 8px;
+  letter-spacing: 0.44px;
+  opacity: 0.62;
+  margin-bottom: 0;
+}
+
+.drumFeatureSide .drumTrigField.compactSelectField::after {
+  right: 7px;
+  bottom: 6px;
+  font-size: 8px;
+  opacity: 0.46;
+}
+
+.drumFeatureSide .drumTrigField .compactSelectInput {
+  border-radius: 999px;
+  min-height: 18px;
+  padding: 3px 17px 3px 8px;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+  border-style: dashed;
+  border-color: rgba(120, 166, 199, 0.34);
+  background:
+    linear-gradient(180deg, rgba(10, 17, 25, 0.8), rgba(8, 13, 21, 0.8)),
+    linear-gradient(135deg, rgba(74, 163, 255, 0.08), rgba(74, 163, 255, 0));
+}
+
 .drumFeatureSide .drumFocusField .compactSelectLabel {
   font-size: 8px;
   letter-spacing: 0.44px;
@@ -3598,22 +3629,7 @@ button:focus-visible,
 }
 
 .surfaceBadge--drumFamily {
-  position: relative;
-  padding-left: 11px;
   border-style: solid;
-}
-
-.surfaceBadge--drumFamily::before {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  width: 3px;
-  height: 11px;
-  transform: translateY(-50%);
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.85;
 }
 
 .drumSurface .surfaceHeader {
@@ -3623,8 +3639,8 @@ button:focus-visible,
 
 .drumSurface .knobCtl {
   width: 64px;
-  gap: 3px;
-  padding-top: 1px;
+  gap: 2px;
+  padding-top: 0;
 }
 
 .drumSurface .ctlLabel {
@@ -3647,7 +3663,7 @@ button:focus-visible,
 .drumSurface .knobVal {
   font-size: 9px;
   line-height: 1;
-  margin-top: 1px;
+  margin-top: 0;
   padding-top: 0;
 }
 
@@ -3665,9 +3681,9 @@ button:focus-visible,
 }
 
 .drumSurface--withStatus {
-  --module-header-h: 36px;
+  --module-header-h: 35px;
   grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 14px;
-  row-gap: 1px;
+  row-gap: 0;
 }
 
 .drumSurface--withStatus .surfaceTabPanel {

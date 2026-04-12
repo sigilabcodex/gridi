@@ -165,13 +165,19 @@ function createDrumFeatureZone(d: DrumModule) {
   const side = document.createElement("div");
   side.className = "drumFeatureSide";
 
-  const routeValue = document.createElement("div");
-  routeValue.className = "drumFeatureSideValue drumFeatureSideRoute";
+  const routeValue = createCompactSelectField({
+    label: "Trg",
+    className: "drumTrigField",
+    options: [],
+    selected: d.triggerSource,
+    emptyLabel: "None",
+    onChange: () => {},
+  });
 
   const accentValue = document.createElement("div");
   accentValue.className = "drumFeatureSideValue";
 
-  side.append(routeValue, accentValue);
+  side.append(routeValue.wrap, accentValue);
   stage.append(svg, side);
   feature.append(head, stage);
 
@@ -217,12 +223,11 @@ function createDrumFeatureZone(d: DrumModule) {
     }
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
     noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
-    routeValue.textContent = state.triggerSource ? `TRG ${state.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
     accentValue.textContent = `BIAS ${toneBiasLabel(state.tone).toUpperCase()}`;
   };
 
   update(d);
-  return { feature, update };
+  return { feature, update, routeField: routeValue };
 }
 
 function createDrumInfoBar(d: DrumModule) {
@@ -501,6 +506,21 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       if (m?.type === "drum") setReactive({ triggerSource: m.triggerSource });
     }, opts);
   });
+  const triggerField = createCompactSelectField({
+    label: "Trg",
+    className: "drumTrigField",
+    options: triggerOptions.map((opt) => ({ value: opt.id, label: opt.label })),
+    selected: d.triggerSource,
+    emptyLabel: "None",
+    onChange: (value) => onRoutingChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") {
+        m.triggerSource = value;
+        setReactive({ triggerSource: m.triggerSource });
+      }
+    }, { regen: true }),
+  });
+  featureZone.routeField.wrap.replaceWith(triggerField.wrap);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   drumSettingsGrid.append(panCtl);
   const boostTargetField = createCompactSelectField({
