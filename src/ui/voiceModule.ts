@@ -70,12 +70,16 @@ function makeHeader(
       drumIdentity.append(badge, presetControl.button);
       return drumIdentity;
     })()
-    : createModuleIdentityMeta({
-      badgeText,
-      instanceName: v.name,
-      instanceId: v.id.slice(-6).toUpperCase(),
-      presetButton: presetControl.button,
-    });
+    : (() => {
+      const identity = createModuleIdentityMeta({
+        badgeText,
+        instanceName: v.name,
+        instanceId: v.id.slice(-6).toUpperCase(),
+        presetButton: presetControl.button,
+      });
+      identity.querySelector(".surfaceBadge")?.classList.add("surfaceBadge--synthFamily");
+      return identity;
+    })();
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -175,13 +179,13 @@ function createDrumFeatureZone(d: DrumModule) {
   });
 
   const accentValue = document.createElement("div");
-  accentValue.className = "drumFeatureSideValue drumFeatureSideValue--bias";
+  accentValue.className = "drumFeatureSideValue drumFeatureSideValue--focus";
 
   side.append(routeValue.wrap, accentValue);
   stage.append(svg, side);
   feature.append(head, stage);
 
-  const toneBiasLabel = (tone: number) => tone <= 0.33 ? "Warm" : tone >= 0.67 ? "Bright" : "Balanced";
+  const boostFocusLabel = (boostTarget: DrumModule["boostTarget"]) => boostTarget === "body" ? "LOW" : "HIGH";
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -198,9 +202,9 @@ function createDrumFeatureZone(d: DrumModule) {
       "d",
       `M 8 48 C ${attackX.toFixed(2)} ${peakY.toFixed(2)}, ${bodyX.toFixed(2)} ${bodyY.toFixed(2)}, ${(48 + state.snap * 10) * timeScale} ${28 - state.boost * 8 - pitchNorm * 1.5} S ${kneeX.toFixed(2)} ${tailLift.toFixed(2)}, 148 48`,
     );
-    const pitchStrokeR = Math.round(74 + pitchNorm * 30);
-    const pitchStrokeG = Math.round(163 + pitchNorm * 25);
-    const pitchStrokeB = Math.round(255 - pitchNorm * 22);
+    const pitchStrokeR = Math.round(199 + pitchNorm * 20);
+    const pitchStrokeG = Math.round(107 + pitchNorm * 14);
+    const pitchStrokeB = Math.round(120 - pitchNorm * 12);
     const pitchGlow = (0.08 + pitchNorm * 0.22).toFixed(2);
     curve.setAttribute(
       "style",
@@ -223,7 +227,7 @@ function createDrumFeatureZone(d: DrumModule) {
     }
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
     noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
-    accentValue.textContent = `BIAS ${toneBiasLabel(state.tone).toUpperCase()}`;
+    accentValue.textContent = `BOOST FOCUS ${boostFocusLabel(state.boostTarget)}`;
   };
 
   update(d);
