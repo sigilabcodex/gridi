@@ -1,5 +1,5 @@
 import type { Patch } from "../../patch";
-import { APP_NAME, APP_SUBTITLE, getVersionTooltipText } from "../../version";
+import { APP_NAME, getVersionTooltipText } from "../../version";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
@@ -112,7 +112,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
-  subtitle.textContent = APP_SUBTITLE;
+  subtitle.textContent = "Generative Rhythmically Indeterministic\nDigital Instrument";
 
   titleWrap.tabIndex = 0;
   params.attachTooltip(titleWrap, {
