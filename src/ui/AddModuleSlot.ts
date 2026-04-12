@@ -15,7 +15,7 @@ type AddSlotParams = {
 type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
 
 const MENU_ITEMS: MenuItem[] = [
-  { label: "Trigger", desc: "Pulse sequencer", value: "trigger", accent: true },
+  { label: "Generator", desc: "Pattern generator", value: "trigger", accent: true },
   { label: "Drum", desc: "Percussive voice", value: "drum", accent: true },
   { label: "Synth", desc: "Tonal voice", value: "tonal" },
   { label: "LFO", desc: "Control oscillator", value: "control-lfo" },

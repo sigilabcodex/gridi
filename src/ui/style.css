@@ -3669,6 +3669,12 @@ button:focus-visible,
   padding-bottom: 0;
 }
 
+.triggerSurface .surfaceHeader {
+  align-items: flex-start;
+  margin-bottom: 9px;
+  padding-bottom: 0;
+}
+
 .drumSurface .knobCtl {
   width: 64px;
   gap: 2px;
@@ -3706,6 +3712,19 @@ button:focus-visible,
   border-radius: 7px;
   font-size: 11px;
   line-height: 1;
+}
+
+.triggerSurface .surfaceHeaderAction {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.triggerSurface button.primary {
+  border-color: rgba(198, 127, 255, 0.66);
+  box-shadow: 0 0 0 1px rgba(198, 127, 255, 0.22) inset;
 }
 
 .drumSurface .rightControls {
@@ -3783,12 +3802,38 @@ button:focus-visible,
   background: rgba(122, 63, 76, 0.8);
 }
 
+.triggerSurface .compactSelectField select,
+.triggerSurface .compactSelectInput {
+  color-scheme: dark;
+  color: rgba(232, 205, 255, 0.95);
+  background: rgba(14, 11, 23, 0.92);
+  border-color: rgba(170, 121, 209, 0.5);
+}
+
+.triggerSurface .compactSelectField select option,
+.triggerSurface .compactSelectInput option {
+  color: rgba(232, 205, 255, 0.95);
+  background: rgba(18, 13, 29, 0.98);
+}
+
+.triggerSurface .compactSelectField select option:checked,
+.triggerSurface .compactSelectInput option:checked,
+.triggerSurface .compactSelectField select option:hover,
+.triggerSurface .compactSelectInput option:hover {
+  color: rgba(243, 229, 255, 0.98);
+  background: rgba(98, 58, 133, 0.82);
+}
+
 .drumSurface .knobArc {
   stroke: rgba(199, 107, 120, 0.94);
 }
 
 .synthSurface .knobArc {
   stroke: rgba(96, 143, 202, 0.94);
+}
+
+.triggerSurface .knobArc {
+  stroke: rgba(198, 127, 255, 0.94);
 }
 
 .drumSurface .modTab[role="tab"][aria-selected="true"] {
@@ -3803,6 +3848,12 @@ button:focus-visible,
   background: rgba(30, 60, 99, 0.3);
 }
 
+.triggerSurface .modTab[role="tab"][aria-selected="true"] {
+  color: rgba(232, 205, 255, 0.96);
+  border-color: rgba(198, 127, 255, 0.44);
+  background: rgba(88, 45, 125, 0.32);
+}
+
 .drumSurface .routingChip-connected {
   border-color: rgba(199, 107, 120, 0.44);
   background: rgba(122, 63, 76, 0.26);
@@ -3813,12 +3864,21 @@ button:focus-visible,
   background: rgba(36, 72, 116, 0.26);
 }
 
+.triggerSurface .routingChip-connected {
+  border-color: rgba(198, 127, 255, 0.42);
+  background: rgba(88, 45, 125, 0.24);
+}
+
 .drumSurface .utilityRouteMap {
   background: rgba(122, 63, 76, 0.2);
 }
 
 .synthSurface .utilityRouteMap {
   background: rgba(36, 72, 116, 0.2);
+}
+
+.triggerSurface .utilityRouteMap {
+  background: rgba(88, 45, 125, 0.2);
 }
 
 .triggerPrimaryRack {
@@ -3830,12 +3890,18 @@ button:focus-visible,
   opacity: 0.9;
 }
 
-.triggerMainBottom {
-  align-items: center;
+.triggerInfoBar {
+  border-top-color: rgba(198, 127, 255, 0.24);
+  background: rgba(18, 12, 27, 0.3);
 }
 
-.triggerMainBottom .triggerTransportReadout {
+.triggerInfoBar .drumInfoToken {
+  color: rgba(232, 205, 255, 0.9);
+}
+
+.triggerInfoBar .triggerTransportReadout {
   letter-spacing: 0.5px;
+  text-align: right;
 }
 
 .triggerMetaRow {

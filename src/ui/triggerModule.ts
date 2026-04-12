@@ -3,7 +3,7 @@ import { getPatternPreview } from "../engine/pattern/module";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
-import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import {
@@ -60,21 +60,22 @@ export function renderTriggerSurface(
     attachTooltip,
   });
 
-  const identity = createModuleIdentityMeta({
-    badgeText: "GEN",
-    instanceName: t.name,
-    instanceId: t.id.slice(-6).toUpperCase(),
-    presetButton: presetControl.button,
-  });
-  identity.querySelector(".surfaceBadge")?.classList.add("surfaceBadge--triggerFamily");
+  const identity = document.createElement("div");
+  identity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
+
+  const badge = document.createElement("div");
+  badge.className = "surfaceBadge surfaceBadge--triggerFamily";
+  badge.textContent = "GEN";
+  identity.append(badge, presetControl.button);
 
   const right = document.createElement("div");
   right.className = "rightControls";
 
   const toggle = document.createElement("button");
+  toggle.className = "surfaceHeaderAction";
   const syncToggle = () => {
     toggle.textContent = t.enabled ? "On" : "Off";
-    toggle.className = t.enabled ? "primary" : "";
+    toggle.classList.toggle("primary", t.enabled);
   };
   syncToggle();
   toggle.onclick = () => onPatchChange((p) => {
@@ -82,16 +83,16 @@ export function renderTriggerSurface(
     if (m?.type === "trigger") m.enabled = !m.enabled;
   }, { regen: false });
   attachTooltip?.(toggle, {
-    text: "Enable or bypass this trigger module.",
+    text: "Enable or bypass this generator module.",
     ariaLabel: `${t.name} power`,
   });
 
   const btnX = document.createElement("button");
   btnX.textContent = "×";
-  btnX.className = "danger";
+  btnX.className = "danger surfaceHeaderAction";
   wireSafeDeleteButton(btnX, () => onRemove?.());
   attachTooltip?.(btnX, {
-    text: "Remove this trigger module from the grid.",
+    text: "Remove this generator module from the grid.",
     ariaLabel: `Remove ${t.name}`,
   });
   right.append(toggle, btnX);
@@ -185,7 +186,7 @@ export function renderTriggerSurface(
   routingChip.type = "button";
   routingChip.onclick = () => selectTab("ROUTING");
   attachTooltip?.(routingChip, {
-    text: "Open trigger routing controls.",
+    text: "Open generator routing controls.",
     ariaLabel: `${t.name} routing`,
   });
 
@@ -204,7 +205,7 @@ export function renderTriggerSurface(
       min: 0,
       max: 1,
       step: 0.001,
-      tooltip: "Adjust how often this trigger lane produces steps.",
+      tooltip: "Adjust how often this generator lane produces steps.",
       attachTooltip,
       onChange: (x) => setParam("density", x),
     }),
@@ -226,7 +227,7 @@ export function renderTriggerSurface(
       max: 8,
       step: 1,
       integer: true,
-      tooltip: "Change the timing division for this trigger lane.",
+      tooltip: "Change the timing division for this generator lane.",
       attachTooltip,
       onChange: (x) => setParam("subdiv", x),
     }),
@@ -242,11 +243,21 @@ export function renderTriggerSurface(
     }),
   );
 
-  const transportReadout = document.createElement("div");
-  transportReadout.className = "triggerTransportReadout small";
+  const idToken = document.createElement("span");
+  idToken.className = "drumInfoToken";
+  idToken.textContent = t.id.slice(-6).toUpperCase();
 
-  const mainBottom = createFaceplateSection("bottom", "triggerMainBottom");
-  mainBottom.appendChild(transportReadout);
+  const stateToken = document.createElement("span");
+  stateToken.className = "drumInfoToken";
+
+  const modeToken = document.createElement("span");
+  modeToken.className = "drumInfoToken";
+
+  const transportReadout = document.createElement("span");
+  transportReadout.className = "drumInfoToken drumInfoToken--meta triggerTransportReadout";
+
+  const mainBottom = createFaceplateSection("bottom", "drumInfoBar triggerInfoBar");
+  mainBottom.append(idToken, stateToken, modeToken, transportReadout);
 
   panelMain.append(metaRow, display.wrap, mainControlRack, createFaceplateSpacer(), mainBottom);
 
@@ -386,6 +397,8 @@ export function renderTriggerSurface(
     generatorSelect.value = t.mode;
     seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
+    stateToken.textContent = t.enabled ? "ACTIVE" : "BYPASS";
+    modeToken.textContent = `MODE ${GENERATOR_MODES.find((mode) => mode.value === t.mode)?.label ?? "GEN"}`;
     display.sync(t);
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }
