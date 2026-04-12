@@ -3961,21 +3961,16 @@ button:focus-visible,
   opacity: 0.84;
 }
 
-.triggerModeSelect {
+.triggerModeButton {
+  position: absolute;
+  inset: 0;
   border: 0;
   background: transparent;
-  color: transparent;
-  font-size: 10px;
-  line-height: 1.1;
-  min-width: 0;
-  width: 100%;
-  opacity: 0;
-  padding: 0 0 0 1px;
-  appearance: none;
-  -webkit-appearance: none;
+  cursor: pointer;
+  border-radius: 999px;
 }
 
-.triggerModeSelect:focus {
+.triggerModeButton:focus {
   outline: none;
 }
 
@@ -3990,9 +3985,35 @@ button:focus-visible,
   pointer-events: none;
 }
 
-.triggerModeSelect option {
-  color: #e5d8f6;
-  background: #161225;
+.triggerModeSelectorPanel {
+  background: rgba(14, 13, 26, 0.98);
+  border: 1px solid rgba(197, 142, 233, 0.35);
+  border-radius: 12px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.44);
+  padding: 6px;
+}
+
+.triggerModeSelectorList {
+  display: grid;
+  gap: 4px;
+}
+
+.triggerModeSelectorRow {
+  width: 100%;
+  text-align: left;
+  min-height: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(197, 142, 233, 0.22);
+  background: rgba(26, 18, 38, 0.72);
+  color: rgba(233, 215, 249, 0.94);
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  padding: 3px 7px;
+}
+
+.triggerModeSelectorRow.isSelected {
+  border-color: rgba(220, 177, 255, 0.55);
+  background: rgba(56, 31, 78, 0.78);
 }
 
 .triggerSeedGroup {
