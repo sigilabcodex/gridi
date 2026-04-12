@@ -21,9 +21,10 @@ GRIDI is a **digital instrument**. It is not a DAW timeline, not hardware emulat
 2. Thin, fixed, canonical module header row.
 3. Canonical vertical order inside each module:
    - Header
-   - Visual / Feature Zone
+   - Optional top Feature/Meta row
+   - Main Visualization / Feature Zone
    - Control Panel
-   - Tabs
+   - Tabs (temporary / optional future removal)
    - Status / Info Bar
 4. Main tab is performance-first and playable without opening setup-heavy tabs.
 5. No internal scrollbars inside module faces.
@@ -51,22 +52,23 @@ Each module face follows this anatomy (top to bottom):
 1. **Header (fixed thin row)**
    - module type chip (family identity),
    - preset chip,
-   - activity indicators (LEDs/meters as applicable),
-   - On/Off,
-   - delete with safety behavior.
+   - right-side action area (module/state-dependent, not a fixed universal button list).
 
-2. **Visual / Feature Zone (dominant when meaningful)**
+2. **Top Feature/Meta Row (optional)**
+   - compact mode/readout metadata lane when needed.
+
+3. **Visual / Feature Zone (dominant when meaningful)**
    - sequencer rail, waveform/scope, envelope shape, mode machine readout, etc.
    - reflects key parameter changes when possible.
    - doubles as didactic cue (“what this module is doing now”).
 
-3. **Control Panel (performance controls only)**
+4. **Control Panel (performance controls only)**
    - high-priority controls for live use and immediate shaping.
 
-4. **Tabs (secondary concerns)**
+5. **Tabs (secondary concerns; temporary in current direction)**
    - Main / Routing / Advanced responsibilities defined below.
 
-5. **Status / Info Bar (thin bottom strip)**
+6. **Status / Info Bar (thin bottom strip)**
    - module short ID,
    - state summary,
    - warnings,
@@ -166,10 +168,11 @@ Order controls by:
 
 ## 1) Trigger
 
-- **Dominant visual/feature:** pattern rail/step activity + generator/seed machine readouts.
-- **Main priorities:** density, length, immediate rhythm shape controls.
-- **Routing:** trigger outputs and modulation-source assignment.
-- **Advanced:** subdiv/drop/determinism/weird/algorithm-specific controls.
+- **Dominant visual/feature:** large reactive pattern display driven by mode + seed + parameters.
+- **Meta row priorities:** generator mode pill, editable seed, separate randomize action, routing pill (future multi-destination ready).
+- **Main priorities:** concise 4-knob performance control row plus immediate read feedback.
+- **Routing:** trigger outputs and destination relationships.
+- **Advanced:** secondary mode-specific tuning only.
 - **Family distinction:** event-generation first, not timbre shaping.
 
 ## 2) Drum

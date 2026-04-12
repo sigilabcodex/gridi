@@ -11,6 +11,20 @@ Core principles:
 - **Advanced panels second**: tabs now expose secondary functionality like connections, settings, and MIDI placeholders.
 - **Calm routing clarity**: relationships are shown through connection badges, module IDs, and explicit trigger-source selectors.
 - **Family-based composition**: the Add Module card is structured by module family, with future expansion space.
+- **Reactive visualization first**: displays are primary state feedback, not decorative chrome.
+
+## Shared shell vs module face
+
+All families use the same shell order:
+
+1. Header (type chip / preset chip / right-side action area)
+2. Optional top feature/meta row
+3. Main visualization area
+4. Control area
+5. Tabs (temporary; may be reduced later)
+6. Bottom status/info strip
+
+The shell is shared. The face layout inside the shell is module-specific by family.
 
 ## Module card anatomy
 
@@ -44,6 +58,12 @@ Main panel emphasizes event generation:
 - Length
 - Pattern preview
 
+Trigger design brief additions:
+- Meta row: `GEN` mode pill + editable `SEED` + separate randomize button + routing pill.
+- Display is large and mode-dependent (`STEP`, `CA`, `FRACTAL`, `HYBRID`).
+- Display reacts to seed, mode, and parameter changes.
+- Control row is constrained to four high-value knobs.
+
 Advanced tabs:
 - Trigger View
 - Connections
@@ -56,6 +76,12 @@ Main panel groups percussive controls by role:
 - Decay
 - Transient / Click
 - Noise / Texture
+
+Drum reference implementation notes:
+- Envelope visualization
+- Right-side feature lane
+- Compact 2x4 control grid
+- Red family identity
 
 Advanced tabs:
 - Connections (trigger source)
@@ -77,6 +103,35 @@ Advanced tabs:
 ### Visual modules
 Main panel prioritizes visualization canvas output.
 Controls remain minimal and secondary to output visibility.
+
+## Seed interaction model (Trigger)
+
+- Seed field is editable.
+- Randomize is a separate action.
+- Seed drives the generator.
+- Seed also drives displayed visualization state.
+
+## Visualization philosophy
+
+Visualizations are not decorative; they reflect module/generator state.
+
+- Drum → envelope response
+- Trigger → pattern visualization
+- Synth → waveform/contour (future)
+
+## Module color identity
+
+- Drum = red
+- Trigger = purple
+- Synth = blue
+- Control = cyan
+- Visual = amber
+
+Used for:
+- knob rings
+- display accents
+- active tab indication
+- module highlights
 
 ## Connection indicators (no cables)
 
@@ -100,6 +155,19 @@ The Add Module card now works as a family browser:
 - Future placeholder: Algorithm / Livecoding
 
 Visual modules open a focused second step (Scope / Spectrum), then can return to family view.
+
+## References and design goals
+
+Inspiration:
+- Yamaha Tenori-on
+- Korg Electribe ER-1
+- Korg Electribe EA-1
+
+Goals:
+- instrument-like UI
+- reactive visualization
+- grid-based generative interaction
+- minimal but expressive control sets
 
 ## Future module guidelines
 
