@@ -3675,6 +3675,20 @@ button:focus-visible,
   padding-bottom: 0;
 }
 
+.triggerSurface--withStatus {
+  --module-header-h: 36px;
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 16px;
+  row-gap: 0;
+}
+
+.triggerSurface--withStatus .surfaceHeader {
+  margin-bottom: 0;
+}
+
+.triggerSurface--withStatus .surfaceTabPanel {
+  padding-top: 0;
+}
+
 .drumSurface .knobCtl {
   width: 64px;
   gap: 2px;
@@ -3906,12 +3920,15 @@ button:focus-visible,
 
 .triggerMetaRow {
   display: grid;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) minmax(0, 2fr);
   align-items: center;
   gap: 6px;
 }
 
 .triggerMetaChip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
   min-height: 24px;
   border-radius: 999px;
   border: 1px solid rgba(197, 142, 233, 0.4);
@@ -3924,9 +3941,14 @@ button:focus-visible,
 }
 
 .triggerMetaChip--gen {
-  display: inline-flex;
-  align-items: center;
+  width: 100%;
   gap: 6px;
+}
+
+.triggerMetaChip--routing {
+  width: 100%;
+  justify-content: center;
+  opacity: 0.86;
 }
 
 .triggerMetaChipLabel,
@@ -3943,7 +3965,8 @@ button:focus-visible,
   color: inherit;
   font-size: 11px;
   line-height: 1.2;
-  min-width: 132px;
+  min-width: 0;
+  width: 100%;
   padding: 0;
 }
 
@@ -3957,6 +3980,7 @@ button:focus-visible,
 }
 
 .triggerSeedGroup {
+  width: 100%;
   min-height: 24px;
   border: 1px solid rgba(197, 142, 233, 0.34);
   border-radius: 999px;

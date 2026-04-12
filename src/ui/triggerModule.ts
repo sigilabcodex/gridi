@@ -46,7 +46,7 @@ export function renderTriggerSurface(
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
-  surface.className = "moduleSurface triggerSurface";
+  surface.className = "moduleSurface triggerSurface triggerSurface--withStatus";
   surface.dataset.type = "trigger";
 
   const header = document.createElement("div");
@@ -256,10 +256,11 @@ export function renderTriggerSurface(
   const transportReadout = document.createElement("span");
   transportReadout.className = "drumInfoToken drumInfoToken--meta triggerTransportReadout";
 
-  const mainBottom = createFaceplateSection("bottom", "drumInfoBar triggerInfoBar");
-  mainBottom.append(idToken, stateToken, modeToken, transportReadout);
+  const infoBar = document.createElement("div");
+  infoBar.className = "drumInfoBar triggerInfoBar";
+  infoBar.append(idToken, stateToken, modeToken, transportReadout);
 
-  panelMain.append(metaRow, display.wrap, mainControlRack, createFaceplateSpacer(), mainBottom);
+  panelMain.append(metaRow, display.wrap, mainControlRack, createFaceplateSpacer());
 
   const outgoingVoices = routing.triggerTargets.get(t.id) ?? [];
   const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
@@ -385,7 +386,7 @@ export function renderTriggerSurface(
   });
   selectTab = shell.setTab;
 
-  surface.append(header, shell.face, shell.tabs);
+  surface.append(header, shell.face, shell.tabs, infoBar);
   root.appendChild(surface);
   syncTriggerFace();
 
