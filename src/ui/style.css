@@ -3243,7 +3243,11 @@ button:focus-visible,
 }
 
 .drumMainLayout {
-  gap: 8px;
+  gap: 2px;
+}
+
+.drumMainLayout > .drumMainFeature {
+  margin-bottom: 6px;
 }
 
 .faceplateSection {
@@ -3605,10 +3609,10 @@ button:focus-visible,
   flex-direction: row;
   align-items: center;
   gap: 8px;
-  min-height: 15px;
-  height: 15px;
+  min-height: 14px;
+  height: 14px;
   padding: 0 3px;
-  margin-top: 7px;
+  margin-top: 3px;
   border-radius: 0;
   border-top: 1px solid rgba(119, 154, 180, 0.2);
   border-left: 0;
@@ -3706,7 +3710,7 @@ button:focus-visible,
 
 .drumSurface--withStatus {
   --module-header-h: 36px;
-  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 14px;
+  grid-template-rows: var(--module-header-h) minmax(0, 1fr) var(--module-tabs-h) 16px;
   row-gap: 0;
 }
 

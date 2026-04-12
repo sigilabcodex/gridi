@@ -178,14 +178,9 @@ function createDrumFeatureZone(d: DrumModule) {
     onChange: () => {},
   });
 
-  const accentValue = document.createElement("div");
-  accentValue.className = "drumFeatureSideValue drumFeatureSideValue--focus";
-
-  side.append(routeValue.wrap, accentValue);
+  side.append(routeValue.wrap);
   stage.append(svg, side);
   feature.append(head, stage);
-
-  const boostFocusLabel = (boostTarget: DrumModule["boostTarget"]) => boostTarget === "body" ? "LOW" : "HIGH";
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -227,7 +222,6 @@ function createDrumFeatureZone(d: DrumModule) {
     }
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
     noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
-    accentValue.textContent = `BOOST FOCUS ${boostFocusLabel(state.boostTarget)}`;
   };
 
   update(d);
