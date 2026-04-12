@@ -1,7 +1,18 @@
 // src/patch.ts
 import { normalizeModuleGridPositions, setModuleGridPosition, slotIndexToGridPosition } from "./workspacePlacement.ts";
 
-export type Mode = "hybrid" | "step" | "euclid" | "ca" | "fractal";
+export type Mode =
+  | "step-sequencer"
+  | "cellular-automata"
+  | "euclidean"
+  | "non-euclidean"
+  | "fractal"
+  | "hybrid"
+  | "markov-chains"
+  | "l-systems"
+  | "xronomorph"
+  | "genetic-algorithms"
+  | "one-over-f-noise";
 export type ModuleEngine = "trigger" | "drum" | "synth" | "visual" | "control";
 
 export const clamp = (x: number, a: number, b: number) =>
@@ -364,10 +375,37 @@ export const defaultPatch = (): Patch => {
   };
 };
 
+
+const LEGACY_MODE_ALIASES: Record<string, Mode> = {
+  step: "step-sequencer",
+  euclid: "euclidean",
+  ca: "cellular-automata",
+};
+
+const SUPPORTED_MODES = new Set<Mode>([
+  "step-sequencer",
+  "cellular-automata",
+  "euclidean",
+  "non-euclidean",
+  "fractal",
+  "hybrid",
+  "markov-chains",
+  "l-systems",
+  "xronomorph",
+  "genetic-algorithms",
+  "one-over-f-noise",
+]);
+
+function normalizeMode(raw: unknown, fallback: Mode): Mode {
+  if (typeof raw !== "string") return fallback;
+  const aliased = LEGACY_MODE_ALIASES[raw] ?? raw;
+  return SUPPORTED_MODES.has(aliased as Mode) ? (aliased as Mode) : fallback;
+}
+
 function normalizeSequencer(raw: any, fallbackIndex = 0): SequencerParams {
   const base = defaultSequencer(fallbackIndex);
   return {
-    mode: ["hybrid", "step", "euclid", "ca", "fractal"].includes(raw?.mode) ? raw.mode : base.mode,
+    mode: normalizeMode(raw?.mode, base.mode),
     seed: typeof raw?.seed === "number" ? raw.seed | 0 : base.seed,
     determinism: clamp(typeof raw?.determinism === "number" ? raw.determinism : base.determinism, 0, 1),
     gravity: clamp(typeof raw?.gravity === "number" ? raw.gravity : base.gravity, 0, 1),

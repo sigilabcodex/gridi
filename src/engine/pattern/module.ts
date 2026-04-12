@@ -243,10 +243,12 @@ function genFractalPattern(trigger: TriggerModule, voiceId: string) {
 }
 
 function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
-  if (mode === "step") return genStepPattern(trigger);
-  if (mode === "euclid") return genEuclidPattern(trigger, voiceId);
-  if (mode === "ca") return genCAPattern(trigger, voiceId);
+  if (mode === "step-sequencer") return genStepPattern(trigger);
+  if (mode === "euclidean") return genEuclidPattern(trigger, voiceId);
+  if (mode === "cellular-automata") return genCAPattern(trigger, voiceId);
   if (mode === "fractal") return genFractalPattern(trigger, voiceId);
+  if (mode === "non-euclidean") return genFractalPattern(trigger, voiceId);
+  if (mode === "hybrid") return genHybridPattern(trigger, voiceId);
   return genHybridPattern(trigger, voiceId);
 }
 

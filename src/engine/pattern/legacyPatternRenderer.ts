@@ -115,21 +115,22 @@ function genHybridPattern(v: VoiceModule) {
   return out;
 }
 
-const MODE_PATTERN_BUILDERS: Record<Mode, (v: VoiceModule) => Uint8Array> = {
-  step: genStepPattern,
-  euclid: genEuclidPattern,
-  ca: genCAPattern,
-  fractal: (v) => genCAPattern({ ...v, seed: v.seed ^ 0xabcdef }),
-  hybrid: genHybridPattern,
-};
+function patternForLegacyMode(mode: Mode, voice: VoiceModule): Uint8Array {
+  if (mode === "step-sequencer") return genStepPattern(voice);
+  if (mode === "euclidean") return genEuclidPattern(voice);
+  if (mode === "cellular-automata") return genCAPattern(voice);
+  if (mode === "fractal") return genCAPattern({ ...voice, seed: voice.seed ^ 0xabcdef });
+  if (mode === "non-euclidean") return genHybridPattern(voice);
+  return genHybridPattern(voice);
+}
 
 /**
  * Legacy renderer used by scheduler-owned sequencing modes.
  * TODO(v0.32): move mode-specific pattern rendering behind PatternModule implementations.
  */
 export function renderLegacyVoicePattern(voice: VoiceModule): Uint8Array {
-  const base = MODE_PATTERN_BUILDERS[voice.mode](voice);
-  if (voice.mode === "step") return base;
+  const base = patternForLegacyMode(voice.mode, voice);
+  if (voice.mode === "step-sequencer") return base;
 
   const drop = clamp01(voice.drop);
   if (drop <= 0) return base;

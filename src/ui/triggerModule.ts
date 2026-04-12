@@ -16,7 +16,19 @@ import {
 import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import type { TooltipBinder } from "./tooltip";
 
-const MODES: Mode[] = ["hybrid", "step", "euclid", "ca", "fractal"];
+const GENERATOR_MODES: Array<{ value: Mode; label: string }> = [
+  { value: "step-sequencer", label: "Step Sequencer" },
+  { value: "cellular-automata", label: "Cellular Automata" },
+  { value: "euclidean", label: "Euclidean" },
+  { value: "non-euclidean", label: "Non-Euclidean" },
+  { value: "fractal", label: "Fractal" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "markov-chains", label: "Markov Chains" },
+  { value: "l-systems", label: "L-Systems" },
+  { value: "xronomorph", label: "XronoMorph" },
+  { value: "genetic-algorithms", label: "Genetic Algorithms" },
+  { value: "one-over-f-noise", label: "1/f Noise" },
+];
 
 type ControlOption = { id: string; label: string };
 
@@ -49,7 +61,7 @@ export function renderTriggerSurface(
   });
 
   const identity = createModuleIdentityMeta({
-    badgeText: "TRG",
+    badgeText: "GEN",
     instanceName: t.name,
     instanceId: t.id.slice(-6).toUpperCase(),
     presetButton: presetControl.button,
@@ -92,21 +104,35 @@ export function renderTriggerSurface(
 
   const metaRow = createFaceplateSection("io", "triggerMetaRow");
 
-  const generatorChip = document.createElement("button");
+  const generatorChip = document.createElement("div");
   generatorChip.className = "triggerMetaChip triggerMetaChip--gen";
-  generatorChip.type = "button";
-  attachTooltip?.(generatorChip, {
-    text: "Cycle the trigger generator mode.",
-    ariaLabel: `${t.name} generator mode`,
+
+  const generatorLabel = document.createElement("span");
+  generatorLabel.className = "triggerMetaChipLabel";
+  generatorLabel.textContent = "GEN MODE";
+
+  const generatorSelect = document.createElement("select");
+  generatorSelect.className = "triggerModeSelect";
+  generatorSelect.setAttribute("aria-label", `${t.name} generator mode`);
+  GENERATOR_MODES.forEach((mode) => {
+    const option = document.createElement("option");
+    option.value = mode.value;
+    option.textContent = mode.label;
+    generatorSelect.appendChild(option);
   });
-  generatorChip.onclick = () => {
-    const idx = MODES.findIndex((mode) => mode === t.mode);
-    const nextMode = MODES[(idx + 1) % MODES.length];
+  generatorSelect.onchange = () => {
+    const nextMode = generatorSelect.value as Mode;
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
       if (m?.type === "trigger") m.mode = nextMode;
     }, { regen: true });
   };
+  attachTooltip?.(generatorSelect, {
+    text: "Select the active generator mode for this module.",
+    ariaLabel: `${t.name} generator mode`,
+  });
+
+  generatorChip.append(generatorLabel, generatorSelect);
 
   const seedGroup = document.createElement("div");
   seedGroup.className = "triggerSeedGroup";
@@ -148,7 +174,11 @@ export function renderTriggerSurface(
     if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
   }, { regen: true });
 
-  seedGroup.append(seedInput, randomizeSeed);
+  const seedLabel = document.createElement("span");
+  seedLabel.className = "triggerSeedLabel";
+  seedLabel.textContent = "SEED";
+
+  seedGroup.append(seedLabel, seedInput, randomizeSeed);
 
   const routingChip = document.createElement("button");
   routingChip.className = "triggerMetaChip triggerMetaChip--routing";
@@ -353,7 +383,7 @@ export function renderTriggerSurface(
   }
 
   function syncTriggerFace() {
-    generatorChip.textContent = `GEN ${t.mode.toUpperCase()} ▾`;
+    generatorSelect.value = t.mode;
     seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
     display.sync(t);
