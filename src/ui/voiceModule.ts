@@ -145,7 +145,7 @@ function createDrumFeatureZone(d: DrumModule) {
   svg.setAttribute("role", "img");
   svg.setAttribute(
     "aria-label",
-    `Drum envelope preview reacting to snap, decay, noise, comp, and boost.`,
+    `Drum envelope preview reacting to pitch, snap, decay, noise, comp, and boost.`,
   );
 
   const baseline = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -165,21 +165,16 @@ function createDrumFeatureZone(d: DrumModule) {
   const side = document.createElement("div");
   side.className = "drumFeatureSide";
 
-  const focusLabel = document.createElement("div");
-  focusLabel.className = "drumFeatureSideLabel small";
-  focusLabel.textContent = "Boost focus";
+  const routeValue = document.createElement("div");
+  routeValue.className = "drumFeatureSideValue drumFeatureSideRoute";
 
   const focusValue = document.createElement("div");
   focusValue.className = "drumFeatureSideValue";
 
-  const accentLabel = document.createElement("div");
-  accentLabel.className = "drumFeatureSideLabel small";
-  accentLabel.textContent = "Tone bias";
-
   const accentValue = document.createElement("div");
   accentValue.className = "drumFeatureSideValue";
 
-  side.append(focusLabel, focusValue, accentLabel, accentValue);
+  side.append(routeValue, focusValue, accentValue);
   stage.append(svg, side);
   feature.append(head, stage);
 
@@ -190,36 +185,42 @@ function createDrumFeatureZone(d: DrumModule) {
     return "Low Body";
   };
 
-  const update = (state: Pick<DrumModule, "snap" | "decay" | "noise" | "comp" | "boost" | "tone" | "boostTarget">) => {
-    const attackX = 16 - state.snap * 6;
-    const peakY = 14 - (state.snap * 12 + state.boost * 6);
-    const bodyX = 34 + state.comp * 14;
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+  const update = (state: Pick<DrumModule, "basePitch" | "snap" | "decay" | "noise" | "comp" | "boost" | "tone" | "boostTarget" | "triggerSource">) => {
+    const pitchNorm = clamp((state.basePitch - 24) / 60, 0, 1);
+    const timeScale = 1.06 - pitchNorm * 0.24;
+    const attackX = (16 - state.snap * 6) * timeScale;
+    const peakY = 14 - (state.snap * 12 + state.boost * 6) - pitchNorm * 2.2;
+    const bodyX = (34 + state.comp * 14) * timeScale;
     const bodyY = 20 + state.comp * 8 - state.boost * 3;
-    const kneeX = 68 + state.decay * 48;
+    const kneeX = (68 + state.decay * 48) * timeScale;
     const tailLift = 18 - state.decay * 12 + state.comp * 5;
     curve.setAttribute(
       "d",
-      `M 8 48 C ${attackX} ${peakY}, ${bodyX} ${bodyY}, ${48 + state.snap * 10} ${28 - state.boost * 8} S ${kneeX} ${tailLift}, 148 48`,
+      `M 8 48 C ${attackX.toFixed(2)} ${peakY.toFixed(2)}, ${bodyX.toFixed(2)} ${bodyY.toFixed(2)}, ${(48 + state.snap * 10) * timeScale} ${28 - state.boost * 8 - pitchNorm * 1.5} S ${kneeX.toFixed(2)} ${tailLift.toFixed(2)}, 148 48`,
     );
-    curve.setAttribute("style", `stroke-width:${2.1 + state.boost * 1.2}`);
+    curve.setAttribute("style", `stroke-width:${2 + state.boost * 1.15 + pitchNorm * 0.35}`);
     compContour.setAttribute(
       "d",
-      `M 8 48 C ${18 - state.snap * 5} ${24 - state.snap * 9}, ${44 + state.comp * 8} ${24 - state.comp * 10}, ${72 + state.decay * 34} ${30 - state.comp * 5} S ${126 + state.decay * 10} ${34 + state.comp * 5}, 148 48`,
+      `M 8 48 C ${(18 - state.snap * 5) * timeScale} ${24 - state.snap * 9 - pitchNorm * 1.6}, ${(44 + state.comp * 8) * timeScale} ${24 - state.comp * 10}, ${(72 + state.decay * 34) * timeScale} ${30 - state.comp * 5} S ${(126 + state.decay * 10) * timeScale} ${34 + state.comp * 5}, 148 48`,
     );
-    compContour.setAttribute("style", `opacity:${0.34 + state.comp * 0.5}`);
+    compContour.setAttribute("style", `opacity:${0.3 + state.comp * 0.48 + pitchNorm * 0.08}`);
 
     const noiseAmp = 1.2 + state.noise * 5;
+    const noiseStep = 10 - Math.round(pitchNorm * 3);
     const noisePoints: string[] = [];
-    for (let x = 10; x <= 148; x += 9) {
-      const wave = Math.sin((x * 0.24) + state.snap * 5) * noiseAmp;
-      const drift = Math.cos((x * 0.11) + state.decay * 4) * (noiseAmp * 0.35);
+    for (let x = 10; x <= 148; x += noiseStep) {
+      const wave = Math.sin((x * (0.22 + pitchNorm * 0.06)) + state.snap * 5) * noiseAmp;
+      const drift = Math.cos((x * 0.11) + state.decay * 4 + pitchNorm * 2) * (noiseAmp * 0.35);
       const y = 48 - wave - drift;
       noisePoints.push(`${x} ${y.toFixed(2)}`);
     }
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
-    noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.55}`);
-    focusValue.textContent = boostFocusLabel(state.boostTarget);
-    accentValue.textContent = toneBiasLabel(state.tone);
+    noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
+    routeValue.textContent = state.triggerSource ? `TRG ${state.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+    focusValue.textContent = `FOCUS ${boostFocusLabel(state.boostTarget).toUpperCase()}`;
+    accentValue.textContent = `BIAS ${toneBiasLabel(state.tone).toUpperCase()}`;
   };
 
   update(d);
@@ -362,7 +363,8 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 export function renderDrumModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
-  const reactiveState: Pick<DrumModule, "decay" | "snap" | "noise" | "comp" | "boost" | "tone" | "boostTarget"> = {
+  const reactiveState: Pick<DrumModule, "basePitch" | "decay" | "snap" | "noise" | "comp" | "boost" | "tone" | "boostTarget" | "triggerSource"> = {
+    basePitch: d.basePitch,
     decay: d.decay,
     snap: d.snap,
     noise: d.noise,
@@ -370,6 +372,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     boost: d.boost,
     tone: d.tone,
     boostTarget: d.boostTarget,
+    triggerSource: d.triggerSource,
   };
 
   const surface = document.createElement("section");
@@ -384,7 +387,11 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       max: 84,
       step: 1,
       integer: true,
-      onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.basePitch = x; }, { regen: false }),
+      onChange: (x) => onPatchChange((p) => {
+        setReactive({ basePitch: x });
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "drum") m.basePitch = x;
+      }, { regen: false }),
     });
   const decayCtl = ctlFloat({
     label: "Decay",
@@ -489,7 +496,13 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 
   main.append(featureZone.feature, primaryGrid, characterGrid, createFaceplateSpacer());
 
-  const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
+  const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, (fn, opts) => {
+    onRoutingChange((p) => {
+      fn(p);
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") setReactive({ triggerSource: m.triggerSource });
+    }, opts);
+  });
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
   drumSettingsGrid.append(panCtl);
   const boostTargetField = createCompactSelectField({
@@ -520,6 +533,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     h.ledHit.className = "led" + (st.hit ? " on hit" : "");
     h.syncToggle();
     setReactive({
+      basePitch: d.basePitch,
       decay: d.decay,
       snap: d.snap,
       noise: d.noise,
@@ -527,6 +541,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       boost: d.boost,
       tone: d.tone,
       boostTarget: d.boostTarget,
+      triggerSource: d.triggerSource,
     });
   };
 }

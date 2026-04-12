@@ -3243,7 +3243,7 @@ button:focus-visible,
 }
 
 .drumMainLayout {
-  gap: 6px;
+  gap: 7px;
 }
 
 .faceplateSection {
@@ -3406,8 +3406,8 @@ button:focus-visible,
   border: 1px solid rgba(74, 163, 255, 0.35);
   border-radius: 10px;
   background: linear-gradient(180deg, rgba(9, 20, 30, 0.72), rgba(8, 12, 18, 0.7));
-  padding: 6px 8px;
-  min-height: 98px;
+  padding: 5px 8px 6px;
+  min-height: 92px;
 }
 
 .drumFeatureHead {
@@ -3431,7 +3431,7 @@ button:focus-visible,
 
 .drumEnvelopeStage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 88px;
   gap: 6px;
   align-items: stretch;
   min-height: 0;
@@ -3445,9 +3445,9 @@ button:focus-visible,
 
 .drumFeatureSide {
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto auto auto 1fr;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   align-content: start;
 }
 
@@ -3458,24 +3458,35 @@ button:focus-visible,
 }
 
 .drumFeatureSideValue {
-  min-height: 18px;
-  padding: 2px 6px;
+  min-height: 19px;
+  padding: 2px 6px 1px;
   border-radius: 7px;
   border: 1px solid rgba(125, 173, 208, 0.3);
   background: rgba(8, 15, 24, 0.68);
-  font-size: 10px;
-  letter-spacing: 0.35px;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
   display: flex;
   align-items: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drumFeatureSideRoute {
+  border-style: dashed;
+  border-color: rgba(124, 165, 198, 0.38);
+  opacity: 0.86;
 }
 
 .drumFeatureSide .compactSelectField {
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .drumFeatureSide .compactSelectLabel {
   font-size: 9px;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.36px;
+  margin-bottom: 2px;
 }
 
 .drumEnvelopeBaseline {
@@ -3512,8 +3523,9 @@ button:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 14px;
-  padding: 0 4px;
+  min-height: 13px;
+  height: 13px;
+  padding: 0 3px;
   border-radius: 0;
   border-top: 1px solid rgba(119, 154, 180, 0.2);
   border-left: 0;
@@ -3522,12 +3534,16 @@ button:focus-visible,
   background: rgba(8, 14, 22, 0.2);
   overflow: hidden;
   white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 .drumInfoToken {
   font-size: 9px;
   letter-spacing: 0.5px;
   opacity: 0.7;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .drumInfoToken--meta {
@@ -3535,6 +3551,9 @@ button:focus-visible,
   opacity: 0.68;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: right;
 }
 
 .drumIdentity {
@@ -3610,16 +3629,33 @@ button:focus-visible,
 }
 
 .drumSurface--withStatus .surfaceTabPanel {
-  padding-top: 4px;
+  padding-top: 2px;
 }
 
 .drumSurface--withStatus .surfaceSettingsPanel,
 .drumSurface--withStatus .utilityPanel--voiceRouting {
-  padding-top: 2px;
+  padding-top: 1px;
 }
 
 .drumSurface .routingCard {
   padding: 6px 7px;
+}
+
+.drumSurface .utilityPanel--voiceRouting .routingCardTitle {
+  letter-spacing: 0.65px;
+}
+
+.drumSurface .utilityPanel--voiceRouting .routingCardSubtitle {
+  font-size: 9px;
+  opacity: 0.68;
+}
+
+.drumSurface .utilityPanel--voiceRouting .utilityRouteMap {
+  padding: 3px 6px;
+  border: 1px solid rgba(104, 146, 179, 0.32);
+  border-radius: 7px;
+  background: rgba(10, 20, 31, 0.52);
+  letter-spacing: 0.35px;
 }
 
 .drumSurface .compactSelectField select,
