@@ -1,6 +1,6 @@
 import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
-import { ctlFloat } from "./ctl";
+import { ctlFloat, type CtlFloatElement } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
@@ -52,6 +52,11 @@ type TriggerModeControlSpec = {
   integer?: boolean;
   tooltip: string;
   format?: (value: number) => string;
+};
+
+type RenderedModeControl = {
+  spec: TriggerModeControlSpec;
+  el: CtlFloatElement;
 };
 
 const BASE_STEP_CONTROLS: TriggerModeControlSpec[] = [
@@ -415,10 +420,13 @@ export function renderTriggerSurface(
   });
 
   const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryControls");
+  let renderedMode: Mode | null = null;
+  let renderedModeControls: RenderedModeControl[] = [];
   const renderModeControls = () => {
     const modeControls = MODE_CONTROL_REGISTRY[t.mode] ?? BASE_STEP_CONTROLS;
-    mainControlRack.replaceChildren(
-      ...modeControls.map((spec) => ctlFloat({
+    renderedModeControls = modeControls.map((spec) => ({
+      spec,
+      el: ctlFloat({
         label: spec.label,
         value: t[spec.key],
         min: spec.min,
@@ -429,8 +437,17 @@ export function renderTriggerSurface(
         format: spec.format,
         attachTooltip,
         onChange: (x) => setParam(spec.key, x),
-      })),
-    );
+      }),
+    }));
+    renderedMode = t.mode;
+    mainControlRack.replaceChildren(...renderedModeControls.map((control) => control.el));
+  };
+  const syncModeControlValues = () => {
+    if (renderedMode !== t.mode) {
+      renderModeControls();
+      return;
+    }
+    renderedModeControls.forEach(({ spec, el }) => el.syncValue?.(t[spec.key]));
   };
   renderModeControls();
 
@@ -586,7 +603,7 @@ export function renderTriggerSurface(
   }
 
   function syncTriggerFace() {
-    renderModeControls();
+    syncModeControlValues();
     generatorSelect.value = t.mode;
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = outgoingVoices.length ? `ROUTING ${outgoingVoices.length}` : "ROUTING";
