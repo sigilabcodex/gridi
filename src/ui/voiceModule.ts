@@ -185,7 +185,7 @@ function createDrumFeatureZone(d: DrumModule) {
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
   const update = (state: Pick<DrumModule, "basePitch" | "snap" | "decay" | "noise" | "comp" | "boost" | "tone" | "boostTarget" | "triggerSource">) => {
-    const pitchNorm = clamp((state.basePitch - 24) / 60, 0, 1);
+    const pitchNorm = clamp(state.basePitch, 0, 1);
     const timeScale = 1.06 - pitchNorm * 0.24;
     const attackX = (16 - state.snap * 6) * timeScale;
     const peakY = 14 - (state.snap * 12 + state.boost * 6) - pitchNorm * 2.2;
@@ -364,6 +364,12 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 export function renderDrumModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
+  const DRUM_PITCH_MIN = 24;
+  const DRUM_PITCH_MAX = 84;
+  const DRUM_PITCH_SPAN = DRUM_PITCH_MAX - DRUM_PITCH_MIN;
+  const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+  const pitchNormToMidi = (value: number) => DRUM_PITCH_MIN + clamp01(value) * DRUM_PITCH_SPAN;
+  const pitchMidiToNorm = (value: number) => clamp01((value - DRUM_PITCH_MIN) / DRUM_PITCH_SPAN);
   const reactiveState: Pick<DrumModule, "basePitch" | "decay" | "snap" | "noise" | "comp" | "boost" | "tone" | "boostTarget" | "triggerSource"> = {
     basePitch: d.basePitch,
     decay: d.decay,
@@ -383,15 +389,17 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const h = makeHeader(v, "DRUM", params, onRemove);
   const pitchCtl = ctlFloat({
       label: "Pitch",
-      value: d.basePitch,
-      min: 24,
-      max: 84,
+      value: pitchNormToMidi(d.basePitch),
+      min: DRUM_PITCH_MIN,
+      max: DRUM_PITCH_MAX,
       step: 1,
       integer: true,
+      format: (x) => String(Math.round(x)),
       onChange: (x) => onPatchChange((p) => {
-        setReactive({ basePitch: x });
+        const normalizedPitch = pitchMidiToNorm(x);
+        setReactive({ basePitch: normalizedPitch });
         const m = p.modules.find((z) => z.id === v.id);
-        if (m?.type === "drum") m.basePitch = x;
+        if (m?.type === "drum") m.basePitch = normalizedPitch;
       }, { regen: false }),
     });
   const decayCtl = ctlFloat({
