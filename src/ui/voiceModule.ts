@@ -170,14 +170,17 @@ function createDrumFeatureZone(d: DrumModule) {
   const driveGhost = document.createElementNS("http://www.w3.org/2000/svg", "path");
   driveGhost.setAttribute("class", "drumEnvelopeDriveGhost");
 
-  const panGhost = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  panGhost.setAttribute("class", "drumEnvelopePanGhost");
+  const panField = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  panField.setAttribute("class", "drumEnvelopePanField");
+  panField.setAttribute("cx", "128");
+  panField.setAttribute("cy", "13");
+  panField.setAttribute("r", "10");
 
   const panMarker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   panMarker.setAttribute("class", "drumEnvelopePanMarker");
   panMarker.setAttribute("r", "2.6");
 
-  svg.append(toneTilt, baseline, panGhost, noiseContour, compContour, driveGhost, curve, panMarker);
+  svg.append(toneTilt, baseline, panField, noiseContour, compContour, driveGhost, curve, panMarker);
 
   const side = document.createElement("div");
   side.className = "drumFeatureSide";
@@ -234,13 +237,17 @@ function createDrumFeatureZone(d: DrumModule) {
     compContour.setAttribute("style", `opacity:${0.24 + compShape * 0.56 + pitchNorm * 0.08}`);
 
     const toneSkew = (state.tone - 0.5) * 12;
-    toneTilt.setAttribute("d", `M 8 ${(10 - toneSkew).toFixed(2)} L 148 ${(10 + toneSkew).toFixed(2)} L 148 48 L 8 48 Z`);
+    toneTilt.setAttribute("d", `M 8 ${(10 - toneSkew).toFixed(2)} L 148 ${(10 + toneSkew).toFixed(2)}`);
     const toneBias = (state.tone - 0.5) * 2;
-    const toneOpacity = 0.05 + Math.abs(toneBias) * 0.18;
+    const toneOpacity = 0.16 + Math.abs(toneBias) * 0.26;
     const toneR = Math.round(120 + state.tone * 96);
     const toneG = Math.round(144 + state.tone * 84);
     const toneB = Math.round(170 + state.tone * 68);
-    toneTilt.setAttribute("style", `fill:rgba(${toneR}, ${toneG}, ${toneB}, ${toneOpacity.toFixed(2)});stroke:none;`);
+    toneTilt.setAttribute(
+      "style",
+      `stroke:rgba(${toneR}, ${toneG}, ${toneB}, ${toneOpacity.toFixed(2)});stroke-width:${0.9 + Math.abs(toneBias) * 0.9};`,
+    );
+    svg.style.filter = `hue-rotate(${Math.round(toneBias * 10)}deg) brightness(${(0.97 + Math.abs(toneBias) * 0.08).toFixed(2)})`;
 
     const driveJitter = 1.2 + driveNorm * 5;
     driveGhost.setAttribute(
@@ -261,12 +268,12 @@ function createDrumFeatureZone(d: DrumModule) {
     noiseContour.setAttribute("d", `M ${noisePoints.join(" L ")}`);
     noiseContour.setAttribute("style", `opacity:${0.08 + state.noise * 0.5 + pitchNorm * 0.06}`);
 
-    const panCenterX = 78 + panNorm * (18 + widthNorm * 20);
-    panGhost.setAttribute("d", `M ${(panCenterX - (8 + widthNorm * 10)).toFixed(2)} 12 L ${(panCenterX + (8 + widthNorm * 10)).toFixed(2)} 12`);
-    panGhost.setAttribute("style", `opacity:${0.14 + Math.abs(panNorm) * 0.3};stroke-width:${1.2 + widthNorm * 0.6}`);
-    panMarker.setAttribute("cx", panCenterX.toFixed(2));
-    panMarker.setAttribute("cy", (12 - Math.abs(panNorm) * 2).toFixed(2));
-    panMarker.setAttribute("style", `opacity:${0.4 + Math.abs(panNorm) * 0.55}`);
+    const panFieldRadius = 7 + widthNorm * 6;
+    panField.setAttribute("r", panFieldRadius.toFixed(2));
+    panField.setAttribute("style", `opacity:${0.24 + widthNorm * 0.38};stroke-width:${1 + widthNorm * 0.7}`);
+    panMarker.setAttribute("cx", (128 + panNorm * panFieldRadius).toFixed(2));
+    panMarker.setAttribute("cy", "13");
+    panMarker.setAttribute("style", `opacity:${0.56 + Math.abs(panNorm) * 0.38};stroke-width:${0.9 + widthNorm * 0.5}`);
   };
 
   update(d);
@@ -518,21 +525,6 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       if (m?.type === "drum") m.pitchEnvAmt = x;
     }, { regen: false }),
   });
-  const bendDecayCtl = ctlFloat({
-    label: "Bend Dcy",
-    value: d.bendDecay,
-    min: 0,
-    max: 1,
-    step: 0.001,
-    onChange: (x) => onPatchChange((p) => {
-      setReactive({ bendDecay: x });
-      const m = p.modules.find((z) => z.id === v.id);
-      if (m?.type === "drum") {
-        m.bendDecay = x;
-        m.pitchEnvDecay = x;
-      }
-    }, { regen: false }),
-  });
   const compThresholdCtl = ctlFloat({
     label: "Threshold",
     value: d.compThreshold,
@@ -731,8 +723,142 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     }, { regen: true }),
   });
   featureZone.routeField.wrap.replaceWith(triggerField.wrap);
-  const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  drumSettingsGrid.append(bendDecayCtl, compThresholdCtl, compRatioCtl, compAttackCtl, compReleaseCtl, stereoWidthCtl, driveColorCtl);
+  const drumSettingsPanel = createFaceplateSection("controls", "drumAdvancedPanel");
+  const createAdvancedGroup = (titleText: string, controls: HTMLElement[]) => {
+    const group = document.createElement("section");
+    group.className = "drumAdvancedGroup";
+    const title = document.createElement("h4");
+    title.className = "drumAdvancedGroupTitle";
+    title.textContent = titleText;
+    const grid = document.createElement("div");
+    grid.className = "moduleKnobGrid moduleKnobGrid-2 drumAdvancedGroupGrid";
+    grid.append(...controls);
+    group.append(title, grid);
+    return group;
+  };
+
+  const compKneeCtl = ctlFloat({
+    label: "Knee",
+    value: d.comp,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ comp: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.comp = x;
+    }, { regen: false }),
+  });
+  const driveAliasCtl = ctlFloat({
+    label: "Drive",
+    value: d.bodyTone,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ bodyTone: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.bodyTone = x;
+    }, { regen: false }),
+  });
+  const driveClipCtl = ctlFloat({
+    label: "Clip",
+    value: d.snap,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ snap: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.snap = x;
+    }, { regen: false }),
+  });
+  const driveSymmetryCtl = ctlFloat({
+    label: "Symmetry",
+    value: d.boost,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ boost: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.boost = x;
+    }, { regen: false }),
+  });
+  const stereoSpreadCtl = ctlFloat({
+    label: "Spread",
+    value: d.panBias,
+    min: -1,
+    max: 1,
+    step: 0.001,
+    center: 0,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ panBias: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") {
+        m.panBias = x;
+        m.pan = x;
+      }
+    }, { regen: false }),
+  });
+  const stereoMonoLowCtl = ctlFloat({
+    label: "Mono low",
+    value: d.compThreshold,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ compThreshold: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.compThreshold = x;
+    }, { regen: false }),
+  });
+  const behaviorBendCurveCtl = ctlFloat({
+    label: "Bend curve",
+    value: d.bendDecay,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ bendDecay: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") {
+        m.bendDecay = x;
+        m.pitchEnvDecay = x;
+      }
+    }, { regen: false }),
+  });
+  const behaviorSnapModeCtl = ctlFloat({
+    label: "Snap mode",
+    value: d.snap,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ snap: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.snap = x;
+    }, { regen: false }),
+  });
+  const behaviorNoiseColorCtl = ctlFloat({
+    label: "Noise color",
+    value: d.tone,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      setReactive({ tone: x });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.tone = x;
+    }, { regen: false }),
+  });
+
+  drumSettingsPanel.append(
+    createAdvancedGroup("Compressor", [compThresholdCtl, compRatioCtl, compAttackCtl, compReleaseCtl, compKneeCtl]),
+    createAdvancedGroup("Drive", [driveAliasCtl, driveColorCtl, driveSymmetryCtl, driveClipCtl]),
+    createAdvancedGroup("Stereo", [stereoWidthCtl, stereoMonoLowCtl, stereoSpreadCtl]),
+    createAdvancedGroup("Behavior", [behaviorBendCurveCtl, behaviorSnapModeCtl, behaviorNoiseColorCtl]),
+  );
   const boostTargetField = createCompactSelectField({
     label: "Focus",
     className: "drumFocusField",
@@ -751,7 +877,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     }, { regen: false }),
   });
   featureZone.feature.querySelector(".drumFeatureSide")?.append(boostTargetField.wrap);
-  shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsGrid);
+  shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsPanel);
   const infoBar = createDrumInfoBar(d);
   surface.append(h.header, shell.face, shell.tabs, infoBar.info);
   root.appendChild(surface);
