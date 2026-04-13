@@ -185,10 +185,27 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     applyPatch
   );
 
+  let activeHistoryGesture: { baseline: Patch; baselineSerialized: string } | null = null;
+
+  const beginHistoryGesture = () => {
+    if (activeHistoryGesture) return;
+    activeHistoryGesture = {
+      baseline: clonePatch(patch),
+      baselineSerialized: JSON.stringify(patch),
+    };
+  };
+
+  const endHistoryGesture = () => {
+    if (!activeHistoryGesture) return;
+    const changed = JSON.stringify(patch) !== activeHistoryGesture.baselineSerialized;
+    if (changed) history.pushHistory(activeHistoryGesture.baseline);
+    activeHistoryGesture = null;
+  };
+
   const onPatchChange = (fn: (p: Patch) => void, opts?: { regen?: boolean }) => {
     const prev = clonePatch(patch);
     fn(patch);
-    history.pushHistory(prev);
+    if (!activeHistoryGesture) history.pushHistory(prev);
 
     sched.setPatch(patch, { regen: opts?.regen ?? false });
     if (opts?.regen) sched.regenAll();
@@ -562,6 +579,11 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.btnPlay.click();
     }
   });
+
+  const onGestureStart = () => beginHistoryGesture();
+  const onGestureEnd = () => endHistoryGesture();
+  document.addEventListener("gridi-history-gesture-start", onGestureStart as EventListener);
+  document.addEventListener("gridi-history-gesture-end", onGestureEnd as EventListener);
 
   gridRenderer.rerender();
   header.updatePresetUI();

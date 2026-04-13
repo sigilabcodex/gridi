@@ -63,6 +63,23 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
   let anchorScopeEl: HTMLElement | null = null;
   let focusRestoreEl: HTMLElement | null = null;
   let syncControlVisual: (x: number) => void = () => {};
+  let inputGestureActive = false;
+
+  const emitHistoryGesture = (phase: "start" | "end") => {
+    (anchorScopeEl ?? valueBtn)?.dispatchEvent(new CustomEvent(`gridi-history-gesture-${phase}`, { bubbles: true }));
+  };
+
+  const startInputGesture = () => {
+    if (inputGestureActive) return;
+    inputGestureActive = true;
+    emitHistoryGesture("start");
+  };
+
+  const endInputGesture = () => {
+    if (!inputGestureActive) return;
+    inputGestureActive = false;
+    emitHistoryGesture("end");
+  };
 
   const syncReadout = (x: number) => {
     currentValue = normalize(x);
@@ -115,16 +132,23 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
     applyValue(parsed, { emit: true, syncControl: true });
   };
 
-  numberInput.addEventListener("input", commitFromInput);
   numberInput.addEventListener("change", commitFromInput);
+  numberInput.addEventListener("focus", startInputGesture);
+  numberInput.addEventListener("blur", () => {
+    commitFromInput();
+    endInputGesture();
+  });
   numberInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       commitFromInput();
+      endInputGesture();
       closeEditor({ restoreFocus: true });
     }
     if (e.key === "Escape") {
       e.preventDefault();
+      syncReadout(currentValue);
+      endInputGesture();
       closeEditor({ restoreFocus: true });
     }
   });
@@ -161,6 +185,7 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
 
   function closeEditor(opts?: { restoreFocus?: boolean }) {
     if (!editorOpen) return;
+    endInputGesture();
     editorOpen = false;
     editor.classList.add("hidden");
     editor.remove();
@@ -274,6 +299,10 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
     applyValue(x, { syncControl: false });
     o.onChange(x);
   };
+  r.addEventListener("pointerdown", () => emitHistoryGesture("start"));
+  const endSliderGesture = () => emitHistoryGesture("end");
+  r.addEventListener("pointerup", endSliderGesture);
+  r.addEventListener("pointercancel", endSliderGesture);
   r.addEventListener("keydown", (e) => {
     if ((e.key === "Enter" || e.key === " ") && !editorOpen) {
       e.preventDefault();
