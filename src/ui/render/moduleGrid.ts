@@ -201,6 +201,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
     params.sched.regenAll();
+    params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
     rerender();
   };
@@ -255,6 +256,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
     params.sched.regenAll();
+    params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
     rerender();
   };

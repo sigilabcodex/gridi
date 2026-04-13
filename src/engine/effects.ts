@@ -6,8 +6,10 @@ class GainEffectModule implements AudioModuleInstance {
   readonly id: string;
   readonly input: GainNode;
   readonly output: GainNode;
+  private readonly ctx: AudioContext;
 
   constructor(ctx: AudioContext, module: EffectModule) {
+    this.ctx = ctx;
     this.id = module.id;
     this.input = ctx.createGain();
     this.output = ctx.createGain();
@@ -26,7 +28,9 @@ class GainEffectModule implements AudioModuleInstance {
   update(params: Record<string, unknown>) {
     const bypass = params.bypass === true;
     const gain = clamp(typeof params.gain === "number" ? params.gain : 1, 0, 2);
-    this.output.gain.value = bypass ? 1 : gain;
+    const now = this.ctx.currentTime;
+    this.output.gain.cancelScheduledValues(now);
+    this.output.gain.setTargetAtTime(bypass ? 1 : gain, now, 0.01);
   }
 
   dispose() {
