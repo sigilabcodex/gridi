@@ -427,6 +427,39 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     }, { regen: false }),
   });
   const levelCtl = ctlFloat({ label: "Level", value: d.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.amp = x; }, { regen: false }) });
+  const attackCtl = ctlFloat({
+    label: "Attack",
+    value: d.transient,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.transient = x;
+    }, { regen: false }),
+  });
+  const bendCtl = ctlFloat({
+    label: "Bend",
+    value: d.pitchEnvAmt,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.pitchEnvAmt = x;
+    }, { regen: false }),
+  });
+  const bendDecayCtl = ctlFloat({
+    label: "Bend Dcy",
+    value: d.pitchEnvDecay,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.pitchEnvDecay = x;
+    }, { regen: false }),
+  });
   const panCtl = ctlFloat({ label: "Pan", value: d.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "drum") m.pan = x; }, { regen: false }) });
   const snapCtl = ctlFloat({
     label: "Snap",
@@ -476,6 +509,17 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       if (m?.type === "drum") m.boost = x;
     }, { regen: false }),
   });
+  const driveCtl = ctlFloat({
+    label: "Drive",
+    value: d.bodyTone,
+    min: 0,
+    max: 1,
+    step: 0.001,
+    onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "drum") m.bodyTone = x;
+    }, { regen: false }),
+  });
 
   const main = createFaceplateMainPanel();
   main.classList.add("drumMainLayout");
@@ -498,10 +542,10 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   };
 
   const primaryGrid = createFaceplateSection("controls", "voiceControlGrid drumMainPrimaryGrid");
-  primaryGrid.append(pitchCtl, decayCtl, toneCtl, levelCtl);
+  primaryGrid.append(pitchCtl, decayCtl, toneCtl, levelCtl, attackCtl, bendCtl);
 
   const characterGrid = createFaceplateSection("secondary", "voiceControlGrid drumMainSecondaryGrid");
-  characterGrid.append(snapCtl, noiseCtl, compCtl, boostCtl);
+  characterGrid.append(snapCtl, noiseCtl, compCtl, boostCtl, panCtl, driveCtl);
 
   main.append(featureZone.feature, primaryGrid, characterGrid, createFaceplateSpacer());
 
@@ -528,7 +572,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   });
   featureZone.routeField.wrap.replaceWith(triggerField.wrap);
   const drumSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  drumSettingsGrid.append(panCtl);
+  drumSettingsGrid.append(bendDecayCtl);
   const boostTargetField = createCompactSelectField({
     label: "Focus",
     className: "drumFocusField",
