@@ -1248,7 +1248,7 @@ export function renderTriggerSurface(
       if (panelList) buildRoutingRows(panelList);
     }
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
-    routingChip.textContent = !outgoingVoices.length ? "ROUTING" : outgoingVoices.length >= 3 ? "ROUTING 3+" : `ROUTING ${outgoingVoices.length}`;
+    routingChip.textContent = !outgoingVoices.length ? "ROUT" : outgoingVoices.length >= 3 ? "ROUT 3+" : `ROUT ${outgoingVoices.length}`;
     stateToken.textContent = t.enabled ? "ACTIVE" : "BYPASS";
     modeToken.textContent = `MODE ${GENERATOR_MODE_LABELS[t.mode]?.full ?? "GEN"}`;
     display.sync(t);
