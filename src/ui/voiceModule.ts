@@ -102,19 +102,6 @@ function makeHeader(
 function createDrumFeatureZone(d: DrumModule) {
   const feature = createFaceplateSection("feature", "drumMainFeature");
 
-  const head = document.createElement("div");
-  head.className = "drumFeatureHead";
-
-  const title = document.createElement("div");
-  title.className = "drumFeatureTitle";
-  title.textContent = "Behavior";
-
-  const summary = document.createElement("div");
-  summary.className = "drumFeatureSummary small";
-  summary.textContent = "Drum behavior surface";
-
-  head.append(title, summary);
-
   const stage = document.createElement("div");
   stage.className = "drumEnvelopeStage";
 
@@ -171,7 +158,7 @@ function createDrumFeatureZone(d: DrumModule) {
 
   side.append(routeValue.wrap);
   stage.append(svg, side);
-  feature.append(head, stage);
+  feature.append(stage);
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
