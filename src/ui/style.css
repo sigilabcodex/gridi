@@ -3432,28 +3432,9 @@ button:focus-visible,
   overflow: hidden;
 }
 
-.synthFeatureHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.synthFeatureTitle {
-  font-size: 10px;
-  letter-spacing: 0.9px;
-  text-transform: uppercase;
-  opacity: 0.9;
-}
-
-.synthFeatureSummary {
-  font-size: 10px;
-  opacity: 0.72;
-}
-
 .synthBehaviorStage {
   min-height: 0;
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .synthBehaviorGraph {
@@ -3489,15 +3470,24 @@ button:focus-visible,
   stroke-width: 1.2;
 }
 
-.synthBehaviorSpread {
-  fill: none;
+.synthBehaviorSpreadField {
+  fill: rgba(40, 82, 126, 0.12);
   stroke: rgba(166, 213, 255, 0.76);
   stroke-width: 1.3;
+  cursor: ew-resize;
+}
+
+.synthBehaviorSpreadAxis {
+  stroke: rgba(180, 220, 255, 0.56);
+  stroke-width: 1;
   stroke-linecap: round;
 }
 
 .synthBehaviorSpreadMarker {
   fill: rgba(210, 233, 255, 0.95);
+  stroke: rgba(180, 220, 255, 0.86);
+  stroke-width: 1;
+  cursor: ew-resize;
 }
 
 .drumFeatureHead {
@@ -3817,7 +3807,7 @@ button:focus-visible,
 
 .synthSurface .surfaceHeader {
   align-items: flex-start;
-  margin-bottom: 0;
+  margin-bottom: 9px;
   padding-bottom: 0;
 }
 
