@@ -60,13 +60,10 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   const wrap = document.createElement("div");
   wrap.className = "triggerDisplaySurface";
 
-  const modeCaption = document.createElement("div");
-  modeCaption.className = "triggerDisplayCaption small";
-
   const canvas = document.createElement("div");
   canvas.className = "triggerDisplayCanvas";
 
-  wrap.append(modeCaption, canvas);
+  wrap.append(canvas);
   const stepGridState: StepGridState = {
     basePattern: new Uint8Array(0),
     overlayPattern: new Int8Array(0),
@@ -80,7 +77,6 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   };
 
   const sync = (module: TriggerModule) => {
-    modeCaption.textContent = `${MODE_LABELS[module.mode]} Display Surface`;
     renderMode(canvas, module, params, stepGridState);
   };
 
