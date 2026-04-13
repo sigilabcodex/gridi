@@ -27,6 +27,9 @@ export function knob(
 } {
   const wrap = document.createElement("div");
   wrap.className = "knobCtl ctlFloat";
+  const emitHistoryGesture = (phase: "start" | "end") => {
+    wrap.dispatchEvent(new CustomEvent(`gridi-history-gesture-${phase}`, { bubbles: true }));
+  };
 
   if (opts.label) {
     const lab = document.createElement("label");
@@ -164,8 +167,10 @@ export function knob(
   let dragging = false;
   let startY = 0;
   let startV = value;
+  let wheelGestureTimer: number | null = null;
 
   knobEl.addEventListener("pointerdown", (e) => {
+    if (!dragging) emitHistoryGesture("start");
     dragging = true;
     knobEl.classList.add("drag");
     knobEl.setPointerCapture(e.pointerId);
@@ -184,6 +189,7 @@ export function knob(
   });
 
   const stopDrag = () => {
+    if (dragging) emitHistoryGesture("end");
     dragging = false;
     knobEl.classList.remove("drag");
   };
@@ -194,14 +200,26 @@ export function knob(
     "wheel",
     (e) => {
       e.preventDefault();
+      if (wheelGestureTimer === null) emitHistoryGesture("start");
+      if (wheelGestureTimer !== null) window.clearTimeout(wheelGestureTimer);
       const dir = Math.sign(e.deltaY || 0);
-      if (!dir) return;
+      if (!dir) {
+        wheelGestureTimer = window.setTimeout(() => {
+          wheelGestureTimer = null;
+          emitHistoryGesture("end");
+        }, 220);
+        return;
+      }
 
       const range = opts.max - opts.min;
       const base = step || range / 200;
       const fine = e.shiftKey ? 0.25 : 1;
       const delta = -dir * base * 4 * fine;
       setValue(value + delta, true);
+      wheelGestureTimer = window.setTimeout(() => {
+        wheelGestureTimer = null;
+        emitHistoryGesture("end");
+      }, 220);
     },
     { passive: false },
   );
