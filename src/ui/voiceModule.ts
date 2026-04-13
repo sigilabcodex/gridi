@@ -2,7 +2,7 @@ import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
-import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
@@ -58,28 +58,17 @@ function makeHeader(
     attachTooltip: params.attachTooltip,
   });
 
-  const left = v.type === "drum"
-    ? (() => {
-      const drumIdentity = document.createElement("div");
-      drumIdentity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
+  const left = (() => {
+    const identity = document.createElement("div");
+    identity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
 
-      const badge = document.createElement("div");
-      badge.className = "surfaceBadge surfaceBadge--drumFamily";
-      badge.textContent = badgeText;
+    const badge = document.createElement("div");
+    badge.className = `surfaceBadge ${v.type === "drum" ? "surfaceBadge--drumFamily" : "surfaceBadge--synthFamily"}`;
+    badge.textContent = badgeText;
 
-      drumIdentity.append(badge, presetControl.button);
-      return drumIdentity;
-    })()
-    : (() => {
-      const identity = createModuleIdentityMeta({
-        badgeText,
-        instanceName: v.name,
-        instanceId: v.id.slice(-6).toUpperCase(),
-        presetButton: presetControl.button,
-      });
-      identity.querySelector(".surfaceBadge")?.classList.add("surfaceBadge--synthFamily");
-      return identity;
-    })();
+    identity.append(badge, presetControl.button);
+    return identity;
+  })();
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -964,15 +953,6 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const h = makeHeader(v, "SYNTH", params, onRemove);
   const synthFeatureZone = (() => {
     const feature = createFaceplateSection("feature", "synthMainFeature");
-    const head = document.createElement("div");
-    head.className = "synthFeatureHead";
-    const title = document.createElement("div");
-    title.className = "synthFeatureTitle";
-    title.textContent = "Behavior";
-    const summary = document.createElement("div");
-    summary.className = "synthFeatureSummary small";
-    summary.textContent = "Synth behavior surface";
-    head.append(title, summary);
 
     const stage = document.createElement("div");
     stage.className = "synthBehaviorStage";
@@ -980,7 +960,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     svg.setAttribute("viewBox", "0 0 156 56");
     svg.setAttribute("class", "synthBehaviorGraph");
     svg.setAttribute("role", "img");
-    svg.setAttribute("aria-label", "Synth behavior preview showing waveform shape, cutoff position, envelope contour, and stereo spread indicator.");
+    svg.setAttribute("aria-label", "Synth behavior preview showing waveform shape, cutoff position, envelope contour, and stereo field indicator.");
     const baseline = document.createElementNS("http://www.w3.org/2000/svg", "path");
     baseline.setAttribute("d", "M 8 48 L 148 48");
     baseline.setAttribute("class", "synthBehaviorBaseline");
@@ -990,14 +970,42 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     envelope.setAttribute("class", "synthBehaviorEnvelope");
     const cutoffLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
     cutoffLine.setAttribute("class", "synthBehaviorCutoff");
-    const spreadLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    spreadLine.setAttribute("class", "synthBehaviorSpread");
+    const spreadField = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+    spreadField.setAttribute("class", "synthBehaviorSpreadField");
+    spreadField.setAttribute("cx", "128");
+    spreadField.setAttribute("cy", "11");
+    spreadField.setAttribute("rx", "9");
+    spreadField.setAttribute("ry", "4");
+    const spreadAxis = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    spreadAxis.setAttribute("class", "synthBehaviorSpreadAxis");
+    spreadAxis.setAttribute("x1", "128");
+    spreadAxis.setAttribute("y1", "8");
+    spreadAxis.setAttribute("x2", "128");
+    spreadAxis.setAttribute("y2", "14");
     const spreadMarker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     spreadMarker.setAttribute("class", "synthBehaviorSpreadMarker");
-    spreadMarker.setAttribute("r", "2.4");
-    svg.append(spreadLine, baseline, cutoffLine, envelope, waveform, spreadMarker);
+    spreadMarker.setAttribute("r", "2.5");
+    svg.append(spreadField, spreadAxis, baseline, cutoffLine, envelope, waveform, spreadMarker);
     stage.append(svg);
-    feature.append(head, stage);
+    feature.append(stage);
+
+    let spreadRadiusX = 9;
+    let isDraggingPan = false;
+    let isDraggingSpread = false;
+
+    const stopDragging = () => {
+      isDraggingPan = false;
+      isDraggingSpread = false;
+    };
+
+    const toLocalX = (event: PointerEvent) => {
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return 128;
+      return point.matrixTransform(matrix.inverse()).x;
+    };
 
     const update = (state: typeof reactiveState) => {
       const waveMix = clamp(state.waveform, 0, 1);
@@ -1037,16 +1045,46 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       cutoffLine.setAttribute("d", `M ${cutoffX.toFixed(2)} 10 L ${cutoffX.toFixed(2)} 48`);
       cutoffLine.setAttribute("style", `opacity:${0.28 + cutoffNorm * 0.54};stroke-width:${1 + resoNorm * 1.2}`);
 
-      const spreadHalf = 8 + spreadNorm * 16;
-      spreadLine.setAttribute("d", `M ${(128 - spreadHalf).toFixed(2)} 11 L ${(128 + spreadHalf).toFixed(2)} 11`);
-      spreadLine.setAttribute("style", `opacity:${0.3 + spreadNorm * 0.56};stroke-width:${1 + spreadNorm * 0.8}`);
-      spreadMarker.setAttribute("cx", (128 + panNorm * spreadHalf).toFixed(2));
+      spreadRadiusX = 7 + spreadNorm * 16;
+      const spreadRadiusY = 3 + spreadNorm * 4.5;
+      spreadField.setAttribute("rx", spreadRadiusX.toFixed(2));
+      spreadField.setAttribute("ry", spreadRadiusY.toFixed(2));
+      spreadField.setAttribute("style", `opacity:${0.3 + spreadNorm * 0.52};stroke-width:${1 + spreadNorm * 0.85}`);
+      spreadMarker.setAttribute("cx", (128 + panNorm * spreadRadiusX).toFixed(2));
       spreadMarker.setAttribute("cy", "11");
-      spreadMarker.setAttribute("style", `opacity:${0.62 + Math.abs(panNorm) * 0.32};`);
+      spreadMarker.setAttribute("style", `opacity:${0.62 + Math.abs(panNorm) * 0.32};stroke-width:${0.9 + spreadNorm * 0.35}`);
+    };
+
+    const bindInteractions = (handlers: { onPan: (next: number) => void; onSpread: (next: number) => void }) => {
+      spreadMarker.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        isDraggingPan = true;
+        spreadMarker.setPointerCapture(event.pointerId);
+      });
+
+      spreadField.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        isDraggingSpread = true;
+        spreadField.setPointerCapture(event.pointerId);
+      });
+
+      svg.addEventListener("pointermove", (event) => {
+        if (!isDraggingPan && !isDraggingSpread) return;
+        const localX = toLocalX(event);
+        const normalizedX = clamp((localX - 128) / 23, -1, 1);
+        if (isDraggingPan) handlers.onPan(normalizedX);
+        if (isDraggingSpread) handlers.onSpread(clamp(Math.abs(normalizedX), 0, 1));
+      });
+
+      svg.addEventListener("pointerup", stopDragging);
+      svg.addEventListener("pointercancel", stopDragging);
+      svg.addEventListener("lostpointercapture", stopDragging);
     };
 
     update(reactiveState);
-    return { feature, update };
+    return { feature, update, bindInteractions };
   })();
 
   const setReactive = (partial: Partial<typeof reactiveState>) => {
@@ -1073,6 +1111,21 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const fmCtl = ctlFloat({ label: "FM", value: t.modRate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ modRate: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modRate = x; }, { regen: false }) });
   const noiseCtl = ctlFloat({ label: "Noise", value: t.coarseTune, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ coarseTune: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.coarseTune = x; }, { regen: false }) });
   const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { setReactive({ pan: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
+
+  synthFeatureZone.bindInteractions({
+    onPan: (nextPan) => onPatchChange((p) => {
+      setReactive({ pan: nextPan });
+      panCtl.syncValue?.(nextPan);
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "tonal") m.pan = nextPan;
+    }, { regen: false }),
+    onSpread: (nextSpread) => onPatchChange((p) => {
+      setReactive({ glide: nextSpread });
+      spreadCtl.syncValue?.(nextSpread);
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "tonal") m.glide = nextSpread;
+    }, { regen: false }),
+  });
 
   const main = createFaceplateMainPanel();
   main.classList.add("synthMainLayout");
