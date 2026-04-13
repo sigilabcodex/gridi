@@ -3606,7 +3606,10 @@ button:focus-visible,
 }
 
 .drumEnvelopeToneTilt {
-  fill: rgba(156, 190, 224, 0.08);
+  fill: none;
+  stroke: rgba(156, 190, 224, 0.22);
+  stroke-width: 1.1;
+  stroke-linecap: round;
 }
 
 .drumEnvelopeDriveGhost {
@@ -3617,17 +3620,45 @@ button:focus-visible,
   stroke-dasharray: 2 2;
 }
 
-.drumEnvelopePanGhost {
+.drumEnvelopePanField {
   fill: none;
-  stroke: rgba(170, 220, 255, 0.5);
+  stroke: rgba(170, 220, 255, 0.44);
   stroke-width: 1.2;
   stroke-linecap: round;
 }
 
 .drumEnvelopePanMarker {
-  fill: rgba(188, 229, 255, 0.92);
-  stroke: rgba(75, 121, 156, 0.72);
-  stroke-width: 0.8;
+  fill: none;
+  stroke: rgba(188, 229, 255, 0.92);
+  stroke-width: 1.1;
+}
+
+.drumAdvancedPanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+
+.drumAdvancedGroup {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 2px;
+  border-top: 1px solid rgba(138, 172, 196, 0.18);
+}
+
+.drumAdvancedGroupTitle {
+  margin: 0 0 4px;
+  font-size: 9px;
+  letter-spacing: 0.72px;
+  text-transform: uppercase;
+  font-variant: all-small-caps;
+  opacity: 0.74;
+}
+
+.drumAdvancedGroupGrid {
+  row-gap: 4px;
+  column-gap: 4px;
 }
 
 .drumInfoBar {
