@@ -1127,7 +1127,6 @@ header {
   line-height: 1;
   font-weight: 300;
   opacity: 0.86;
-  margin-top: -8px;
   user-select: none;
   pointer-events: none;
 }
@@ -1746,7 +1745,9 @@ button.danger.armed {
 .addModuleSlot {
   box-sizing: border-box;
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto auto;
+  align-content: center;
+  gap: 6px;
   justify-items: center;
   align-items: center;
   border-radius: var(--workspace-slot-radius);
@@ -2925,10 +2926,47 @@ button:focus-visible,
 }
 
 .transportDial input[type="range"] {
+  appearance: none;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  height: 16px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 214, 221, 0.16);
+  background: linear-gradient(180deg, rgba(16, 23, 31, 0.92), rgba(9, 14, 20, 0.92));
+  padding: 0 4px;
+}
+
+.transportDial input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(74, 163, 255, 0.55), rgba(255, 204, 102, 0.46));
+}
+
+.transportDial input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -5px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 214, 221, 0.5);
+  background: rgba(235, 243, 255, 0.92);
+  box-shadow: 0 0 0 2px rgba(74, 163, 255, 0.16);
+}
+
+.transportDial input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(74, 163, 255, 0.55), rgba(255, 204, 102, 0.46));
+}
+
+.transportDial input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(207, 214, 221, 0.5);
+  background: rgba(235, 243, 255, 0.92);
+  box-shadow: 0 0 0 2px rgba(74, 163, 255, 0.16);
 }
 
 .transportDialNumber {
