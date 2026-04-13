@@ -312,8 +312,9 @@ export function createEngine(): Engine {
 
     const now = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
     const amp = clamp(safe(v.amp, 0.12), 0, 1);
-    const pan = clamp(safe(v.pan, 0), -1, 1);
-    const panNode = mkPanner(pan);
+    const panBase = v.type === "drum" ? safe(v.panBias, safe(v.pan, 0)) : safe(v.pan, 0);
+    const panSpread = v.type === "drum" ? (0.35 + clamp01(safe(v.stereoWidth, 0.72)) * 0.65) : 1;
+    const panNode = mkPanner(clamp(panBase * panSpread, -1, 1));
 
     const destinations = resolveVoiceDestinations(v.id);
     const sendGains: GainNode[] = [];
@@ -332,20 +333,31 @@ export function createEngine(): Engine {
     if (v.type === "drum") {
       const bodyOsc = ctx.createOscillator();
       const bodyGain = ctx.createGain();
+      const preDrive = ctx.createGain();
+      const driveShaper = ctx.createWaveShaper();
+      const compNode = ctx.createDynamicsCompressor();
+      const compMakeup = ctx.createGain();
       const toneFilter = ctx.createBiquadFilter();
       const noiseFilter = ctx.createBiquadFilter();
       const noiseGain = ctx.createGain();
       const clickGain = ctx.createGain();
 
+      const attack = 0.001 + clamp01(safe(v.attack, 0.18)) * 0.05;
       const bodyTone = clamp01(safe(v.bodyTone, 0.5));
+      const driveColor = clamp01(safe(v.driveColor, 0.5));
       const transient = clamp01(safe(v.transient, 0.5));
       const snap = clamp01(safe(v.snap, 0.2));
       const decay = 0.03 + clamp01(safe(v.decay, 0.4)) * 0.85;
       const pitchEnvAmt = clamp01(safe(v.pitchEnvAmt, 0.5));
-      const pitchEnvDecay = 0.01 + clamp01(safe(v.pitchEnvDecay, 0.25)) * 0.4;
+      const bendDecay = clamp01(safe(v.bendDecay, safe(v.pitchEnvDecay, 0.25)));
+      const pitchEnvDecay = 0.01 + bendDecay * 0.4;
       const noiseAmt = clamp01(safe(v.noise, 0.2));
       const tone = clamp01(safe(v.tone, 0.45));
       const comp = clamp01(safe(v.comp, 0.32));
+      const compThreshold = clamp01(safe(v.compThreshold, 0.45));
+      const compRatio = clamp01(safe(v.compRatio, 0.5));
+      const compAttack = clamp01(safe(v.compAttack, 0.2));
+      const compRelease = clamp01(safe(v.compRelease, 0.42));
       const boost = clamp01(safe(v.boost, 0.24));
       const boostTarget = v.boostTarget === "attack" || v.boostTarget === "air" ? v.boostTarget : "body";
       const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9);
@@ -356,16 +368,37 @@ export function createEngine(): Engine {
       bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(30, baseFreq), now + pitchEnvDecay);
 
       toneFilter.type = "lowpass";
-      toneFilter.frequency.value = 300 + tone * 6400 + (boostTarget === "body" ? boost * 800 : 0);
-      toneFilter.Q.value = 0.4 + tone * 2.2;
+      toneFilter.frequency.value = 240 + tone * 7200 + driveColor * 1200 + (boostTarget === "body" ? boost * 900 : 0);
+      toneFilter.Q.value = 0.4 + tone * 2.2 + driveColor * 0.6;
 
       noiseFilter.type = "bandpass";
-      noiseFilter.frequency.value = 300 + tone * 5200 + (boostTarget === "air" ? boost * 1800 : 0);
+      noiseFilter.frequency.value = 250 + tone * 5800 + driveColor * 900 + (boostTarget === "air" ? boost * 1800 : 0);
       noiseFilter.Q.value = 0.7 + snap * 10 + (boostTarget === "attack" ? boost * 2 : 0);
 
+      const driveAmt = clamp01(bodyTone);
+      const driveInput = 1 + driveAmt * 5.4;
+      preDrive.gain.value = driveInput;
+      const curve = new Float32Array(256);
+      const curveSlope = 1 + driveColor * 0.8;
+      for (let n = 0; n < curve.length; n += 1) {
+        const x = (n / (curve.length - 1)) * 2 - 1;
+        curve[n] = Math.tanh((1 + driveAmt * 3.2) * x * curveSlope);
+      }
+      driveShaper.curve = curve;
+      driveShaper.oversample = "2x";
+
+      compNode.threshold.value = -48 + compThreshold * 40 - comp * 14;
+      compNode.ratio.value = 1 + compRatio * 15 * (0.2 + comp * 0.8);
+      compNode.attack.value = 0.001 + compAttack * 0.08;
+      compNode.release.value = 0.03 + compRelease * 0.45;
+      compNode.knee.value = 6 + comp * 18;
+      compMakeup.gain.value = 1 + comp * (0.25 + compRatio * 0.65);
+
       bodyOsc.connect(bodyGain);
-      bodyGain.connect(toneFilter);
-      toneFilter.connect(panNode);
+      bodyGain.connect(preDrive);
+      preDrive.connect(driveShaper);
+      driveShaper.connect(toneFilter);
+      toneFilter.connect(compNode);
 
       const noiseBuffer = ctx.createBuffer(1, Math.max(1, (ctx.sampleRate * (decay + 0.05)) | 0), ctx.sampleRate);
       const noiseData = noiseBuffer.getChannelData(0);
@@ -374,29 +407,31 @@ export function createEngine(): Engine {
       noise.buffer = noiseBuffer;
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
-      noiseGain.connect(panNode);
+      noiseGain.connect(compNode);
 
       const clickOsc = ctx.createOscillator();
       clickOsc.type = "square";
       clickOsc.frequency.value = 1200 + snap * 2600 + (boostTarget === "attack" ? boost * 1200 : 0);
       clickOsc.connect(clickGain);
-      clickGain.connect(panNode);
+      clickGain.connect(compNode);
+      compNode.connect(compMakeup);
+      compMakeup.connect(panNode);
 
-      const compPeak = amp * (0.56 + transient * 0.34) * (1 - comp * 0.36);
+      const compPeak = amp * (0.52 + transient * 0.34) * (1 - comp * 0.2);
       const compTail = decay * (0.92 + comp * 0.4);
       const bodyBoost = boostTarget === "body" ? boost : boost * 0.25;
       const attackBoost = boostTarget === "attack" ? boost : boost * 0.2;
       const airBoost = boostTarget === "air" ? boost : boost * 0.2;
 
       bodyGain.gain.setValueAtTime(EPS, now);
-      bodyGain.gain.exponentialRampToValueAtTime(Math.max(EPS, compPeak + bodyBoost * amp * 0.26), now + 0.002);
+      bodyGain.gain.exponentialRampToValueAtTime(Math.max(EPS, compPeak + bodyBoost * amp * 0.26), now + attack);
       bodyGain.gain.exponentialRampToValueAtTime(EPS, now + compTail);
 
       noiseGain.gain.setValueAtTime(Math.max(EPS, amp * noiseAmt * (0.76 + airBoost * 0.55)), now);
       noiseGain.gain.exponentialRampToValueAtTime(EPS, now + 0.01 + decay * 0.65);
 
-      clickGain.gain.setValueAtTime(Math.max(EPS, amp * (0.08 + transient * 0.3 + snap * 0.2 + attackBoost * 0.22)), now);
-      clickGain.gain.exponentialRampToValueAtTime(EPS, now + 0.006 + (1 - snap) * 0.01);
+      clickGain.gain.setValueAtTime(Math.max(EPS, amp * (0.04 + transient * 0.32 + snap * 0.2 + attackBoost * 0.22)), now + attack * 0.35);
+      clickGain.gain.exponentialRampToValueAtTime(EPS, now + attack + 0.006 + (1 - snap) * 0.01);
 
       const stopAt = now + decay + 0.08;
       bodyOsc.start(now);
@@ -407,6 +442,10 @@ export function createEngine(): Engine {
       clickOsc.stop(stopAt);
       bodyOsc.onended = () => {
         bodyGain.disconnect();
+        preDrive.disconnect();
+        driveShaper.disconnect();
+        compNode.disconnect();
+        compMakeup.disconnect();
         toneFilter.disconnect();
         noiseFilter.disconnect();
         noiseGain.disconnect();

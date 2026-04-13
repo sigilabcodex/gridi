@@ -85,17 +85,26 @@ export type ControlModule = ModuleBase & {
 export type DrumSynthModule = SoundBase & {
   type: "drum";
   basePitch: number;
+  attack: number;
   decay: number;
   transient: number;
   snap: number;
   noise: number;
   bodyTone: number;
+  driveColor: number;
   pitchEnvAmt: number;
   pitchEnvDecay: number;
+  bendDecay: number;
   tone: number;
   comp: number;
+  compThreshold: number;
+  compRatio: number;
+  compAttack: number;
+  compRelease: number;
   boost: number;
   boostTarget: "body" | "attack" | "air";
+  stereoWidth: number;
+  panBias: number;
 };
 
 export type TonalSynthModule = SoundBase & {
@@ -280,16 +289,25 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
       triggerSource,
       amp: 0.15,
       pan: 0,
+      panBias: 0,
+      stereoWidth: 0.72,
       basePitch: 0.42,
+      attack: 0.18,
       decay: 0.35,
       transient: 0.65,
       snap: 0.3,
       noise: 0.2,
       bodyTone: 0.5,
+      driveColor: 0.5,
       pitchEnvAmt: 0.55,
       pitchEnvDecay: 0.25,
+      bendDecay: 0.25,
       tone: 0.45,
       comp: 0.32,
+      compThreshold: 0.45,
+      compRatio: 0.5,
+      compAttack: 0.2,
+      compRelease: 0.42,
       boost: 0.24,
       boostTarget: "body",
     };
@@ -446,16 +464,25 @@ function normalizeDrumModule(raw: any): DrumModule {
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.15, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
+    panBias: clamp(typeof raw?.panBias === "number" ? raw.panBias : (typeof raw?.pan === "number" ? raw.pan : 0), -1, 1),
+    stereoWidth: clamp(typeof raw?.stereoWidth === "number" ? raw.stereoWidth : 0.72, 0, 1),
     basePitch: clamp(typeof raw?.basePitch === "number" ? raw.basePitch : legacyTimbre, 0, 1),
+    attack: clamp(typeof raw?.attack === "number" ? raw.attack : 0.15 + (1 - legacyTimbre) * 0.2, 0, 1),
     decay: clamp(typeof raw?.decay === "number" ? raw.decay : 0.28 + legacyTimbre * 0.42, 0, 1),
     transient: clamp(typeof raw?.transient === "number" ? raw.transient : 0.45 + (1 - legacyTimbre) * 0.4, 0, 1),
     snap: clamp(typeof raw?.snap === "number" ? raw.snap : legacyTimbre * 0.6, 0, 1),
     noise: clamp(typeof raw?.noise === "number" ? raw.noise : 0.1 + legacyTimbre * 0.3, 0, 1),
     bodyTone: clamp(typeof raw?.bodyTone === "number" ? raw.bodyTone : 0.2 + legacyTimbre * 0.6, 0, 1),
+    driveColor: clamp(typeof raw?.driveColor === "number" ? raw.driveColor : 0.5, 0, 1),
     pitchEnvAmt: clamp(typeof raw?.pitchEnvAmt === "number" ? raw.pitchEnvAmt : 0.3 + legacyTimbre * 0.4, 0, 1),
     pitchEnvDecay: clamp(typeof raw?.pitchEnvDecay === "number" ? raw.pitchEnvDecay : 0.2 + legacyTimbre * 0.3, 0, 1),
+    bendDecay: clamp(typeof raw?.bendDecay === "number" ? raw.bendDecay : (typeof raw?.pitchEnvDecay === "number" ? raw.pitchEnvDecay : 0.2 + legacyTimbre * 0.3), 0, 1),
     tone: clamp(typeof raw?.tone === "number" ? raw.tone : legacyTimbre, 0, 1),
     comp: clamp(typeof raw?.comp === "number" ? raw.comp : 0.32, 0, 1),
+    compThreshold: clamp(typeof raw?.compThreshold === "number" ? raw.compThreshold : 0.45, 0, 1),
+    compRatio: clamp(typeof raw?.compRatio === "number" ? raw.compRatio : 0.5, 0, 1),
+    compAttack: clamp(typeof raw?.compAttack === "number" ? raw.compAttack : 0.2, 0, 1),
+    compRelease: clamp(typeof raw?.compRelease === "number" ? raw.compRelease : 0.42, 0, 1),
     boost: clamp(typeof raw?.boost === "number" ? raw.boost : 0.24, 0, 1),
     boostTarget: raw?.boostTarget === "attack" || raw?.boostTarget === "air" ? raw.boostTarget : "body",
     modulations: typeof raw?.modulations === "object" && raw.modulations ? raw.modulations : {},
