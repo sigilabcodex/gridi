@@ -5,33 +5,46 @@
 - App version: `0.32.4` (`src/version.ts`)
 - Patch model: `0.3`
 
-## Development phase
+## Current state (implemented reality)
 
-`v0.32.x` stabilization: tighten reliability and contributor clarity before expanding features.
+GRIDI is now transitioning from prototype behavior into a playable modular instrument.
 
-## Completed milestones
+### Module maturity snapshot
 
-- Dynamic modular grid and add-slot workflow.
-- Patch-based architecture with migration and persistence.
-- Look-ahead scheduler with deterministic window rendering tests.
-- Foundational routing model (`modules`, `buses`, `connections`).
-- Basic visual modules (scope/spectrum).
-- Compact transport/header control strip and preset/session utility grouping.
-- Preset-first module identity shell in fixed-size module cards.
+- **Drum**: substantially refined and currently the most mature sound faceplate/reference for compact playable density.
+- **GEN (Trigger)**: substantially refined with mode-aware controls and a behavior-first display surface.
+- **SYNTH (Tonal)**: now structurally viable and visually coherent within the shared shell and tab grammar.
+- **CONTROL**: functional and usable, but still pending major refinement in interaction depth and surface clarity.
+- **VISUAL**: functional for core monitoring (scope/spectrum), but still pending major expansion in mode breadth and interaction richness.
 
-## Current priorities
+### Instrument-level status
 
-1. Preserve deterministic scheduler + pattern behavior.
-2. Reduce hidden coupling between UI handlers and patch mutation paths.
-3. Keep module main faces compact/playable while secondary concerns stay in tabs.
-4. Improve architecture/security documentation for new contributors.
-5. Keep dependency tree lean and reproducible.
-## Versioning recommendation
+- Shared fixed shell + tabbed module face system is stable.
+- Routing ownership is currently voice-owned (`triggerSource` on sound modules), with trigger-side routing UI acting as an editor/bridge.
+- Session presets (whole-patch state) and module presets (local module state) both exist and are active.
 
-- Source-of-truth version is maintained in both `package.json` (`version`) and `src/version.ts` (`APP_VERSION`).
-- For pre-1.0 GRIDI, use **minor bumps** for architecture milestones that constrain future implementation behavior, and **patch bumps** for narrow fixes/clarifications.
-- This PR is documentation-first and does not require an immediate version bump unless released as a standalone architecture milestone.
+## Near-term next steps (active priority)
 
+1. Keep Drum/GEN/SYNTH quality high while improving CONTROL and VISUAL parity.
+2. Continue clarifying module-kind / mode / preset / session semantics across docs and UI text.
+3. Expand module preset banks from starter seeds toward curated instrument-grade defaults.
+4. Improve display-surface interaction feedback so displays act as behavior surfaces, not passive labels.
+5. Refine top/global header and add-slot affordances without breaking current shell/routing architecture.
+
+## Longer-term ideas (not implemented yet)
+
+- Richer GEN mode completion and stronger mode-specific visual behavior.
+- Full graphical representations for all generator modes.
+- More animated/live module displays and interactive behavior surfaces.
+- CONTROL redesign and expansion.
+- VISUAL expansion with multiple dedicated visual modes.
+- Possible dedicated routing-management module.
+- MIDI implementation and mapping workflows.
+- Live coding module exploration.
+- Sampling/looping/granular ideas.
+- Experimental/dangerous mode track.
+- Preset-bank curation as a first-class instrument experience.
+- Future multichannel / installation-aware spatial workflows.
 
 ## Known limitations
 
@@ -40,10 +53,4 @@
 - Runtime state is browser-local (localStorage), no multi-user/session sync.
 - Security posture is primarily static review plus disciplined DOM usage.
 
-## Next planned features
-
-- Better routing UX and validation visibility.
-- Clock/transport abstraction hardening for external sync.
-- Additional pattern engines once scheduler boundaries are fully stabilized.
-
-See also: [`docs/ui-principles.md`](ui-principles.md), [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md).
+See also: [`docs/ui-principles.md`](ui-principles.md), [`docs/module-identity-and-presets.md`](module-identity-and-presets.md), [`docs/roadmap-instrument-state.md`](roadmap-instrument-state.md).

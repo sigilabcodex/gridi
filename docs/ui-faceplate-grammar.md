@@ -1,122 +1,62 @@
-# UI Faceplate Grammar (GEN + DRUM era)
+# UI Faceplate Grammar (current Drum + GEN + SYNTH baseline)
 
-This document formalizes the current canonical faceplate grammar as implemented in `triggerModule.ts` (GEN) and `voiceModule.ts` (DRUM), with shared shell primitives from `moduleShell.ts`, `faceplateSections.ts`, and shared CSS tokens/layout rules in `style.css`.
+This document captures the current, practical faceplate grammar emerging from Drum, GEN, and SYNTH work.
 
-## 1) Canonical module anatomy
+## Current state (implemented reality)
 
-All modules should follow this vertical structure:
+### Canonical shell order
 
-1. **Header**: `[module type] [preset] [on/off + actions]`
-2. **Display surface**: dominant semantic visual area
-3. **Primary controls**: performance controls, 6-column grammar
-4. **Tabs**: `Main / Routing / Advanced`
-5. **Footer**: thin status token strip
+1. **Header**: `[type/kind] [preset] [on/off + actions]`
+2. **Main display/feature surface** (dominant when behaviorally meaningful)
+3. **Primary controls** (6-column grammar where applicable)
+4. **Tabs** (`Main / Routing / Settings` in code; architecture target is `Main / Routing / Advanced`)
+5. **Bottom status strip** (compact state/readout role)
 
-```text
-┌─────────────────────────────────────┐
-│ HEADER: [TYPE] [PRESET] [ON/OFF]   │
-├─────────────────────────────────────┤
-│ DISPLAY SURFACE (semantic behavior) │
-├─────────────────────────────────────┤
-│ MAIN CONTROLS (6 columns)           │
-│ [○][○][○][○][○][○]                  │
-├─────────────────────────────────────┤
-│ TABS: Main | Routing | Advanced     │
-├─────────────────────────────────────┤
-│ FOOTER TOKENS: ID · STATE · META    │
-└─────────────────────────────────────┘
-```
+### Fixed-shell rule
 
-## 2) Control grid standard
+- Module outer footprint is fixed across module kinds.
+- Tab changes swap face content without resizing the module shell.
+- Main face should stay playable without forcing navigation to setup-heavy tabs.
 
-### Primary control area (Main)
+### Six-column control logic
 
-- Use **up to 6 controls per row**.
-- Use **uniform knob size** and shared spacing rhythm.
-- Controls are horizontally aligned in a stable row grammar.
-- Main should avoid vertical stacks and avoid more than **2 rows**.
+- Main controls are arranged with a six-column rhythm where applicable.
+- Main remains compact/performance-first (typically one or two rows max).
+- Deeper controls belong in the Settings/Advanced face.
 
-### Advanced panel
+### Display surfaces are behavior surfaces
 
-- Use a **6-column matrix**.
-- Allow up to **4 rows** where needed.
-- Use dense, analog-style placement.
-- **No boxed grouping blocks** in the matrix itself.
-- Use **inline section headers** (text labels over column regions), not card containers.
+Display areas are not decorative labels.
 
-Why this standard exists:
+They should communicate active behavior:
+- GEN: mode/seed/algorithm pattern behavior.
+- Drum: envelope/body/noise/shape behavior context.
+- Synth: coherent tonal/timbre behavior context (structurally in place; richer behavior display still evolving).
+- Control/Visual: currently functional but pending deeper interaction and expansion.
 
-- **Visual consistency** across families.
-- **Hardware-like density** without dashboard sprawl.
-- **Predictable scaling** as parameter counts increase.
-- **Cross-module coherence** so muscle memory transfers.
+### Face rhythm
 
-## 3) Display surface role (non-decorative)
+Current module rhythm is:
+- identity first,
+- behavior surface second,
+- playable controls third,
+- routing/setup split into dedicated tabs,
+- compact bottom strip for persistent status.
 
-Display surfaces are not generic ornamentation. They are semantic behavior surfaces.
+This rhythm is now the practical baseline for new module work.
 
-### Not
+## Near-term pending UI refinements (documented, not implemented)
 
-- Decorative filler.
-- A generic oscilloscope slapped onto every module.
+- Add-module placeholder plus should be centered above the label (not top-anchored).
+- Top/global header still needs refinement.
+- Global sliders may move toward a more chip-like/custom GRIDI aesthetic.
+- Display surfaces likely need richer interaction feedback.
+- Routing UX may continue evolving without necessarily changing routing ownership architecture.
 
-### Required role
+## Longer-term direction (speculative)
 
-- Module-specific behavior visualization.
-- Parameter-feedback layer that reacts to meaningful edits.
-- Immediate explanation of “what this module is doing now.”
+- Richer animated/live behavior in module display surfaces.
+- More interactive display modules and behavior-linked visual controls.
+- Expanded family-specific face grammars as CONTROL and VISUAL mature.
 
-Examples:
-
-- **DRUM**: envelope contour, compressor behavior, noise layer, tone tilt/tint, pan spatial indicator.
-- **GEN**: algorithm/mode state display, sequencer matrix, fractal contour, Euclidean circle.
-
-## 4) Shared faceplate rules
-
-### Header
-
-Canonical identity row: `[module type] [preset] [on/off]` with optional actions (e.g., remove).
-
-### Display
-
-Dominant area in Main; should remain the visual anchor when module semantics support it.
-
-### Primary controls
-
-6-column grammar, stable positions, consistent knob geometry.
-
-### Tabs
-
-Canonical responsibilities:
-
-- **Main** = performance controls.
-- **Routing** = signal/source-target editing.
-- **Advanced** = deeper internal synthesis/algorithm parameters.
-
-### Footer
-
-Status tokens in a thin strip (module id, enabled/bypass state, mode or transport/meta state).
-
-## 5) Control semantics by zone
-
-- **Main**: performative and frequently touched controls.
-- **Routing**: connection semantics only.
-- **Advanced**: internals and less-frequent shaping.
-- **Display**: visual semantic feedback; no hidden runtime authority.
-
-## 6) Future module requirements
-
-All new modules must:
-
-1. Follow a **6-column control grid**.
-2. Provide a **semantic display surface** tied to module behavior.
-3. Use shared knob sizing conventions.
-4. Use the shared footer token pattern.
-5. Avoid vertical control-stack layouts on Main.
-6. Keep Main to at most **2 control rows**.
-
-## 7) Design philosophy summary
-
-- GRIDI modules should read like compact instrument faceplates, not micro-app forms.
-- DRUM and GEN now establish the grammar baseline for density, semantic display, and tab responsibility.
-- The objective is expressive depth with stable learnability.
+See also: [`docs/ui-principles.md`](ui-principles.md), [`docs/faceplate-architecture-v1.md`](faceplate-architecture-v1.md), [`docs/roadmap-instrument-state.md`](roadmap-instrument-state.md).

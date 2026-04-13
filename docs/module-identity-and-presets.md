@@ -1,52 +1,98 @@
-# Module identity and presets
+# Module identity, modes, presets, and sessions
 
-This note defines the baseline model for separating module identity, engine type, and preset identity in GRIDI.
+This document defines the practical terminology boundary GRIDI now uses.
 
-## Three distinct identities
+## Why this matters
 
-Each module now carries three different identity layers:
+As GRIDI becomes a real playable instrument, it needs strict vocabulary so runtime behavior, module UI, preset UX, and persistence all remain coherent.
 
-1. **Instance identity** (`name`)
-   - Human-readable name for this module instance in the current workspace.
-   - Examples: `Trigger 1`, `Drum 2`, `Synth 1`, `Scope 1`.
-2. **Engine identity** (`engine`)
-   - Stable engine family used by runtime/audio/rendering code.
-   - Allowed values: `trigger`, `drum`, `synth`, `visual`.
-   - Engine identity is intentionally small and does not encode musical roles like kick/snare/pad.
-3. **Preset identity** (`presetName`, optional `presetMeta`)
-   - User-facing preset label and lightweight metadata container.
-   - Examples: `Deep Kick`, `Dust Hat`, `Rubber Bass`, `Sparse Euclid`.
-   - This is separate from instance name and can change independently.
+## Core terms (practical definitions)
 
-## Naming logic
+## 1) Module kind
 
-Default instance naming is now sequential and family-based:
+**Module kind** is the broad family/category of a module instance.
 
-- Trigger modules: `Trigger N`
-- Drum modules: `Drum N`
-- Synth modules: `Synth N`
-- Visual modules: `Scope N`
+Examples in current implementation:
+- `trigger` (GEN behavior engines)
+- `drum`
+- `tonal` (SYNTH family)
+- `control`
+- `visual`
 
-The module instance name no longer uses preset labels.
+A module kind answers: **“What class of module is this?”**
 
-## Default preset behavior
+## 2) Module mode / subtype
 
-New modules get a default preset label immediately:
+**Mode/subtype** is the behavior family *inside* a module kind.
 
-- Trigger: `Sparse Euclid`
-- Drum: `Deep Kick`
-- Synth: `Rubber Bass`
-- Visual: family default (`Scope Default`, `Spectrum Default`, `Pattern Default`)
+Examples:
+- Trigger mode: `step-sequencer`, `euclidean`, `cellular-automata`, `fractal`, `hybrid`, etc.
+- Control subtype/kind: `lfo`, `drift`, `stepped`
+- Visual subtype/kind: `scope`, `spectrum`, `pattern`
 
-No preset persistence layer is introduced in this step; this is only the data-model and UI identity split.
+A mode/subtype answers: **“What behavior variant is this module currently running?”**
 
-## Why this prepares future preset/session systems
+## 3) Module preset
 
-Separating `name`, `engine`, and `presetName` establishes a clean path for future capabilities:
+**Module preset** is local to one module instance/family and captures the module’s own control state and closely related local configuration.
 
-- Swap presets without renaming modules.
-- Keep stable module identity while trying sound/sequence variations.
-- Add preset save/load and session management without changing engine taxonomy.
-- Build preset browser/import/export flows on top of `presetName`/`presetMeta` fields.
+Examples:
+- Drum preset stores drum shaping values (pitch/decay/noise/tone/etc.)
+- Synth preset stores synth timbre/envelope/filter values
+- Trigger preset stores generator parameters and seed/mode configuration
+- Control/Visual presets store their local operating values
 
-This keeps GRIDI's engine model minimal while allowing rich variation through parameters and presets.
+A module preset answers: **“What local instrument state should this module recall?”**
+
+## 4) Session (whole instrument state)
+
+**Session preset/session state** stores the broader whole-patch instrument configuration.
+
+Session-level state includes:
+- all module instances,
+- module placement,
+- routing relationships,
+- transport/global patch state,
+- each module’s current local state at save time.
+
+A session answers: **“What full instrument configuration should load?”**
+
+---
+
+## Relationship between these layers
+
+- **Kind** selects module family.
+- **Mode/subtype** selects behavior variant inside that family.
+- **Module preset** recalls local voice/generator/control/display setup for one module instance.
+- **Session** recalls the full instrument graph and workspace state.
+
+This is the canonical separation GRIDI should maintain.
+
+## General design principle (all module families)
+
+GRIDI is not treating this as GEN-only behavior. Any module family may and should support:
+
+1. **module kind** (family identity),
+2. **mode/subtype inside that kind** (behavior family),
+3. **module-instance presets** (local recallable states).
+
+This applies to current families and future families.
+
+## Preset banks are instrument experience, not just storage
+
+Starter module presets already exist, but the direction is curated, musical preset banks per family.
+
+Priority curation targets:
+- **Drum**: kicks, hats, cymbals, rattles, percussion families.
+- **Synth**: basses, leads, pads, unstable/strange tone families.
+- **GEN**: meaningful generator examples with distinct musical outcomes.
+
+Preset banks are part of how players learn and perform GRIDI, not just serialization.
+
+## Current constraints
+
+- Module preset compatibility is family/subtype-checked.
+- Session persistence is local-first (browser storage).
+- Not all modules have equally mature curated default banks yet.
+
+See also: [`docs/architecture/bank-system.md`](architecture/bank-system.md), [`docs/module-types.md`](module-types.md), [`docs/roadmap-instrument-state.md`](roadmap-instrument-state.md).
