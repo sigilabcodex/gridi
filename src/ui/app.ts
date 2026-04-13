@@ -1,5 +1,5 @@
 import type { Module, Patch } from "../patch";
-import { clamp, defaultPatch, getSoundModules, getTriggers } from "../patch";
+import { clamp, defaultPatch, getSoundModules, getTriggers, isEffect } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { loadSettings } from "../settings/store";
@@ -60,6 +60,53 @@ function downloadJSON(filename: string, value: unknown) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function connectionTopologySignature(patch: Patch) {
+  return patch.connections
+    .map((conn) => {
+      const toId = conn.to.id ?? "";
+      return `${conn.id}|${conn.enabled ? 1 : 0}|${conn.fromModuleId}|${conn.fromPort}|${conn.to.type}|${toId}|${conn.to.port}`;
+    })
+    .sort();
+}
+
+function effectTopologySignature(patch: Patch) {
+  return patch.modules
+    .filter(isEffect)
+    .map((module) => `${module.id}|${module.type}|${module.kind}`)
+    .sort();
+}
+
+function moduleTopologySignature(patch: Patch) {
+  return patch.modules
+    .map((module) => `${module.id}|${module.type}`)
+    .sort();
+}
+
+function hasRoutingTopologyChange(prev: Patch, next: Patch) {
+  const prevConnections = connectionTopologySignature(prev);
+  const nextConnections = connectionTopologySignature(next);
+  if (prevConnections.length !== nextConnections.length) return true;
+  for (let i = 0; i < prevConnections.length; i++) {
+    if (prevConnections[i] !== nextConnections[i]) return true;
+  }
+
+  const prevEffects = effectTopologySignature(prev);
+  const nextEffects = effectTopologySignature(next);
+  if (prevEffects.length !== nextEffects.length) return true;
+  for (let i = 0; i < prevEffects.length; i++) {
+    if (prevEffects[i] !== nextEffects[i]) return true;
+  }
+
+  const prevModules = moduleTopologySignature(prev);
+  const nextModules = moduleTopologySignature(next);
+  if (prevModules.length !== nextModules.length) return true;
+  for (let i = 0; i < prevModules.length; i++) {
+    if (prevModules[i] !== nextModules[i]) return true;
+  }
+
+  return false;
 }
 
 export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
@@ -209,7 +256,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
     sched.setPatch(patch, { regen: opts?.regen ?? false });
     if (opts?.regen) sched.regenAll();
-    engine.syncRouting(patch);
+    if (hasRoutingTopologyChange(prev, patch)) engine.syncRouting(patch);
 
     maybeAutosaveCurrentPreset();
   };

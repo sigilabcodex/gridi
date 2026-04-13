@@ -123,7 +123,11 @@ export function createEngine(): Engine {
 
   function setMasterGain(g: number) {
     masterTarget = clamp(safe(g, 0.8), 0, 1);
-    if (!masterMuted) master.gain.value = masterTarget;
+    if (!masterMuted) {
+      const now = ctx.currentTime;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setTargetAtTime(masterTarget, now, 0.01);
+    }
   }
 
   async function start() {
