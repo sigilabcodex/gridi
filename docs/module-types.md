@@ -65,3 +65,14 @@ This document describes module families in terms of purpose and behavior.
 
 **Typical controls**
 - Kind/waveform, rate or speed, amount, phase/randomness depending on control kind.
+
+## Cross-family design principle
+
+For every module family, GRIDI should support three layers:
+
+- **Kind/family** (what class of module it is),
+- **Mode/subtype** (behavior variant inside that kind),
+- **Module presets** (local recallable control state).
+
+This principle is not GEN-only; it applies to Drum, Synth, Control, Visual, and future module families.
+
