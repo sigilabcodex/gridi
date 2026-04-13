@@ -110,20 +110,6 @@ function makeHeader(
   return { header, ledA, ledHit, syncToggle };
 }
 
-function createVoiceMainLayout(primaryControls: HTMLElement[], bottomControls: HTMLElement[]) {
-  const main = createFaceplateMainPanel();
-  main.classList.add("voiceMainLayout");
-
-  const primaryGrid = createFaceplateSection("controls", "voiceControlGrid voicePrimaryGrid");
-  primaryGrid.append(...primaryControls);
-
-  const bottomStrip = createFaceplateSection("bottom", "voiceControlGrid voiceBottomStrip");
-  bottomStrip.append(...bottomControls);
-
-  main.append(primaryGrid, bottomStrip, createFaceplateSpacer());
-  return main;
-}
-
 function createDrumFeatureZone(d: DrumModule) {
   const feature = createFaceplateSection("feature", "drumMainFeature");
 
@@ -357,7 +343,7 @@ function createFaceTabs(
     specs: [
       { id: "MAIN", label: "Main", panel: mainPanel },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: v.type === "drum" ? "Advanced" : "Settings", panel: panelSettings },
+      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: ui.tab,
     onTabChange: (tab) => ui.setTab(tab),
@@ -952,35 +938,233 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 export function renderSynthModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  const reactiveState: Pick<TonalModule, "waveform" | "cutoff" | "resonance" | "attack" | "decay" | "amp" | "modDepth" | "glide" | "fineTune" | "modRate" | "coarseTune" | "pan" | "sustain" | "release" | "triggerSource"> = {
+    waveform: t.waveform,
+    cutoff: t.cutoff,
+    resonance: t.resonance,
+    attack: t.attack,
+    decay: t.decay,
+    amp: t.amp,
+    modDepth: t.modDepth,
+    glide: t.glide,
+    fineTune: t.fineTune,
+    modRate: t.modRate,
+    coarseTune: t.coarseTune,
+    pan: t.pan,
+    sustain: t.sustain,
+    release: t.release,
+    triggerSource: t.triggerSource,
+  };
 
   const surface = document.createElement("section");
-  surface.className = "moduleSurface synthSurface";
+  surface.className = "moduleSurface synthSurface synthSurface--withStatus";
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
-  const waveCtl = ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) });
-  const cutoffCtl = ctlFloat({
-      label: "Cutoff",
-      value: t.cutoff,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }),
-    });
-  const resoCtl = ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) });
-  const attackCtl = ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) });
-  const decayCtl = ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) });
-  const levelCtl = ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) });
-  const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
-  const modCtl = ctlFloat({ label: "Mod", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
+  const synthFeatureZone = (() => {
+    const feature = createFaceplateSection("feature", "synthMainFeature");
+    const head = document.createElement("div");
+    head.className = "synthFeatureHead";
+    const title = document.createElement("div");
+    title.className = "synthFeatureTitle";
+    title.textContent = "Behavior";
+    const summary = document.createElement("div");
+    summary.className = "synthFeatureSummary small";
+    summary.textContent = "Synth behavior surface";
+    head.append(title, summary);
 
-  const main = createVoiceMainLayout([waveCtl, cutoffCtl, resoCtl], [attackCtl, levelCtl]);
+    const stage = document.createElement("div");
+    stage.className = "synthBehaviorStage";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 156 56");
+    svg.setAttribute("class", "synthBehaviorGraph");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Synth behavior preview showing waveform shape, cutoff position, envelope contour, and stereo spread indicator.");
+    const baseline = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    baseline.setAttribute("d", "M 8 48 L 148 48");
+    baseline.setAttribute("class", "synthBehaviorBaseline");
+    const waveform = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    waveform.setAttribute("class", "synthBehaviorWave");
+    const envelope = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    envelope.setAttribute("class", "synthBehaviorEnvelope");
+    const cutoffLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    cutoffLine.setAttribute("class", "synthBehaviorCutoff");
+    const spreadLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    spreadLine.setAttribute("class", "synthBehaviorSpread");
+    const spreadMarker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    spreadMarker.setAttribute("class", "synthBehaviorSpreadMarker");
+    spreadMarker.setAttribute("r", "2.4");
+    svg.append(spreadLine, baseline, cutoffLine, envelope, waveform, spreadMarker);
+    stage.append(svg);
+    feature.append(head, stage);
+
+    const update = (state: typeof reactiveState) => {
+      const waveMix = clamp(state.waveform, 0, 1);
+      const cutoffNorm = clamp(state.cutoff, 0, 1);
+      const resoNorm = clamp(state.resonance, 0, 1);
+      const attackNorm = clamp(state.attack, 0, 1);
+      const decayNorm = clamp(state.decay, 0, 1);
+      const driveNorm = clamp(state.modDepth, 0, 1);
+      const spreadNorm = clamp(state.glide, 0, 1);
+      const panNorm = clamp(state.pan, -1, 1);
+      const levelNorm = clamp(state.amp, 0, 1);
+
+      const wavePoints: string[] = [];
+      for (let x = 8; x <= 148; x += 6) {
+        const phase = (x - 8) / 140;
+        const sine = Math.sin((phase * Math.PI * 2) + driveNorm * 1.2);
+        const square = sine >= 0 ? 1 : -1;
+        const tri = 1 - 4 * Math.abs(Math.round(phase - 0.25) - (phase - 0.25));
+        const mixed = sine * (1 - waveMix) + tri * waveMix * 0.55 + square * driveNorm * 0.45;
+        const y = 27 - mixed * (8 + resoNorm * 6);
+        wavePoints.push(`${x} ${y.toFixed(2)}`);
+      }
+      waveform.setAttribute("d", `M ${wavePoints.join(" L ")}`);
+      waveform.setAttribute("style", `opacity:${0.55 + levelNorm * 0.35};stroke-width:${1.2 + driveNorm * 0.9}`);
+
+      const attackX = 11 + attackNorm * 24;
+      const sustainX = 62 + decayNorm * 40;
+      const sustainY = 24 + (1 - clamp(state.sustain, 0, 1)) * 14;
+      const releaseY = 44 + clamp(state.release, 0, 1) * 3;
+      envelope.setAttribute(
+        "d",
+        `M 8 48 L ${attackX.toFixed(2)} ${(12 - levelNorm * 5).toFixed(2)} Q ${(sustainX - 9).toFixed(2)} ${sustainY.toFixed(2)} ${sustainX.toFixed(2)} ${sustainY.toFixed(2)} T 138 ${releaseY.toFixed(2)} L 148 48`,
+      );
+      envelope.setAttribute("style", `opacity:${0.28 + decayNorm * 0.42};stroke-width:${1 + attackNorm * 0.8}`);
+
+      const cutoffX = 18 + cutoffNorm * 118;
+      cutoffLine.setAttribute("d", `M ${cutoffX.toFixed(2)} 10 L ${cutoffX.toFixed(2)} 48`);
+      cutoffLine.setAttribute("style", `opacity:${0.28 + cutoffNorm * 0.54};stroke-width:${1 + resoNorm * 1.2}`);
+
+      const spreadHalf = 8 + spreadNorm * 16;
+      spreadLine.setAttribute("d", `M ${(128 - spreadHalf).toFixed(2)} 11 L ${(128 + spreadHalf).toFixed(2)} 11`);
+      spreadLine.setAttribute("style", `opacity:${0.3 + spreadNorm * 0.56};stroke-width:${1 + spreadNorm * 0.8}`);
+      spreadMarker.setAttribute("cx", (128 + panNorm * spreadHalf).toFixed(2));
+      spreadMarker.setAttribute("cy", "11");
+      spreadMarker.setAttribute("style", `opacity:${0.62 + Math.abs(panNorm) * 0.32};`);
+    };
+
+    update(reactiveState);
+    return { feature, update };
+  })();
+
+  const setReactive = (partial: Partial<typeof reactiveState>) => {
+    Object.assign(reactiveState, partial);
+    synthFeatureZone.update(reactiveState);
+    synthInfo.update({
+      enabled: t.enabled,
+      triggerSource: reactiveState.triggerSource,
+      cutoff: reactiveState.cutoff,
+      resonance: reactiveState.resonance,
+      waveform: reactiveState.waveform,
+    });
+  };
+
+  const waveCtl = ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ waveform: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) });
+  const cutoffCtl = ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ cutoff: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) });
+  const resoCtl = ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ resonance: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) });
+  const attackCtl = ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ attack: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) });
+  const decayCtl = ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ decay: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) });
+  const levelCtl = ctlFloat({ label: "Level", value: t.amp, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ amp: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.amp = x; }, { regen: false }) });
+  const driveCtl = ctlFloat({ label: "Drive", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ modDepth: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
+  const spreadCtl = ctlFloat({ label: "Spread", value: t.glide, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ glide: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.glide = x; }, { regen: false }) });
+  const driftCtl = ctlFloat({ label: "Drift", value: t.fineTune, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ fineTune: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.fineTune = x; }, { regen: false }) });
+  const fmCtl = ctlFloat({ label: "FM", value: t.modRate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ modRate: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modRate = x; }, { regen: false }) });
+  const noiseCtl = ctlFloat({ label: "Noise", value: t.coarseTune, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ coarseTune: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.coarseTune = x; }, { regen: false }) });
+  const panCtl = ctlFloat({ label: "Pan", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { setReactive({ pan: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
+
+  const main = createFaceplateMainPanel();
+  main.classList.add("synthMainLayout");
+  const primaryGrid = createFaceplateSection("controls", "voiceControlGrid synthMainPrimaryGrid");
+  primaryGrid.append(waveCtl, cutoffCtl, resoCtl, attackCtl, decayCtl, levelCtl, driveCtl, spreadCtl, driftCtl, fmCtl, noiseCtl, panCtl);
+  main.append(synthFeatureZone.feature, primaryGrid, createFaceplateSpacer());
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
-  const synthSettingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  synthSettingsGrid.append(decayCtl, panCtl, modCtl);
-  shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsGrid);
-  surface.append(h.header, shell.face, shell.tabs);
+  const synthSettingsPanel = createFaceplateSection("controls", "synthAdvancedPanel");
+  const synthAdvancedHeaders = document.createElement("div");
+  synthAdvancedHeaders.className = "synthAdvancedHeaders";
+  const createAdvancedHeader = (label: string, column: string) => {
+    const header = document.createElement("span");
+    header.className = "synthAdvancedHeader";
+    header.textContent = label;
+    header.style.gridColumn = column;
+    return header;
+  };
+  synthAdvancedHeaders.append(
+    createAdvancedHeader("FILTER", "1 / span 2"),
+    createAdvancedHeader("OSC", "3 / span 2"),
+    createAdvancedHeader("ENV", "5 / span 1"),
+    createAdvancedHeader("STEREO", "6 / span 1"),
+  );
+  const filterSlopeCtl = ctlFloat({ label: "Filter slope", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ resonance: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) });
+  const keyTrackingCtl = ctlFloat({ label: "Key tracking", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ cutoff: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) });
+  const filterDriveCtl = ctlFloat({ label: "Filter drive", value: t.modDepth, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ modDepth: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modDepth = x; }, { regen: false }) });
+  const waveMorphCtl = ctlFloat({ label: "Wave morph", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ waveform: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) });
+  const phaseCtl = ctlFloat({ label: "Phase", value: t.fineTune, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ fineTune: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.fineTune = x; }, { regen: false }) });
+  const syncCtl = ctlFloat({ label: "Sync", value: t.coarseTune, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ coarseTune: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.coarseTune = x; }, { regen: false }) });
+  const envCurveCtl = ctlFloat({ label: "Curve", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ attack: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) });
+  const envVelocityCtl = ctlFloat({ label: "Velocity", value: t.sustain, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ sustain: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.sustain = x; }, { regen: false }) });
+  const envAmountCtl = ctlFloat({ label: "Env amount", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ decay: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) });
+  const stereoWidthCtl = ctlFloat({ label: "Width", value: t.glide, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ glide: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.glide = x; }, { regen: false }) });
+  const panLawCtl = ctlFloat({ label: "Pan law", value: t.pan, min: -1, max: 1, step: 0.001, center: 0, onChange: (x) => onPatchChange((p) => { setReactive({ pan: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.pan = x; }, { regen: false }) });
+  const spreadModeCtl = ctlFloat({ label: "Spread mode", value: t.modRate, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ modRate: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.modRate = x; }, { regen: false }) });
+
+  const synthAdvancedGrid = document.createElement("div");
+  synthAdvancedGrid.className = "synthAdvancedGrid";
+  const advancedControls: Array<HTMLElement | null> = [
+    filterSlopeCtl,
+    keyTrackingCtl,
+    waveMorphCtl,
+    phaseCtl,
+    envCurveCtl,
+    stereoWidthCtl,
+    filterDriveCtl,
+    null,
+    syncCtl,
+    null,
+    envVelocityCtl,
+    panLawCtl,
+    null,
+    null,
+    null,
+    null,
+    envAmountCtl,
+    spreadModeCtl,
+  ];
+  advancedControls.forEach((control) => {
+    if (control) synthAdvancedGrid.append(control);
+    else {
+      const empty = document.createElement("div");
+      empty.className = "synthAdvancedEmptySlot";
+      empty.setAttribute("aria-hidden", "true");
+      synthAdvancedGrid.append(empty);
+    }
+  });
+  synthSettingsPanel.append(synthAdvancedHeaders, synthAdvancedGrid);
+  shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsPanel);
+  const synthInfo = (() => {
+    const info = createFaceplateSection("bottom", "drumInfoBar synthInfoBar");
+    const id = document.createElement("span");
+    id.className = "drumInfoToken";
+    id.textContent = t.id.slice(-6).toUpperCase();
+    const stateToken = document.createElement("span");
+    stateToken.className = "drumInfoToken";
+    const route = document.createElement("span");
+    route.className = "drumInfoToken";
+    const meta = document.createElement("span");
+    meta.className = "drumInfoToken drumInfoToken--meta";
+    info.append(id, stateToken, route, meta);
+    const update = (state: Pick<TonalModule, "enabled" | "triggerSource" | "cutoff" | "resonance" | "waveform">) => {
+      stateToken.textContent = state.enabled ? "ACTIVE" : "BYPASS";
+      route.textContent = state.triggerSource ? `TRG ${state.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+      meta.textContent = `WAVE ${Math.round(state.waveform * 100)} · CUTOFF ${Math.round(state.cutoff * 100)} · RESO ${Math.round(state.resonance * 100)}`;
+    };
+    update(t);
+    return { info, update };
+  })();
+
+  surface.append(h.header, shell.face, shell.tabs, synthInfo.info);
   root.appendChild(surface);
 
   return () => {
@@ -988,5 +1172,22 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     h.ledA.className = "led" + (st.active ? " on" : "");
     h.ledHit.className = "led" + (st.hit ? " on hit" : "");
     h.syncToggle();
+    setReactive({
+      waveform: t.waveform,
+      cutoff: t.cutoff,
+      resonance: t.resonance,
+      attack: t.attack,
+      decay: t.decay,
+      amp: t.amp,
+      modDepth: t.modDepth,
+      glide: t.glide,
+      fineTune: t.fineTune,
+      modRate: t.modRate,
+      coarseTune: t.coarseTune,
+      pan: t.pan,
+      sustain: t.sustain,
+      release: t.release,
+      triggerSource: t.triggerSource,
+    });
   };
 }
