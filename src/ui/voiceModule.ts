@@ -724,18 +724,6 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   });
   featureZone.routeField.wrap.replaceWith(triggerField.wrap);
   const drumSettingsPanel = createFaceplateSection("controls", "drumAdvancedPanel");
-  const createAdvancedGroup = (titleText: string, controls: HTMLElement[]) => {
-    const group = document.createElement("section");
-    group.className = "drumAdvancedGroup";
-    const title = document.createElement("h4");
-    title.className = "drumAdvancedGroupTitle";
-    title.textContent = titleText;
-    const grid = document.createElement("div");
-    grid.className = "moduleKnobGrid moduleKnobGrid-2 drumAdvancedGroupGrid";
-    grid.append(...controls);
-    group.append(title, grid);
-    return group;
-  };
 
   const compKneeCtl = ctlFloat({
     label: "Knee",
@@ -853,12 +841,61 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     }, { regen: false }),
   });
 
-  drumSettingsPanel.append(
-    createAdvancedGroup("Compressor", [compThresholdCtl, compRatioCtl, compAttackCtl, compReleaseCtl, compKneeCtl]),
-    createAdvancedGroup("Drive", [driveAliasCtl, driveColorCtl, driveSymmetryCtl, driveClipCtl]),
-    createAdvancedGroup("Stereo", [stereoWidthCtl, stereoMonoLowCtl, stereoSpreadCtl]),
-    createAdvancedGroup("Behavior", [behaviorBendCurveCtl, behaviorSnapModeCtl, behaviorNoiseColorCtl]),
+  const drumAdvancedHeaders = document.createElement("div");
+  drumAdvancedHeaders.className = "drumAdvancedHeaders";
+  const createAdvancedHeader = (label: string, col: number) => {
+    const header = document.createElement("span");
+    header.className = "drumAdvancedHeader";
+    header.textContent = label;
+    header.style.gridColumn = `${col} / span 1`;
+    return header;
+  };
+  drumAdvancedHeaders.append(
+    createAdvancedHeader("COMP", 1),
+    createAdvancedHeader("DRIVE", 4),
+    createAdvancedHeader("STEREO", 5),
+    createAdvancedHeader("BEHAV", 6),
   );
+
+  const drumAdvancedGrid = document.createElement("div");
+  drumAdvancedGrid.className = "drumAdvancedGrid";
+  const orderedControls: Array<HTMLElement | null> = [
+    compThresholdCtl,
+    compRatioCtl,
+    compAttackCtl,
+    driveAliasCtl,
+    driveColorCtl,
+    driveSymmetryCtl,
+    compReleaseCtl,
+    compKneeCtl,
+    driveClipCtl,
+    stereoWidthCtl,
+    stereoMonoLowCtl,
+    stereoSpreadCtl,
+    behaviorBendCurveCtl,
+    behaviorSnapModeCtl,
+    behaviorNoiseColorCtl,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
+  orderedControls.forEach((control) => {
+    if (control) {
+      drumAdvancedGrid.append(control);
+      return;
+    }
+    const empty = document.createElement("div");
+    empty.className = "drumAdvancedEmptySlot";
+    empty.setAttribute("aria-hidden", "true");
+    drumAdvancedGrid.append(empty);
+  });
+  drumSettingsPanel.append(drumAdvancedHeaders, drumAdvancedGrid);
   const boostTargetField = createCompactSelectField({
     label: "Focus",
     className: "drumFocusField",

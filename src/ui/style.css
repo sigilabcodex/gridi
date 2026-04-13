@@ -3634,31 +3634,40 @@ button:focus-visible,
 }
 
 .drumAdvancedPanel {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 8px;
-}
-
-.drumAdvancedGroup {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding-top: 2px;
-  border-top: 1px solid rgba(138, 172, 196, 0.18);
+  gap: 4px;
+  overflow: hidden;
 }
 
-.drumAdvancedGroupTitle {
-  margin: 0 0 4px;
-  font-size: 9px;
-  letter-spacing: 0.72px;
+.drumAdvancedHeaders {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: end;
+  min-height: 9px;
+}
+
+.drumAdvancedHeader {
+  font-size: 8px;
+  letter-spacing: 0.62px;
   text-transform: uppercase;
   font-variant: all-small-caps;
-  opacity: 0.74;
+  color: rgba(170, 192, 212, 0.62);
+  line-height: 1;
+  justify-self: center;
 }
 
-.drumAdvancedGroupGrid {
-  row-gap: 4px;
-  column-gap: 4px;
+.drumAdvancedGrid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, auto));
+  gap: 6px;
+}
+
+.drumAdvancedEmptySlot {
+  width: 52px;
+  height: 52px;
+  justify-self: center;
 }
 
 .drumInfoBar {
