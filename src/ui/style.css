@@ -3605,6 +3605,31 @@ button:focus-visible,
   stroke-dasharray: 2 2;
 }
 
+.drumEnvelopeToneTilt {
+  fill: rgba(156, 190, 224, 0.08);
+}
+
+.drumEnvelopeDriveGhost {
+  fill: none;
+  stroke: rgba(235, 142, 158, 0.46);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-dasharray: 2 2;
+}
+
+.drumEnvelopePanGhost {
+  fill: none;
+  stroke: rgba(170, 220, 255, 0.5);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+
+.drumEnvelopePanMarker {
+  fill: rgba(188, 229, 255, 0.92);
+  stroke: rgba(75, 121, 156, 0.72);
+  stroke-width: 0.8;
+}
+
 .drumInfoBar {
   display: flex;
   flex-direction: row;
