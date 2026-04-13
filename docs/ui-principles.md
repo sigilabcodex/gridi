@@ -75,3 +75,31 @@ Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.
 - When there is ambiguity about module-zone composition, Main/Routing/Advanced responsibilities, or control density priorities, the v1 faceplate architecture document is authoritative.
 - Current implementation naming may still use `Settings` in code paths; architecture guidance treats this as the Advanced-equivalent until code alignment is scheduled.
 
+
+## 10) Control grid grammar authority
+
+- Canonical control grammar is 6-column based for Main and Advanced surfaces.
+- Main should expose up to 6 controls per row and no more than 2 rows.
+- Advanced should use a 6-column matrix up to 4 rows with inline headers and no boxed subgroup cards.
+
+Why: preserve visual consistency, hardware-like density, and cross-family predictability.
+
+Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-layout-spec.md`](module-layout-spec.md).
+
+## 11) Semantic display requirement
+
+- Module display surfaces are semantic behavior layers, not decorative scopes.
+- Displays should communicate module-specific runtime behavior and parameter impact.
+- GEN and DRUM establish the baseline: algorithm-state visualization and behavior-coupled drum synthesis visualization.
+
+Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
+
+## 12) Canonical module faceplate rule (current)
+
+- Header `[type][preset][on/off]`
+- Dominant display surface
+- 6-column primary controls
+- Tabs `Main / Routing / Advanced`
+- Footer status tokens
+
+This is the active canonical layout contract for future modules.
