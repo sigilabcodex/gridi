@@ -123,12 +123,24 @@ export function renderVisualSurface(
     instanceId: vm.id.slice(-6).toUpperCase(),
     presetButton: presetControl.button,
   });
+  identity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
+  const badge = identity.querySelector(".surfaceBadge");
+  if (badge) badge.classList.add("surfaceBadge--visualFamily");
+  const instanceName = identity.querySelector(".surfaceInstanceName");
+  const instanceId = identity.querySelector(".moduleId");
+  instanceName?.remove();
+  instanceId?.remove();
+
+  const modeChip = createRoutingChip((VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope).label.toUpperCase(), "muted");
+  modeChip.classList.add("surfaceHeaderChip");
+  identity.appendChild(modeChip);
 
   const right = el("div", "rightControls");
   const btnOn = el("button");
+  btnOn.className = "surfaceHeaderAction";
   const updateOn = () => {
     btnOn.textContent = vm.enabled ? "On" : "Off";
-    btnOn.className = vm.enabled ? "primary" : "";
+    btnOn.classList.toggle("primary", vm.enabled);
   };
   btnOn.onclick = () => {
     vm.enabled = !vm.enabled;
@@ -136,7 +148,7 @@ export function renderVisualSurface(
     syncFooter();
   };
 
-  const btnX = el("button", "danger");
+  const btnX = el("button", "danger surfaceHeaderAction");
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, onRemove);
   right.append(btnOn, btnX);
@@ -152,11 +164,21 @@ export function renderVisualSurface(
   canvas.width = 800;
   canvas.height = 260;
   const readout = el("div", "visualReadout small");
+  const visualModeRow = createFaceplateSection("controls", "visualControlDock");
+  const modeField = createCompactSelectField({
+    label: "Mode",
+    options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
+    selected: vm.kind,
+    onChange: (value) => {
+      if (value) vm.kind = value as VisualModule["kind"];
+    },
+  });
+  visualModeRow.append(modeField.wrap);
   const readoutSection = createFaceplateSection("bottom");
   readoutSection.setAttribute("aria-label", "visual readout");
   readoutSection.append(readout);
   canvasWrap.append(canvas);
-  panelMain.append(canvasWrap, readoutSection);
+  panelMain.append(canvasWrap, visualModeRow, readoutSection);
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--visualRouting");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
@@ -175,14 +197,6 @@ export function renderVisualSurface(
 
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel visualSettingsPanel");
   const dock = createFaceplateSection("controls", "visualControlDock");
-  const modeField = createCompactSelectField({
-    label: "Mode",
-    options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
-    selected: vm.kind,
-    onChange: (value) => {
-      if (value) vm.kind = value as VisualModule["kind"];
-    },
-  });
   const fftField = createCompactSelectField({
     label: "FFT",
     options: [512, 1024, 2048, 4096].map((size) => ({ value: String(size), label: String(size) })),
@@ -191,14 +205,14 @@ export function renderVisualSurface(
       if (value) vm.fftSize = Number(value) as VisualModule["fftSize"];
     },
   });
-  dock.append(modeField.wrap, fftField.wrap);
+  dock.append(fftField.wrap);
   panelSettings.append(dock);
 
   const shell = createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: "MAIN",
   });
@@ -216,6 +230,7 @@ export function renderVisualSurface(
     stateToken.textContent = vm.enabled ? "ACTIVE" : "BYPASS";
     modeToken.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
     metaToken.textContent = `FFT ${vm.fftSize ?? 2048}`;
+    modeChip.textContent = modeSpec.label.toUpperCase();
   };
 
   surface.append(header, shell.face, shell.tabs, infoBar);
