@@ -4590,6 +4590,186 @@ button:focus-visible,
   box-shadow: 0 0 10px rgba(151, 219, 255, 0.75);
 }
 
+.triggerDisplayNonEuclidean {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  align-items: end;
+  gap: 4px;
+}
+
+.triggerDisplayNonEuclideanSegment {
+  border-radius: 5px 5px 3px 3px;
+  background: rgba(183, 127, 230, 0.2);
+  border: 1px solid rgba(201, 160, 233, 0.25);
+  min-height: 12%;
+}
+
+.triggerDisplayNonEuclideanSegment.on {
+  background: linear-gradient(180deg, rgba(224, 179, 255, 0.9), rgba(146, 101, 194, 0.8));
+  box-shadow: 0 0 8px rgba(196, 147, 237, 0.42);
+}
+
+.triggerDisplayNonEuclideanSegment.is-playhead {
+  outline: 1px solid rgba(239, 230, 252, 0.9);
+}
+
+.triggerDisplayMarkov {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 8px;
+}
+
+.triggerDisplayMarkovNodes {
+  position: relative;
+  border: 1px solid rgba(194, 153, 225, 0.25);
+  border-radius: 8px;
+}
+
+.triggerDisplayMarkovNode {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-size: 9px;
+  display: grid;
+  place-items: center;
+  background: rgba(168, 119, 208, 0.28);
+  border: 1px solid rgba(203, 169, 230, 0.45);
+}
+
+.triggerDisplayMarkovNode:nth-child(1) { left: 14px; top: 12px; }
+.triggerDisplayMarkovNode:nth-child(2) { right: 14px; top: 12px; }
+.triggerDisplayMarkovNode:nth-child(3) { left: 14px; bottom: 12px; }
+.triggerDisplayMarkovNode:nth-child(4) { right: 14px; bottom: 12px; }
+
+.triggerDisplayMarkovNode.is-playhead {
+  box-shadow: 0 0 0 1px rgba(245, 238, 255, 0.95), 0 0 9px rgba(233, 213, 255, 0.78);
+}
+
+.triggerDisplayMarkovTransition {
+  position: absolute;
+  background: rgba(188, 146, 226, 0.24);
+}
+
+.triggerDisplayMarkovTransition:nth-child(5) { left: 33px; right: 33px; top: 20px; height: 1px; }
+.triggerDisplayMarkovTransition:nth-child(6) { left: 33px; right: 33px; bottom: 20px; height: 1px; }
+.triggerDisplayMarkovTransition:nth-child(7) { top: 30px; bottom: 30px; left: 22px; width: 1px; }
+.triggerDisplayMarkovTransition:nth-child(8) { top: 30px; bottom: 30px; right: 22px; width: 1px; }
+
+.triggerDisplayMarkovTransition.hot,
+.triggerDisplayMarkovTransition.is-playhead {
+  background: rgba(226, 189, 255, 0.92);
+  box-shadow: 0 0 6px rgba(211, 168, 255, 0.7);
+}
+
+.triggerDisplayMarkovMatrix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.triggerDisplayMarkovCell {
+  height: 16px;
+  border-radius: 4px;
+  background: rgba(177, 126, 216, 0.25);
+  border: 1px solid rgba(205, 168, 231, 0.32);
+  font-size: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.triggerDisplayLSystem,
+.triggerDisplayLSystemSvg {
+  width: 100%;
+  height: 100%;
+}
+
+.triggerDisplayLSystemBranch {
+  fill: none;
+  stroke: rgba(188, 243, 205, 0.92);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.triggerDisplayLSystemTracer {
+  fill: rgba(218, 246, 227, 0.96);
+  filter: drop-shadow(0 0 4px rgba(176, 238, 199, 0.8));
+}
+
+.triggerDisplayXronoMorph {
+  height: 100%;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.triggerDisplayXronoLane,
+.triggerDisplayXronoMerge,
+.triggerDisplayOneOverFGrid,
+.triggerDisplayGeneticRow {
+  display: grid;
+  grid-template-columns: repeat(var(--trigger-linear-cols, 16), minmax(0, 1fr));
+  gap: 2px;
+}
+
+.triggerDisplayLinearCell {
+  height: 6px;
+  border-radius: 2px;
+  background: rgba(170, 118, 212, 0.2);
+}
+
+.triggerDisplayLinearCell.on {
+  background: rgba(225, 184, 252, 0.9);
+}
+
+.triggerDisplayLinearCell.is-playhead {
+  box-shadow: 0 0 0 1px rgba(245, 236, 255, 0.9), 0 0 7px rgba(222, 194, 255, 0.76);
+}
+
+.triggerDisplayXronoLane--alt .triggerDisplayLinearCell.on {
+  background: rgba(151, 219, 255, 0.9);
+}
+
+.triggerDisplayXronoMerge .triggerDisplayLinearCell.on {
+  background: linear-gradient(90deg, rgba(151, 219, 255, 0.9), rgba(226, 187, 252, 0.95));
+}
+
+.triggerDisplayGenetic {
+  height: 100%;
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.triggerDisplayGeneticRow {
+  padding: 1px;
+  border-radius: 6px;
+  border: 1px solid rgba(188, 145, 224, 0.24);
+  background: rgba(117, 83, 153, 0.15);
+}
+
+.triggerDisplayGeneticRow .triggerDisplayLinearCell.elite.on {
+  background: rgba(180, 255, 189, 0.9);
+}
+
+.triggerDisplayOneOverF {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 6px;
+}
+
+.triggerDisplayOneOverFPath {
+  border-radius: 7px;
+  border: 1px solid rgba(180, 142, 218, 0.3);
+  background:
+    linear-gradient(180deg, rgba(205, 168, 234, 0.16), rgba(88, 62, 122, 0.12)),
+    repeating-linear-gradient(90deg, rgba(219, 199, 241, 0.08), rgba(219, 199, 241, 0.08) 1px, transparent 1px, transparent 12px);
+}
+
 .triggerDisplayPlaceholder {
   height: 100%;
   border: 1px dashed rgba(190, 140, 230, 0.34);
