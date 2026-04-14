@@ -111,7 +111,13 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "euclidean") return createEuclideanView();
   if (mode === "cellular-automata") return createCellularView();
   if (mode === "fractal") return createFractalView();
+  if (mode === "non-euclidean") return createNonEuclideanView();
   if (mode === "hybrid") return createHybridView(params);
+  if (mode === "markov-chains") return createMarkovView();
+  if (mode === "l-systems") return createLSystemsView();
+  if (mode === "xronomorph") return createXronoMorphView(params);
+  if (mode === "genetic-algorithms") return createGeneticView();
+  if (mode === "one-over-f-noise") return createOneOverFView();
 
   const placeholder = renderModePlaceholder(mode);
   return {
@@ -338,6 +344,252 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
     },
     tick: (timeMs, liveModule, liveParams, liveStepState) => {
       ringView.tick?.(timeMs, liveModule, liveParams, liveStepState);
+    },
+  };
+}
+
+function createNonEuclideanView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayNonEuclidean";
+  const bars: HTMLElement[] = [];
+  let segments = 0;
+  let lastPlayhead = -1;
+
+  return {
+    root,
+    sync: (nextModule) => {
+      segments = clamp(4 + Math.round(nextModule.weird * 10 + nextModule.gravity * 4), 4, 14);
+      if (bars.length !== segments) {
+        root.textContent = "";
+        bars.length = 0;
+        for (let i = 0; i < segments; i++) {
+          const bar = document.createElement("span");
+          bar.className = "triggerDisplayNonEuclideanSegment";
+          root.appendChild(bar);
+          bars.push(bar);
+        }
+      }
+      lastPlayhead = -1;
+      for (let i = 0; i < segments; i++) {
+        const t = i / Math.max(1, segments - 1);
+        const warp = Math.pow(t, 0.65 + nextModule.weird * 1.6);
+        const height = 24 + warp * 70;
+        const active = hash01(nextModule.seed + i * 59) < clamp(nextModule.density * (0.65 + (i % 3) * 0.12), 0.04, 0.95);
+        bars[i].style.height = `${height.toFixed(2)}%`;
+        bars[i].classList.toggle("on", active);
+        bars[i].classList.remove("is-playhead");
+      }
+    },
+    tick: (timeMs, liveModule) => {
+      if (!segments) return;
+      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, segments);
+      if (playhead === lastPlayhead) return;
+      if (lastPlayhead >= 0) bars[lastPlayhead]?.classList.remove("is-playhead");
+      bars[playhead]?.classList.add("is-playhead");
+      lastPlayhead = playhead;
+    },
+  };
+}
+
+function createMarkovView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayMarkov";
+  const nodeWrap = document.createElement("div");
+  nodeWrap.className = "triggerDisplayMarkovNodes";
+  const matrix = document.createElement("div");
+  matrix.className = "triggerDisplayMarkovMatrix";
+  const matrixCells: HTMLElement[] = [];
+  const nodes: HTMLElement[] = [];
+  const transitions: HTMLElement[] = [];
+  root.append(nodeWrap, matrix);
+  let lastState = 0;
+
+  for (let i = 0; i < 4; i++) {
+    const node = document.createElement("span");
+    node.className = "triggerDisplayMarkovNode";
+    node.textContent = String(i + 1);
+    nodeWrap.appendChild(node);
+    nodes.push(node);
+  }
+  for (let i = 0; i < 4; i++) {
+    const tr = document.createElement("span");
+    tr.className = "triggerDisplayMarkovTransition";
+    nodeWrap.appendChild(tr);
+    transitions.push(tr);
+  }
+
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement("span");
+    cell.className = "triggerDisplayMarkovCell";
+    matrix.appendChild(cell);
+    matrixCells.push(cell);
+  }
+
+  return {
+    root,
+    sync: (nextModule) => {
+      const stay = clamp(0.32 + nextModule.determinism * 0.58 - nextModule.weird * 0.25, 0.05, 0.95);
+      const bias = clamp(nextModule.gravity, 0, 1);
+      const matrixData = [
+        [stay, 0.45 * (1 - stay) + bias * 0.2, 0.25 * (1 - stay), 0.3 * (1 - stay) - bias * 0.05],
+        [0.2 * (1 - stay), stay, 0.5 * (1 - stay) + nextModule.weird * 0.08, 0.3 * (1 - stay)],
+        [0.3 * (1 - stay), 0.22 * (1 - stay), stay, 0.48 * (1 - stay) + bias * 0.08],
+        [0.36 * (1 - stay), 0.24 * (1 - stay), 0.2 * (1 - stay), stay],
+      ];
+
+      for (let r = 0; r < 4; r++) {
+        const rowSum = matrixData[r].reduce((sum, value) => sum + value, 0) || 1;
+        for (let c = 0; c < 4; c++) {
+          const prob = matrixData[r][c] / rowSum;
+          const cell = matrixCells[r * 4 + c];
+          cell.style.opacity = (0.24 + prob * 0.9).toFixed(3);
+          cell.textContent = `${Math.round(prob * 100)}`;
+        }
+      }
+
+      transitions.forEach((edge, i) => edge.classList.toggle("hot", i === (nextModule.seed % transitions.length)));
+    },
+    tick: (timeMs, liveModule) => {
+      const phase = resolveAnimatedStepIndex(timeMs, liveModule, 64);
+      const nextState = phase % 4;
+      if (nextState === lastState) return;
+      nodes[lastState]?.classList.remove("is-playhead");
+      const transitionIndex = (lastState * 3 + nextState) % transitions.length;
+      transitions.forEach((edge, i) => edge.classList.toggle("is-playhead", i === transitionIndex));
+      nodes[nextState]?.classList.add("is-playhead");
+      lastState = nextState;
+    },
+  };
+}
+
+function createLSystemsView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayLSystem";
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 220 90");
+  svg.setAttribute("class", "triggerDisplayLSystemSvg");
+  const branches = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  branches.setAttribute("class", "triggerDisplayLSystemBranch");
+  const tracer = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  tracer.setAttribute("class", "triggerDisplayLSystemTracer");
+  tracer.setAttribute("r", "2.2");
+  svg.append(branches, tracer);
+  root.appendChild(svg);
+  let points: Array<{ x: number; y: number }> = [];
+
+  return {
+    root,
+    sync: (nextModule) => {
+      points = buildLSystemPoints(nextModule, 42);
+      branches.setAttribute("d", pointsToPath(points));
+    },
+    tick: (timeMs, liveModule) => {
+      if (!points.length) return;
+      const i = resolveAnimatedStepIndex(timeMs, liveModule, points.length);
+      tracer.setAttribute("cx", points[i].x.toFixed(2));
+      tracer.setAttribute("cy", points[i].y.toFixed(2));
+    },
+  };
+}
+
+function createXronoMorphView(params: TriggerDisplayParams): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayXronoMorph";
+  const laneA = document.createElement("div");
+  laneA.className = "triggerDisplayXronoLane";
+  const laneB = document.createElement("div");
+  laneB.className = "triggerDisplayXronoLane triggerDisplayXronoLane--alt";
+  const merge = document.createElement("div");
+  merge.className = "triggerDisplayXronoMerge";
+  root.append(laneA, laneB, merge);
+  let cellsA: HTMLElement[] = [];
+  let cellsB: HTMLElement[] = [];
+  let cellsM: HTMLElement[] = [];
+
+  return {
+    root,
+    sync: (nextModule) => {
+      const layout = resolveStepGridLayout(nextModule.length, nextModule.subdiv);
+      const steps = clamp(layout.cols * layout.rows, 12, 48);
+      const patternA = parsePatternPreview(params.getStepPattern(), steps);
+      const patternB = createMorphPattern(nextModule, steps);
+      const patternM = new Uint8Array(steps);
+      for (let i = 0; i < steps; i++) patternM[i] = (i % 2 === 0 ? patternA[i] : patternB[i]) || (nextModule.weird > 0.55 && (patternA[i] ^ patternB[i]) ? 1 : 0);
+      cellsA = renderLinearCells(laneA, cellsA, steps, patternA);
+      cellsB = renderLinearCells(laneB, cellsB, steps, patternB);
+      cellsM = renderLinearCells(merge, cellsM, steps, patternM);
+    },
+    tick: (timeMs, liveModule) => {
+      if (!cellsM.length) return;
+      const i = resolveAnimatedStepIndex(timeMs, liveModule, cellsM.length);
+      paintPlayhead(cellsA, i);
+      paintPlayhead(cellsB, (i + 2) % cellsB.length);
+      paintPlayhead(cellsM, i);
+    },
+  };
+}
+
+function createGeneticView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayGenetic";
+  const rows: HTMLElement[] = [];
+  const rowCount = 4;
+  let cols = 16;
+
+  for (let r = 0; r < rowCount; r++) {
+    const row = document.createElement("div");
+    row.className = "triggerDisplayGeneticRow";
+    root.appendChild(row);
+    rows.push(row);
+  }
+
+  return {
+    root,
+    sync: (nextModule) => {
+      cols = clamp(Math.round(nextModule.length), 12, 32);
+      rows.forEach((row, idx) => {
+        const pattern = createGeneticRow(nextModule, cols, idx);
+        const existing = Array.from(row.children) as HTMLElement[];
+        const cells = renderLinearCells(row, existing, cols, pattern);
+        const fitness = evaluateFitness(pattern, nextModule);
+        row.style.setProperty("--genetic-fit", fitness.toFixed(3));
+        cells.forEach((cell) => cell.classList.toggle("elite", idx === 0));
+      });
+    },
+    tick: (timeMs, liveModule) => {
+      const i = resolveAnimatedStepIndex(timeMs, liveModule, cols);
+      rows.forEach((row, idx) => {
+        const cells = Array.from(row.children) as HTMLElement[];
+        paintPlayhead(cells, (i + idx) % Math.max(1, cells.length));
+      });
+    },
+  };
+}
+
+function createOneOverFView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayOneOverF";
+  const path = document.createElement("div");
+  path.className = "triggerDisplayOneOverFPath";
+  const grid = document.createElement("div");
+  grid.className = "triggerDisplayOneOverFGrid";
+  root.append(path, grid);
+  let values: number[] = [];
+  let cells: HTMLElement[] = [];
+
+  return {
+    root,
+    sync: (nextModule) => {
+      values = buildOneOverFValues(nextModule, 34);
+      path.style.setProperty("--oneoverf-points", values.map((v, i) => `${(i / 33) * 100}% ${(1 - v) * 100}%`).join(","));
+      const pattern = Uint8Array.from(values.map((v) => (v < nextModule.density ? 1 : 0)));
+      cells = renderLinearCells(grid, cells, pattern.length, pattern);
+    },
+    tick: (timeMs, liveModule) => {
+      if (!cells.length) return;
+      const i = resolveAnimatedStepIndex(timeMs, liveModule, cells.length);
+      paintPlayhead(cells, i);
     },
   };
 }
@@ -591,6 +843,111 @@ function rotatePattern(pattern: Uint8Array, rotation: number) {
 function hash01(seed: number) {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
   return x - Math.floor(x);
+}
+
+function pointsToPath(points: Array<{ x: number; y: number }>) {
+  if (!points.length) return "";
+  return `M ${points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`;
+}
+
+function buildLSystemPoints(module: TriggerModule, count: number) {
+  const points: Array<{ x: number; y: number }> = [];
+  let angle = -Math.PI / 2;
+  let x = 20;
+  let y = 78;
+  const len = 4.2 + module.gravity * 2.8;
+  const turn = 0.28 + module.weird * 0.6;
+  const stack: Array<{ x: number; y: number; angle: number }> = [];
+  for (let i = 0; i < count; i++) {
+    const token = hash01(module.seed + i * 31 + module.caRule);
+    if (token < 0.2 + module.weird * 0.3 && stack.length < 6) stack.push({ x, y, angle });
+    else if (token > 0.86 - module.determinism * 0.2 && stack.length) {
+      const pop = stack.pop();
+      if (pop) {
+        x = pop.x;
+        y = pop.y;
+        angle = pop.angle;
+      }
+    }
+    angle += (token < 0.5 ? -1 : 1) * turn * (0.6 + module.determinism * 0.5);
+    x += Math.cos(angle) * len;
+    y += Math.sin(angle) * len * (0.8 + module.density * 0.6);
+    x = clamp(x, 6, 214);
+    y = clamp(y, 8, 84);
+    points.push({ x, y });
+  }
+  return points;
+}
+
+function createMorphPattern(module: TriggerModule, steps: number) {
+  const out = new Uint8Array(steps);
+  for (let i = 0; i < steps; i++) {
+    const phase = (i / Math.max(1, steps - 1)) + module.seed * 0.00083 + module.euclidRot * 0.01;
+    const wave = Math.sin(phase * Math.PI * (2.2 + module.weird * 3.6)) * 0.5 + 0.5;
+    const noise = hash01(module.seed + i * 17) * 0.35;
+    out[i] = wave + noise < module.density ? 1 : 0;
+  }
+  return out;
+}
+
+function renderLinearCells(host: HTMLElement, existing: HTMLElement[], steps: number, pattern: Uint8Array) {
+  host.style.setProperty("--trigger-linear-cols", String(steps));
+  const cells = existing;
+  if (cells.length !== steps) {
+    host.textContent = "";
+    cells.length = 0;
+    for (let i = 0; i < steps; i++) {
+      const cell = document.createElement("span");
+      cell.className = "triggerDisplayLinearCell";
+      host.appendChild(cell);
+      cells.push(cell);
+    }
+  }
+  for (let i = 0; i < steps; i++) {
+    cells[i].classList.toggle("on", pattern[i] === 1);
+    cells[i].classList.remove("is-playhead");
+  }
+  return cells;
+}
+
+function paintPlayhead(cells: HTMLElement[], playhead: number) {
+  for (let i = 0; i < cells.length; i++) cells[i].classList.toggle("is-playhead", i === playhead);
+}
+
+function createGeneticRow(module: TriggerModule, cols: number, row: number) {
+  const out = new Uint8Array(cols);
+  const mutate = module.weird * (0.08 + row * 0.05);
+  for (let i = 0; i < cols; i++) {
+    let bit = hash01(module.seed + row * 101 + i * 13) < module.density ? 1 : 0;
+    if (hash01(module.seed + row * 71 + i * 19) < mutate) bit = bit ? 0 : 1;
+    if (bit && hash01(module.seed + row * 29 + i * 7) < module.drop * 0.45) bit = 0;
+    out[i] = bit;
+  }
+  return out;
+}
+
+function evaluateFitness(pattern: Uint8Array, module: TriggerModule) {
+  const hits = pattern.reduce((sum, bit) => sum + bit, 0);
+  const densityFit = 1 - Math.abs(hits / Math.max(1, pattern.length) - module.density);
+  let anchorHits = 0;
+  for (let i = 0; i < pattern.length; i++) if (pattern[i] && i % 4 === 0) anchorHits++;
+  const anchorFit = anchorHits / Math.max(1, Math.ceil(pattern.length / 4));
+  return clamp(densityFit * 0.75 + anchorFit * module.gravity * 0.25, 0, 1);
+}
+
+function buildOneOverFValues(module: TriggerModule, count: number) {
+  const values: number[] = [];
+  let low = hash01(module.seed + 11);
+  let mid = hash01(module.seed + 23);
+  let high = hash01(module.seed + 37);
+  for (let i = 0; i < count; i++) {
+    if (hash01(module.seed + i * 19) < 0.08 + (1 - module.determinism) * 0.08) low = hash01(module.seed + i * 31 + 7);
+    if (hash01(module.seed + i * 29) < 0.18 + module.weird * 0.18) mid = hash01(module.seed + i * 43 + 13);
+    if (hash01(module.seed + i * 41) < 0.36 + module.weird * 0.32) high = hash01(module.seed + i * 53 + 17);
+    const composite = low * 0.58 + mid * 0.3 + high * 0.12;
+    values.push(clamp(composite + (module.gravity - 0.5) * 0.14, 0, 1));
+  }
+  return values;
 }
 
 function clamp(value: number, min: number, max: number) {
