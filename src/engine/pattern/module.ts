@@ -1,5 +1,6 @@
 import type { Mode, TriggerModule } from "../../patch";
 import { genStepPattern } from "./stepPatternModule.ts";
+import { createGearPattern } from "./gear.ts";
 
 const MAX_PATTERN_STEPS = 128;
 const EPS = 1e-9;
@@ -493,6 +494,7 @@ function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
                     : mode === "xronomorph" ? genXronoMorphPattern(trigger, voiceId)
                       : mode === "genetic-algorithms" ? genGeneticPattern(trigger, voiceId)
                         : mode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
+                          : mode === "gear" ? createGearPattern(trigger, voiceId)
                           : genHybridPattern(trigger, voiceId);
   const live = trigger.liveState;
   if (!live || live.mode !== mode || live.steps !== generated.length) return generated;

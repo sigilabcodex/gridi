@@ -29,6 +29,7 @@ const GENERATOR_MODE_LABELS: Record<Mode, { full: string; short: string }> = {
   "xronomorph": { full: "XronoMorph", short: "XRM" },
   "genetic-algorithms": { full: "Genetic Algorithms", short: "GA" },
   "one-over-f-noise": { full: "1/f Noise", short: "1/F" },
+  "gear": { full: "GEAR", short: "GEAR" },
 };
 
 const GENERATOR_MODES: Array<{ value: Mode; label: string }> = (Object.entries(GENERATOR_MODE_LABELS) as Array<[Mode, { full: string }]>)
@@ -643,6 +644,60 @@ const MODE_CONTROL_REGISTRY: Record<Mode, TriggerModeControlSpec[]> = {
       max: 1,
       step: 0.001,
       tooltip: "Bias stochastic drift toward anchor regions.",
+    },
+  ],
+  gear: [
+    {
+      label: "Rings",
+      key: "density",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      format: (value) => `${2 + Math.round(value * 2)}`,
+      tooltip: "Set active ring count for interlocking cycle alignment.",
+    },
+    {
+      label: "Len",
+      key: "length",
+      min: 4,
+      max: 128,
+      step: 1,
+      integer: true,
+      tooltip: "Set the base cycle length for ring A.",
+    },
+    {
+      label: "Rot",
+      key: "euclidRot",
+      min: -32,
+      max: 32,
+      step: 1,
+      integer: true,
+      tooltip: "Apply a shared rotation offset across all rings.",
+    },
+    {
+      label: "Div",
+      key: "subdiv",
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Scale relative ring lengths against the base cycle.",
+    },
+    {
+      label: "Align",
+      key: "determinism",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Control strictness for alignment-based trigger acceptance.",
+    },
+    {
+      label: "Drift",
+      key: "weird",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Introduce slow phase drift between ring playheads.",
     },
   ],
 };
@@ -1261,6 +1316,8 @@ export function renderTriggerSurface(
       closeModePanel();
     }
     syncModeControlValues();
+    badge.textContent = t.mode === "gear" ? "GEAR" : "GEN";
+    generatorLabel.textContent = t.mode === "gear" ? "GEAR" : "MODE";
     generatorValue.textContent = GENERATOR_MODE_LABELS[t.mode]?.short ?? "GEN";
     if (modePanel) {
       const rows = modePanel.querySelectorAll<HTMLElement>(".triggerModeSelectorRow");

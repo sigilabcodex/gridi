@@ -1,4 +1,5 @@
 import type { Mode, TriggerModule } from "../patch";
+import { createGearModel } from "../engine/pattern/gear";
 
 type TriggerDisplayParams = {
   module: TriggerModule;
@@ -49,6 +50,7 @@ const MODE_LABELS: Record<Mode, string> = {
   xronomorph: "XronoMorph",
   "genetic-algorithms": "Genetic Algorithms",
   "one-over-f-noise": "1/f Noise",
+  gear: "GEAR",
 };
 
 export function createTriggerDisplaySurface(params: TriggerDisplayParams): TriggerDisplayApi {
@@ -117,11 +119,81 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "xronomorph") return createXronoMorphView(params);
   if (mode === "genetic-algorithms") return createGeneticView();
   if (mode === "one-over-f-noise") return createOneOverFView(params);
+  if (mode === "gear") return createGearView();
 
   const placeholder = renderModePlaceholder(mode);
   return {
     root: placeholder,
     sync: () => {},
+  };
+}
+
+function createGearView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplayGear";
+
+  const stage = document.createElement("div");
+  stage.className = "triggerDisplayGearStage";
+  const playhead = document.createElement("span");
+  playhead.className = "triggerDisplayGearPlayhead";
+  stage.appendChild(playhead);
+  root.appendChild(stage);
+
+  const ringDots: HTMLElement[][] = [];
+  let triggerPattern = new Uint8Array(0);
+  let lastPlayhead = -1;
+
+  const buildRing = (ringIndex: number, steps: number) => {
+    const ring = document.createElement("div");
+    ring.className = `triggerDisplayGearRing triggerDisplayGearRing--${ringIndex + 1}`;
+    const dots: HTMLElement[] = [];
+    for (let i = 0; i < steps; i++) {
+      const dot = document.createElement("span");
+      dot.className = "triggerDisplayGearDot";
+      const angle = (Math.PI * 2 * i) / steps - Math.PI / 2;
+      dot.style.setProperty("--gear-x", `${Math.cos(angle).toFixed(4)}`);
+      dot.style.setProperty("--gear-y", `${Math.sin(angle).toFixed(4)}`);
+      ring.appendChild(dot);
+      dots.push(dot);
+    }
+    ringDots[ringIndex] = dots;
+    stage.appendChild(ring);
+    return ring;
+  };
+
+  return {
+    root,
+    sync: (nextModule) => {
+      const model = createGearModel(nextModule, `${nextModule.id}:display`);
+      triggerPattern = new Uint8Array(model.triggerPattern);
+      lastPlayhead = -1;
+      ringDots.length = 0;
+      stage.querySelectorAll(".triggerDisplayGearRing").forEach((el) => el.remove());
+      root.classList.remove("is-aligned");
+
+      model.rings.forEach((ringModel, ringIndex) => {
+        const ring = buildRing(ringIndex, ringModel.length);
+        ring.classList.toggle("is-enabled", ringIndex < model.ringCount);
+        ring.style.setProperty("--gear-rotation", `${ringModel.rotation}deg`);
+        ringDots[ringIndex]?.forEach((dot, i) => {
+          dot.classList.toggle("on", ringModel.pattern[i] === 1);
+        });
+      });
+    },
+    tick: (timeMs, liveModule) => {
+      if (!triggerPattern.length) return;
+      const play = resolveAnimatedStepIndex(timeMs, liveModule, triggerPattern.length);
+      if (play === lastPlayhead) return;
+      const angle = ((play / triggerPattern.length) * 360) - 90;
+      playhead.style.setProperty("--gear-angle", `${angle.toFixed(2)}deg`);
+      root.classList.toggle("is-aligned", triggerPattern[play] === 1);
+      if (triggerPattern[play] === 1) {
+        window.setTimeout(() => {
+          if (root.isConnected) root.classList.remove("is-aligned");
+        }, 80);
+      }
+      lastPlayhead = play;
+    },
   };
 }
 
