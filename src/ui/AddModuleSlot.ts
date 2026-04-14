@@ -66,10 +66,24 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   plus.className = "addModulePlus";
   plus.setAttribute("aria-hidden", "true");
   plus.textContent = "+";
+  plus.style.marginTop = "0";
 
   const label = document.createElement("div");
   label.className = "small addModuleSlotLabel";
   label.textContent = "Add module";
+  label.style.marginTop = "0";
+
+  const content = document.createElement("div");
+  content.className = "addModuleSlotContent";
+  content.style.display = "grid";
+  content.style.justifyItems = "center";
+  content.style.alignContent = "center";
+  content.style.gap = "6px";
+  content.append(plus, label);
+
+  slot.style.display = "flex";
+  slot.style.alignItems = "center";
+  slot.style.justifyContent = "center";
 
   const menu = document.createElement("div");
   menu.className = "floatingPanel addSlotMenu hidden";
@@ -225,6 +239,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     params.onPick(dropped);
   });
 
-  slot.append(plus, label);
+  slot.append(content);
   return slot;
 }
