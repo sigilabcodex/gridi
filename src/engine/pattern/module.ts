@@ -8,6 +8,7 @@ const EPS = 1e-9;
 export type PatternEvent = {
   readonly voiceId: string;
   readonly beatOffset: number;
+  readonly value: number;
 };
 
 export type PatternEventWindow = {
@@ -518,6 +519,41 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
   const firstStep = Math.ceil(startBeat * stepsPerBeat - EPS);
   const drop = clamp01(trigger.drop);
   const events: PatternEvent[] = [];
+  const steps = Math.max(1, pattern.length);
+  const normalizedStep = (idx: number) => (steps <= 1 ? 0.5 : idx / (steps - 1));
+  const totalPulses = pattern.reduce((sum, bit) => sum + (bit ? 1 : 0), 0);
+
+  function pulseIndexNormalized(stepIndex: number) {
+    if (totalPulses <= 1) return 0.5;
+    let pulseIndex = 0;
+    for (let i = 0; i <= stepIndex; i += 1) {
+      if (pattern[i % steps] === 1) pulseIndex += 1;
+    }
+    return Math.max(0, Math.min(1, (pulseIndex - 1) / (totalPulses - 1)));
+  }
+
+  function localDensity(stepIndex: number) {
+    const radius = 2;
+    let sum = 0;
+    let count = 0;
+    for (let offset = -radius; offset <= radius; offset += 1) {
+      const idx = ((stepIndex + offset) % steps + steps) % steps;
+      sum += pattern[idx] ? 1 : 0;
+      count += 1;
+    }
+    return count > 0 ? sum / count : 0.5;
+  }
+
+  function stepValue(step: number, idx: number) {
+    const stepNorm = normalizedStep(idx);
+    if (trigger.mode === "step-sequencer") return stepNorm;
+    if (trigger.mode === "euclidean") return pulseIndexNormalized(idx);
+    if (trigger.mode === "markov-chains") return Math.max(0, Math.min(1, pattern[idx] * 0.7 + stepNorm * 0.3));
+    if (trigger.mode === "cellular-automata") return localDensity(idx);
+    if (trigger.mode === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
+    if (trigger.mode === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
+    return stepNorm;
+  }
 
   for (let step = firstStep; ; step++) {
     const beat = step / stepsPerBeat;
@@ -526,7 +562,7 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
     if (pattern[idx] !== 1) continue;
     if (drop > 0 && stepRandom01(trigger.seed, voiceId, step) < drop) continue;
-    events.push({ voiceId, beatOffset: beat - startBeat });
+    events.push({ voiceId, beatOffset: beat - startBeat, value: stepValue(step, idx) });
   }
 
   return { startBeat, endBeat, events };

@@ -19,7 +19,7 @@ export type Engine = {
   disconnectModule(moduleId: string): void;
   dispose(): void;
 
-  triggerVoice(moduleId: string, patch: Patch, when?: number): void;
+  triggerVoice(moduleId: string, patch: Patch, when?: number, incomingValue?: number): void;
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
@@ -306,7 +306,7 @@ export function createEngine(): Engine {
     };
   }
 
-  function triggerVoice(moduleId: string, patch: Patch, when?: number) {
+  function triggerVoice(moduleId: string, patch: Patch, when?: number, incomingValue?: number) {
     voiceLastTrigMs.set(moduleId, performance.now());
 
     const voices = getSoundModules(patch);
@@ -477,12 +477,15 @@ export function createEngine(): Engine {
     const glide = clamp01(safe(v.glide, 0.08));
 
     const freq = tonalBaseFreq(v, i, patch.macro);
+    const normalizedIncoming = Number.isFinite(incomingValue) ? clamp01(incomingValue as number) : 0.5;
+    const semitoneOffset = (normalizedIncoming - 0.5) * 14;
+    const routedFreq = freq * Math.pow(2, semitoneOffset / 12);
     const glideTime = 0.001 + glide * 0.35;
 
     oscA.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3)));
     oscB.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3) + 0.22));
-    oscA.frequency.setTargetAtTime(freq, now, glideTime);
-    oscB.frequency.setTargetAtTime(freq * 1.004, now, glideTime);
+    oscA.frequency.setTargetAtTime(routedFreq, now, glideTime);
+    oscB.frequency.setTargetAtTime(routedFreq * 1.004, now, glideTime);
 
     filter.type = "lowpass";
     filter.frequency.value = cutoff;
@@ -492,7 +495,7 @@ export function createEngine(): Engine {
     const modRate = 0.2 + clamp01(safe(v.modRate, 0.25)) * 11;
     lfo.type = "sine";
     lfo.frequency.value = modRate;
-    lfoGain.gain.value = freq * modDepth * 0.08;
+    lfoGain.gain.value = routedFreq * modDepth * 0.08;
 
     lfo.connect(lfoGain);
     lfoGain.connect(oscA.frequency);
