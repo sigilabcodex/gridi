@@ -2,7 +2,7 @@ import type { Engine } from "../engine/audio";
 import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
-import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
@@ -117,23 +117,10 @@ export function renderVisualSurface(
     attachTooltip,
   });
 
-  const identity = createModuleIdentityMeta({
-    badgeText: "VIS",
-    instanceName: vm.name,
-    instanceId: vm.id.slice(-6).toUpperCase(),
-    presetButton: presetControl.button,
-  });
-  identity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
-  const badge = identity.querySelector(".surfaceBadge");
-  if (badge) badge.classList.add("surfaceBadge--visualFamily");
-  const instanceName = identity.querySelector(".surfaceInstanceName");
-  const instanceId = identity.querySelector(".moduleId");
-  instanceName?.remove();
-  instanceId?.remove();
-
-  const modeChip = createRoutingChip((VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope).label.toUpperCase(), "muted");
-  modeChip.classList.add("surfaceHeaderChip");
-  identity.appendChild(modeChip);
+  const identity = el("div", "surfaceIdentity surfaceIdentity--canonical drumIdentity");
+  const badge = el("div", "surfaceBadge surfaceBadge--visualFamily");
+  badge.textContent = "VIS";
+  identity.append(badge, presetControl.button);
 
   const right = el("div", "rightControls");
   const btnOn = el("button");
@@ -158,6 +145,14 @@ export function renderVisualSurface(
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("visualSurfaceBody", "visualMainLayout");
+
+  const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;
+  const chipRow = createFaceplateSection("io", "visualMetaRow");
+  const modeChip = createRoutingChip(`MODE ${modeSpec.label.toUpperCase()}`, "muted");
+  const sourceChip = createRoutingChip(`SRC ${visualSource?.sourceLabel ?? "MASTER"}`, visualSource ? "connected" : "muted");
+  const fftChip = createRoutingChip(`FFT ${vm.fftSize ?? 2048}`, "muted");
+  chipRow.append(modeChip, sourceChip, fftChip);
+
   const canvasWrap = createFaceplateSection("feature", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
   canvas.className = "scope";
@@ -173,12 +168,20 @@ export function renderVisualSurface(
       if (value) vm.kind = value as VisualModule["kind"];
     },
   });
-  visualModeRow.append(modeField.wrap);
+  const fftField = createCompactSelectField({
+    label: "FFT",
+    options: [512, 1024, 2048, 4096].map((size) => ({ value: String(size), label: String(size) })),
+    selected: String(vm.fftSize ?? 2048),
+    onChange: (value) => {
+      if (value) vm.fftSize = Number(value) as VisualModule["fftSize"];
+    },
+  });
+  visualModeRow.append(modeField.wrap, fftField.wrap);
   const readoutSection = createFaceplateSection("bottom");
   readoutSection.setAttribute("aria-label", "visual readout");
   readoutSection.append(readout);
   canvasWrap.append(canvas);
-  panelMain.append(canvasWrap, visualModeRow, readoutSection);
+  panelMain.append(chipRow, canvasWrap, visualModeRow, readoutSection);
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--visualRouting");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");
@@ -197,15 +200,9 @@ export function renderVisualSurface(
 
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel visualSettingsPanel");
   const dock = createFaceplateSection("controls", "visualControlDock");
-  const fftField = createCompactSelectField({
-    label: "FFT",
-    options: [512, 1024, 2048, 4096].map((size) => ({ value: String(size), label: String(size) })),
-    selected: String(vm.fftSize ?? 2048),
-    onChange: (value) => {
-      if (value) vm.fftSize = Number(value) as VisualModule["fftSize"];
-    },
-  });
-  dock.append(fftField.wrap);
+  const settingsHint = el("div", "visualSettingsHint triggerTransportReadout");
+  settingsHint.textContent = "Display configuration is available on Main for quick performance edits.";
+  dock.append(settingsHint);
   panelSettings.append(dock);
 
   const shell = createModuleTabShell({
@@ -230,7 +227,9 @@ export function renderVisualSurface(
     stateToken.textContent = vm.enabled ? "ACTIVE" : "BYPASS";
     modeToken.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
     metaToken.textContent = `FFT ${vm.fftSize ?? 2048}`;
-    modeChip.textContent = modeSpec.label.toUpperCase();
+    modeChip.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
+    sourceChip.textContent = `SRC ${visualSource?.sourceLabel ?? "MASTER"}`;
+    fftChip.textContent = `FFT ${vm.fftSize ?? 2048}`;
   };
 
   surface.append(header, shell.face, shell.tabs, infoBar);
