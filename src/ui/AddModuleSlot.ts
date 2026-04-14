@@ -71,6 +71,10 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   label.className = "small addModuleSlotLabel";
   label.textContent = "Add module";
 
+  const content = document.createElement("div");
+  content.className = "addModuleSlotContent";
+  content.append(plus, label);
+
   const menu = document.createElement("div");
   menu.className = "floatingPanel addSlotMenu hidden";
   menu.setAttribute("role", "menu");
@@ -225,6 +229,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     params.onPick(dropped);
   });
 
-  slot.append(plus, label);
+  slot.append(content);
   return slot;
 }
