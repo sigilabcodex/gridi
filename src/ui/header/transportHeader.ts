@@ -367,10 +367,30 @@ export function createTransportHeader(params: HeaderParams) {
     return btn;
   };
 
-  const btnReset = makeUtilityBtn("Reset patch", params.onReset, "Reset the current patch back to the default layout.", "Reset patch");
-  const btnRandom = makeUtilityBtn("Randomize all", params.onRandomize, "Randomize trigger and voice parameters in the patch.", "Randomize patch");
-  const btnRegen = makeUtilityBtn("Regen", params.onRegen, "Regenerate pattern outputs without rebuilding the patch.", "Regenerate patterns");
-  const btnReseed = makeUtilityBtn("Reseed all", params.onReseed, "Give all generator modules fresh random seeds.", "Reseed generators");
+  const btnReset = makeUtilityBtn(
+    "Reset session patch",
+    params.onReset,
+    "Replace the working session patch with the default module layout. This does not change module preset libraries.",
+    "Reset session patch",
+  );
+  const btnRandom = makeUtilityBtn(
+    "Randomize patch",
+    params.onRandomize,
+    "Randomize generator and voice parameters in the current session patch.",
+    "Randomize session patch",
+  );
+  const btnRegen = makeUtilityBtn(
+    "Regen generators",
+    params.onRegen,
+    "Regenerate generator outputs from current generator parameters without changing patch topology.",
+    "Regenerate generators",
+  );
+  const btnReseed = makeUtilityBtn(
+    "Reseed generators",
+    params.onReseed,
+    "Assign fresh random seeds to all generator modules in this patch.",
+    "Reseed generators",
+  );
 
   const makePlaceholderBtn = (label: string) => {
     const btn = document.createElement("button");
@@ -394,8 +414,8 @@ export function createTransportHeader(params: HeaderParams) {
     utilityPanel.append(label, row);
   };
 
-  appendUtilitySection("Session", [btnReset, btnRegen, saveAsPlaceholder]);
-  appendUtilitySection("Randomize", [btnRandom, btnReseed, randomizeSelectedPlaceholder, randomizeGroupsPlaceholder]);
+  appendUtilitySection("Session patch", [btnReset, saveAsPlaceholder]);
+  appendUtilitySection("Generator tools", [btnRegen, btnReseed, btnRandom, randomizeSelectedPlaceholder, randomizeGroupsPlaceholder]);
   utilityMenu.append(utilitySummary);
 
   sessionActions.append(utilityMenu);
@@ -687,7 +707,7 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   const updatePresetUI = () => {
-    presetLabel.textContent = `Bank / Session${params.hasUnsavedChanges() ? " • unsaved" : ""}`;
+    presetLabel.textContent = `Session${params.hasUnsavedChanges() ? " • unsaved" : ""}`;
 
     const names = params.presetNames();
     const selected = names.find((preset) => preset.id === params.selectedPresetId());
