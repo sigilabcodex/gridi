@@ -1,6 +1,7 @@
 import type { Module } from "../patch";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import {
+  getModulePresetProvenance,
   findLinkedModulePreset,
   getModulePresetFamilyLabel,
   getModulePresetSubtype,
@@ -26,6 +27,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
   presetButton.setAttribute("aria-haspopup", "dialog");
 
   const linkedPreset = findLinkedModulePreset(params.records, params.module);
+  const provenance = getModulePresetProvenance(params.records, params.module);
   const availablePresets = listModulePresetsForModule(params.records, params.module)
     .slice()
     .sort((a, b) => {
@@ -36,7 +38,8 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
   const moduleSubtype = getModulePresetSubtype(params.module);
 
   const syncButton = () => {
-    presetButton.textContent = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
+    const base = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
+    presetButton.textContent = provenance.isStateModified ? `${base} *` : base;
     presetButton.setAttribute("aria-label", `${params.module.name} preset ${presetButton.textContent}`);
   };
   syncButton();
@@ -106,9 +109,14 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
     const linkedRow = document.createElement("div");
     linkedRow.className = "small modulePresetLinkedRow";
-    linkedRow.textContent = linkedPreset
-      ? `Linked: ${linkedPreset.name}${linkedPreset.source === "factory" ? " · factory" : ""}`
-      : "Linked: none yet";
+    const stateLabel = provenance.isStateLinked
+      ? "state linked"
+      : provenance.matchedPreset
+        ? "state modified"
+        : "state local";
+    linkedRow.textContent = provenance.matchedPreset
+      ? `Origin: ${provenance.matchedPreset.name}${provenance.source === "factory" ? " · factory" : " · user"} · ${stateLabel}`
+      : `Origin: none · ${stateLabel}`;
 
     const saveBlock = document.createElement("div");
     saveBlock.className = "modulePresetSaveBlock";

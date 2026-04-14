@@ -19,6 +19,8 @@ type HeaderParams = {
   onOpenPresetManager: () => void;
   onSelectPreset: (presetId: string) => void;
   onSavePreset: () => void;
+  onSaveAsPreset: () => void;
+  onNewSession: () => void;
   onToggleAudio: () => Promise<void>;
   onTogglePlay: () => Promise<void>;
   onToggleMute: () => void;
@@ -333,6 +335,16 @@ export function createTransportHeader(params: HeaderParams) {
   sessionSelectRow.className = "transportSessionSelectRow";
   sessionSelectRow.append(presetButton, btnSavePreset);
 
+  const btnSessionManager = document.createElement("button");
+  btnSessionManager.type = "button";
+  btnSessionManager.className = "transportGhostBtn transportIconBtn transportSessionManagerBtn";
+  btnSessionManager.textContent = "Manage";
+  btnSessionManager.onclick = params.onOpenPresetManager;
+  params.attachTooltip(btnSessionManager, {
+    text: "Open session manager for rename, duplicate, delete, import, and export.",
+    ariaLabel: "Session manager",
+  });
+
   presetWrap.append(presetLabel, sessionSelectRow);
 
   const sessionActions = document.createElement("div");
@@ -392,17 +404,24 @@ export function createTransportHeader(params: HeaderParams) {
     "Reseed generators",
   );
 
-  const makePlaceholderBtn = (label: string) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "transportGhostBtn transportUtilityBtn isPlaceholder";
-    btn.textContent = label;
-    btn.disabled = true;
-    return btn;
-  };
-  const randomizeSelectedPlaceholder = makePlaceholderBtn("Randomize selected (soon)");
-  const randomizeGroupsPlaceholder = makePlaceholderBtn("Randomize groups (soon)");
-  const saveAsPlaceholder = makePlaceholderBtn("Save As (soon)");
+  const btnNewSession = makeUtilityBtn(
+    "New session",
+    params.onNewSession,
+    "Create and switch to a fresh session patch without changing module preset libraries.",
+    "New session",
+  );
+  const btnSaveAs = makeUtilityBtn(
+    "Save As…",
+    params.onSaveAsPreset,
+    "Create a new session from the current patch state.",
+    "Save current patch as a new session",
+  );
+  const btnSessionManagerMenu = makeUtilityBtn(
+    "Session manager…",
+    params.onOpenPresetManager,
+    "Open session manager to organize sessions and import/export files.",
+    "Open session manager",
+  );
 
   const appendUtilitySection = (title: string, buttons: HTMLButtonElement[]) => {
     const label = document.createElement("div");
@@ -414,11 +433,11 @@ export function createTransportHeader(params: HeaderParams) {
     utilityPanel.append(label, row);
   };
 
-  appendUtilitySection("Session patch", [btnReset, saveAsPlaceholder]);
-  appendUtilitySection("Generator tools", [btnRegen, btnReseed, btnRandom, randomizeSelectedPlaceholder, randomizeGroupsPlaceholder]);
+  appendUtilitySection("Session patch", [btnNewSession, btnSaveAs, btnReset, btnSessionManagerMenu]);
+  appendUtilitySection("Generator tools", [btnRegen, btnReseed, btnRandom]);
   utilityMenu.append(utilitySummary);
 
-  sessionActions.append(utilityMenu);
+  sessionActions.append(btnSessionManager, utilityMenu);
   sessionBlock.append(presetWrap, sessionActions);
   sessionCluster.append(sessionBlock);
 

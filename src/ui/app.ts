@@ -313,6 +313,57 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateStatus();
   };
 
+  const createSessionFromDefaultPatch = () => {
+    const proposed = prompt("New session name", `Session ${session.presets.length + 1}`);
+    if (proposed === null) return;
+    const now = Date.now();
+    const preset: PresetRecord = {
+      id: `preset-${now}`,
+      name: sanitizePresetName(proposed, `Session ${session.presets.length + 1}`),
+      patch: defaultPatch(),
+      createdAt: now,
+      updatedAt: now,
+    };
+    session.presets.push(preset);
+    session.selectedPresetId = preset.id;
+    patch = clonePatch(preset.patch);
+    savedSnapshot = JSON.stringify(patch);
+    syncEngineFromPatch(patch, true);
+    saveSession();
+    gridRenderer.rerender();
+    header.updatePresetUI();
+    header.updateMuteBtn();
+    header.updateMasterGainUI();
+    header.updateBpmUI();
+    header.updateStatus();
+  };
+
+  const saveCurrentAsNewSession = () => {
+    const source = selectedPreset();
+    const proposed = prompt("Save current patch as session", `${source.name} Copy`);
+    if (proposed === null) return;
+    const now = Date.now();
+    const duplicate: PresetRecord = {
+      id: `preset-${now}`,
+      name: sanitizePresetName(proposed, `${source.name} Copy`),
+      patch: clonePatch(patch),
+      createdAt: now,
+      updatedAt: now,
+    };
+    session.presets.push(duplicate);
+    session.selectedPresetId = duplicate.id;
+    patch = clonePatch(duplicate.patch);
+    savedSnapshot = JSON.stringify(patch);
+    syncEngineFromPatch(patch, true);
+    saveSession();
+    gridRenderer.rerender();
+    header.updatePresetUI();
+    header.updateMuteBtn();
+    header.updateMasterGainUI();
+    header.updateBpmUI();
+    header.updateStatus();
+  };
+
   const renamePreset = (presetId: string, proposedName: string) => {
     const preset = session.presets.find((item) => item.id === presetId);
     if (!preset) return;
@@ -501,6 +552,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       }),
     onSelectPreset: loadPresetById,
     onSavePreset: saveCurrentPreset,
+    onSaveAsPreset: saveCurrentAsNewSession,
+    onNewSession: createSessionFromDefaultPatch,
     onToggleAudio: async () => {
       if (engine.ctx.state === "running") await engine.ctx.suspend();
       else await engine.start();
@@ -527,7 +580,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateStatus();
     },
     onReset: () => {
-      if (!confirm("Reset the working session patch to the default layout? This keeps module preset libraries unchanged.")) return;
+      if (!confirm("Reset only the current session patch to the default layout? Module presets and other sessions are unchanged.")) return;
       const prev = clonePatch(patch);
       patch = defaultPatch();
       history.pushHistory(prev);

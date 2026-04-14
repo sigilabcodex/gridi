@@ -411,6 +411,52 @@ export function findLinkedModulePreset(records: ModulePresetRecord[], module: Mo
   return byName ?? null;
 }
 
+function presetStatesEqual(a: ModulePresetState, b: ModulePresetState) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export type ModulePresetProvenance = {
+  linkedPreset: ModulePresetRecord | null;
+  matchedPreset: ModulePresetRecord | null;
+  isStateLinked: boolean;
+  isStateModified: boolean;
+  source: "factory" | "user" | "none";
+};
+
+export function getModulePresetProvenance(records: ModulePresetRecord[], module: Module): ModulePresetProvenance {
+  const linkedById = (() => {
+    const linkedId = typeof module.presetMeta?.modulePresetId === "string" ? module.presetMeta.modulePresetId : null;
+    if (!linkedId) return null;
+    const record = records.find((entry) => entry.id === linkedId) ?? null;
+    if (!record) return null;
+    const compatible = listModulePresetsForModule([record], module).length > 0;
+    return compatible ? record : null;
+  })();
+
+  const fallbackMatch = linkedById ? null : findLinkedModulePreset(records, module);
+  const matchedPreset = linkedById ?? fallbackMatch;
+  const source = matchedPreset?.source ?? "none";
+  if (!matchedPreset) {
+    return {
+      linkedPreset: null,
+      matchedPreset: null,
+      isStateLinked: false,
+      isStateModified: false,
+      source,
+    };
+  }
+
+  const moduleState = snapshotModulePresetState(module);
+  const isStateLinked = Boolean(moduleState) && presetStatesEqual(moduleState as ModulePresetState, matchedPreset.state);
+  return {
+    linkedPreset: linkedById,
+    matchedPreset,
+    isStateLinked,
+    isStateModified: !isStateLinked,
+    source,
+  };
+}
+
 export function applyModulePreset(module: Module, preset: ModulePresetRecord) {
   const allowed = listModulePresetsForModule([preset], module).length > 0;
   if (!allowed) return false;
