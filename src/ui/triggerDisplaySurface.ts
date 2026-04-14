@@ -3,6 +3,7 @@ import { createGearModel } from "../engine/pattern/gear";
 
 type TriggerDisplayParams = {
   module: TriggerModule;
+  isRuntimeActive: () => boolean;
   getStepPattern: () => string;
   onCommitLivePattern?: (pattern: Uint8Array | null, mode: Mode) => void;
 };
@@ -96,6 +97,8 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   let view: DisplayView | null = null;
   let rafId = 0;
   let lastSyncSignature: string | null = null;
+  let animationMs = 0;
+  let lastFrameMs: number | null = null;
 
   const ensureView = () => {
     if (view && activeMode === moduleRef.mode) return;
@@ -110,8 +113,12 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
 
   const tick = (timeMs: number) => {
     if (!wrap.isConnected) return;
+    if (lastFrameMs == null) lastFrameMs = timeMs;
+    const deltaMs = Math.max(0, timeMs - lastFrameMs);
+    lastFrameMs = timeMs;
+    if (params.isRuntimeActive()) animationMs += deltaMs;
     ensureView();
-    view?.tick?.(timeMs, moduleRef, params, stepGridState);
+    view?.tick?.(animationMs, moduleRef, params, stepGridState);
     rafId = window.requestAnimationFrame(tick);
   };
 
