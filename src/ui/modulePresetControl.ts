@@ -28,7 +28,11 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
   const linkedPreset = findLinkedModulePreset(params.records, params.module);
   const availablePresets = listModulePresetsForModule(params.records, params.module)
     .slice()
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+    .sort((a, b) => {
+      if ((a.source === "factory") !== (b.source === "factory")) return a.source === "factory" ? -1 : 1;
+      if (a.source === "factory" && b.source === "factory") return a.name.localeCompare(b.name);
+      return b.updatedAt - a.updatedAt;
+    });
   const moduleSubtype = getModulePresetSubtype(params.module);
 
   const syncButton = () => {
@@ -103,7 +107,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     const linkedRow = document.createElement("div");
     linkedRow.className = "small modulePresetLinkedRow";
     linkedRow.textContent = linkedPreset
-      ? `Linked: ${linkedPreset.name}`
+      ? `Linked: ${linkedPreset.name}${linkedPreset.source === "factory" ? " · factory" : ""}`
       : "Linked: none yet";
 
     const saveBlock = document.createElement("div");
@@ -131,8 +135,8 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
     const btnOverwrite = document.createElement("button");
     btnOverwrite.type = "button";
-    btnOverwrite.textContent = linkedPreset ? "Overwrite linked" : "Save linked";
-    btnOverwrite.disabled = !linkedPreset;
+    btnOverwrite.textContent = linkedPreset?.source === "factory" ? "Save copy" : linkedPreset ? "Overwrite linked" : "Save linked";
+    btnOverwrite.disabled = !linkedPreset || linkedPreset.source === "factory";
     btnOverwrite.onclick = () => {
       if (!linkedPreset) return;
       params.onSavePreset(sanitizeModulePresetName(saveInput.value, linkedPreset.name), linkedPreset.id);
@@ -145,8 +149,11 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     listWrap.className = "modulePresetListWrap";
     const listTitle = document.createElement("div");
     listTitle.className = "small modulePresetListTitle";
+    const familyHasFactory = availablePresets.some((record) => record.source === "factory");
     listTitle.textContent = availablePresets.length
-      ? `Load ${availablePresets.length} compatible preset${availablePresets.length === 1 ? "" : "s"}`
+      ? familyHasFactory
+        ? `Load factory or saved presets (${availablePresets.length})`
+        : `Load ${availablePresets.length} compatible preset${availablePresets.length === 1 ? "" : "s"}`
       : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
     listWrap.appendChild(listTitle);
 
@@ -169,7 +176,9 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
       name.textContent = record.name;
       const info = document.createElement("div");
       info.className = "small modulePresetListInfo";
-      info.textContent = `${getModulePresetSubtypeLabel(record)} · saved ${new Date(record.updatedAt).toLocaleDateString()}`;
+      info.textContent = record.source === "factory"
+        ? `${getModulePresetSubtypeLabel(record)} · factory`
+        : `${getModulePresetSubtypeLabel(record)} · saved ${new Date(record.updatedAt).toLocaleDateString()}`;
       meta.append(name, info);
 
       const loadTag = document.createElement("div");

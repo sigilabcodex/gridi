@@ -527,7 +527,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateStatus();
     },
     onReset: () => {
+      if (!confirm("Reset the working session patch to the default layout? This keeps module preset libraries unchanged.")) return;
+      const prev = clonePatch(patch);
       patch = defaultPatch();
+      history.pushHistory(prev);
       syncEngineFromPatch(patch, true);
       maybeAutosaveCurrentPreset();
       gridRenderer.rerender();
