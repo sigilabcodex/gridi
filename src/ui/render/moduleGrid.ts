@@ -67,7 +67,8 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
 }
 
 function createModuleRenderErrorSurface(moduleId: string, moduleType: string) {
-  const moduleFamilyLabel = moduleType === "trigger" ? "GEN" : moduleType.toUpperCase();
+  const moduleFamilyLabel =
+    moduleType === "trigger" ? "GEN" : moduleType === "visual" ? "VIS" : moduleType.toUpperCase();
   const surface = document.createElement("section");
   surface.className = "moduleSurface moduleSurfaceRenderError";
   surface.dataset.type = moduleType;

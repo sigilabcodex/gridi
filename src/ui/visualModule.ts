@@ -22,6 +22,78 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   return n;
 }
 
+type VisualDrawContext = {
+  canvas: HTMLCanvasElement;
+  ctx2d: CanvasRenderingContext2D;
+  engine: Engine;
+  scopeBuf: Float32Array;
+  specBuf: Float32Array;
+  readout: HTMLElement;
+};
+
+type VisualModeSpec = {
+  label: string;
+  draw: (ctx: VisualDrawContext) => void;
+};
+
+const VISUAL_MODE_SPECS: Record<VisualModule["kind"], VisualModeSpec> = {
+  scope: {
+    label: "Scope",
+    draw: ({ canvas, ctx2d, engine, scopeBuf, readout }) => {
+      engine.getScopeData(scopeBuf);
+      const w = canvas.width;
+      const h = canvas.height;
+      const mid = h * 0.5;
+      ctx2d.lineWidth = 2;
+      ctx2d.strokeStyle = "rgba(235,240,245,0.95)";
+      ctx2d.beginPath();
+      for (let i = 0; i < scopeBuf.length; i++) {
+        const x = (i / (scopeBuf.length - 1)) * w;
+        const y = mid - scopeBuf[i] * (h * 0.42);
+        if (i === 0) ctx2d.moveTo(x, y);
+        else ctx2d.lineTo(x, y);
+      }
+      ctx2d.stroke();
+      const peak = Math.max(...scopeBuf.map((x) => Math.abs(x)));
+      readout.textContent = `Peak ${peak.toFixed(3)} · ${scopeBuf.length} samples`;
+    },
+  },
+  spectrum: {
+    label: "Spectrum",
+    draw: ({ canvas, ctx2d, engine, specBuf, readout }) => {
+      engine.getSpectrumData(specBuf);
+      const w = canvas.width;
+      const h = canvas.height;
+      const barW = Math.max(1, Math.floor(w / specBuf.length));
+      ctx2d.fillStyle = "rgba(74,163,255,0.55)";
+      for (let i = 0; i < specBuf.length; i++) {
+        const x = i * barW;
+        const bh = specBuf[i] * (h * 0.92);
+        ctx2d.fillRect(x, h - bh, barW, bh);
+      }
+      const avg = specBuf.reduce((a, b) => a + b, 0) / Math.max(1, specBuf.length);
+      readout.textContent = `Avg ${avg.toFixed(3)} · ${specBuf.length} bins`;
+    },
+  },
+  pattern: {
+    label: "Pattern",
+    draw: ({ canvas, ctx2d, readout }) => {
+      const cols = 16;
+      const rows = 8;
+      const cellW = canvas.width / cols;
+      const cellH = canvas.height / rows;
+      ctx2d.fillStyle = "rgba(255, 222, 159, 0.22)";
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          if ((row + col) % 5 !== 0) continue;
+          ctx2d.fillRect(col * cellW + 1, row * cellH + 1, Math.max(1, cellW - 2), Math.max(1, cellH - 2));
+        }
+      }
+      readout.textContent = "Pattern monitor · preview lane";
+    },
+  },
+};
+
 export function renderVisualSurface(
   parent: HTMLElement,
   engine: Engine,
@@ -46,7 +118,7 @@ export function renderVisualSurface(
   });
 
   const identity = createModuleIdentityMeta({
-    badgeText: "VISUAL",
+    badgeText: "VIS",
     instanceName: vm.name,
     instanceId: vm.id.slice(-6).toUpperCase(),
     presetButton: presetControl.button,
@@ -61,6 +133,7 @@ export function renderVisualSurface(
   btnOn.onclick = () => {
     vm.enabled = !vm.enabled;
     updateOn();
+    syncFooter();
   };
 
   const btnX = el("button", "danger");
@@ -80,6 +153,7 @@ export function renderVisualSurface(
   canvas.height = 260;
   const readout = el("div", "visualReadout small");
   const readoutSection = createFaceplateSection("bottom");
+  readoutSection.setAttribute("aria-label", "visual readout");
   readoutSection.append(readout);
   canvasWrap.append(canvas);
   panelMain.append(canvasWrap, readoutSection);
@@ -102,7 +176,7 @@ export function renderVisualSurface(
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel visualSettingsPanel");
   const dock = createFaceplateSection("controls", "visualControlDock");
   const modeField = createCompactSelectField({
-    label: "View",
+    label: "Mode",
     options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
     selected: vm.kind,
     onChange: (value) => {
@@ -129,9 +203,25 @@ export function renderVisualSurface(
     activeTab: "MAIN",
   });
 
-  surface.append(header, shell.face, shell.tabs);
+  const infoBar = createFaceplateSection("bottom", "drumInfoBar visualInfoBar");
+  const idToken = el("span", "drumInfoToken");
+  idToken.textContent = vm.id.slice(-6).toUpperCase();
+  const stateToken = el("span", "drumInfoToken");
+  const modeToken = el("span", "drumInfoToken");
+  const metaToken = el("span", "drumInfoToken drumInfoToken--meta");
+  infoBar.append(idToken, stateToken, modeToken, metaToken);
+
+  const syncFooter = () => {
+    const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;
+    stateToken.textContent = vm.enabled ? "ACTIVE" : "BYPASS";
+    modeToken.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
+    metaToken.textContent = `FFT ${vm.fftSize ?? 2048}`;
+  };
+
+  surface.append(header, shell.face, shell.tabs, infoBar);
   parent.appendChild(surface);
   updateOn();
+  syncFooter();
 
   const ctx2d = canvas.getContext("2d")!;
   const scopeBuf = new Float32Array(engine.analyser.fftSize);
@@ -164,46 +254,20 @@ export function renderVisualSurface(
     }
   }
 
-  function drawScope() {
-    engine.getScopeData(scopeBuf);
-    const w = canvas.width;
-    const h = canvas.height;
-    const mid = h * 0.5;
-    ctx2d.lineWidth = 2;
-    ctx2d.strokeStyle = "rgba(235,240,245,0.95)";
-    ctx2d.beginPath();
-    for (let i = 0; i < scopeBuf.length; i++) {
-      const x = (i / (scopeBuf.length - 1)) * w;
-      const y = mid - scopeBuf[i] * (h * 0.42);
-      if (i === 0) ctx2d.moveTo(x, y);
-      else ctx2d.lineTo(x, y);
-    }
-    ctx2d.stroke();
-    const peak = Math.max(...scopeBuf.map((x) => Math.abs(x)));
-    readout.textContent = `peak ${peak.toFixed(3)} · ${scopeBuf.length} smp`;
-  }
-
-  function drawSpectrum() {
-    engine.getSpectrumData(specBuf);
-    const w = canvas.width;
-    const h = canvas.height;
-    const barW = Math.max(1, Math.floor(w / specBuf.length));
-    ctx2d.fillStyle = "rgba(74,163,255,0.55)";
-    for (let i = 0; i < specBuf.length; i++) {
-      const x = i * barW;
-      const bh = specBuf[i] * (h * 0.92);
-      ctx2d.fillRect(x, h - bh, barW, bh);
-    }
-    const avg = specBuf.reduce((a, b) => a + b, 0) / Math.max(1, specBuf.length);
-    readout.textContent = `avg ${avg.toFixed(3)} · ${specBuf.length} bins`;
-  }
-
   return function update() {
+    syncFooter();
     if (!vm.enabled) return;
     resizeIfNeeded();
     drawGrid();
-    if (vm.kind === "scope") drawScope();
-    else drawSpectrum();
+    const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;
+    modeSpec.draw({
+      canvas,
+      ctx2d,
+      engine,
+      scopeBuf,
+      specBuf,
+      readout,
+    });
   };
 }
 
