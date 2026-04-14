@@ -50,13 +50,6 @@ export function renderControlSurface(
   familyBadge.textContent = "CTRL";
 
   const controlTargets = routing.controlTargets.get(mod.id) ?? [];
-  const modeChip = createRoutingChip((mod.kind ?? "lfo").toUpperCase(), "muted");
-  modeChip.classList.add("surfaceHeaderChip");
-  const routeChip = createRoutingChip(
-    `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
-    controlTargets.length ? "connected" : "muted",
-  );
-  routeChip.classList.add("surfaceHeaderChip");
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -76,7 +69,7 @@ export function renderControlSurface(
   btnX.className = "danger surfaceHeaderAction";
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
-  idWrap.append(familyBadge, presetControl.button, modeChip, routeChip);
+  idWrap.append(familyBadge, presetControl.button);
   right.append(toggle, btnX);
   header.append(idWrap, right);
 
@@ -105,7 +98,12 @@ export function renderControlSurface(
 
   const chipRow = createFaceplateSection("feature", "controlTypeRow");
   chipRow.classList.add("surfaceMainFeature");
-  chipRow.append(kindField.wrap, waveField.wrap);
+  const routeChip = createRoutingChip(
+    `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
+    controlTargets.length ? "connected" : "muted",
+  );
+  routeChip.classList.add("surfaceHeaderChip");
+  chipRow.append(kindField.wrap, waveField.wrap, routeChip);
 
   const featureRack = createFaceplateSection("feature", "controlFeatureRack");
   featureRack.classList.add("surfaceMainFeature");
@@ -214,7 +212,6 @@ export function renderControlSurface(
 
   return () => {
     syncToggle();
-    modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
     routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
     const val = sampleControl01(mod, performance.now() / 1000);
     meterFill.style.width = `${Math.round(val * 100)}%`;
