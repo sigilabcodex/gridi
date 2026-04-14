@@ -8,7 +8,6 @@ import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
 import {
-  createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
@@ -153,12 +152,30 @@ export function renderVisualSurface(
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("visualSurfaceBody", "visualMainLayout");
 
-  const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;
   const chipRow = createFaceplateSection("io", "visualMetaRow");
-  const modeChip = createRoutingChip(`MODE ${modeSpec.label.toUpperCase()}`, "muted");
+  const modeChip = document.createElement("button");
+  modeChip.type = "button";
+  modeChip.className = "routingChip routingChip-muted visualTopChipButton";
+  modeChip.setAttribute("aria-label", "Visual mode");
   const sourceChip = createRoutingChip(`SRC ${visualSource?.sourceLabel ?? "MASTER"}`, visualSource ? "connected" : "muted");
-  const fftChip = createRoutingChip(`FFT ${vm.fftSize ?? 2048}`, "muted");
+  const fftChip = document.createElement("button");
+  fftChip.type = "button";
+  fftChip.className = "routingChip routingChip-muted visualTopChipButton";
+  fftChip.setAttribute("aria-label", "FFT size");
   chipRow.append(modeChip, sourceChip, fftChip);
+
+  const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "pattern"];
+  const fftSizes: Array<VisualModule["fftSize"]> = [512, 1024, 2048, 4096];
+  modeChip.onclick = () => {
+    const current = visualModes.indexOf(vm.kind);
+    vm.kind = visualModes[(current + 1) % visualModes.length];
+    syncFooter();
+  };
+  fftChip.onclick = () => {
+    const current = fftSizes.indexOf(vm.fftSize ?? 2048);
+    vm.fftSize = fftSizes[(current + 1) % fftSizes.length];
+    syncFooter();
+  };
 
   const canvasWrap = createFaceplateSection("feature", "visualDisplayWrap");
   const canvas = document.createElement("canvas");
@@ -166,29 +183,11 @@ export function renderVisualSurface(
   canvas.width = 800;
   canvas.height = 260;
   const readout = el("div", "visualReadout small");
-  const visualModeRow = createFaceplateSection("controls", "visualControlDock");
-  const modeField = createCompactSelectField({
-    label: "Mode",
-    options: ["scope", "spectrum", "pattern"].map((kind) => ({ value: kind, label: kind.toUpperCase() })),
-    selected: vm.kind,
-    onChange: (value) => {
-      if (value) vm.kind = value as VisualModule["kind"];
-    },
-  });
-  const fftField = createCompactSelectField({
-    label: "FFT",
-    options: [512, 1024, 2048, 4096].map((size) => ({ value: String(size), label: String(size) })),
-    selected: String(vm.fftSize ?? 2048),
-    onChange: (value) => {
-      if (value) vm.fftSize = Number(value) as VisualModule["fftSize"];
-    },
-  });
-  visualModeRow.append(modeField.wrap, fftField.wrap);
   const readoutSection = createFaceplateSection("bottom");
   readoutSection.setAttribute("aria-label", "visual readout");
   readoutSection.append(readout);
   canvasWrap.append(canvas);
-  panelMain.append(chipRow, canvasWrap, visualModeRow, readoutSection);
+  panelMain.append(chipRow, canvasWrap, readoutSection);
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--visualRouting");
   const sourceCard = createRoutingCard("Input", visualSource?.sourceLabel ?? "Master mix");

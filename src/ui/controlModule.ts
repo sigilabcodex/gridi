@@ -103,13 +103,11 @@ export function renderControlSurface(
   });
 
   const chipRow = createFaceplateSection("io", "controlChipRow");
-  const modeChip = createRoutingChip((mod.kind ?? "lfo").toUpperCase(), "muted");
   const routeChip = createRoutingChip(
     `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
     controlTargets.length ? "connected" : "muted",
   );
-  const waveChip = createRoutingChip(`WAVE ${String(mod.waveform ?? "sine").toUpperCase()}`, "muted");
-  chipRow.append(modeChip, routeChip, waveChip);
+  chipRow.append(kindField.wrap, waveField.wrap, routeChip);
 
   const featureRack = createFaceplateSection("feature", "controlFeatureRack");
   featureRack.classList.add("surfaceMainFeature");
@@ -135,14 +133,10 @@ export function renderControlSurface(
     }, { regen: false }) }),
   );
 
-  const bottomSection = createFaceplateSection("controls", "controlTypeRow");
-  bottomSection.append(kindField.wrap, waveField.wrap);
-
   panelMain.append(
     chipRow,
     featureRack,
     mainKnobGrid,
-    bottomSection,
   );
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--controlRouting");
@@ -265,9 +259,7 @@ export function renderControlSurface(
 
     syncToggle();
     const val = sampleControl01(mod, animationSeconds);
-    modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
     routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
-    waveChip.textContent = `WAVE ${String(mod.waveform ?? "sine").toUpperCase()}`;
     const pct = Math.round(val * 100);
     readout.textContent = `${active ? "RUN" : "IDLE"} ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.randomness * 100)}`;
     if (active) drawDisplay();
