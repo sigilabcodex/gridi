@@ -254,7 +254,7 @@ function createDrumInfoBar(d: DrumModule) {
 
   const route = document.createElement("span");
   route.className = "drumInfoToken";
-  route.textContent = d.triggerSource ? `TRG ${d.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+  route.textContent = d.triggerSource ? `SRC ${d.triggerSource.slice(-4).toUpperCase()}` : "SRC NONE";
 
   const meta = document.createElement("span");
   meta.className = "drumInfoToken drumInfoToken--meta";
@@ -262,7 +262,7 @@ function createDrumInfoBar(d: DrumModule) {
 
   const update = (next: Pick<DrumModule, "enabled" | "triggerSource" | "comp" | "boost" | "boostTarget">) => {
     stateToken.textContent = next.enabled ? "ACTIVE" : "BYPASS";
-    route.textContent = next.triggerSource ? `TRG ${next.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+    route.textContent = next.triggerSource ? `SRC ${next.triggerSource.slice(-4).toUpperCase()}` : "SRC NONE";
     meta.textContent = `COMP ${Math.round(next.comp * 100)} · BOOST ${Math.round(next.boost * 100)} ${focusLabel(next.boostTarget)}`;
   };
 
@@ -1197,7 +1197,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     info.append(id, stateToken, route, meta);
     const update = (state: Pick<TonalModule, "enabled" | "triggerSource" | "cutoff" | "resonance" | "waveform">) => {
       stateToken.textContent = state.enabled ? "ACTIVE" : "BYPASS";
-      route.textContent = state.triggerSource ? `TRG ${state.triggerSource.slice(-4).toUpperCase()}` : "TRG NONE";
+      route.textContent = state.triggerSource ? `SRC ${state.triggerSource.slice(-4).toUpperCase()}` : "SRC NONE";
       meta.textContent = `WAVE ${Math.round(state.waveform * 100)} · CUTOFF ${Math.round(state.cutoff * 100)} · RESO ${Math.round(state.resonance * 100)}`;
     };
     update(t);
