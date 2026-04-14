@@ -58,7 +58,18 @@ export type VoiceModule = ModuleBase & { type: "voice"; kind: VoiceKind; pattern
   pan: number;
 };
 
-export type TriggerModule = ModuleBase & { type: "trigger"; modulations?: ModulationMap } & SequencerParams;
+export type TriggerLiveState = {
+  mode: Mode;
+  steps: number;
+  pattern: string;
+  revision: number;
+};
+
+export type TriggerModule = ModuleBase & {
+  type: "trigger";
+  modulations?: ModulationMap;
+  liveState?: TriggerLiveState;
+} & SequencerParams;
 
 type SoundBase = ModuleBase & {
   triggerSource: string | null;
