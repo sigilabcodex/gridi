@@ -3823,6 +3823,21 @@ button:focus-visible,
   color: rgba(232, 205, 255, 0.96);
 }
 
+.surfaceBadge--controlFamily {
+  border-color: rgba(112, 224, 255, 0.58);
+  color: rgba(219, 248, 255, 0.96);
+}
+
+.surfaceBadge--visualFamily {
+  border-color: rgba(255, 199, 112, 0.58);
+  color: rgba(255, 233, 196, 0.96);
+}
+
+.surfaceHeaderChip {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
 .drumSurface .surfaceHeader {
   align-items: flex-start;
   margin-bottom: 9px;
@@ -3941,6 +3956,15 @@ button:focus-visible,
   line-height: 1;
 }
 
+.controlSurface .surfaceHeaderAction,
+.visualSurface .surfaceHeaderAction {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1;
+}
+
 .triggerSurface button.primary {
   border-color: rgba(198, 127, 255, 0.66);
   box-shadow: 0 0 0 1px rgba(198, 127, 255, 0.22) inset;
@@ -3952,6 +3976,12 @@ button:focus-visible,
 }
 
 .synthSurface .rightControls {
+  gap: 6px;
+  align-items: center;
+}
+
+.controlSurface .rightControls,
+.visualSurface .rightControls {
   gap: 6px;
   align-items: center;
 }
@@ -5003,6 +5033,63 @@ button:focus-visible,
 
 .controlMainKnobGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.controlFeatureRack {
+  display: grid;
+  gap: 6px;
+}
+
+.controlDisplaySurface {
+  min-height: 78px;
+  border-radius: 8px;
+  border: 1px solid rgba(112, 224, 255, 0.3);
+  background: rgba(5, 12, 18, 0.74);
+  padding: 4px 8px;
+}
+
+.controlDisplaySvg {
+  width: 100%;
+  height: 68px;
+  display: block;
+}
+
+.controlDisplayBaseline {
+  stroke: rgba(207, 214, 221, 0.24);
+  stroke-width: 1;
+}
+
+.controlDisplayMotion {
+  stroke: rgba(126, 229, 255, 0.94);
+  stroke-width: 1.8;
+  fill: none;
+}
+
+.controlMeter--feature {
+  height: 16px;
+}
+
+.visualChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.visualDisplayWrap {
+  position: relative;
+  min-height: 180px;
+}
+
+.visualDisplayWrap .scope {
+  min-height: 180px;
+}
+
+.visualDisplayWrap .visualReadout {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  text-align: center;
 }
 
 .moduleKnobGrid {
