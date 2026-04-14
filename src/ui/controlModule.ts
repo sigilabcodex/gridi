@@ -17,6 +17,10 @@ import {
 const KINDS: ControlKind[] = ["lfo", "drift", "stepped"];
 const WAVES: LfoWaveform[] = ["sine", "triangle", "square", "random"];
 
+function formatControlInstanceToken(name: string) {
+  return name.trim().replace(/\s+/g, "_").toUpperCase();
+}
+
 export function renderControlSurface(
   root: HTMLElement,
   mod: ControlModule,
@@ -50,13 +54,6 @@ export function renderControlSurface(
   familyBadge.textContent = "CTRL";
 
   const controlTargets = routing.controlTargets.get(mod.id) ?? [];
-  const modeChip = createRoutingChip((mod.kind ?? "lfo").toUpperCase(), "muted");
-  modeChip.classList.add("surfaceHeaderChip");
-  const routeChip = createRoutingChip(
-    `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
-    controlTargets.length ? "connected" : "muted",
-  );
-  routeChip.classList.add("surfaceHeaderChip");
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -76,7 +73,7 @@ export function renderControlSurface(
   btnX.className = "danger surfaceHeaderAction";
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
-  idWrap.append(familyBadge, presetControl.button, modeChip, routeChip);
+  idWrap.append(familyBadge, presetControl.button);
   right.append(toggle, btnX);
   header.append(idWrap, right);
 
@@ -103,20 +100,22 @@ export function renderControlSurface(
     }, { regen: false }),
   });
 
-  const typeRow = createFaceplateSection("feature", "controlTypeRow");
-  typeRow.classList.add("surfaceMainFeature");
-  typeRow.append(kindField.wrap, waveField.wrap);
+  const chipRow = createFaceplateSection("io", "controlChipRow");
+  const modeChip = createRoutingChip((mod.kind ?? "lfo").toUpperCase(), "muted");
+  const routeChip = createRoutingChip(
+    `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
+    controlTargets.length ? "connected" : "muted",
+  );
+  const waveChip = createRoutingChip(`WAVE ${String(mod.waveform ?? "sine").toUpperCase()}`, "muted");
+  chipRow.append(modeChip, routeChip, waveChip);
 
   const featureRack = createFaceplateSection("feature", "controlFeatureRack");
   featureRack.classList.add("surfaceMainFeature");
-  const meter = document.createElement("div");
-  meter.className = "controlMeter controlMeter--feature";
-  const meterFill = document.createElement("div");
-  meterFill.className = "controlMeterFill";
+  const display = document.createElement("canvas");
+  display.className = "controlDisplayCanvas";
   const readout = document.createElement("div");
-  readout.className = "triggerTransportReadout";
-  featureRack.append(meter, readout);
-  meter.appendChild(meterFill);
+  readout.className = "triggerTransportReadout controlDisplayReadout";
+  featureRack.append(display, readout);
 
   const mainKnobGrid = createFaceplateSection("controls", "moduleKnobGrid controlMainKnobGrid surfaceMainControls");
   mainKnobGrid.append(
@@ -134,13 +133,11 @@ export function renderControlSurface(
     }, { regen: false }) }),
   );
 
-  const bottomSection = createFaceplateSection("bottom");
-  const info = document.createElement("span");
-  info.className = "triggerTransportReadout";
-  bottomSection.append(info);
+  const bottomSection = createFaceplateSection("controls", "controlTypeRow");
+  bottomSection.append(kindField.wrap, waveField.wrap);
 
   panelMain.append(
-    typeRow,
+    chipRow,
     featureRack,
     mainKnobGrid,
     bottomSection,
@@ -188,7 +185,7 @@ export function renderControlSurface(
   const infoBar = createFaceplateSection("bottom", "drumInfoBar controlInfoBar");
   const idToken = document.createElement("span");
   idToken.className = "drumInfoToken";
-  idToken.textContent = mod.id.slice(-6).toUpperCase();
+  idToken.textContent = formatControlInstanceToken(mod.name);
   const stateToken = document.createElement("span");
   stateToken.className = "drumInfoToken";
   const modeToken = document.createElement("span");
@@ -200,7 +197,55 @@ export function renderControlSurface(
   const syncFooter = () => {
     stateToken.textContent = mod.enabled ? "ACTIVE" : "BYPASS";
     modeToken.textContent = `MODE ${(mod.kind ?? "lfo").toUpperCase()}`;
-    metaToken.textContent = `${controlTargets.length} TARGET${controlTargets.length === 1 ? "" : "S"}`;
+    metaToken.textContent = `RATE ${mod.rate.toFixed(2)}`;
+  };
+
+  const displayCtx = display.getContext("2d");
+  const controlSamples = new Float32Array(72);
+  let sampleIndex = 0;
+
+  const resizeDisplay = () => {
+    const rect = display.getBoundingClientRect();
+    if (rect.width < 2 || rect.height < 2) return;
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const width = Math.max(2, Math.floor(rect.width * dpr));
+    const height = Math.max(2, Math.floor(rect.height * dpr));
+    if (display.width !== width || display.height !== height) {
+      display.width = width;
+      display.height = height;
+    }
+  };
+
+  const drawDisplay = () => {
+    if (!displayCtx) return;
+    resizeDisplay();
+    const { width, height } = display;
+    if (width < 2 || height < 2) return;
+
+    displayCtx.clearRect(0, 0, width, height);
+    displayCtx.strokeStyle = "rgba(183, 238, 255, 0.24)";
+    displayCtx.lineWidth = 1;
+    displayCtx.beginPath();
+    displayCtx.moveTo(0, height * 0.5);
+    displayCtx.lineTo(width, height * 0.5);
+    displayCtx.stroke();
+
+    const nowSeconds = performance.now() / 1000;
+    const sample = sampleControl01(mod, nowSeconds);
+    sampleIndex = (sampleIndex + 1) % controlSamples.length;
+    controlSamples[sampleIndex] = sample;
+
+    displayCtx.lineWidth = 2;
+    displayCtx.strokeStyle = "rgba(129, 226, 255, 0.95)";
+    displayCtx.beginPath();
+    for (let i = 0; i < controlSamples.length; i++) {
+      const readIndex = (sampleIndex + i + 1) % controlSamples.length;
+      const x = (i / (controlSamples.length - 1)) * width;
+      const y = height * 0.86 - (controlSamples[readIndex] * height * 0.72);
+      if (i === 0) displayCtx.moveTo(x, y);
+      else displayCtx.lineTo(x, y);
+    }
+    displayCtx.stroke();
   };
 
   surface.append(header, shell.face, shell.tabs, infoBar);
@@ -208,12 +253,13 @@ export function renderControlSurface(
 
   return () => {
     syncToggle();
-    modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
     const val = sampleControl01(mod, performance.now() / 1000);
-    meterFill.style.width = `${Math.round(val * 100)}%`;
+    modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
+    routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
+    waveChip.textContent = `WAVE ${String(mod.waveform ?? "sine").toUpperCase()}`;
     const pct = Math.round(val * 100);
-    readout.textContent = `OUT ${pct}% · SPEED ${Math.round(mod.speed * 100)} · AMT ${Math.round(mod.amount * 100)}`;
-    info.textContent = `RATE ${Math.round(mod.rate * 100)} · PHASE ${Math.round(mod.phase * 100)} · RAND ${Math.round(mod.randomness * 100)}`;
+    readout.textContent = `LFO ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.randomness * 100)}`;
+    drawDisplay();
     syncFooter();
     waveField.select.disabled = mod.kind !== "lfo";
     waveField.wrap.classList.toggle("isDisabled", mod.kind !== "lfo");

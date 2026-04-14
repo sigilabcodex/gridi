@@ -5183,3 +5183,67 @@ button:focus-visible,
     justify-content: flex-start;
   }
 }
+
+.controlSurface .surfaceHeaderAction,
+.visualSurface .surfaceHeaderAction {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.controlSurface .rightControls,
+.visualSurface .rightControls {
+  gap: 6px;
+  align-items: center;
+}
+
+.controlChipRow,
+.visualMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.controlChipRow .routingChip,
+.visualMetaRow .routingChip {
+  font-size: 10px;
+}
+
+.controlFeatureRack {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 112px;
+}
+
+.controlDisplayCanvas {
+  width: 100%;
+  height: 100%;
+  min-height: 84px;
+  border: 1px solid rgba(110, 219, 255, 0.3);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(9, 20, 26, 0.9), rgba(8, 15, 20, 0.65));
+}
+
+.controlDisplayReadout {
+  font-size: 10px;
+  opacity: 0.86;
+}
+
+.visualSurfaceBody.visualMainLayout {
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+}
+
+.visualDisplayWrap {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.visualDisplayWrap .scope {
+  width: 100%;
+  height: 100%;
+  min-height: 128px;
+}
