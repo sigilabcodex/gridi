@@ -67,6 +67,7 @@ function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index
 }
 
 function createModuleRenderErrorSurface(moduleId: string, moduleType: string) {
+  const moduleFamilyLabel = moduleType === "trigger" ? "GEN" : moduleType.toUpperCase();
   const surface = document.createElement("section");
   surface.className = "moduleSurface moduleSurfaceRenderError";
   surface.dataset.type = moduleType;
@@ -74,7 +75,7 @@ function createModuleRenderErrorSurface(moduleId: string, moduleType: string) {
   const header = document.createElement("div");
   header.className = "surfaceHeader";
   const title = document.createElement("strong");
-  title.textContent = `Render error · ${moduleType.toUpperCase()}`;
+  title.textContent = `Render error · ${moduleFamilyLabel}`;
   const id = document.createElement("span");
   id.className = "small moduleId";
   id.textContent = moduleId.slice(-6).toUpperCase();

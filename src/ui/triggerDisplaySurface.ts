@@ -38,6 +38,22 @@ type PatternDotState = {
   lastPlayhead: number;
 };
 
+function livePatternString(module: TriggerModule) {
+  const live = module.liveState as
+    | {
+      mode?: unknown;
+      steps?: unknown;
+      pattern?: unknown;
+      revision?: unknown;
+    }
+    | undefined;
+  if (!live) return null;
+  if (live.mode !== module.mode) return null;
+  if (typeof live.steps !== "number" || !Number.isFinite(live.steps)) return null;
+  if (typeof live.pattern !== "string") return null;
+  return live.pattern;
+}
+
 const MODE_LABELS: Record<Mode, string> = {
   "step-sequencer": "Step Sequencer",
   "cellular-automata": "Cellular Automata",
@@ -279,9 +295,10 @@ function createGearView(): DisplayView {
 
 function createDisplaySyncSignature(module: TriggerModule) {
   const live = module.liveState;
+  const livePattern = livePatternString(module);
   const liveSignature = !live
     ? "none"
-    : `${live.mode}:${live.steps}:${live.revision}:${live.pattern.length}`;
+    : `${String(live.mode ?? "unknown")}:${String(live.steps ?? "unknown")}:${String(live.revision ?? "unknown")}:${livePattern?.length ?? 0}`;
   return [
     module.mode,
     module.seed,
@@ -919,9 +936,10 @@ function parsePatternPreview(patternPreview: string, steps: number) {
 
 function decodeLivePattern(module: TriggerModule, steps: number) {
   const live = module.liveState;
-  if (!live || live.mode !== module.mode || live.steps !== steps) return null;
+  const pattern = livePatternString(module);
+  if (!live || !pattern || live.steps !== steps) return null;
   const out = new Uint8Array(steps);
-  for (let i = 0; i < steps; i++) out[i] = live.pattern[i] === "1" ? 1 : 0;
+  for (let i = 0; i < steps; i++) out[i] = pattern[i] === "1" ? 1 : 0;
   return out;
 }
 

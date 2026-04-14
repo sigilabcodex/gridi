@@ -498,7 +498,7 @@ function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
                           : mode === "gear" ? createGearPattern(trigger, voiceId)
                           : genHybridPattern(trigger, voiceId);
   const live = trigger.liveState;
-  if (!live || live.mode !== mode || live.steps !== generated.length) return generated;
+  if (!live || live.mode !== mode || live.steps !== generated.length || typeof live.pattern !== "string") return generated;
   const out = generated.slice();
   for (let i = 0; i < out.length; i++) out[i] = live.pattern[i] === "1" ? 1 : 0;
   return out;
