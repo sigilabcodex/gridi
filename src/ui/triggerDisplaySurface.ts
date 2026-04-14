@@ -141,18 +141,31 @@ function createGearView(): DisplayView {
 
   const stage = document.createElement("div");
   stage.className = "triggerDisplayGearStage";
+
   const playhead = document.createElement("span");
   playhead.className = "triggerDisplayGearPlayhead";
-  stage.appendChild(playhead);
+
+  const center = document.createElement("div");
+  center.className = "triggerDisplayGearCenter";
+
+  const cycleRing = document.createElement("div");
+  cycleRing.className = "triggerDisplayGearRing triggerDisplayGearRing--cycle is-enabled";
+
+  stage.append(cycleRing, playhead, center);
   root.appendChild(stage);
 
   const ringDots: HTMLElement[][] = [];
+  const ringModels: ReturnType<typeof createGearModel>["rings"] = [];
+  const cycleDots: HTMLElement[] = [];
   let triggerPattern = new Uint8Array(0);
   let lastPlayhead = -1;
+  let alignmentUntil = 0;
 
   const buildRing = (ringIndex: number, steps: number) => {
     const ring = document.createElement("div");
     ring.className = `triggerDisplayGearRing triggerDisplayGearRing--${ringIndex + 1}`;
+    ring.style.setProperty("--gear-steps", String(steps));
+
     const dots: HTMLElement[] = [];
     for (let i = 0; i < steps; i++) {
       const dot = document.createElement("span");
@@ -163,9 +176,61 @@ function createGearView(): DisplayView {
       ring.appendChild(dot);
       dots.push(dot);
     }
+
+    const badge = document.createElement("span");
+    badge.className = "triggerDisplayGearBadge";
+    badge.textContent = `${steps}`;
+    ring.appendChild(badge);
+
     ringDots[ringIndex] = dots;
     stage.appendChild(ring);
-    return ring;
+  };
+
+  const buildCycleRing = (steps: number) => {
+    cycleRing.replaceChildren();
+    cycleDots.length = 0;
+    cycleRing.style.setProperty("--gear-steps", String(steps));
+
+    for (let i = 0; i < steps; i++) {
+      const dot = document.createElement("span");
+      dot.className = "triggerDisplayGearDot triggerDisplayGearDot--cycle";
+      const angle = (Math.PI * 2 * i) / steps - Math.PI / 2;
+      dot.style.setProperty("--gear-x", `${Math.cos(angle).toFixed(4)}`);
+      dot.style.setProperty("--gear-y", `${Math.sin(angle).toFixed(4)}`);
+      cycleRing.appendChild(dot);
+      cycleDots.push(dot);
+    }
+
+    const badge = document.createElement("span");
+    badge.className = "triggerDisplayGearBadge triggerDisplayGearBadge--cycle";
+    badge.textContent = `cycle ${steps}`;
+    cycleRing.appendChild(badge);
+  };
+
+  const setPlayheadState = (nextPlayhead: number, triggerOn: boolean) => {
+    if (lastPlayhead >= 0) {
+      cycleDots[lastPlayhead]?.classList.remove("is-playhead");
+      ringDots.forEach((dots, ringIndex) => {
+        const ring = ringModels[ringIndex];
+        if (!ring?.length) return;
+        const prevIndex = ((Math.floor(lastPlayhead + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
+        dots[prevIndex]?.classList.remove("is-playhead");
+        dots[prevIndex]?.classList.remove("is-aligned");
+      });
+    }
+
+    cycleDots[nextPlayhead]?.classList.add("is-playhead");
+    cycleDots[nextPlayhead]?.classList.toggle("is-aligned", triggerOn);
+
+    ringDots.forEach((dots, ringIndex) => {
+      const ring = ringModels[ringIndex];
+      if (!ring?.length) return;
+      const index = ((Math.floor(nextPlayhead + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
+      const dot = dots[index];
+      const active = ring.pattern[index] === 1;
+      dot?.classList.add("is-playhead");
+      dot?.classList.toggle("is-aligned", triggerOn && active);
+    });
   };
 
   return {
@@ -174,14 +239,20 @@ function createGearView(): DisplayView {
       const model = createGearModel(nextModule, "preview");
       triggerPattern = new Uint8Array(model.triggerPattern);
       lastPlayhead = -1;
+      alignmentUntil = 0;
+      ringModels.length = 0;
       ringDots.length = 0;
-      stage.querySelectorAll(".triggerDisplayGearRing").forEach((el) => el.remove());
+      stage.querySelectorAll(".triggerDisplayGearRing:not(.triggerDisplayGearRing--cycle)").forEach((el) => el.remove());
       root.classList.remove("is-aligned");
 
+      buildCycleRing(triggerPattern.length);
+
       model.rings.forEach((ringModel, ringIndex) => {
-        const ring = buildRing(ringIndex, ringModel.length);
-        ring.classList.toggle("is-enabled", ringIndex < model.ringCount);
-        ring.style.setProperty("--gear-rotation", `${ringModel.rotation}deg`);
+        ringModels[ringIndex] = ringModel;
+        buildRing(ringIndex, ringModel.length);
+        const ring = stage.querySelector<HTMLElement>(`.triggerDisplayGearRing--${ringIndex + 1}`);
+        ring?.classList.toggle("is-enabled", ringIndex < model.ringCount);
+        ring?.style.setProperty("--gear-rotation", `${ringModel.rotation}deg`);
         ringDots[ringIndex]?.forEach((dot, i) => {
           dot.classList.toggle("on", ringModel.pattern[i] === 1);
         });
@@ -190,11 +261,18 @@ function createGearView(): DisplayView {
     tick: (timeMs, liveModule) => {
       if (!triggerPattern.length) return;
       const play = resolveAnimatedStepIndex(timeMs, liveModule, triggerPattern.length);
-      if (play === lastPlayhead) return;
-      const angle = ((play / triggerPattern.length) * 360) - 90;
-      playhead.style.setProperty("--gear-angle", `${angle.toFixed(2)}deg`);
-      root.classList.toggle("is-aligned", triggerPattern[play] === 1);
-      lastPlayhead = play;
+      if (play !== lastPlayhead) {
+        const angle = ((play / triggerPattern.length) * 360) - 90;
+        playhead.style.setProperty("--gear-angle", `${angle.toFixed(2)}deg`);
+        const triggerOn = triggerPattern[play] === 1;
+        setPlayheadState(play, triggerOn);
+        if (triggerOn) alignmentUntil = timeMs + 180;
+        lastPlayhead = play;
+      }
+
+      const aligned = alignmentUntil > timeMs;
+      root.classList.toggle("is-aligned", aligned);
+      center.classList.toggle("is-aligned", aligned);
     },
   };
 }
