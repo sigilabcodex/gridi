@@ -15,6 +15,7 @@ import {
 } from "./routingVisibility";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
+import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import type { TooltipBinder } from "./tooltip";
 
 const GENERATOR_MODE_LABELS: Record<Mode, { full: string; short: string }> = {
@@ -706,6 +707,7 @@ export function renderTriggerSurface(
   root: HTMLElement,
   t: TriggerModule,
   routing: RoutingSnapshot,
+  isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   controlOptions: ControlOption[],
@@ -1109,6 +1111,7 @@ export function renderTriggerSurface(
 
   const display = createTriggerDisplaySurface({
     module: t,
+    isRuntimeActive: () => isRuntimeActive(isTransportPlaying(), t.enabled),
     getStepPattern: () => patternPreviewText(),
     onCommitLivePattern: (pattern, mode) => {
       onPatchChange((p) => {
@@ -1331,7 +1334,7 @@ export function renderTriggerSurface(
     }
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = !outgoingVoices.length ? "ROUT" : outgoingVoices.length >= 3 ? "ROUT 3+" : `ROUT ${outgoingVoices.length}`;
-    stateToken.textContent = t.enabled ? "ACTIVE" : "BYPASS";
+    stateToken.textContent = runtimeStateLabel(isTransportPlaying(), t.enabled);
     modeToken.textContent = `MODE ${GENERATOR_MODE_LABELS[t.mode]?.full ?? "GEN"}`;
     display.sync(t);
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;

@@ -1,4 +1,5 @@
 import type { Engine } from "../engine/audio";
+import type { Patch } from "../patch";
 import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
@@ -15,6 +16,7 @@ import {
   createRoutingSummaryStrip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import { runtimeStateLabel } from "./runtimeActivity";
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string) {
   const n = document.createElement(tag);
@@ -99,6 +101,8 @@ export function renderVisualSurface(
   engine: Engine,
   vm: VisualModule,
   routing: RoutingSnapshot,
+  isTransportPlaying: () => boolean,
+  onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRemove: () => void,
   modulePresetRecords: ModulePresetRecord[] = [],
   onLoadModulePreset?: (moduleId: string, presetId: string) => void,
@@ -130,7 +134,10 @@ export function renderVisualSurface(
     btnOn.classList.toggle("primary", vm.enabled);
   };
   btnOn.onclick = () => {
-    vm.enabled = !vm.enabled;
+    onPatchChange((patch) => {
+      const module = patch.modules.find((item) => item.id === vm.id);
+      if (module?.type === "visual") module.enabled = !module.enabled;
+    }, { regen: false });
     updateOn();
     syncFooter();
   };
@@ -224,7 +231,8 @@ export function renderVisualSurface(
 
   const syncFooter = () => {
     const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;
-    stateToken.textContent = vm.enabled ? "ACTIVE" : "BYPASS";
+    const hasSignal = engine.getMasterActivity().active;
+    stateToken.textContent = runtimeStateLabel(isTransportPlaying() || hasSignal, vm.enabled);
     modeToken.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
     metaToken.textContent = `FFT ${vm.fftSize ?? 2048}`;
     modeChip.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
@@ -271,6 +279,8 @@ export function renderVisualSurface(
   return function update() {
     syncFooter();
     if (!vm.enabled) return;
+    const hasSignal = engine.getMasterActivity().active;
+    if (!isTransportPlaying() && !hasSignal) return;
     resizeIfNeeded();
     drawGrid();
     const modeSpec = VISUAL_MODE_SPECS[vm.kind] ?? VISUAL_MODE_SPECS.scope;

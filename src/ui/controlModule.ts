@@ -7,6 +7,7 @@ import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
+import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import {
   createCompactSelectField,
   createRoutingCard,
@@ -25,6 +26,7 @@ export function renderControlSurface(
   root: HTMLElement,
   mod: ControlModule,
   routing: RoutingSnapshot,
+  isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   modulePresetRecords: ModulePresetRecord[] = [],
   onLoadModulePreset?: (moduleId: string, presetId: string) => void,
@@ -195,7 +197,7 @@ export function renderControlSurface(
   infoBar.append(idToken, stateToken, modeToken, metaToken);
 
   const syncFooter = () => {
-    stateToken.textContent = mod.enabled ? "ACTIVE" : "BYPASS";
+    stateToken.textContent = runtimeStateLabel(isTransportPlaying(), mod.enabled);
     modeToken.textContent = `MODE ${(mod.kind ?? "lfo").toUpperCase()}`;
     metaToken.textContent = `RATE ${mod.rate.toFixed(2)}`;
   };
@@ -203,6 +205,8 @@ export function renderControlSurface(
   const displayCtx = display.getContext("2d");
   const controlSamples = new Float32Array(72);
   let sampleIndex = 0;
+  let animationSeconds = 0;
+  let lastFrameMs: number | null = null;
 
   const resizeDisplay = () => {
     const rect = display.getBoundingClientRect();
@@ -252,14 +256,21 @@ export function renderControlSurface(
   root.appendChild(surface);
 
   return () => {
+    const nowMs = performance.now();
+    if (lastFrameMs == null) lastFrameMs = nowMs;
+    const deltaMs = Math.max(0, nowMs - lastFrameMs);
+    lastFrameMs = nowMs;
+    const active = isRuntimeActive(isTransportPlaying(), mod.enabled);
+    if (active) animationSeconds += deltaMs / 1000;
+
     syncToggle();
-    const val = sampleControl01(mod, performance.now() / 1000);
+    const val = sampleControl01(mod, animationSeconds);
     modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
     routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
     waveChip.textContent = `WAVE ${String(mod.waveform ?? "sine").toUpperCase()}`;
     const pct = Math.round(val * 100);
-    readout.textContent = `LFO ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.randomness * 100)}`;
-    drawDisplay();
+    readout.textContent = `${active ? "RUN" : "IDLE"} ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.randomness * 100)}`;
+    if (active) drawDisplay();
     syncFooter();
     waveField.select.disabled = mod.kind !== "lfo";
     waveField.wrap.classList.toggle("isDisabled", mod.kind !== "lfo");
