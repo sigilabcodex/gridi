@@ -3,6 +3,7 @@ import type { Mode, TriggerModule } from "../patch";
 type TriggerDisplayParams = {
   module: TriggerModule;
   getStepPattern: () => string;
+  onCommitLivePattern?: (pattern: Uint8Array | null, mode: Mode) => void;
 };
 
 type TriggerDisplayApi = {
@@ -12,10 +13,9 @@ type TriggerDisplayApi = {
 
 type StepGridState = {
   basePattern: Uint8Array;
-  overlayPattern: Int8Array;
-  finalPattern: Uint8Array;
+  currentPattern: Uint8Array;
   pointerActive: boolean;
-  pointerMode: "paint" | "erase";
+  pointerMode: "paint" | "erase" | "toggle";
   lastSeed: number;
   stepCount: number;
   cols: number;
@@ -62,10 +62,9 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
 
   const stepGridState: StepGridState = {
     basePattern: new Uint8Array(0),
-    overlayPattern: new Int8Array(0),
-    finalPattern: new Uint8Array(0),
+    currentPattern: new Uint8Array(0),
     pointerActive: false,
-    pointerMode: "paint",
+    pointerMode: "toggle",
     lastSeed: params.module.seed,
     stepCount: 0,
     cols: 16,
@@ -108,8 +107,8 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
 
 function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDisplayParams, stepState: StepGridState): DisplayView {
   if (mode === "step-sequencer") return createStepSequencerView(module, params, stepState);
-  if (mode === "euclidean") return createEuclideanView();
-  if (mode === "cellular-automata") return createCellularView();
+  if (mode === "euclidean") return createEuclideanView(params);
+  if (mode === "cellular-automata") return createCellularView(params);
   if (mode === "fractal") return createFractalView();
   if (mode === "non-euclidean") return createNonEuclideanView();
   if (mode === "hybrid") return createHybridView(params);
@@ -117,7 +116,7 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "l-systems") return createLSystemsView();
   if (mode === "xronomorph") return createXronoMorphView(params);
   if (mode === "genetic-algorithms") return createGeneticView();
-  if (mode === "one-over-f-noise") return createOneOverFView();
+  if (mode === "one-over-f-noise") return createOneOverFView(params);
 
   const placeholder = renderModePlaceholder(mode);
   return {
@@ -128,7 +127,7 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
 
 function createStepSequencerView(module: TriggerModule, params: TriggerDisplayParams, state: StepGridState): DisplayView {
   const root = document.createElement("div");
-  const grid = renderInteractiveStepGrid(module, state);
+  const grid = renderInteractiveStepGrid(module, state, params);
   root.appendChild(grid);
 
   return {
@@ -137,13 +136,14 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
       const layout = resolveStepGridLayout(nextModule.length, nextModule.subdiv);
       const stepCount = layout.cols * layout.rows;
       const basePattern = parsePatternPreview(params.getStepPattern(), stepCount);
-
-      if (state.lastSeed !== nextModule.seed || state.stepCount !== stepCount) {
-        state.overlayPattern = new Int8Array(stepCount);
-      } else if (state.overlayPattern.length !== stepCount) {
-        const nextOverlay = new Int8Array(stepCount);
-        nextOverlay.set(state.overlayPattern.subarray(0, Math.min(stepCount, state.overlayPattern.length)));
-        state.overlayPattern = nextOverlay;
+      const seededLive = decodeLivePattern(nextModule, stepCount);
+      const isFreshSeed = state.lastSeed !== nextModule.seed || state.stepCount !== stepCount;
+      if (isFreshSeed) state.currentPattern = seededLive ?? basePattern.slice();
+      else if (seededLive) state.currentPattern = seededLive;
+      else if (state.currentPattern.length !== stepCount) {
+        const resized = new Uint8Array(stepCount);
+        resized.set(state.currentPattern.subarray(0, Math.min(stepCount, state.currentPattern.length)));
+        state.currentPattern = resized;
       }
 
       state.lastSeed = nextModule.seed;
@@ -151,11 +151,10 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
       state.stepCount = stepCount;
       state.cols = layout.cols;
       state.rows = layout.rows;
-      state.finalPattern = mergePattern(basePattern, state.overlayPattern);
 
       const needsRebuild = state.cells.length !== stepCount || grid.style.getPropertyValue("--trigger-display-cols") !== String(layout.cols);
       if (needsRebuild) {
-        const nextGrid = renderInteractiveStepGrid(nextModule, state);
+        const nextGrid = renderInteractiveStepGrid(nextModule, state, params);
         root.replaceChildren(nextGrid);
       } else {
         state.cells.forEach((cell, i) => paintCell(cell, state, i));
@@ -172,7 +171,7 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
   };
 }
 
-function createEuclideanView(): DisplayView {
+function createEuclideanView(params: TriggerDisplayParams): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayEuclideanWrap";
 
@@ -190,7 +189,7 @@ function createEuclideanView(): DisplayView {
     sync: (nextModule) => {
       const steps = clamp(Math.round(nextModule.length), 8, 24);
       dotState.steps = steps;
-      dotState.pattern = generateEuclideanPattern(nextModule, steps);
+      dotState.pattern = decodeLivePattern(nextModule, steps) ?? generateEuclideanPattern(nextModule, steps);
       dotState.lastPlayhead = -1;
       ring.querySelectorAll(".triggerDisplayEuclideanDot").forEach((el) => el.remove());
       dotState.dots = [];
@@ -204,6 +203,12 @@ function createEuclideanView(): DisplayView {
         dot.style.setProperty("--dot-x", `${x.toFixed(2)}px`);
         dot.style.setProperty("--dot-y", `${y.toFixed(2)}px`);
         if (dotState.pattern[i] === 1) dot.classList.add("on");
+        dot.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          dotState.pattern[i] = dotState.pattern[i] === 1 ? 0 : 1;
+          dot.classList.toggle("on", dotState.pattern[i] === 1);
+          params.onCommitLivePattern?.(dotState.pattern, "euclidean");
+        });
         ring.appendChild(dot);
         dotState.dots.push(dot);
       }
@@ -222,12 +227,14 @@ function createEuclideanView(): DisplayView {
   };
 }
 
-function createCellularView(): DisplayView {
+function createCellularView(params: TriggerDisplayParams): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayCellular";
   const cells: HTMLElement[] = [];
   let cols = 8;
   let rows = 8;
+  let generations: Uint8Array[] = [];
+  let baseGeneration = 0;
 
   return {
     root,
@@ -248,20 +255,44 @@ function createCellularView(): DisplayView {
         }
       }
 
-      const generations = buildCARows(nextModule, rows, cols);
+      generations = buildCARows(nextModule, rows * 3, cols);
+      baseGeneration = 0;
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
           const idx = row * cols + col;
-          const active = generations[row]?.[col] === 1;
+          const active = generations[row + baseGeneration]?.[col] === 1;
           const cell = cells[idx];
           cell.classList.toggle("on", active);
           cell.classList.toggle("accent", active && row % Math.max(2, Math.round(5 - nextModule.weird * 3)) === 0);
           cell.classList.remove("is-playhead", "is-secondary");
+          cell.onpointerdown = (event) => {
+            event.preventDefault();
+            const absoluteRow = row + baseGeneration;
+            const currentlyActive = generations[absoluteRow]?.[col] === 1;
+            const next = currentlyActive ? 0 : 1;
+            if (generations[absoluteRow]) generations[absoluteRow][col] = next;
+            cell.classList.toggle("on", next === 1);
+            if (absoluteRow === baseGeneration) {
+              const current = generations[baseGeneration] ?? new Uint8Array(cols);
+              params.onCommitLivePattern?.(current, "cellular-automata");
+            }
+          };
         }
       }
     },
     tick: (timeMs, liveModule) => {
       if (!cells.length) return;
+      const nextBase = resolveAnimatedStepIndex(timeMs, liveModule, Math.max(1, generations.length - rows));
+      if (nextBase !== baseGeneration) {
+        baseGeneration = nextBase;
+        for (let row = 0; row < rows; row++) {
+          for (let col = 0; col < cols; col++) {
+            const idx = row * cols + col;
+            const active = generations[row + baseGeneration]?.[col] === 1;
+            cells[idx]?.classList.toggle("on", active);
+          }
+        }
+      }
       const lead = resolveAnimatedStepIndex(timeMs, liveModule, rows);
       const tail = (lead - 1 + rows) % rows;
       for (let row = 0; row < rows; row++) {
@@ -320,7 +351,7 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
   root.className = "triggerDisplayHybrid";
 
   const stepGrid = document.createElement("div");
-  const ringView = createEuclideanView();
+  const ringView = createEuclideanView(params);
   const meter = document.createElement("div");
   meter.className = "triggerDisplayHybridMeter";
   const meterFill = document.createElement("span");
@@ -335,8 +366,8 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
       const preview = renderStepPreviewGrid(nextModule, params.getStepPattern());
       stepGrid.replaceChildren(preview);
       ringView.sync(nextModule, params, {
-        basePattern: new Uint8Array(0), overlayPattern: new Int8Array(0), finalPattern: new Uint8Array(0),
-        pointerActive: false, pointerMode: "paint", lastSeed: nextModule.seed, stepCount: 0, cols: 0, rows: 0, cells: [], lastPlayhead: -1,
+        basePattern: new Uint8Array(0), currentPattern: new Uint8Array(0),
+        pointerActive: false, pointerMode: "toggle", lastSeed: nextModule.seed, stepCount: 0, cols: 0, rows: 0, cells: [], lastPlayhead: -1,
       });
       const blend = clamp(nextModule.determinism * 0.6 + nextModule.gravity * 0.4, 0, 1);
       meterFill.style.setProperty("--hybrid-blend", blend.toFixed(3));
@@ -567,11 +598,14 @@ function createGeneticView(): DisplayView {
   };
 }
 
-function createOneOverFView(): DisplayView {
+function createOneOverFView(params: TriggerDisplayParams): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayOneOverF";
   const path = document.createElement("div");
   path.className = "triggerDisplayOneOverFPath";
+  const spark = document.createElement("div");
+  spark.className = "triggerDisplayOneOverFSpark";
+  path.appendChild(spark);
   const grid = document.createElement("div");
   grid.className = "triggerDisplayOneOverFGrid";
   root.append(path, grid);
@@ -584,12 +618,28 @@ function createOneOverFView(): DisplayView {
       values = buildOneOverFValues(nextModule, 34);
       path.style.setProperty("--oneoverf-points", values.map((v, i) => `${(i / 33) * 100}% ${(1 - v) * 100}%`).join(","));
       const pattern = Uint8Array.from(values.map((v) => (v < nextModule.density ? 1 : 0)));
-      cells = renderLinearCells(grid, cells, pattern.length, pattern);
+      const live = decodeLivePattern(nextModule, pattern.length);
+      const finalPattern = live ?? pattern;
+      cells = renderLinearCells(grid, cells, finalPattern.length, finalPattern);
+      cells.forEach((cell, idx) => {
+        cell.onpointerdown = (event) => {
+          event.preventDefault();
+          finalPattern[idx] = finalPattern[idx] === 1 ? 0 : 1;
+          cell.classList.toggle("on", finalPattern[idx] === 1);
+          params.onCommitLivePattern?.(finalPattern, "one-over-f-noise");
+        };
+      });
     },
     tick: (timeMs, liveModule) => {
       if (!cells.length) return;
       const i = resolveAnimatedStepIndex(timeMs, liveModule, cells.length);
       paintPlayhead(cells, i);
+      const y = 100 - (values[i] ?? 0.5) * 100;
+      const x = (i / Math.max(1, cells.length - 1)) * 100;
+      spark.style.left = `${x}%`;
+      spark.style.top = `${y}%`;
+      path.style.setProperty("--spark-x", `${x}%`);
+      path.style.setProperty("--spark-y", `${y}%`);
     },
   };
 }
@@ -608,7 +658,7 @@ function renderModePlaceholder(mode: Mode) {
   return placeholder;
 }
 
-function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState) {
+function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, params: TriggerDisplayParams) {
   const grid = document.createElement("div");
   grid.className = "triggerDisplayStepGrid";
   grid.setAttribute("role", "grid");
@@ -624,12 +674,13 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState) 
     paintCell(cell, state, i);
     cell.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      const erase = event.button === 2;
+      const erase = event.button === 2 || (event.shiftKey && event.button === 0);
       state.pointerActive = true;
-      state.pointerMode = erase ? "erase" : "paint";
-      if (erase) writeOverlay(state, i, 0);
-      else toggleOverlay(state, i);
+      state.pointerMode = erase ? "erase" : "toggle";
+      if (erase) writeCurrentPattern(state, i, 0);
+      else toggleCurrentPattern(state, i);
       paintCell(cell, state, i);
+      params.onCommitLivePattern?.(state.currentPattern, "step-sequencer");
     });
     cell.addEventListener("pointerenter", (event) => {
       if (!state.pointerActive) return;
@@ -637,8 +688,9 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState) 
         state.pointerActive = false;
         return;
       }
-      writeOverlay(state, i, state.pointerMode === "paint" ? 1 : 0);
+      writeCurrentPattern(state, i, state.pointerMode === "erase" ? 0 : 1);
       paintCell(cell, state, i);
+      params.onCommitLivePattern?.(state.currentPattern, "step-sequencer");
     });
     grid.appendChild(cell);
     state.cells.push(cell);
@@ -674,12 +726,11 @@ function renderStepPreviewGrid(module: TriggerModule, patternPreview: string) {
 
 function paintCell(cell: HTMLElement, state: StepGridState, stepIndex: number) {
   const baseOn = state.basePattern[stepIndex] === 1;
-  const finalOn = state.finalPattern[stepIndex] === 1;
-  const overlay = state.overlayPattern[stepIndex];
+  const currentOn = state.currentPattern[stepIndex] === 1;
   cell.classList.toggle("base-on", baseOn);
-  cell.classList.toggle("on", finalOn);
-  cell.classList.toggle("overlay-on", overlay === 1);
-  cell.classList.toggle("overlay-off", overlay === -1);
+  cell.classList.toggle("on", currentOn);
+  cell.classList.toggle("overlay-on", !baseOn && currentOn);
+  cell.classList.toggle("overlay-off", baseOn && !currentOn);
 }
 
 function parsePatternPreview(patternPreview: string, steps: number) {
@@ -692,26 +743,21 @@ function parsePatternPreview(patternPreview: string, steps: number) {
   return out;
 }
 
-function mergePattern(basePattern: Uint8Array, overlayPattern: Int8Array) {
-  const out = new Uint8Array(basePattern.length);
-  for (let i = 0; i < basePattern.length; i++) {
-    const overlay = overlayPattern[i] ?? 0;
-    out[i] = overlay === 0 ? basePattern[i] : overlay === 1 ? 1 : 0;
-  }
+function decodeLivePattern(module: TriggerModule, steps: number) {
+  const live = module.liveState;
+  if (!live || live.mode !== module.mode || live.steps !== steps) return null;
+  const out = new Uint8Array(steps);
+  for (let i = 0; i < steps; i++) out[i] = live.pattern[i] === "1" ? 1 : 0;
   return out;
 }
 
-function toggleOverlay(state: StepGridState, index: number) {
-  const base = state.basePattern[index] ?? 0;
-  const currentOverlay = state.overlayPattern[index] ?? 0;
-  if (currentOverlay !== 0) writeOverlay(state, index, 0);
-  else writeOverlay(state, index, base ? 0 : 1);
+function toggleCurrentPattern(state: StepGridState, index: number) {
+  const next = state.currentPattern[index] === 1 ? 0 : 1;
+  writeCurrentPattern(state, index, next);
 }
 
-function writeOverlay(state: StepGridState, index: number, nextFinalValue: 0 | 1) {
-  const base = state.basePattern[index] ?? 0;
-  state.overlayPattern[index] = nextFinalValue === base ? 0 : nextFinalValue ? 1 : -1;
-  state.finalPattern = mergePattern(state.basePattern, state.overlayPattern);
+function writeCurrentPattern(state: StepGridState, index: number, next: 0 | 1) {
+  state.currentPattern[index] = next;
 }
 
 function resolveStepGridLayout(length: number, subdiv: number) {

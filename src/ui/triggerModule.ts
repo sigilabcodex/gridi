@@ -770,7 +770,10 @@ export function renderTriggerSurface(
     }
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
-      if (m?.type === "trigger") m.seed = nextSeed;
+      if (m?.type === "trigger") {
+        m.seed = nextSeed;
+        delete m.liveState;
+      }
     }, { regen: true });
     seedDraft = null;
   };
@@ -813,7 +816,10 @@ export function renderTriggerSurface(
   });
   randomizeSeed.onclick = () => onPatchChange((p) => {
     const m = p.modules.find((x) => x.id === t.id);
-    if (m?.type === "trigger") m.seed = (Math.random() * 999_999) | 0;
+    if (m?.type === "trigger") {
+      m.seed = (Math.random() * 999_999) | 0;
+      delete m.liveState;
+    }
   }, { regen: true });
 
   const seedLabel = document.createElement("span");
@@ -841,7 +847,10 @@ export function renderTriggerSurface(
   const setMode = (nextMode: Mode) => {
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
-      if (m?.type === "trigger") m.mode = nextMode;
+      if (m?.type === "trigger") {
+        m.mode = nextMode;
+        delete m.liveState;
+      }
     }, { regen: true });
   };
   const closeModePanel = () => {
@@ -1046,6 +1055,22 @@ export function renderTriggerSurface(
   const display = createTriggerDisplaySurface({
     module: t,
     getStepPattern: () => patternPreviewText(),
+    onCommitLivePattern: (pattern, mode) => {
+      onPatchChange((p) => {
+        const m = p.modules.find((x) => x.id === t.id);
+        if (m?.type !== "trigger") return;
+        if (!pattern || pattern.length === 0) {
+          delete m.liveState;
+          return;
+        }
+        m.liveState = {
+          mode,
+          steps: pattern.length,
+          pattern: Array.from(pattern, (bit) => (bit ? "1" : "0")).join(""),
+          revision: Date.now(),
+        };
+      }, { regen: true });
+    },
   });
 
   const mainControlRack = createFaceplateSection("controls", "triggerPulseRack triggerPrimaryControls");
@@ -1264,6 +1289,7 @@ export function renderTriggerSurface(
         } else {
           (m as TriggerModule)[key] = value as never;
         }
+        if (key === "length" || key === "subdiv") delete m.liveState;
       }
     }, { regen: true });
   }

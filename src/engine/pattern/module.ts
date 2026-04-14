@@ -481,18 +481,24 @@ function genFractalPattern(trigger: TriggerModule, voiceId: string) {
 }
 
 function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
-  if (mode === "step-sequencer") return genStepPattern(trigger);
-  if (mode === "euclidean") return genEuclidPattern(trigger, voiceId);
-  if (mode === "cellular-automata") return genCAPattern(trigger, voiceId);
-  if (mode === "fractal") return genFractalPattern(trigger, voiceId);
-  if (mode === "non-euclidean") return genNonEuclideanPattern(trigger, voiceId);
-  if (mode === "hybrid") return genHybridPattern(trigger, voiceId);
-  if (mode === "markov-chains") return genMarkovPattern(trigger, voiceId);
-  if (mode === "l-systems") return genLSystemsPattern(trigger, voiceId);
-  if (mode === "xronomorph") return genXronoMorphPattern(trigger, voiceId);
-  if (mode === "genetic-algorithms") return genGeneticPattern(trigger, voiceId);
-  if (mode === "one-over-f-noise") return genOneOverFPattern(trigger, voiceId);
-  return genHybridPattern(trigger, voiceId);
+  const generated =
+    mode === "step-sequencer" ? genStepPattern(trigger)
+      : mode === "euclidean" ? genEuclidPattern(trigger, voiceId)
+        : mode === "cellular-automata" ? genCAPattern(trigger, voiceId)
+          : mode === "fractal" ? genFractalPattern(trigger, voiceId)
+            : mode === "non-euclidean" ? genNonEuclideanPattern(trigger, voiceId)
+              : mode === "hybrid" ? genHybridPattern(trigger, voiceId)
+                : mode === "markov-chains" ? genMarkovPattern(trigger, voiceId)
+                  : mode === "l-systems" ? genLSystemsPattern(trigger, voiceId)
+                    : mode === "xronomorph" ? genXronoMorphPattern(trigger, voiceId)
+                      : mode === "genetic-algorithms" ? genGeneticPattern(trigger, voiceId)
+                        : mode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
+                          : genHybridPattern(trigger, voiceId);
+  const live = trigger.liveState;
+  if (!live || live.mode !== mode || live.steps !== generated.length) return generated;
+  const out = generated.slice();
+  for (let i = 0; i < out.length; i++) out[i] = live.pattern[i] === "1" ? 1 : 0;
+  return out;
 }
 
 export function getPatternPreview(trigger: TriggerModule, voiceId = "preview", previewSteps = 32) {
