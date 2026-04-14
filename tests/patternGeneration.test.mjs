@@ -11,7 +11,7 @@ test('step trigger is deterministic for same seed/params', () => {
 });
 
 test('all trigger modes produce bounded monotonic windows', () => {
-  for (const mode of ['step', 'euclid', 'ca', 'hybrid', 'fractal']) {
+  for (const mode of ['step', 'euclid', 'ca', 'hybrid', 'fractal', 'gear']) {
     const trigger = makeTrigger({ mode, seed: 901, length: 16, density: 0.7, drop: 0.3, weird: 0.65, caRule: 110 });
     const window = createPatternModuleForTrigger(trigger).renderWindow({ trigger, voiceId: 'v1', startBeat: 0, endBeat: 4 });
     const beats = absoluteBeats(window);

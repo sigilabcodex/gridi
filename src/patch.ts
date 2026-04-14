@@ -12,7 +12,8 @@ export type Mode =
   | "l-systems"
   | "xronomorph"
   | "genetic-algorithms"
-  | "one-over-f-noise";
+  | "one-over-f-noise"
+  | "gear";
 export type ModuleEngine = "trigger" | "drum" | "synth" | "visual" | "control";
 
 export const clamp = (x: number, a: number, b: number) =>
@@ -423,6 +424,7 @@ const SUPPORTED_MODES = new Set<Mode>([
   "xronomorph",
   "genetic-algorithms",
   "one-over-f-noise",
+  "gear",
 ]);
 
 function normalizeMode(raw: unknown, fallback: Mode): Mode {
