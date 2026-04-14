@@ -104,7 +104,8 @@ export function createScheduler(engine: Engine): Scheduler {
       for (const ev of window.events) {
         const eventBeat = window.startBeat + ev.beatOffset;
         if (eventBeat <= st.lastScheduledBeat + 1e-9) continue;
-        engine.triggerVoice(sound.id, patch, now + ev.beatOffset * secPerBeat);
+        const tonalValue = sound.type === "tonal" ? ev.value : undefined;
+        engine.triggerVoice(sound.id, patch, now + ev.beatOffset * secPerBeat, tonalValue);
         st.lastScheduledBeat = eventBeat;
       }
     }
