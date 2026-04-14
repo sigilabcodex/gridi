@@ -3823,6 +3823,21 @@ button:focus-visible,
   color: rgba(232, 205, 255, 0.96);
 }
 
+.surfaceBadge--controlFamily {
+  border-color: rgba(112, 224, 255, 0.58);
+  color: rgba(219, 248, 255, 0.96);
+}
+
+.surfaceBadge--visualFamily {
+  border-color: rgba(255, 199, 112, 0.58);
+  color: rgba(255, 233, 196, 0.96);
+}
+
+.surfaceHeaderChip {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
 .drumSurface .surfaceHeader {
   align-items: flex-start;
   margin-bottom: 9px;
@@ -5003,6 +5018,15 @@ button:focus-visible,
 
 .controlMainKnobGrid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.controlFeatureRack {
+  display: grid;
+  gap: 6px;
+}
+
+.controlMeter--feature {
+  height: 14px;
 }
 
 .moduleKnobGrid {

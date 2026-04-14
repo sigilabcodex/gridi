@@ -3,7 +3,7 @@ import { sampleControl01 } from "../engine/control";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
-import { createModuleIdentityMeta, createModuleTabShell } from "./moduleShell";
+import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
@@ -42,19 +42,29 @@ export function renderControlSurface(
     attachTooltip,
   });
 
-  const idWrap = createModuleIdentityMeta({
-    badgeText: "CONTROL",
-    instanceName: mod.name,
-    instanceId: mod.id.slice(-6).toUpperCase(),
-    presetButton: presetControl.button,
-  });
+  const idWrap = document.createElement("div");
+  idWrap.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
+
+  const familyBadge = document.createElement("div");
+  familyBadge.className = "surfaceBadge surfaceBadge--controlFamily";
+  familyBadge.textContent = "CTRL";
+
+  const controlTargets = routing.controlTargets.get(mod.id) ?? [];
+  const modeChip = createRoutingChip((mod.kind ?? "lfo").toUpperCase(), "muted");
+  modeChip.classList.add("surfaceHeaderChip");
+  const routeChip = createRoutingChip(
+    `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
+    controlTargets.length ? "connected" : "muted",
+  );
+  routeChip.classList.add("surfaceHeaderChip");
 
   const right = document.createElement("div");
   right.className = "rightControls";
   const toggle = document.createElement("button");
+  toggle.className = "surfaceHeaderAction";
   const syncToggle = () => {
     toggle.textContent = mod.enabled ? "On" : "Off";
-    toggle.className = mod.enabled ? "primary" : "";
+    toggle.classList.toggle("primary", mod.enabled);
   };
   syncToggle();
   toggle.onclick = () => onPatchChange((p) => {
@@ -63,13 +73,12 @@ export function renderControlSurface(
   }, { regen: false });
 
   const btnX = document.createElement("button");
-  btnX.className = "danger";
+  btnX.className = "danger surfaceHeaderAction";
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
+  idWrap.append(familyBadge, presetControl.button, modeChip, routeChip);
   right.append(toggle, btnX);
   header.append(idWrap, right);
-
-  const controlTargets = routing.controlTargets.get(mod.id) ?? [];
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("controlBody");
@@ -98,10 +107,15 @@ export function renderControlSurface(
   typeRow.classList.add("surfaceMainFeature");
   typeRow.append(kindField.wrap, waveField.wrap);
 
+  const featureRack = createFaceplateSection("feature", "controlFeatureRack");
+  featureRack.classList.add("surfaceMainFeature");
   const meter = document.createElement("div");
-  meter.className = "controlMeter";
+  meter.className = "controlMeter controlMeter--feature";
   const meterFill = document.createElement("div");
   meterFill.className = "controlMeterFill";
+  const readout = document.createElement("div");
+  readout.className = "triggerTransportReadout";
+  featureRack.append(meter, readout);
   meter.appendChild(meterFill);
 
   const mainKnobGrid = createFaceplateSection("controls", "moduleKnobGrid controlMainKnobGrid surfaceMainControls");
@@ -121,10 +135,13 @@ export function renderControlSurface(
   );
 
   const bottomSection = createFaceplateSection("bottom");
-  bottomSection.append(meter);
+  const info = document.createElement("span");
+  info.className = "triggerTransportReadout";
+  bottomSection.append(info);
 
   panelMain.append(
     typeRow,
+    featureRack,
     mainKnobGrid,
     bottomSection,
   );
@@ -163,18 +180,41 @@ export function renderControlSurface(
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Settings", panel: panelSettings },
+      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: "MAIN",
   });
 
-  surface.append(header, shell.face, shell.tabs);
+  const infoBar = createFaceplateSection("bottom", "drumInfoBar controlInfoBar");
+  const idToken = document.createElement("span");
+  idToken.className = "drumInfoToken";
+  idToken.textContent = mod.id.slice(-6).toUpperCase();
+  const stateToken = document.createElement("span");
+  stateToken.className = "drumInfoToken";
+  const modeToken = document.createElement("span");
+  modeToken.className = "drumInfoToken";
+  const metaToken = document.createElement("span");
+  metaToken.className = "drumInfoToken drumInfoToken--meta";
+  infoBar.append(idToken, stateToken, modeToken, metaToken);
+
+  const syncFooter = () => {
+    stateToken.textContent = mod.enabled ? "ACTIVE" : "BYPASS";
+    modeToken.textContent = `MODE ${(mod.kind ?? "lfo").toUpperCase()}`;
+    metaToken.textContent = `${controlTargets.length} TARGET${controlTargets.length === 1 ? "" : "S"}`;
+  };
+
+  surface.append(header, shell.face, shell.tabs, infoBar);
   root.appendChild(surface);
 
   return () => {
     syncToggle();
+    modeChip.textContent = (mod.kind ?? "lfo").toUpperCase();
     const val = sampleControl01(mod, performance.now() / 1000);
     meterFill.style.width = `${Math.round(val * 100)}%`;
+    const pct = Math.round(val * 100);
+    readout.textContent = `OUT ${pct}% · SPEED ${Math.round(mod.speed * 100)} · AMT ${Math.round(mod.amount * 100)}`;
+    info.textContent = `RATE ${Math.round(mod.rate * 100)} · PHASE ${Math.round(mod.phase * 100)} · RAND ${Math.round(mod.randomness * 100)}`;
+    syncFooter();
     waveField.select.disabled = mod.kind !== "lfo";
     waveField.wrap.classList.toggle("isDisabled", mod.kind !== "lfo");
   };
