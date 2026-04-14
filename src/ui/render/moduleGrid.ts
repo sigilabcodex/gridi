@@ -180,6 +180,7 @@ function readVisibleColumnCount(main: HTMLElement) {
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
+  const failedUpdaterIndices = new Set<number>();
   let inspectedModuleId: string | null = null;
   let visibleColumns = readVisibleColumnCount(params.main);
   let renderedColumns = visibleColumns;
@@ -262,6 +263,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   };
 
   const rerender = () => {
+    failedUpdaterIndices.clear();
     visibleColumns = readVisibleColumnCount(params.main);
 
     const patch = params.patch();
@@ -567,5 +569,20 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     });
   resizeObserver?.observe(params.main);
 
-  return { rerender, updateFrame: () => { for (const update of updaters) update(); } };
+  return {
+    rerender,
+    updateFrame: () => {
+      for (let i = 0; i < updaters.length; i++) {
+        const update = updaters[i];
+        try {
+          update();
+        } catch (error) {
+          if (!failedUpdaterIndices.has(i)) {
+            failedUpdaterIndices.add(i);
+            console.error("[module-grid] updater failed", error);
+          }
+        }
+      }
+    },
+  };
 }

@@ -79,14 +79,17 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   let activeMode: Mode | null = null;
   let view: DisplayView | null = null;
   let rafId = 0;
+  let lastSyncSignature: string | null = null;
 
   const ensureView = () => {
     if (view && activeMode === moduleRef.mode) return;
     canvas.textContent = "";
     activeMode = moduleRef.mode;
+    lastSyncSignature = null;
     view = createViewForMode(moduleRef.mode, moduleRef, params, stepGridState);
     canvas.appendChild(view.root);
     view.sync(moduleRef, params, stepGridState);
+    lastSyncSignature = createDisplaySyncSignature(moduleRef);
   };
 
   const tick = (timeMs: number) => {
@@ -99,7 +102,11 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   const sync = (module: TriggerModule) => {
     moduleRef = module;
     ensureView();
-    view?.sync(module, params, stepGridState);
+    const signature = createDisplaySyncSignature(module);
+    if (signature !== lastSyncSignature) {
+      view?.sync(module, params, stepGridState);
+      lastSyncSignature = signature;
+    }
     if (!rafId) rafId = window.requestAnimationFrame(tick);
   };
 
@@ -164,7 +171,7 @@ function createGearView(): DisplayView {
   return {
     root,
     sync: (nextModule) => {
-      const model = createGearModel(nextModule, `${nextModule.id}:display`);
+      const model = createGearModel(nextModule, "preview");
       triggerPattern = new Uint8Array(model.triggerPattern);
       lastPlayhead = -1;
       ringDots.length = 0;
@@ -187,14 +194,31 @@ function createGearView(): DisplayView {
       const angle = ((play / triggerPattern.length) * 360) - 90;
       playhead.style.setProperty("--gear-angle", `${angle.toFixed(2)}deg`);
       root.classList.toggle("is-aligned", triggerPattern[play] === 1);
-      if (triggerPattern[play] === 1) {
-        window.setTimeout(() => {
-          if (root.isConnected) root.classList.remove("is-aligned");
-        }, 80);
-      }
       lastPlayhead = play;
     },
   };
+}
+
+function createDisplaySyncSignature(module: TriggerModule) {
+  const live = module.liveState;
+  const liveSignature = !live
+    ? "none"
+    : `${live.mode}:${live.steps}:${live.revision}:${live.pattern.length}`;
+  return [
+    module.mode,
+    module.seed,
+    module.length,
+    module.subdiv,
+    module.density,
+    module.weird,
+    module.gravity,
+    module.determinism,
+    module.drop,
+    module.euclidRot,
+    module.caRule,
+    module.caInit,
+    liveSignature,
+  ].join("|");
 }
 
 function createStepSequencerView(module: TriggerModule, params: TriggerDisplayParams, state: StepGridState): DisplayView {

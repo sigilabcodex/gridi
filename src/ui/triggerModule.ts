@@ -1316,8 +1316,8 @@ export function renderTriggerSurface(
       closeModePanel();
     }
     syncModeControlValues();
-    badge.textContent = t.mode === "gear" ? "GEAR" : "GEN";
-    generatorLabel.textContent = t.mode === "gear" ? "GEAR" : "MODE";
+    badge.textContent = "GEN";
+    generatorLabel.textContent = "MODE";
     generatorValue.textContent = GENERATOR_MODE_LABELS[t.mode]?.short ?? "GEN";
     if (modePanel) {
       const rows = modePanel.querySelectorAll<HTMLElement>(".triggerModeSelectorRow");
