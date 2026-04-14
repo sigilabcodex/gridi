@@ -21,6 +21,9 @@ export type ModulePresetControlParams = {
 };
 
 export function createModulePresetControl(params: ModulePresetControlParams) {
+  const RECENT_PRESET_LIMIT = 6;
+  const INITIAL_GROUP_LIMIT = 10;
+
   const presetButton = document.createElement("button");
   presetButton.type = "button";
   presetButton.className = "modulePresetChip";
@@ -36,6 +39,15 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
       return b.updatedAt - a.updatedAt;
     });
   const moduleSubtype = getModulePresetSubtype(params.module);
+
+  const recencySortedPresets = availablePresets
+    .slice()
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const recentPresets = recencySortedPresets
+    .filter((record) => record.id !== linkedPreset?.id)
+    .slice(0, RECENT_PRESET_LIMIT);
+  const factoryPresets = availablePresets.filter((record) => record.source === "factory");
+  const userPresets = availablePresets.filter((record) => record.source !== "factory");
 
   const syncButton = () => {
     const base = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
@@ -155,23 +167,20 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
     const listWrap = document.createElement("div");
     listWrap.className = "modulePresetListWrap";
-    const listTitle = document.createElement("div");
-    listTitle.className = "small modulePresetListTitle";
-    const familyHasFactory = availablePresets.some((record) => record.source === "factory");
-    listTitle.textContent = availablePresets.length
-      ? familyHasFactory
-        ? `Load factory or saved presets (${availablePresets.length})`
-        : `Load ${availablePresets.length} compatible preset${availablePresets.length === 1 ? "" : "s"}`
-      : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
-    listWrap.appendChild(listTitle);
 
     const list = document.createElement("div");
     list.className = "modulePresetList";
+    const listTitle = document.createElement("div");
+    listTitle.className = "small modulePresetListTitle";
+    listTitle.textContent = availablePresets.length
+      ? `${availablePresets.length} compatible ${moduleSubtype.toUpperCase()} presets`
+      : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
+    list.appendChild(listTitle);
 
-    availablePresets.forEach((record) => {
+    const createPresetRow = (record: ModulePresetRecord, opts?: { compact?: boolean }) => {
       const row = document.createElement("button");
       row.type = "button";
-      row.className = `modulePresetListRow${linkedPreset?.id === record.id ? " isCurrent" : ""}`;
+      row.className = `modulePresetListRow${linkedPreset?.id === record.id ? " isCurrent" : ""}${opts?.compact ? " isCompact" : ""}`;
       row.onclick = () => {
         params.onLoadPreset(record.id);
         closePanel();
@@ -182,6 +191,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
       const name = document.createElement("div");
       name.className = "modulePresetListName";
       name.textContent = record.name;
+
       const info = document.createElement("div");
       info.className = "small modulePresetListInfo";
       info.textContent = record.source === "factory"
@@ -189,12 +199,71 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
         : `${getModulePresetSubtypeLabel(record)} · saved ${new Date(record.updatedAt).toLocaleDateString()}`;
       meta.append(name, info);
 
+      const sourceTag = document.createElement("div");
+      sourceTag.className = "modulePresetSourceTag";
+      sourceTag.textContent = record.source === "factory" ? "Factory" : "User";
+
       const loadTag = document.createElement("div");
       loadTag.className = "modulePresetLoadTag";
       loadTag.textContent = linkedPreset?.id === record.id ? "Current" : "Load";
-      row.append(meta, loadTag);
-      list.appendChild(row);
-    });
+
+      const right = document.createElement("div");
+      right.className = "modulePresetListRowRight";
+      right.append(sourceTag, loadTag);
+
+      row.append(meta, right);
+      return row;
+    };
+
+    const appendListGroup = (titleText: string, records: ModulePresetRecord[], opts?: { open?: boolean; compact?: boolean; defaultLimit?: number }) => {
+      if (!records.length) return;
+
+      const group = document.createElement("details");
+      group.className = "modulePresetGroup";
+      group.open = Boolean(opts?.open);
+
+      const summary = document.createElement("summary");
+      summary.className = "modulePresetGroupSummary";
+      const title = document.createElement("span");
+      title.textContent = titleText;
+      const count = document.createElement("span");
+      count.className = "small modulePresetGroupCount";
+      count.textContent = String(records.length);
+      summary.append(title, count);
+
+      const rows = document.createElement("div");
+      rows.className = "modulePresetGroupRows";
+      const defaultLimit = opts?.defaultLimit ?? records.length;
+      const initialRecords = records.slice(0, defaultLimit);
+      const overflowRecords = records.slice(defaultLimit);
+      initialRecords.forEach((record) => rows.appendChild(createPresetRow(record, { compact: opts?.compact })));
+
+      if (overflowRecords.length) {
+        const toggleMore = document.createElement("button");
+        toggleMore.type = "button";
+        toggleMore.className = "modulePresetMoreBtn";
+        toggleMore.textContent = `Show ${overflowRecords.length} more`;
+        let expanded = false;
+        toggleMore.onclick = () => {
+          if (expanded) return;
+          overflowRecords.forEach((record) => rows.appendChild(createPresetRow(record, { compact: opts?.compact })));
+          expanded = true;
+          toggleMore.textContent = "All items shown";
+          toggleMore.disabled = true;
+        };
+        rows.appendChild(toggleMore);
+      }
+
+      group.append(summary, rows);
+      list.appendChild(group);
+    };
+
+    if (linkedPreset) {
+      appendListGroup("Current / linked", [linkedPreset], { open: true, compact: true });
+    }
+    appendListGroup("Recent", recentPresets, { open: true, compact: true });
+    appendListGroup("User presets", userPresets, { open: true, defaultLimit: INITIAL_GROUP_LIMIT });
+    appendListGroup("Factory presets", factoryPresets, { open: false, defaultLimit: INITIAL_GROUP_LIMIT });
 
     listWrap.appendChild(list);
     floating.append(heading, summary, linkedRow, saveBlock, listWrap);

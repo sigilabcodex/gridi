@@ -335,16 +335,6 @@ export function createTransportHeader(params: HeaderParams) {
   sessionSelectRow.className = "transportSessionSelectRow";
   sessionSelectRow.append(presetButton, btnSavePreset);
 
-  const btnSessionManager = document.createElement("button");
-  btnSessionManager.type = "button";
-  btnSessionManager.className = "transportGhostBtn transportIconBtn transportSessionManagerBtn";
-  btnSessionManager.textContent = "Manage";
-  btnSessionManager.onclick = params.onOpenPresetManager;
-  params.attachTooltip(btnSessionManager, {
-    text: "Open session manager for rename, duplicate, delete, import, and export.",
-    ariaLabel: "Session manager",
-  });
-
   presetWrap.append(presetLabel, sessionSelectRow);
 
   const sessionActions = document.createElement("div");
@@ -355,8 +345,14 @@ export function createTransportHeader(params: HeaderParams) {
 
   const utilitySummary = document.createElement("button");
   utilitySummary.type = "button";
-  utilitySummary.className = "transportGhostBtn transportUtilitySummary transportIconBtn";
-  utilitySummary.append(makeIcon("actions"));
+  utilitySummary.className = "transportGhostBtn transportUtilitySummary";
+  const utilitySummaryIcon = document.createElement("span");
+  utilitySummaryIcon.className = "transportUtilitySummaryIcon";
+  utilitySummaryIcon.append(makeIcon("actions"));
+  const utilitySummaryLabel = document.createElement("span");
+  utilitySummaryLabel.className = "transportUtilitySummaryLabel";
+  utilitySummaryLabel.textContent = "Session";
+  utilitySummary.append(utilitySummaryIcon, utilitySummaryLabel);
   utilitySummary.setAttribute("aria-label", "Open session and utility actions");
   utilitySummary.setAttribute("aria-haspopup", "menu");
   utilitySummary.setAttribute("aria-expanded", "false");
@@ -433,11 +429,11 @@ export function createTransportHeader(params: HeaderParams) {
     utilityPanel.append(label, row);
   };
 
-  appendUtilitySection("Session patch", [btnNewSession, btnSaveAs, btnReset, btnSessionManagerMenu]);
+  appendUtilitySection("Session patch", [btnNewSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendUtilitySection("Generator tools", [btnRegen, btnReseed, btnRandom]);
   utilityMenu.append(utilitySummary);
 
-  sessionActions.append(btnSessionManager, utilityMenu);
+  sessionActions.append(utilityMenu);
   sessionBlock.append(presetWrap, sessionActions);
   sessionCluster.append(sessionBlock);
 
