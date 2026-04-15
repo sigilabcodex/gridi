@@ -1091,14 +1091,12 @@ header {
   box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.28) inset;
 }
 
-.moduleDragHandle {
-  min-width: 28px;
-  padding-inline: 0;
-  letter-spacing: 1px;
+.surfaceBadge.module-drag-handle {
   cursor: grab;
+  user-select: none;
 }
 
-.moduleDragHandle:active {
+.surfaceBadge.module-drag-handle:active {
   cursor: grabbing;
 }
 
@@ -3637,6 +3635,10 @@ button:focus-visible,
 }
 
 .synthBehaviorStage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 7px;
+  align-items: stretch;
   min-height: 0;
   margin-top: 0;
 }
@@ -3970,26 +3972,31 @@ button:focus-visible,
 .surfaceBadge--drumFamily {
   border-style: solid;
   border-color: rgba(199, 107, 120, 0.54);
+  background: rgba(199, 107, 120, 0.3);
   color: rgba(248, 221, 226, 0.95);
 }
 
 .surfaceBadge--synthFamily {
   border-color: rgba(96, 143, 202, 0.54);
+  background: rgba(96, 143, 202, 0.3);
   color: rgba(216, 232, 250, 0.95);
 }
 
 .surfaceBadge--triggerFamily {
   border-color: rgba(198, 127, 255, 0.56);
+  background: rgba(198, 127, 255, 0.3);
   color: rgba(232, 205, 255, 0.96);
 }
 
 .surfaceBadge--controlFamily {
   border-color: rgba(112, 224, 255, 0.58);
+  background: rgba(112, 224, 255, 0.28);
   color: rgba(219, 248, 255, 0.96);
 }
 
 .surfaceBadge--visualFamily {
   border-color: rgba(255, 199, 112, 0.58);
+  background: rgba(255, 199, 112, 0.28);
   color: rgba(255, 233, 196, 0.96);
 }
 
@@ -5217,10 +5224,27 @@ button:focus-visible,
 }
 
 .synthHeaderSelectors {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-content: start;
+}
+
+.synthFeatureSide {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+}
+
+.synthFeatureSide .compactSelectField {
+  margin-top: 0;
+  gap: 2px;
+}
+
+.synthFeatureSide .compactSelectLabel {
+  font-size: 9px;
+  letter-spacing: 0.36px;
+  margin-bottom: 2px;
 }
 
 .synthHeaderSelect {
@@ -5232,8 +5256,8 @@ button:focus-visible,
 }
 
 .synthHeaderSelect .compactSelectInput {
-  min-width: 58px;
-  max-width: 66px;
+  min-width: 68px;
+  max-width: 80px;
   font-size: 10px;
   padding: 2px 14px 2px 6px;
 }

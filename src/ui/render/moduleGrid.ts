@@ -354,25 +354,22 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         applyRoutingHighlight();
       };
 
-      const dragHandle = document.createElement("button");
-      dragHandle.type = "button";
-      dragHandle.className = "moduleDragHandle module-drag-handle";
-      dragHandle.draggable = true;
-      dragHandle.setAttribute("aria-label", `Drag module ${moduleId.slice(-4)} to another slot`);
-      dragHandle.textContent = "⋮⋮";
+      const dragHandle = surface.querySelector<HTMLElement>(".surfaceBadge");
+      if (!dragHandle) {
+        console.warn("[module-grid] drag handle not found for module", moduleId);
+      } else {
+        dragHandle.classList.add("module-drag-handle");
+        dragHandle.draggable = true;
+        dragHandle.setAttribute("aria-label", `Drag module ${moduleId.slice(-4)} to another slot`);
 
-      const header = surface.querySelector<HTMLElement>(".surfaceHeader");
-      const rightControls = header?.querySelector<HTMLElement>(".rightControls");
-      if (rightControls) rightControls.prepend(dragHandle);
-      else header?.appendChild(dragHandle);
-
-      dragHandle.addEventListener("dragstart", (e) => {
-        surface.classList.add("dragging");
-        e.dataTransfer?.setData("text/module-id", moduleId);
-        e.dataTransfer?.setData("text/module-kind", moduleKind);
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-      });
-      dragHandle.addEventListener("dragend", () => surface.classList.remove("dragging"));
+        dragHandle.addEventListener("dragstart", (e) => {
+          surface.classList.add("dragging");
+          e.dataTransfer?.setData("text/module-id", moduleId);
+          e.dataTransfer?.setData("text/module-kind", moduleKind);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+        });
+        dragHandle.addEventListener("dragend", () => surface.classList.remove("dragging"));
+      }
       surface.addEventListener("pointerdown", inspect);
       surface.addEventListener("focusin", inspect);
     };
