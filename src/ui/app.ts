@@ -520,7 +520,6 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const header = createTransportHeader({
     root: shell,
     patch: () => patch,
-    presetLabel: () => `${selectedPreset().name}${hasUnsavedChanges() ? " *" : ""}`,
     presetNames: () => session.presets.map((preset) => ({ id: preset.id, name: preset.name })),
     selectedPresetId: () => session.selectedPresetId,
     hasUnsavedChanges,
