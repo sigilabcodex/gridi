@@ -5304,6 +5304,7 @@ button:focus-visible,
 .visualMetaRow {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
   flex-wrap: nowrap;
   min-height: 26px;
@@ -5315,17 +5316,25 @@ button:focus-visible,
 }
 
 .visualChipRow {
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  justify-content: stretch;
 }
 
 .visualChipButton {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: flex-start;
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 8px;
   white-space: nowrap;
   min-width: 0;
   max-width: 100%;
   cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .visualChipButton.isOpen,
@@ -5422,6 +5431,36 @@ button:focus-visible,
 .controlChipRow .compactSelectField {
   flex: 1 1 0;
   min-width: 0;
+}
+
+.controlChipRow .compactSelectField--chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+}
+
+.controlChipRow .compactSelectField--chip .compactSelectLabel {
+  flex: 0 0 auto;
+  margin: 0;
+  opacity: 0.72;
+  letter-spacing: 0.7px;
+  font-size: 9px;
+}
+
+.controlChipRow .compactSelectField--chip .compactSelectInput {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 3px 16px 3px 0;
+  min-height: 22px;
+  font-size: 10px;
+}
+
+.controlChipRow .compactSelectField--chip::after {
+  right: 8px;
+  bottom: 7px;
 }
 
 .controlChipRow .routingChip {
