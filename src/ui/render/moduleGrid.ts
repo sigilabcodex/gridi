@@ -339,7 +339,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     };
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
-      surface.draggable = true;
       surface.tabIndex = 0;
       surface.classList.add("draggableModule");
       surface.dataset.moduleId = moduleId;
@@ -355,13 +354,22 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         applyRoutingHighlight();
       };
 
-      surface.addEventListener("dragstart", (e) => {
-        surface.classList.add("dragging");
-        e.dataTransfer?.setData("text/module-id", moduleId);
-        e.dataTransfer?.setData("text/module-kind", moduleKind);
-        if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-      });
-      surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
+      const dragHandle = surface.querySelector<HTMLElement>(".surfaceBadge");
+      if (!dragHandle) {
+        console.warn("[module-grid] drag handle not found for module", moduleId);
+      } else {
+        dragHandle.classList.add("module-drag-handle");
+        dragHandle.draggable = true;
+        dragHandle.setAttribute("aria-label", `Drag module ${moduleId.slice(-4)} to another slot`);
+
+        dragHandle.addEventListener("dragstart", (e) => {
+          surface.classList.add("dragging");
+          e.dataTransfer?.setData("text/module-id", moduleId);
+          e.dataTransfer?.setData("text/module-kind", moduleKind);
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+        });
+        dragHandle.addEventListener("dragend", () => surface.classList.remove("dragging"));
+      }
       surface.addEventListener("pointerdown", inspect);
       surface.addEventListener("focusin", inspect);
     };
