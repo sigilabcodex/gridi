@@ -165,94 +165,76 @@ function createGearView(): DisplayView {
   const stage = document.createElement("div");
   stage.className = "triggerDisplayGearStage";
 
-  const playhead = document.createElement("span");
-  playhead.className = "triggerDisplayGearPlayhead";
+  const meshLinkAB = document.createElement("span");
+  meshLinkAB.className = "triggerDisplayGearMesh triggerDisplayGearMesh--ab";
+  const meshLinkAC = document.createElement("span");
+  meshLinkAC.className = "triggerDisplayGearMesh triggerDisplayGearMesh--ac";
+  const outputArm = document.createElement("span");
+  outputArm.className = "triggerDisplayGearOutputArm";
 
-  const center = document.createElement("div");
-  center.className = "triggerDisplayGearCenter";
-
-  const cycleRing = document.createElement("div");
-  cycleRing.className = "triggerDisplayGearRing triggerDisplayGearRing--cycle is-enabled";
-
-  stage.append(cycleRing, playhead, center);
+  stage.append(meshLinkAB, meshLinkAC, outputArm);
   root.appendChild(stage);
 
-  const ringDots: HTMLElement[][] = [];
+  const ratioReadout = document.createElement("div");
+  ratioReadout.className = "triggerDisplayGearRatio";
+  root.appendChild(ratioReadout);
+
+  const ringTeeth: HTMLElement[][] = [];
+  const ringBodies: HTMLElement[] = [];
   const ringModels: ReturnType<typeof createGearModel>["rings"] = [];
-  const cycleDots: HTMLElement[] = [];
   let triggerPattern = new Uint8Array(0);
   let lastPlayhead = -1;
   let alignmentUntil = 0;
 
-  const buildRing = (ringIndex: number, steps: number) => {
+  const buildRing = (ringIndex: number, steps: number, activeCount: number) => {
     const ring = document.createElement("div");
-    ring.className = `triggerDisplayGearRing triggerDisplayGearRing--${ringIndex + 1}`;
-    ring.style.setProperty("--gear-steps", String(steps));
+    ring.className = `triggerDisplayGearWheel triggerDisplayGearWheel--${ringIndex + 1}`;
+    ring.classList.toggle("is-enabled", ringIndex < activeCount);
+    ring.style.setProperty("--gear-angle", "0deg");
 
-    const dots: HTMLElement[] = [];
-    for (let i = 0; i < steps; i++) {
-      const dot = document.createElement("span");
-      dot.className = "triggerDisplayGearDot";
-      const angle = (Math.PI * 2 * i) / steps - Math.PI / 2;
-      dot.style.setProperty("--gear-x", `${Math.cos(angle).toFixed(4)}`);
-      dot.style.setProperty("--gear-y", `${Math.sin(angle).toFixed(4)}`);
-      ring.appendChild(dot);
-      dots.push(dot);
-    }
+    const rim = document.createElement("span");
+    rim.className = "triggerDisplayGearRim";
+
+    const hub = document.createElement("span");
+    hub.className = "triggerDisplayGearHub";
+
+    const phase = document.createElement("span");
+    phase.className = "triggerDisplayGearPhase";
 
     const badge = document.createElement("span");
     badge.className = "triggerDisplayGearBadge";
-    badge.textContent = `${steps}`;
-    ring.appendChild(badge);
+    badge.textContent = `T${steps}`;
 
-    ringDots[ringIndex] = dots;
-    stage.appendChild(ring);
-  };
-
-  const buildCycleRing = (steps: number) => {
-    cycleRing.replaceChildren();
-    cycleDots.length = 0;
-    cycleRing.style.setProperty("--gear-steps", String(steps));
-
-    for (let i = 0; i < steps; i++) {
-      const dot = document.createElement("span");
-      dot.className = "triggerDisplayGearDot triggerDisplayGearDot--cycle";
-      const angle = (Math.PI * 2 * i) / steps - Math.PI / 2;
-      dot.style.setProperty("--gear-x", `${Math.cos(angle).toFixed(4)}`);
-      dot.style.setProperty("--gear-y", `${Math.sin(angle).toFixed(4)}`);
-      cycleRing.appendChild(dot);
-      cycleDots.push(dot);
+    const toothCount = clamp(Math.round(steps * 0.7), 10, 42);
+    ring.style.setProperty("--gear-teeth", String(toothCount));
+    const teeth: HTMLElement[] = [];
+    for (let i = 0; i < toothCount; i++) {
+      const tooth = document.createElement("span");
+      tooth.className = "triggerDisplayGearTooth";
+      tooth.style.setProperty("--gear-tooth-angle", `${((i / toothCount) * 360).toFixed(3)}deg`);
+      ring.appendChild(tooth);
+      teeth.push(tooth);
     }
 
-    const badge = document.createElement("span");
-    badge.className = "triggerDisplayGearBadge triggerDisplayGearBadge--cycle";
-    badge.textContent = `cycle ${steps}`;
-    cycleRing.appendChild(badge);
+    ring.append(rim, hub, phase, badge);
+    stage.appendChild(ring);
+    ringBodies[ringIndex] = ring;
+    ringTeeth[ringIndex] = teeth;
   };
 
   const setPlayheadState = (nextPlayhead: number, triggerOn: boolean) => {
-    if (lastPlayhead >= 0) {
-      cycleDots[lastPlayhead]?.classList.remove("is-playhead");
-      ringDots.forEach((dots, ringIndex) => {
-        const ring = ringModels[ringIndex];
-        if (!ring?.length) return;
-        const prevIndex = ((Math.floor(lastPlayhead + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
-        dots[prevIndex]?.classList.remove("is-playhead");
-        dots[prevIndex]?.classList.remove("is-aligned");
-      });
-    }
-
-    cycleDots[nextPlayhead]?.classList.add("is-playhead");
-    cycleDots[nextPlayhead]?.classList.toggle("is-aligned", triggerOn);
-
-    ringDots.forEach((dots, ringIndex) => {
+    ringTeeth.forEach((teeth, ringIndex) => {
       const ring = ringModels[ringIndex];
-      if (!ring?.length) return;
+      if (!ring?.length || !teeth.length) return;
+      const previous = ((Math.floor(lastPlayhead + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
+      const previousTooth = Math.floor((previous / ring.length) * teeth.length);
+      teeth[previousTooth]?.classList.remove("is-playhead", "is-aligned");
+
       const index = ((Math.floor(nextPlayhead + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
-      const dot = dots[index];
       const active = ring.pattern[index] === 1;
-      dot?.classList.add("is-playhead");
-      dot?.classList.toggle("is-aligned", triggerOn && active);
+      const toothIndex = Math.floor((index / ring.length) * teeth.length);
+      teeth[toothIndex]?.classList.add("is-playhead");
+      teeth[toothIndex]?.classList.toggle("is-aligned", triggerOn && active);
     });
   };
 
@@ -264,29 +246,42 @@ function createGearView(): DisplayView {
       lastPlayhead = -1;
       alignmentUntil = 0;
       ringModels.length = 0;
-      ringDots.length = 0;
-      stage.querySelectorAll(".triggerDisplayGearRing:not(.triggerDisplayGearRing--cycle)").forEach((el) => el.remove());
+      ringTeeth.length = 0;
+      ringBodies.length = 0;
+      stage.querySelectorAll(".triggerDisplayGearWheel").forEach((el) => el.remove());
       root.classList.remove("is-aligned");
-
-      buildCycleRing(triggerPattern.length);
+      ratioReadout.textContent = "";
 
       model.rings.forEach((ringModel, ringIndex) => {
         ringModels[ringIndex] = ringModel;
-        buildRing(ringIndex, ringModel.length);
-        const ring = stage.querySelector<HTMLElement>(`.triggerDisplayGearRing--${ringIndex + 1}`);
-        ring?.classList.toggle("is-enabled", ringIndex < model.ringCount);
-        ring?.style.setProperty("--gear-rotation", `${ringModel.rotation}deg`);
-        ringDots[ringIndex]?.forEach((dot, i) => {
-          dot.classList.toggle("on", ringModel.pattern[i] === 1);
+        buildRing(ringIndex, ringModel.length, model.ringCount);
+        ringTeeth[ringIndex]?.forEach((tooth, i) => {
+          const sampleIndex = Math.floor((i / ringTeeth[ringIndex].length) * ringModel.length);
+          tooth.classList.toggle("on", ringModel.pattern[sampleIndex] === 1);
         });
       });
+
+      const ratios: string[] = [];
+      if (model.rings[0] && model.rings[1]) ratios.push(`A:B ${model.rings[0].length}:${model.rings[1].length}`);
+      if (model.ringCount >= 3 && model.rings[2]) ratios.push(`A:C ${model.rings[0].length}:${model.rings[2].length}`);
+      ratios.push(`cycle ${triggerPattern.length}`);
+      ratioReadout.textContent = ratios.join(" · ");
     },
     tick: (timeMs, liveModule) => {
       if (!triggerPattern.length) return;
       const play = resolveAnimatedStepIndex(timeMs, liveModule, triggerPattern.length);
+      const progress = play / Math.max(1, triggerPattern.length);
+
+      ringBodies.forEach((ringEl, ringIndex) => {
+        const ring = ringModels[ringIndex];
+        if (!ring?.length) return;
+        const direction = ringIndex === 1 ? -1 : 1;
+        const driftWarp = 1 + clamp(liveModule.weird, 0, 1) * ring.phase * 0.9;
+        const angle = ring.rotation + (progress * 360 * (triggerPattern.length / ring.length) * direction * driftWarp);
+        ringEl.style.setProperty("--gear-angle", `${angle.toFixed(3)}deg`);
+      });
+
       if (play !== lastPlayhead) {
-        const angle = ((play / triggerPattern.length) * 360) - 90;
-        playhead.style.setProperty("--gear-angle", `${angle.toFixed(2)}deg`);
         const triggerOn = triggerPattern[play] === 1;
         setPlayheadState(play, triggerOn);
         if (triggerOn) alignmentUntil = timeMs + 180;
@@ -295,7 +290,7 @@ function createGearView(): DisplayView {
 
       const aligned = alignmentUntil > timeMs;
       root.classList.toggle("is-aligned", aligned);
-      center.classList.toggle("is-aligned", aligned);
+      stage.classList.toggle("is-aligned", aligned);
     },
   };
 }
@@ -350,7 +345,9 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
       state.cols = layout.cols;
       state.rows = layout.rows;
 
-      const needsRebuild = state.cells.length !== stepCount || grid.style.getPropertyValue("--trigger-display-cols") !== String(layout.cols);
+      const needsRebuild = state.cells.length !== stepCount
+        || grid.style.getPropertyValue("--trigger-display-cols") !== String(layout.cols)
+        || grid.style.getPropertyValue("--trigger-display-rows") !== String(layout.rows);
       if (needsRebuild) {
         const nextGrid = renderInteractiveStepGrid(nextModule, state, params);
         root.replaceChildren(nextGrid);
@@ -440,6 +437,7 @@ function createCellularView(params: TriggerDisplayParams): DisplayView {
       cols = clamp(Math.round(nextModule.length / 2), 8, 20);
       rows = clamp(6 + Math.round(nextModule.subdiv), 6, 12);
       root.style.setProperty("--trigger-display-cols", String(cols));
+      root.style.setProperty("--trigger-display-rows", String(rows));
       const total = cols * rows;
 
       if (cells.length !== total) {
@@ -862,6 +860,7 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, 
   grid.setAttribute("role", "grid");
   grid.setAttribute("aria-label", `${module.name} step overlay editor`);
   grid.style.setProperty("--trigger-display-cols", String(state.cols));
+  grid.style.setProperty("--trigger-display-rows", String(state.rows));
   state.cells = [];
 
   for (let i = 0; i < state.stepCount; i++) {
@@ -913,6 +912,7 @@ function renderStepPreviewGrid(module: TriggerModule, patternPreview: string) {
   const grid = document.createElement("div");
   grid.className = "triggerDisplayStepGrid";
   grid.style.setProperty("--trigger-display-cols", String(layout.cols));
+  grid.style.setProperty("--trigger-display-rows", String(layout.rows));
   for (let i = 0; i < steps; i++) {
     const cell = document.createElement("span");
     cell.className = `triggerDisplayCell ${basePattern[i] === 1 ? "on" : "off"}`;
