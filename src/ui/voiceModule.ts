@@ -938,6 +938,89 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
+  const headerRight = h.header.querySelector(".rightControls");
+  const pitchMapProfiles = [
+    { value: "BASS", label: "Bass", coarseTune: 0.14, fineTune: 0.42 },
+    { value: "SEQ", label: "Seq", coarseTune: 0.34, fineTune: 0.5 },
+    { value: "LEAD", label: "Lead", coarseTune: 0.57, fineTune: 0.58 },
+    { value: "CHROM", label: "Chrom", coarseTune: 0.84, fineTune: 0.5 },
+  ] as const;
+  const articulationProfiles = [
+    { value: "PLUCK", label: "Pluck", attack: 0.06, decay: 0.32, sustain: 0.24, release: 0.26 },
+    { value: "STAB", label: "Stab", attack: 0.14, decay: 0.44, sustain: 0.38, release: 0.32 },
+    { value: "HOLD", label: "Hold", attack: 0.22, decay: 0.5, sustain: 0.68, release: 0.56 },
+    { value: "PAD", label: "Pad", attack: 0.54, decay: 0.66, sustain: 0.82, release: 0.9 },
+  ] as const;
+  const nearestPitchMap = (state: Pick<typeof reactiveState, "coarseTune" | "fineTune">) => {
+    let best: string = pitchMapProfiles[0].value;
+    let bestDist = Number.POSITIVE_INFINITY;
+    pitchMapProfiles.forEach((profile) => {
+      const dist = Math.abs(profile.coarseTune - state.coarseTune) + Math.abs(profile.fineTune - state.fineTune) * 0.6;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = profile.value;
+      }
+    });
+    return best;
+  };
+  const nearestArticulation = (state: Pick<typeof reactiveState, "attack" | "decay" | "sustain" | "release">) => {
+    let best: string = articulationProfiles[0].value;
+    let bestDist = Number.POSITIVE_INFINITY;
+    articulationProfiles.forEach((profile) => {
+      const dist = Math.abs(profile.attack - state.attack) + Math.abs(profile.decay - state.decay) + Math.abs(profile.sustain - state.sustain) + Math.abs(profile.release - state.release);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = profile.value;
+      }
+    });
+    return best;
+  };
+  const pitchMapField = createCompactSelectField({
+    label: "Pitch",
+    className: "synthHeaderSelect",
+    includeEmptyOption: false,
+    options: pitchMapProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
+    selected: nearestPitchMap(reactiveState),
+    onChange: (value) => {
+      if (!value) return;
+      const profile = pitchMapProfiles.find((entry) => entry.value === value);
+      if (!profile) return;
+      onPatchChange((p) => {
+        setReactive({ coarseTune: profile.coarseTune, fineTune: profile.fineTune });
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "tonal") {
+          m.coarseTune = profile.coarseTune;
+          m.fineTune = profile.fineTune;
+        }
+      }, { regen: false });
+    },
+  });
+  const articulationField = createCompactSelectField({
+    label: "Artic",
+    className: "synthHeaderSelect",
+    includeEmptyOption: false,
+    options: articulationProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
+    selected: nearestArticulation(reactiveState),
+    onChange: (value) => {
+      if (!value) return;
+      const profile = articulationProfiles.find((entry) => entry.value === value);
+      if (!profile) return;
+      onPatchChange((p) => {
+        setReactive({ attack: profile.attack, decay: profile.decay, sustain: profile.sustain, release: profile.release });
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "tonal") {
+          m.attack = profile.attack;
+          m.decay = profile.decay;
+          m.sustain = profile.sustain;
+          m.release = profile.release;
+        }
+      }, { regen: false });
+    },
+  });
+  const synthHeaderSelectors = document.createElement("div");
+  synthHeaderSelectors.className = "synthHeaderSelectors";
+  synthHeaderSelectors.append(pitchMapField.wrap, articulationField.wrap);
+  if (headerRight) headerRight.prepend(synthHeaderSelectors);
   const synthFeatureZone = (() => {
     const feature = createFaceplateSection("feature", "synthMainFeature");
 
@@ -1077,6 +1160,8 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const setReactive = (partial: Partial<typeof reactiveState>) => {
     Object.assign(reactiveState, partial);
     synthFeatureZone.update(reactiveState);
+    pitchMapField.select.value = nearestPitchMap(reactiveState);
+    articulationField.select.value = nearestArticulation(reactiveState);
     synthInfo.update({
       enabled: t.enabled,
       triggerSource: reactiveState.triggerSource,

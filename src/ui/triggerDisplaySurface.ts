@@ -68,6 +68,7 @@ const MODE_LABELS: Record<Mode, string> = {
   "genetic-algorithms": "Genetic Algorithms",
   "one-over-f-noise": "1/f Noise",
   gear: "GEAR",
+  sonar: "SONAR",
 };
 
 export function createTriggerDisplaySurface(params: TriggerDisplayParams): TriggerDisplayApi {
@@ -150,6 +151,7 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "genetic-algorithms") return createGeneticView();
   if (mode === "one-over-f-noise") return createOneOverFView(params);
   if (mode === "gear") return createGearView();
+  if (mode === "sonar") return createSonarView();
 
   const placeholder = renderModePlaceholder(mode);
   return {
@@ -179,17 +181,18 @@ function createGearView(): DisplayView {
     rotation: number;
     phase: number;
     pattern: Uint8Array;
-    label: string;
-    isDerivedCycle?: boolean;
+    emphasis: number;
   };
 
-  const ringTeeth: HTMLElement[][] = [];
+  const ringTicks: HTMLElement[][] = [];
+  const ringSlots: HTMLElement[][] = [];
   const ringBodies: HTMLElement[] = [];
   const ringMarkers: HTMLElement[] = [];
   const ringModels: GearDisplayRing[] = [];
   let triggerPattern = new Uint8Array(0);
   let lastPlayhead = -1;
   let alignmentUntil = 0;
+  let visibleRings = 0;
 
   const buildRing = (ringIndex: number, ringModel: GearDisplayRing, activeCount: number) => {
     const ring = document.createElement("div");
@@ -202,28 +205,34 @@ function createGearView(): DisplayView {
     const ringBody = document.createElement("span");
     ringBody.className = "triggerDisplayGearRingBody";
 
-    const badge = document.createElement("span");
-    badge.className = "triggerDisplayGearBadge";
-    badge.textContent = ringModel.label;
+    const tickCount = clamp(Math.round(ringModel.length), 8, 40);
+    const ticks: HTMLElement[] = [];
+    for (let i = 0; i < tickCount; i++) {
+      const tick = document.createElement("span");
+      tick.className = "triggerDisplayGearTick";
+      tick.style.setProperty("--gear-tooth-angle", `${((i / tickCount) * 360).toFixed(3)}deg`);
+      tick.style.setProperty("--gear-tick-major", i % Math.max(2, Math.round(tickCount / 8)) === 0 ? "1" : "0");
+      ringBody.appendChild(tick);
+      ticks.push(tick);
+    }
 
-    const toothCount = clamp(Math.round(ringModel.length * 0.85), 10, 52);
-    ring.style.setProperty("--gear-teeth", String(toothCount));
-    const teeth: HTMLElement[] = [];
-    for (let i = 0; i < toothCount; i++) {
-      const tooth = document.createElement("span");
-      tooth.className = "triggerDisplayGearSegment";
-      tooth.style.setProperty("--gear-tooth-angle", `${((i / toothCount) * 360).toFixed(3)}deg`);
-      ringBody.appendChild(tooth);
-      teeth.push(tooth);
+    const slots: HTMLElement[] = [];
+    for (let i = 0; i < ringModel.length; i++) {
+      const slot = document.createElement("span");
+      slot.className = "triggerDisplayGearSlot";
+      slot.style.setProperty("--gear-tooth-angle", `${((i / Math.max(1, ringModel.length)) * 360).toFixed(3)}deg`);
+      ringBody.appendChild(slot);
+      slots.push(slot);
     }
 
     const marker = document.createElement("span");
     marker.className = "triggerDisplayGearMarker";
-    ring.append(ringBody, marker, badge);
+    ring.append(ringBody, marker);
     stage.appendChild(ring);
     ringBodies[ringIndex] = ring;
     ringMarkers[ringIndex] = marker;
-    ringTeeth[ringIndex] = teeth;
+    ringTicks[ringIndex] = ticks;
+    ringSlots[ringIndex] = slots;
   };
 
   const normalizeAngle = (angle: number) => {
@@ -234,26 +243,24 @@ function createGearView(): DisplayView {
   const setPlayheadState = (nextPlayhead: number, triggerOn: boolean) => {
     const markerAngles: number[] = [];
     let activeAlignedCount = 0;
-    ringTeeth.forEach((teeth, ringIndex) => {
+    ringSlots.forEach((slots, ringIndex) => {
       const ring = ringModels[ringIndex];
-      if (!ring?.length || !teeth.length) return;
+      if (!ring?.length || !slots.length) return;
       const previous = ((Math.floor(lastPlayhead + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
-      const previousTooth = Math.floor((previous / ring.length) * teeth.length);
-      teeth[previousTooth]?.classList.remove("is-playhead", "is-aligned");
+      slots[previous]?.classList.remove("is-playhead", "is-aligned");
 
       const index = ((Math.floor(nextPlayhead + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
       const active = ring.pattern[index] === 1;
-      const toothIndex = Math.floor((index / ring.length) * teeth.length);
       const phase = index / ring.length;
       const angle = normalizeAngle(phase * 360);
       markerAngles.push(angle);
       if (active) activeAlignedCount += 1;
       ringMarkers[ringIndex]?.style.setProperty("--gear-marker-angle", `${angle.toFixed(3)}deg`);
-      teeth[toothIndex]?.classList.add("is-playhead");
-      teeth[toothIndex]?.classList.toggle("is-aligned", triggerOn && active && !ring.isDerivedCycle);
+      slots[index]?.classList.add("is-playhead");
+      slots[index]?.classList.toggle("is-aligned", triggerOn && active);
     });
 
-    const isCoincident = triggerOn && activeAlignedCount >= Math.max(2, ringModels.length - 1);
+    const isCoincident = triggerOn && activeAlignedCount >= Math.max(2, visibleRings - 1);
     if (isCoincident && markerAngles.length) {
       let anchor = markerAngles[0];
       let sum = anchor;
@@ -278,7 +285,8 @@ function createGearView(): DisplayView {
       lastPlayhead = -1;
       alignmentUntil = 0;
       ringModels.length = 0;
-      ringTeeth.length = 0;
+      ringTicks.length = 0;
+      ringSlots.length = 0;
       ringBodies.length = 0;
       ringMarkers.length = 0;
       stage.querySelectorAll(".triggerDisplayGearWheel").forEach((el) => el.remove());
@@ -291,34 +299,23 @@ function createGearView(): DisplayView {
           rotation: ringModel.rotation,
           phase: ringModel.phase,
           pattern: ringModel.pattern,
-          label: `R${ringIndex + 1}:${ringModel.length}`,
+          emphasis: 0.6 + ringIndex * 0.2,
         };
       });
-      if (model.ringCount >= 3 && triggerPattern.length > Math.max(...model.rings.map((ring) => ring.length)) + 6) {
-        ringModels.push({
-          length: triggerPattern.length,
-          rotation: 0,
-          phase: 0,
-          pattern: triggerPattern,
-          label: `C:${triggerPattern.length}`,
-          isDerivedCycle: true,
-        });
-      }
-
-      const visibleRings = clamp(ringModels.length, 2, 4);
+      visibleRings = clamp(ringModels.length, 2, 3);
       ringModels.splice(visibleRings);
       ringModels.forEach((ringModel, ringIndex) => {
         buildRing(ringIndex, ringModel, visibleRings);
-        ringTeeth[ringIndex]?.forEach((tooth, i) => {
-          const sampleIndex = Math.floor((i / ringTeeth[ringIndex].length) * ringModel.length) % ringModel.length;
-          tooth.classList.toggle("on", ringModel.pattern[sampleIndex] === 1);
+        ringSlots[ringIndex]?.forEach((slot, i) => {
+          slot.classList.toggle("on", ringModel.pattern[i] === 1);
         });
+        ringTicks[ringIndex]?.forEach((tick) => tick.style.opacity = ringModel.emphasis.toFixed(3));
       });
 
       const ratios: string[] = [];
       if (model.rings[0] && model.rings[1]) ratios.push(`A:B ${model.rings[0].length}:${model.rings[1].length}`);
-      if (model.ringCount >= 3 && model.rings[2]) ratios.push(`A:C ${model.rings[0].length}:${model.rings[2].length}`);
-      ratios.push(`cycle ${triggerPattern.length}`);
+      if (model.rings[2]) ratios.push(`A:C ${model.rings[0].length}:${model.rings[2].length}`);
+      ratios.push(`LCM ${triggerPattern.length}`);
       ratioReadout.textContent = ratios.join(" · ");
     },
     tick: (timeMs, liveModule) => {
@@ -371,6 +368,62 @@ function createDisplaySyncSignature(module: TriggerModule) {
     module.caInit,
     liveSignature,
   ].join("|");
+}
+
+function createSonarView(): DisplayView {
+  const root = document.createElement("div");
+  root.className = "triggerDisplaySonar";
+  const stage = document.createElement("div");
+  stage.className = "triggerDisplaySonarStage";
+  const sweep = document.createElement("span");
+  sweep.className = "triggerDisplaySonarSweep";
+  const pulse = document.createElement("span");
+  pulse.className = "triggerDisplaySonarPulse";
+  stage.append(sweep, pulse);
+  root.append(stage);
+
+  const blips: HTMLElement[] = [];
+  let lastPlayhead = -1;
+  let pattern = new Uint8Array(0);
+
+  return {
+    root,
+    sync: (nextModule) => {
+      pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildSonarPattern(nextModule, Math.max(8, nextModule.length));
+      stage.querySelectorAll(".triggerDisplaySonarBlip").forEach((el) => el.remove());
+      blips.length = 0;
+      const count = clamp(7 + Math.round(nextModule.density * 14), 6, 20);
+      for (let i = 0; i < count; i++) {
+        const blip = document.createElement("span");
+        blip.className = "triggerDisplaySonarBlip";
+        const radius = 16 + hash01(nextModule.seed * 0.37 + i * 19.3) * 44;
+        const angle = hash01(nextModule.seed * 0.19 + i * 7.7) * Math.PI * 2;
+        blip.style.setProperty("--sonar-x", `${(Math.cos(angle) * radius).toFixed(2)}px`);
+        blip.style.setProperty("--sonar-y", `${(Math.sin(angle) * radius).toFixed(2)}px`);
+        blip.style.setProperty("--sonar-phase", `${(hash01(nextModule.seed * 0.43 + i * 11.2) * 0.9 + 0.1).toFixed(3)}`);
+        stage.appendChild(blip);
+        blips.push(blip);
+      }
+      lastPlayhead = -1;
+    },
+    tick: (timeMs, liveModule) => {
+      const steps = Math.max(1, pattern.length || liveModule.length || 16);
+      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, steps);
+      const sweepAngle = ((playhead / steps) * 360) - 90;
+      sweep.style.setProperty("--sonar-angle", `${sweepAngle.toFixed(3)}deg`);
+      pulse.style.setProperty("--sonar-pulse", `${((timeMs * 0.0018) % 1).toFixed(3)}`);
+      if (playhead === lastPlayhead) return;
+      const hit = pattern[playhead % Math.max(1, pattern.length)] === 1;
+      blips.forEach((blip, index) => {
+        const phase = Number(blip.style.getPropertyValue("--sonar-phase")) || 0.5;
+        const local = Math.cos((sweepAngle * Math.PI) / 180 + phase * Math.PI * 2 + index * 0.3);
+        const strength = clamp((local + 1) * 0.5, 0, 1);
+        blip.style.setProperty("--sonar-hit", hit ? strength.toFixed(3) : (strength * 0.45).toFixed(3));
+        blip.classList.toggle("is-hot", hit && strength > 0.68);
+      });
+      lastPlayhead = playhead;
+    },
+  };
 }
 
 function createStepSequencerView(module: TriggerModule, params: TriggerDisplayParams, state: StepGridState): DisplayView {
@@ -489,10 +542,11 @@ function createCellularView(params: TriggerDisplayParams): DisplayView {
   return {
     root,
     sync: (nextModule) => {
-      cols = clamp(Math.round(nextModule.length / 2), 8, 20);
-      rows = clamp(6 + Math.round(nextModule.subdiv), 6, 12);
+      cols = clamp(Math.round(nextModule.length / 2), 8, 16);
+      rows = clamp(5 + Math.round(nextModule.subdiv), 6, 10);
       root.style.setProperty("--trigger-display-cols", String(cols));
       root.style.setProperty("--trigger-display-rows", String(rows));
+      root.style.setProperty("--trigger-cell-gap", cols > 12 ? "2px" : "3px");
       const total = cols * rows;
 
       if (cells.length !== total) {
@@ -506,7 +560,7 @@ function createCellularView(params: TriggerDisplayParams): DisplayView {
         }
       }
 
-      generations = buildCARows(nextModule, rows * 3, cols);
+      generations = buildCARows(nextModule, Math.max(rows * 3, 24), cols);
       baseGeneration = 0;
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
@@ -564,28 +618,42 @@ function createFractalView(): DisplayView {
   root.className = "triggerDisplayFractalWrap";
 
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 220 90");
+  svg.setAttribute("viewBox", "0 0 220 92");
   svg.setAttribute("class", "triggerDisplayFractal");
 
+  const pathParent = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pathParent.setAttribute("class", "triggerDisplayFractalPath triggerDisplayFractalPath--echo");
   const pathMain = document.createElementNS("http://www.w3.org/2000/svg", "path");
   pathMain.setAttribute("class", "triggerDisplayFractalPath");
-  const pathEcho = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  pathEcho.setAttribute("class", "triggerDisplayFractalPath triggerDisplayFractalPath--echo");
+  const pathChildA = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pathChildA.setAttribute("class", "triggerDisplayFractalPath triggerDisplayFractalPath--child");
+  const pathChildB = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  pathChildB.setAttribute("class", "triggerDisplayFractalPath triggerDisplayFractalPath--child");
   const cursor = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   cursor.setAttribute("class", "triggerDisplayFractalCursor");
   cursor.setAttribute("r", "2.8");
-  svg.append(pathEcho, pathMain, cursor);
+  svg.append(pathParent, pathChildA, pathChildB, pathMain, cursor);
   root.append(svg);
 
   let points: Array<{ x: number; y: number }> = [];
+  let parent: Array<{ x: number; y: number }> = [];
+  let childA: Array<{ x: number; y: number }> = [];
+  let childB: Array<{ x: number; y: number }> = [];
 
   return {
     root,
     sync: (nextModule) => {
-      points = buildFractalPoints(nextModule, 34);
+      points = buildFractalPoints(nextModule, 32);
+      const coarseSource = buildFractalPoints({ ...nextModule, length: Math.max(6, Math.round(nextModule.length / 2)), weird: clamp(nextModule.weird * 0.35, 0, 1) }, 18);
+      const scaleX = 212 / Math.max(1, coarseSource.length - 1);
+      parent = coarseSource.map((pt, i) => ({ x: 4 + i * scaleX, y: clamp(14 + (pt.y - 12) * 0.84, 8, 84) }));
+      const split = Math.floor(points.length / 2);
+      childA = points.slice(0, split).map((pt, i) => ({ x: 8 + (i / Math.max(1, split - 1)) * 94, y: clamp(10 + pt.y * 0.42, 10, 48) }));
+      childB = points.slice(split).map((pt, i) => ({ x: 118 + (i / Math.max(1, points.length - split - 1)) * 94, y: clamp(46 + (pt.y - 45) * 0.42, 46, 84) }));
+      pathParent.setAttribute("d", `M ${parent.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`);
       pathMain.setAttribute("d", `M ${points.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`);
-      const echoed = points.map((point, idx) => ({ x: point.x, y: clamp(point.y + Math.sin(idx * 0.7 + nextModule.gravity * 2) * (2 + nextModule.weird * 6), 8, 84) }));
-      pathEcho.setAttribute("d", `M ${echoed.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`);
+      pathChildA.setAttribute("d", `M ${childA.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`);
+      pathChildB.setAttribute("d", `M ${childB.map((p) => `${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" L ")}`);
     },
     tick: (timeMs, liveModule) => {
       if (!points.length) return;
@@ -1046,6 +1114,28 @@ function generateEuclideanPattern(module: TriggerModule, steps: number) {
     if (jitter > 0.001 && hash01(module.seed + i * 17) < jitter * 0.22) bit = bit ? 0 : 1;
     if (bit && hash01(module.seed + i * 41 + module.drop * 1000) < module.drop * 0.5) bit = 0;
     out[i] = bit;
+  }
+  return out;
+}
+
+function buildSonarPattern(module: TriggerModule, steps: number) {
+  const out = new Uint8Array(steps);
+  const targetCount = clamp(3 + Math.round(module.density * 9), 2, 12);
+  const lock = clamp(module.determinism, 0, 1);
+  const drift = clamp(module.weird, 0, 1);
+  for (let i = 0; i < steps; i++) {
+    const phase = i / Math.max(1, steps);
+    let strongest = 0;
+    for (let target = 0; target < targetCount; target++) {
+      const anchor = hash01(module.seed * 0.011 + target * 0.73);
+      const drifted = (anchor + (hash01(module.seed * 0.021 + i * 0.17 + target * 2.9) - 0.5) * drift * 0.24 + 1) % 1;
+      const distance = Math.abs(phase - drifted);
+      const wrapped = Math.min(distance, 1 - distance);
+      strongest = Math.max(strongest, 1 - wrapped * (4.2 + lock * 2.4));
+    }
+    const bias = 0.18 + module.gravity * 0.24;
+    out[i] = strongest > (1 - module.density * 0.58 - bias) ? 1 : 0;
+    if (out[i] === 1 && hash01(module.seed + i * 61) < module.drop * 0.4) out[i] = 0;
   }
   return out;
 }

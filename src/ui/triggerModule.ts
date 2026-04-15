@@ -31,6 +31,7 @@ const GENERATOR_MODE_LABELS: Record<Mode, { full: string; short: string }> = {
   "genetic-algorithms": { full: "Genetic Algorithms", short: "GA" },
   "one-over-f-noise": { full: "1/f Noise", short: "1/F" },
   "gear": { full: "GEAR", short: "GEAR" },
+  "sonar": { full: "SONAR", short: "SONAR" },
 };
 
 const GENERATOR_MODES: Array<{ value: Mode; label: string }> = (Object.entries(GENERATOR_MODE_LABELS) as Array<[Mode, { full: string }]>)
@@ -699,6 +700,58 @@ const MODE_CONTROL_REGISTRY: Record<Mode, TriggerModeControlSpec[]> = {
       max: 1,
       step: 0.001,
       tooltip: "Introduce slow phase drift between ring playheads.",
+    },
+  ],
+  sonar: [
+    {
+      label: "Targets",
+      key: "density",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Set target population in the scan field.",
+    },
+    {
+      label: "Range",
+      key: "length",
+      min: 4,
+      max: 128,
+      step: 1,
+      integer: true,
+      tooltip: "Set sonar cycle length in steps.",
+    },
+    {
+      label: "Sweep",
+      key: "subdiv",
+      min: 1,
+      max: 8,
+      step: 1,
+      integer: true,
+      tooltip: "Set scan sweep speed.",
+    },
+    {
+      label: "Drift",
+      key: "weird",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Increase target drift and jitter.",
+    },
+    {
+      label: "Lock",
+      key: "determinism",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Control how tightly detections lock to the scan line.",
+    },
+    {
+      label: "Bias",
+      key: "gravity",
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Bias detections toward strong angles.",
     },
   ],
 };

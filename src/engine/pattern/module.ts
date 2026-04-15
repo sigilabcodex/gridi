@@ -9,6 +9,7 @@ export type PatternEvent = {
   readonly voiceId: string;
   readonly beatOffset: number;
   readonly value: number;
+  readonly targetLane?: number;
 };
 
 export type PatternEventWindow = {
@@ -482,6 +483,38 @@ function genFractalPattern(trigger: TriggerModule, voiceId: string) {
   return out;
 }
 
+function genSonarPattern(trigger: TriggerModule, voiceId: string) {
+  const n = patternLength(trigger);
+  const density = clamp01(trigger.density);
+  const lock = clamp01(trigger.determinism);
+  const drift = clamp01(trigger.weird);
+  const bias = clamp01(trigger.gravity);
+  const out = new Uint8Array(n);
+  const targetCount = Math.max(2, Math.min(12, 2 + Math.round(density * 9 + bias * 2)));
+
+  const anchors = new Float64Array(targetCount);
+  for (let i = 0; i < targetCount; i++) anchors[i] = stepRandom01(trigger.seed ^ 0x79e2 + i * 43, voiceId, i);
+
+  for (let step = 0; step < n; step++) {
+    const sweep = (((step + (trigger.euclidRot | 0)) % n) + n) % n;
+    const sweepPhase = sweep / n;
+    let strongest = 0;
+    for (let i = 0; i < targetCount; i++) {
+      const wander = (stepRandom01(trigger.seed ^ 0x7ff1 + i * 29, voiceId, step) - 0.5) * drift * 0.3;
+      const target = (anchors[i] + wander + 1) % 1;
+      const dist = Math.abs(sweepPhase - target);
+      const wrapped = Math.min(dist, 1 - dist);
+      const response = Math.max(0, 1 - wrapped * (4.8 + lock * 2.2));
+      if (response > strongest) strongest = response;
+    }
+    const threshold = clamp01(0.74 - density * 0.56 - bias * 0.14);
+    let bit = strongest > threshold ? 1 : 0;
+    if (bit && stepRandom01(trigger.seed ^ 0x7ac5, voiceId, step) < trigger.drop * 0.42) bit = 0;
+    out[step] = bit;
+  }
+  return out;
+}
+
 function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
   const generated =
     mode === "step-sequencer" ? genStepPattern(trigger)
@@ -494,8 +527,9 @@ function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
                   : mode === "l-systems" ? genLSystemsPattern(trigger, voiceId)
                     : mode === "xronomorph" ? genXronoMorphPattern(trigger, voiceId)
                       : mode === "genetic-algorithms" ? genGeneticPattern(trigger, voiceId)
-                        : mode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
-                          : mode === "gear" ? createGearPattern(trigger, voiceId)
+                      : mode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
+                        : mode === "gear" ? createGearPattern(trigger, voiceId)
+                          : mode === "sonar" ? genSonarPattern(trigger, voiceId)
                           : genHybridPattern(trigger, voiceId);
   const live = trigger.liveState;
   if (!live || live.mode !== mode || live.steps !== generated.length || typeof live.pattern !== "string") return generated;
@@ -551,8 +585,23 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     if (trigger.mode === "markov-chains") return Math.max(0, Math.min(1, pattern[idx] * 0.7 + stepNorm * 0.3));
     if (trigger.mode === "cellular-automata") return localDensity(idx);
     if (trigger.mode === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
+    if (trigger.mode === "sonar") return Math.max(0, Math.min(1, 0.5 + Math.cos((idx / steps) * Math.PI * 2) * 0.5));
     if (trigger.mode === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
     return stepNorm;
+  }
+
+  function stepLane(step: number, idx: number) {
+    if (trigger.mode === "gear") {
+      const teeth = Math.max(2, Math.min(16, Math.round(trigger.length / 4)));
+      return ((Math.floor((idx / Math.max(1, steps)) * teeth) + (trigger.euclidRot | 0)) % 4 + 4) % 4;
+    }
+    if (trigger.mode === "sonar") {
+      return ((Math.floor((idx / Math.max(1, steps)) * 8) + Math.round(trigger.gravity * 3)) % 4 + 4) % 4;
+    }
+    if (trigger.mode === "fractal") {
+      return ((Math.floor(step / Math.max(1, trigger.subdiv | 0)) + Math.round(trigger.weird * 3)) % 4 + 4) % 4;
+    }
+    return ((idx + Math.round(trigger.gravity * 5)) % 4 + 4) % 4;
   }
 
   for (let step = firstStep; ; step++) {
@@ -562,7 +611,7 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
     if (pattern[idx] !== 1) continue;
     if (drop > 0 && stepRandom01(trigger.seed, voiceId, step) < drop) continue;
-    events.push({ voiceId, beatOffset: beat - startBeat, value: stepValue(step, idx) });
+    events.push({ voiceId, beatOffset: beat - startBeat, value: stepValue(step, idx), targetLane: stepLane(step, idx) });
   }
 
   return { startBeat, endBeat, events };

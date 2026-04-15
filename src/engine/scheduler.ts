@@ -2,7 +2,7 @@
 import type { ControlModule, Patch, SoundModule, TriggerModule } from "../patch.ts";
 import { clamp, getSoundModules, isControl, isTrigger } from "../patch.ts";
 import type { Engine } from "./audio";
-import { createPatternModuleForTrigger } from "./pattern/module.ts";
+import { createPatternModuleForTrigger, type PatternEvent } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
 
 export type Scheduler = {
@@ -104,11 +104,18 @@ export function createScheduler(engine: Engine): Scheduler {
       for (const ev of window.events) {
         const eventBeat = window.startBeat + ev.beatOffset;
         if (eventBeat <= st.lastScheduledBeat + 1e-9) continue;
-        const tonalValue = sound.type === "tonal" ? ev.value : undefined;
+        const tonalValue = sound.type === "tonal" ? mapTonalEventValue(ev, effectiveTrigger) : undefined;
         engine.triggerVoice(sound.id, patch, now + ev.beatOffset * secPerBeat, tonalValue);
         st.lastScheduledBeat = eventBeat;
       }
     }
+  }
+
+  function mapTonalEventValue(event: PatternEvent, trigger: TriggerModule) {
+    const lane = ((event.targetLane ?? 0) % 4 + 4) % 4;
+    const laneCenters = [0.18, 0.38, 0.62, 0.84];
+    const modeBias = trigger.mode === "fractal" || trigger.mode === "sonar" ? 0.62 : trigger.mode === "gear" ? 0.68 : 0.52;
+    return clamp(event.value * (1 - modeBias) + laneCenters[lane] * modeBias, 0, 1);
   }
 
   function start() {
