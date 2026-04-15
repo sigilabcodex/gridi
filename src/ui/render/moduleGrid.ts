@@ -47,6 +47,20 @@ const MOBILE_LANDSCAPE_MAX_COLUMNS = 3;
 const MOBILE_LANDSCAPE_MAX_WIDTH = 960;
 const MOBILE_LANDSCAPE_MAX_HEIGHT = 560;
 const CLEAN_FIT_ALLOWANCE_PX = 24;
+const CLEAN_FIT_ALLOWANCE_NARROW_PX = 42;
+
+function fitsCleanColumns(
+  availableWidth: number,
+  columns: number,
+  cellWidth: number,
+  gap: number,
+  padding: number,
+  allowance: number,
+) {
+  if (columns <= 1) return true;
+  const requiredWidth = padding + (cellWidth * columns) + (gap * (columns - 1)) + allowance;
+  return availableWidth >= requiredWidth;
+}
 
 function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
   const cell = document.createElement("div");
@@ -159,25 +173,31 @@ function readVisibleColumnCount(main: HTMLElement) {
   const availableWidth = Math.max(main.clientWidth, cellWidth + padding);
   const fitted = Math.floor((availableWidth - padding + gap) / (cellWidth + gap));
   const fittedColumns = Math.max(MIN_VISIBLE_COLUMNS, fitted || 0);
+  const cleanFittedColumns = Math.max(
+    MIN_VISIBLE_COLUMNS,
+    fitsCleanColumns(availableWidth, fittedColumns, cellWidth, gap, padding, CLEAN_FIT_ALLOWANCE_PX)
+      ? fittedColumns
+      : fittedColumns - 1,
+  );
 
   if (isMobilePortraitViewport()) {
-    return Math.min(MOBILE_PORTRAIT_MAX_COLUMNS, fittedColumns);
+    return Math.min(MOBILE_PORTRAIT_MAX_COLUMNS, cleanFittedColumns);
   }
 
   if (isMobileLandscapeViewport()) {
-    if (fittedColumns < 2) return MIN_VISIBLE_COLUMNS;
-    const cleanTwoColumnWidth = padding + (cellWidth * 2) + gap + CLEAN_FIT_ALLOWANCE_PX;
-    if (availableWidth < cleanTwoColumnWidth) return MIN_VISIBLE_COLUMNS;
+    if (cleanFittedColumns < 2) return MIN_VISIBLE_COLUMNS;
+    if (!fitsCleanColumns(availableWidth, 2, cellWidth, gap, padding, CLEAN_FIT_ALLOWANCE_NARROW_PX)) return MIN_VISIBLE_COLUMNS;
 
-    if (fittedColumns >= MOBILE_LANDSCAPE_MAX_COLUMNS) {
-      const cleanThreeColumnWidth = padding + (cellWidth * 3) + (gap * 2) + CLEAN_FIT_ALLOWANCE_PX;
-      if (availableWidth >= cleanThreeColumnWidth) return MOBILE_LANDSCAPE_MAX_COLUMNS;
+    if (cleanFittedColumns >= MOBILE_LANDSCAPE_MAX_COLUMNS) {
+      if (fitsCleanColumns(availableWidth, 3, cellWidth, gap, padding, CLEAN_FIT_ALLOWANCE_NARROW_PX)) {
+        return MOBILE_LANDSCAPE_MAX_COLUMNS;
+      }
     }
 
     return MOBILE_LANDSCAPE_DEFAULT_COLUMNS;
   }
 
-  return fittedColumns;
+  return cleanFittedColumns;
 }
 
 export function createModuleGridRenderer(params: ModuleGridParams) {
