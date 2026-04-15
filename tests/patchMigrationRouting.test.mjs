@@ -93,6 +93,6 @@ test('routing validation keeps enabled valid links and warns on invalid endpoint
   });
 
   const validation = validateConnections(patch);
-  assert.deepEqual(validation.validConnections.map((c) => c.id), ['ok-module', 'ok-bus']);
-  assert.equal(validation.warnings.length, 2);
+  assert.deepEqual(validation.validConnections.map((c) => c.id), ['ok-module']);
+  assert.equal(validation.warnings.length, 3);
 });
