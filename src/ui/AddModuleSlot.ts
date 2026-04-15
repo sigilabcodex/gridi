@@ -220,15 +220,23 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   slot.addEventListener("dragenter", (e) => {
     e.preventDefault();
     slot.classList.add("dragReady");
+    slot.classList.add("dragMoveReady");
+    slot.closest(".moduleCell")?.classList.add("dragMoveReady");
   });
   slot.addEventListener("dragover", (e) => {
     e.preventDefault();
     slot.classList.add("dragReady");
+    slot.classList.add("dragMoveReady");
+    slot.closest(".moduleCell")?.classList.add("dragMoveReady");
   });
-  slot.addEventListener("dragleave", () => slot.classList.remove("dragReady"));
+  slot.addEventListener("dragleave", () => {
+    slot.classList.remove("dragReady", "dragMoveReady");
+    slot.closest(".moduleCell")?.classList.remove("dragMoveReady");
+  });
   slot.addEventListener("drop", (e) => {
     e.preventDefault();
-    slot.classList.remove("dragReady");
+    slot.classList.remove("dragReady", "dragMoveReady");
+    slot.closest(".moduleCell")?.classList.remove("dragMoveReady");
     const droppedModuleId = e.dataTransfer?.getData("text/module-id") ?? "";
     if (droppedModuleId && params.onDropModule) {
       params.onDropModule(droppedModuleId);

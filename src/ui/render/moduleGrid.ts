@@ -186,6 +186,39 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   let inspectedModuleId: string | null = null;
   let visibleColumns = readVisibleColumnCount(params.main);
   let renderedColumns = visibleColumns;
+  let movedModuleIds = new Set<string>();
+
+  type ScrollSnapshot = {
+    windowX: number;
+    windowY: number;
+    viewportScrollLeft: number;
+  };
+
+  const snapshotScrollPosition = (): ScrollSnapshot => {
+    const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
+    return {
+      windowX: window.scrollX,
+      windowY: window.scrollY,
+      viewportScrollLeft: viewport?.scrollLeft ?? 0,
+    };
+  };
+
+  const restoreScrollPosition = (snapshot: ScrollSnapshot) => {
+    const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
+    if (viewport) viewport.scrollLeft = snapshot.viewportScrollLeft;
+    window.scrollTo(snapshot.windowX, snapshot.windowY);
+    requestAnimationFrame(() => {
+      const refreshedViewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
+      if (refreshedViewport) refreshedViewport.scrollLeft = snapshot.viewportScrollLeft;
+      window.scrollTo(snapshot.windowX, snapshot.windowY);
+    });
+  };
+
+  const rerenderStable = () => {
+    const scrollSnapshot = snapshotScrollPosition();
+    rerender();
+    restoreScrollPosition(scrollSnapshot);
+  };
 
   const removeModule = (moduleId: string) => {
     const prev = params.clonePatch(params.patch());
@@ -206,7 +239,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     params.sched.regenAll();
     params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
-    rerender();
+    rerenderStable();
   };
 
   const moveModuleToCell = (moduleId: string, destination: GridPosition) => {
@@ -219,11 +252,12 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     if (currentPosition && gridPositionKey(currentPosition) === gridPositionKey(destination)) return;
 
     setModuleGridPosition(module, destination);
+    movedModuleIds = new Set([moduleId]);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: false });
     params.saveAndPersist();
-    rerender();
+    rerenderStable();
   };
 
   const swapModulesById = (sourceModuleId: string, targetModuleId: string) => {
@@ -241,11 +275,12 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
     setModuleGridPosition(sourceModule, targetPosition);
     setModuleGridPosition(targetModule, sourcePosition);
+    movedModuleIds = new Set([sourceModuleId, targetModuleId]);
 
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: false });
     params.saveAndPersist();
-    rerender();
+    rerenderStable();
   };
 
   const createModuleAt = (what: Pick, destination: GridPosition) => {
@@ -283,7 +318,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     params.sched.regenAll();
     params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
-    rerender();
+    rerenderStable();
   };
 
   const rerender = () => {
@@ -386,23 +421,42 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
         dragHandle.addEventListener("dragstart", (e) => {
           surface.classList.add("dragging");
+          surface.closest(".moduleCell")?.classList.add("dragSource");
+          params.main.classList.add("moduleDragActive");
           e.dataTransfer?.setData("text/module-id", moduleId);
           e.dataTransfer?.setData("text/module-kind", moduleKind);
           if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
         });
-        dragHandle.addEventListener("dragend", () => surface.classList.remove("dragging"));
+        dragHandle.addEventListener("dragend", () => {
+          surface.classList.remove("dragging");
+          surface.closest(".moduleCell")?.classList.remove("dragSource");
+          params.main.classList.remove("moduleDragActive");
+          params.main.querySelectorAll(".moduleCell.dragSwapReady, .moduleCell.dragMoveReady").forEach((cell) => {
+            cell.classList.remove("dragSwapReady", "dragMoveReady");
+          });
+        });
       }
       surface.addEventListener("pointerdown", inspect);
       surface.addEventListener("focusin", inspect);
       surface.addEventListener("dragenter", (e) => {
         e.preventDefault();
+        surface.classList.add("dragSwapReady");
+        surface.closest(".moduleCell")?.classList.add("dragSwapReady");
       });
       surface.addEventListener("dragover", (e) => {
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        surface.classList.add("dragSwapReady");
+        surface.closest(".moduleCell")?.classList.add("dragSwapReady");
+      });
+      surface.addEventListener("dragleave", () => {
+        surface.classList.remove("dragSwapReady");
+        surface.closest(".moduleCell")?.classList.remove("dragSwapReady");
       });
       surface.addEventListener("drop", (e) => {
         e.preventDefault();
+        surface.classList.remove("dragSwapReady");
+        surface.closest(".moduleCell")?.classList.remove("dragSwapReady");
         const droppedModuleId = e.dataTransfer?.getData("text/module-id") ?? "";
         if (!droppedModuleId) return;
         swapModulesById(droppedModuleId, moduleId);
@@ -581,6 +635,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         const module = modulesByPosition.get(gridPositionKey(position));
         if (module) {
           const surface = renderModuleSurface(module, position);
+          if (movedModuleIds.has(module.id)) {
+            surface.classList.add("dropSettled");
+            requestAnimationFrame(() => surface.classList.remove("dropSettled"));
+          }
           workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
           continue;
         }
@@ -606,6 +664,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     }
 
     applyRoutingHighlight();
+    movedModuleIds.clear();
   };
 
   const resizeObserver = typeof ResizeObserver === "undefined"
