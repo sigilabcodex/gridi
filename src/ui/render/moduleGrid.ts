@@ -226,6 +226,28 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerender();
   };
 
+  const swapModulesById = (sourceModuleId: string, targetModuleId: string) => {
+    if (sourceModuleId === targetModuleId) return;
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const sourceModule = nextPatch.modules.find((m) => m.id === sourceModuleId);
+    const targetModule = nextPatch.modules.find((m) => m.id === targetModuleId);
+    if (!sourceModule || !targetModule) return;
+
+    const sourcePosition = getModuleGridPosition(sourceModule);
+    const targetPosition = getModuleGridPosition(targetModule);
+    if (!sourcePosition || !targetPosition) return;
+
+    setModuleGridPosition(sourceModule, targetPosition);
+    setModuleGridPosition(targetModule, sourcePosition);
+
+    params.pushHistory(prev);
+    params.sched.setPatch(nextPatch, { regen: false });
+    params.saveAndPersist();
+    rerender();
+  };
+
   const createModuleAt = (what: Pick, destination: GridPosition) => {
     const prev = params.clonePatch(params.patch());
     const nextPatch = params.patch();
@@ -372,6 +394,19 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
       surface.addEventListener("pointerdown", inspect);
       surface.addEventListener("focusin", inspect);
+      surface.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+      });
+      surface.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      });
+      surface.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const droppedModuleId = e.dataTransfer?.getData("text/module-id") ?? "";
+        if (!droppedModuleId) return;
+        swapModulesById(droppedModuleId, moduleId);
+      });
     };
 
     const resolveRenderedSurface = (moduleRoot: HTMLElement, moduleType: string, moduleId: string) => {
