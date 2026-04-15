@@ -3,6 +3,7 @@ import type { Patch } from "../patch";
 import type { VisualModule } from "../patch";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
+import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
@@ -108,7 +109,7 @@ export function renderVisualSurface(
   onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   attachTooltip?: TooltipBinder,
 ) {
-  const surface = el("section", "moduleSurface visualSurface");
+  const surface = el("section", "moduleSurface moduleSurface--withStatus visualSurface");
   surface.dataset.type = "visual";
 
   const header = el("div", "surfaceHeader");
@@ -152,29 +153,182 @@ export function renderVisualSurface(
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("visualSurfaceBody", "visualMainLayout");
 
-  const chipRow = createFaceplateSection("io", "visualMetaRow");
+  const chipRow = createFaceplateSection("io", "visualMetaRow visualChipRow");
   const modeChip = document.createElement("button");
   modeChip.type = "button";
-  modeChip.className = "routingChip routingChip-muted visualTopChipButton";
+  modeChip.className = "routingChip routingChip-muted visualChipButton";
   modeChip.setAttribute("aria-label", "Visual mode");
-  const sourceChip = createRoutingChip(`SRC ${visualSource?.sourceLabel ?? "MASTER"}`, visualSource ? "connected" : "muted");
+  modeChip.setAttribute("aria-haspopup", "dialog");
+
+  const sourceChip = document.createElement("button");
+  sourceChip.type = "button";
+  sourceChip.className = `routingChip visualChipButton ${visualSource ? "routingChip-connected" : "routingChip-muted"}`;
+  sourceChip.setAttribute("aria-label", "Visual source");
+  sourceChip.setAttribute("aria-haspopup", "dialog");
+
   const fftChip = document.createElement("button");
   fftChip.type = "button";
-  fftChip.className = "routingChip routingChip-muted visualTopChipButton";
+  fftChip.className = "routingChip routingChip-muted visualChipButton";
   fftChip.setAttribute("aria-label", "FFT size");
+  fftChip.setAttribute("aria-haspopup", "dialog");
   chipRow.append(modeChip, sourceChip, fftChip);
 
   const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "pattern"];
-  const fftSizes: Array<VisualModule["fftSize"]> = [512, 1024, 2048, 4096];
-  modeChip.onclick = () => {
-    const current = visualModes.indexOf(vm.kind);
-    vm.kind = visualModes[(current + 1) % visualModes.length];
-    syncFooter();
+  const fftSizes: Array<NonNullable<VisualModule["fftSize"]>> = [512, 1024, 2048, 4096];
+  const sourceOptions = [{ value: "master", label: visualSource?.sourceLabel ?? "Master mix" }];
+
+  let openPanelCleanup: { destroy: () => void } | null = null;
+  let openPanel: HTMLElement | null = null;
+  let openTrigger: HTMLElement | null = null;
+  const closeChipPanel = () => {
+    if (openPanelCleanup) {
+      openPanelCleanup.destroy();
+      openPanelCleanup = null;
+    }
+    openPanel?.remove();
+    openPanel = null;
+    if (openTrigger) {
+      openTrigger.classList.remove("isOpen");
+      openTrigger.setAttribute("aria-expanded", "false");
+      openTrigger = null;
+    }
   };
+
+  const openChipPanel = <T extends string | number>(params: {
+    trigger: HTMLButtonElement;
+    label: string;
+    align: "start" | "end";
+    minWidth: number;
+    maxWidth: number;
+    options: Array<{ value: T; label: string }>;
+    selected: () => T;
+    onSelect: (value: T) => void;
+  }) => {
+    if (openPanel && openTrigger === params.trigger) {
+      closeChipPanel();
+      return;
+    }
+    closeChipPanel();
+
+    const panel = document.createElement("div");
+    panel.className = "floatingPanel visualChipSelectorPanel";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-label", params.label);
+
+    const list = document.createElement("div");
+    list.className = "visualChipSelectorList";
+    const selected = params.selected();
+    params.options.forEach((option) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = `visualChipSelectorRow${option.value === selected ? " isSelected" : ""}`;
+
+      const mark = document.createElement("span");
+      mark.className = "visualChipSelectorMark";
+      mark.textContent = option.value === selected ? "✓" : "";
+      const value = document.createElement("span");
+      value.className = "visualChipSelectorValue";
+      value.textContent = option.label;
+      row.append(mark, value);
+      row.onclick = () => {
+        closeChipPanel();
+        params.onSelect(option.value);
+      };
+      list.appendChild(row);
+    });
+
+    panel.appendChild(list);
+    document.body.appendChild(panel);
+
+    placeFloatingPanel(panel, params.trigger.getBoundingClientRect(), {
+      preferredSide: "bottom",
+      align: params.align,
+      offset: 8,
+      minWidth: params.minWidth,
+      maxWidth: params.maxWidth,
+    });
+    const reposition = bindFloatingPanelReposition(
+      panel,
+      () => (params.trigger.isConnected ? params.trigger.getBoundingClientRect() : null),
+      {
+        preferredSide: "bottom",
+        align: params.align,
+        offset: 8,
+        minWidth: params.minWidth,
+        maxWidth: params.maxWidth,
+      },
+    );
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (panel.contains(target) || params.trigger.contains(target)) return;
+      closeChipPanel();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeChipPanel();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    openPanelCleanup = {
+      destroy() {
+        reposition.destroy();
+        document.removeEventListener("pointerdown", onPointerDown, true);
+        document.removeEventListener("keydown", onKeyDown, true);
+      },
+    };
+
+    openPanel = panel;
+    openTrigger = params.trigger;
+    params.trigger.classList.add("isOpen");
+    params.trigger.setAttribute("aria-expanded", "true");
+  };
+
+  modeChip.onclick = () => {
+    openChipPanel<VisualModule["kind"]>({
+      trigger: modeChip,
+      label: `${vm.name} visual mode`,
+      align: "start",
+      minWidth: 150,
+      maxWidth: 190,
+      options: visualModes.map((kind) => ({ value: kind, label: VISUAL_MODE_SPECS[kind].label })),
+      selected: () => vm.kind,
+      onSelect: (value) => onPatchChange((patch) => {
+        const module = patch.modules.find((item) => item.id === vm.id);
+        if (module?.type === "visual") module.kind = value;
+      }, { regen: false }),
+    });
+  };
+
+  sourceChip.onclick = () => {
+    openChipPanel({
+      trigger: sourceChip,
+      label: `${vm.name} visual source`,
+      align: "start",
+      minWidth: 150,
+      maxWidth: 220,
+      options: sourceOptions,
+      selected: () => "master",
+      onSelect: () => {},
+    });
+  };
+
   fftChip.onclick = () => {
-    const current = fftSizes.indexOf(vm.fftSize ?? 2048);
-    vm.fftSize = fftSizes[(current + 1) % fftSizes.length];
-    syncFooter();
+    openChipPanel<NonNullable<VisualModule["fftSize"]>>({
+      trigger: fftChip,
+      label: `${vm.name} fft size`,
+      align: "end",
+      minWidth: 140,
+      maxWidth: 180,
+      options: fftSizes.map((size) => ({ value: size, label: `${size}` })),
+      selected: () => vm.fftSize ?? 2048,
+      onSelect: (value) => onPatchChange((patch) => {
+        const module = patch.modules.find((item) => item.id === vm.id);
+        if (module?.type === "visual") module.fftSize = value;
+      }, { regen: false }),
+    });
   };
 
   const canvasWrap = createFaceplateSection("feature", "visualDisplayWrap");

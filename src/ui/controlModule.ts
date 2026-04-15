@@ -35,7 +35,7 @@ export function renderControlSurface(
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
-  surface.className = "moduleSurface controlSurface";
+  surface.className = "moduleSurface moduleSurface--withStatus controlSurface";
   surface.dataset.type = "control";
 
   const header = document.createElement("div");
