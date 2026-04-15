@@ -74,6 +74,7 @@ type ControlPresetState = Pick<ControlModule,
   | "amount"
   | "phase"
   | "rate"
+  | "drift"
   | "randomness"
 >;
 
@@ -232,6 +233,7 @@ function snapshotModulePresetState(module: Module): ModulePresetState | null {
       amount: module.amount,
       phase: module.phase,
       rate: module.rate,
+      drift: module.drift,
       randomness: module.randomness,
     };
     return state;

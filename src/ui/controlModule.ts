@@ -16,17 +16,17 @@ import {
 } from "./routingVisibility";
 
 const KINDS: ControlKind[] = ["lfo", "drift", "stepped"];
-const WAVES: LfoWaveform[] = ["sine", "triangle", "square", "random"];
+const WAVES: Array<{ value: LfoWaveform; label: string }> = [
+  { value: "sine", label: "∿ Sine" },
+  { value: "triangle", label: "△ Tri" },
+  { value: "square", label: "▢ Sqr" },
+  { value: "saw", label: "⟋ Saw" },
+  { value: "ramp", label: "⟍ Ramp" },
+  { value: "random", label: "⋄ W" },
+];
 
 function formatControlInstanceToken(name: string) {
   return name.trim().replace(/\s+/g, "_").toUpperCase();
-}
-
-function createControlGridGhostSlot() {
-  const slot = document.createElement("div");
-  slot.className = "controlGridGhostSlot";
-  slot.setAttribute("aria-hidden", "true");
-  return slot;
 }
 
 export function renderControlSurface(
@@ -92,6 +92,7 @@ export function renderControlSurface(
   const kindField = createCompactSelectField({
     label: "Mode",
     className: "compactSelectField--chip",
+    includeEmptyOption: false,
     options: KINDS.map((kind) => ({ value: kind, label: kind.toUpperCase() })),
     selected: mod.kind,
     onChange: (value) => onPatchChange((p) => {
@@ -103,7 +104,8 @@ export function renderControlSurface(
   const waveField = createCompactSelectField({
     label: "Shape",
     className: "compactSelectField--chip",
-    options: WAVES.map((wave) => ({ value: wave, label: wave })),
+    includeEmptyOption: false,
+    options: WAVES,
     selected: mod.waveform,
     onChange: (value) => onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === mod.id);
@@ -140,9 +142,18 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.rate = x;
     }, { regen: false }) }),
-    createControlGridGhostSlot(),
-    createControlGridGhostSlot(),
-    createControlGridGhostSlot(),
+    ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === mod.id);
+      if (m?.type === "control") m.phase = x;
+    }, { regen: false }) }),
+    ctlFloat({ label: "Drift", value: mod.drift, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === mod.id);
+      if (m?.type === "control") m.drift = x;
+    }, { regen: false }) }),
+    ctlFloat({ label: "Var", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
+      const m = p.modules.find((z) => z.id === mod.id);
+      if (m?.type === "control") m.randomness = x;
+    }, { regen: false }) }),
   );
 
   panelMain.append(
@@ -167,29 +178,10 @@ export function renderControlSurface(
   targetCard.appendChild(targetList);
   panelRouting.appendChild(targetCard);
 
-  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel controlSettingsPanel");
-  const settingsKnobGrid = createFaceplateSection("controls", "moduleKnobGrid controlAdvancedKnobGrid");
-  settingsKnobGrid.append(
-    ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
-      const m = p.modules.find((z) => z.id === mod.id);
-      if (m?.type === "control") m.phase = x;
-    }, { regen: false }) }),
-    ctlFloat({ label: "Rand", value: mod.randomness, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
-      const m = p.modules.find((z) => z.id === mod.id);
-      if (m?.type === "control") m.randomness = x;
-    }, { regen: false }) }),
-    createControlGridGhostSlot(),
-    createControlGridGhostSlot(),
-    createControlGridGhostSlot(),
-    createControlGridGhostSlot(),
-  );
-  panelSettings.append(settingsKnobGrid);
-
   const shell = createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: "MAIN",
   });
@@ -209,7 +201,7 @@ export function renderControlSurface(
   const syncFooter = () => {
     stateToken.textContent = runtimeStateLabel(isTransportPlaying(), mod.enabled);
     modeToken.textContent = `MODE ${(mod.kind ?? "lfo").toUpperCase()}`;
-    metaToken.textContent = `RATE ${mod.rate.toFixed(2)}`;
+    metaToken.textContent = `RATE ${mod.rate.toFixed(2)} · DRIFT ${mod.drift.toFixed(2)}`;
   };
 
   const displayCtx = display.getContext("2d");
@@ -277,7 +269,7 @@ export function renderControlSurface(
     const val = sampleControl01(mod, animationSeconds);
     routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
     const pct = Math.round(val * 100);
-    readout.textContent = `${active ? "RUN" : "IDLE"} ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.randomness * 100)}`;
+    readout.textContent = `${active ? "RUN" : "IDLE"} ${pct}% · SPD ${Math.round(mod.speed * 100)} · DRIFT ${Math.round(mod.drift * 100)} · VAR ${Math.round(mod.randomness * 100)}`;
     if (active) drawDisplay();
     syncFooter();
     waveField.select.disabled = mod.kind !== "lfo";

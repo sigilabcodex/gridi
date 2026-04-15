@@ -80,7 +80,7 @@ type SoundBase = ModuleBase & {
 };
 
 export type ControlKind = "lfo" | "drift" | "stepped";
-export type LfoWaveform = "sine" | "triangle" | "square" | "random";
+export type LfoWaveform = "sine" | "triangle" | "square" | "saw" | "ramp" | "random";
 
 export type ControlModule = ModuleBase & {
   type: "control";
@@ -91,6 +91,7 @@ export type ControlModule = ModuleBase & {
   amount: number;
   phase: number;
   rate: number;
+  drift: number;
   randomness: number;
 };
 
@@ -282,6 +283,7 @@ export function makeControl(kind: ControlKind, i = 0): ControlModule {
     amount: 0.55,
     phase: 0,
     rate: kind === "stepped" ? 0.5 : 0.35,
+    drift: kind === "drift" ? 0.45 : 0.2,
     randomness: kind === "stepped" ? 0.45 : 0.3,
   };
 }
@@ -530,7 +532,7 @@ function normalizeTonalModule(raw: any): TonalModule {
 
 function normalizeControlModule(raw: any): ControlModule {
   const kind: ControlKind = raw?.kind === "drift" || raw?.kind === "stepped" ? raw.kind : "lfo";
-  const waveform: LfoWaveform = raw?.waveform === "triangle" || raw?.waveform === "square" || raw?.waveform === "random"
+  const waveform: LfoWaveform = raw?.waveform === "triangle" || raw?.waveform === "square" || raw?.waveform === "saw" || raw?.waveform === "ramp" || raw?.waveform === "random"
     ? raw.waveform
     : "sine";
   return {
@@ -546,6 +548,7 @@ function normalizeControlModule(raw: any): ControlModule {
     amount: clamp(typeof raw?.amount === "number" ? raw.amount : 0.55, 0, 1),
     phase: clamp(typeof raw?.phase === "number" ? raw.phase : 0, 0, 1),
     rate: clamp(typeof raw?.rate === "number" ? raw.rate : 0.35, 0, 1),
+    drift: clamp(typeof raw?.drift === "number" ? raw.drift : kind === "drift" ? 0.45 : 0.2, 0, 1),
     randomness: clamp(typeof raw?.randomness === "number" ? raw.randomness : 0.3, 0, 1),
   };
 }

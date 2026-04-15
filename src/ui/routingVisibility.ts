@@ -203,6 +203,7 @@ export function createCompactSelectField(params: {
   options: Array<{ value: string; label: string }>;
   selected: string | null | undefined;
   emptyLabel?: string;
+  includeEmptyOption?: boolean;
   className?: string;
   tooltip?: string;
   attachTooltip?: TooltipBinder;
@@ -213,11 +214,13 @@ export function createCompactSelectField(params: {
   const sel = document.createElement("select");
   sel.className = "compactSelectInput";
 
-  const none = document.createElement("option");
-  none.value = "";
-  none.textContent = params.emptyLabel ?? "None";
-  if (!params.selected) none.selected = true;
-  sel.appendChild(none);
+  if (params.includeEmptyOption ?? true) {
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = params.emptyLabel ?? "None";
+    if (!params.selected) none.selected = true;
+    sel.appendChild(none);
+  }
 
   for (const option of params.options) {
     const node = document.createElement("option");
