@@ -4547,10 +4547,11 @@ button:focus-visible,
   display: grid;
   grid-template-columns: repeat(var(--trigger-display-cols, 16), minmax(0, 1fr));
   grid-template-rows: repeat(var(--trigger-display-rows, 8), minmax(0, 1fr));
-  gap: 4px;
+  gap: var(--trigger-cell-gap, 3px);
   align-content: stretch;
   overflow: clip;
   min-height: 0;
+  max-width: 100%;
 }
 
 .triggerDisplayStepGrid {
@@ -4617,6 +4618,12 @@ button:focus-visible,
 .triggerDisplayFractalPath--echo {
   stroke: rgba(178, 133, 221, 0.48);
   stroke-width: 1.3;
+}
+
+.triggerDisplayFractalPath--child {
+  stroke: rgba(164, 221, 255, 0.58);
+  stroke-width: 1.15;
+  stroke-dasharray: 2.6 2.1;
 }
 
 .triggerDisplayFractalCursor {
@@ -4964,33 +4971,43 @@ button:focus-visible,
   border: 1px solid rgba(174, 141, 206, 0.2);
 }
 
-.triggerDisplayGearSegment {
+.triggerDisplayGearTick {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 8%;
-  height: 18%;
+  width: 1px;
+  height: 11%;
   border-radius: 1px;
-  background: rgba(139, 106, 171, 0.22);
-  border: 1px solid rgba(220, 190, 247, 0.08);
+  background: rgba(197, 162, 234, calc(0.22 + (var(--gear-tick-major, 0) * 0.3)));
   transform:
     translate(-50%, -50%)
     rotate(var(--gear-tooth-angle))
-    translateY(-44%);
+    translateY(-45%);
   transform-origin: 50% 50%;
+}
+
+.triggerDisplayGearSlot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(137, 114, 169, 0.35);
+  transform: translate(-50%, -50%) rotate(var(--gear-tooth-angle)) translateY(-39%);
   transition: background 100ms ease, box-shadow 100ms ease;
 }
 
-.triggerDisplayGearSegment.on {
-  background: rgba(222, 189, 252, 0.58);
+.triggerDisplayGearSlot.on {
+  background: rgba(214, 182, 246, 0.75);
 }
 
-.triggerDisplayGearSegment.is-playhead {
+.triggerDisplayGearSlot.is-playhead {
   background: rgba(163, 228, 255, 0.96);
   box-shadow: 0 0 8px rgba(153, 220, 255, 0.76);
 }
 
-.triggerDisplayGearSegment.is-aligned {
+.triggerDisplayGearSlot.is-aligned {
   background: rgba(167, 255, 207, 0.98);
   box-shadow: 0 0 10px rgba(161, 252, 203, 0.78);
 }
@@ -5020,23 +5037,6 @@ button:focus-visible,
   height: 8px;
   transform: translateX(-50%);
   background: rgba(160, 219, 252, 0.7);
-}
-
-.triggerDisplayGearBadge {
-  position: absolute;
-  right: 6px;
-  top: 4px;
-  transform: none;
-  font-size: 8px;
-  letter-spacing: 0.35px;
-  line-height: 1;
-  color: rgba(214, 237, 252, 0.88);
-  text-transform: uppercase;
-  background: rgba(16, 14, 26, 0.74);
-  border: 1px solid rgba(136, 190, 219, 0.3);
-  border-radius: 3px;
-  padding: 1px 3px;
-  pointer-events: none;
 }
 
 .triggerDisplayGearCoincidence {
@@ -5077,6 +5077,92 @@ button:focus-visible,
 
 .triggerDisplayGearStage.is-coincident .triggerDisplayGearCoincidence {
   opacity: 1;
+}
+
+.triggerDisplaySonar {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.triggerDisplaySonarStage {
+  width: min(100%, 132px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(173, 193, 227, 0.36);
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(166, 214, 248, 0.07) 0 1px, transparent 1px 16px),
+    linear-gradient(180deg, rgba(17, 27, 41, 0.86), rgba(8, 12, 20, 0.9));
+  position: relative;
+  overflow: clip;
+}
+
+.triggerDisplaySonarSweep {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 52%;
+  transform-origin: 50% 100%;
+  transform: translate(-50%, -100%) rotate(var(--sonar-angle, 0deg));
+  background: linear-gradient(180deg, rgba(157, 229, 255, 0.94), rgba(157, 229, 255, 0.06));
+  box-shadow: 0 0 10px rgba(150, 218, 255, 0.34);
+}
+
+.triggerDisplaySonarPulse {
+  position: absolute;
+  inset: 0;
+}
+
+.triggerDisplaySonarPulse::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(10px + var(--sonar-pulse, 0.4) * 48px);
+  height: calc(10px + var(--sonar-pulse, 0.4) * 48px);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid rgba(152, 225, 255, 0.25);
+}
+
+.triggerDisplaySonarBlip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px)));
+  background: rgba(173, 222, 255, calc(0.2 + var(--sonar-hit, 0.1) * 0.66));
+  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 8px) rgba(160, 223, 255, 0.52);
+}
+
+.triggerDisplaySonarBlip.is-hot {
+  background: rgba(176, 255, 211, 0.95);
+}
+
+.synthHeaderSelectors {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+}
+
+.synthHeaderSelect {
+  min-width: 0;
+}
+
+.synthHeaderSelect .compactSelectLabel {
+  font-size: 9px;
+}
+
+.synthHeaderSelect .compactSelectInput {
+  min-width: 58px;
+  max-width: 66px;
+  font-size: 10px;
+  padding: 2px 14px 2px 6px;
 }
 
 .triggerDisplayPlaceholder {
