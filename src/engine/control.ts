@@ -17,15 +17,21 @@ function smoothstep(t: number) {
 
 export function sampleControlBipolar(control: ControlModule, timeSec: number): number {
   const amount = clamp(control.amount, 0, 1);
+  const drift = clamp(control.drift, 0, 1);
+  const randomness = clamp(control.randomness, 0, 1);
 
   if (control.kind === "lfo") {
     const hz = 0.03 + clamp(control.speed, 0, 1) * 12;
     const phase = fract(control.phase + timeSec * hz);
+    const jitter = (hash(Math.floor(timeSec * (1.5 + drift * 4)) + control.id.length * 31) * 2 - 1) * (0.12 * drift);
+    const warpedPhase = fract(phase + jitter);
     let wave = 0;
-    if (control.waveform === "sine") wave = Math.sin(phase * TAU);
-    if (control.waveform === "triangle") wave = 1 - 4 * Math.abs(phase - 0.5);
-    if (control.waveform === "square") wave = phase < 0.5 ? 1 : -1;
-    if (control.waveform === "random") wave = hash(Math.floor(phase + timeSec * hz) + control.id.length * 17) * 2 - 1;
+    if (control.waveform === "sine") wave = Math.sin(warpedPhase * TAU);
+    if (control.waveform === "triangle") wave = 1 - 4 * Math.abs(warpedPhase - 0.5);
+    if (control.waveform === "square") wave = warpedPhase < 0.5 ? 1 : -1;
+    if (control.waveform === "saw") wave = warpedPhase * 2 - 1;
+    if (control.waveform === "ramp") wave = 1 - warpedPhase * 2;
+    if (control.waveform === "random") wave = hash(Math.floor(warpedPhase + timeSec * hz) + control.id.length * 17) * 2 - 1;
     return clamp(wave * amount, -1, 1);
   }
 
@@ -36,15 +42,20 @@ export function sampleControlBipolar(control: ControlModule, timeSec: number): n
     const t = smoothstep(fract(phase));
     const a = hash(i + 10.31) * 2 - 1;
     const b = hash(i + 11.97) * 2 - 1;
-    return clamp((a + (b - a) * t) * amount, -1, 1);
+    const smooth = a + (b - a) * t;
+    const stepped = hash(i + 22.61) * 2 - 1;
+    const wave = smooth * (1 - drift) + stepped * drift;
+    return clamp(wave * amount, -1, 1);
   }
 
   const rate = 0.1 + clamp(control.rate, 0, 1) * 10;
-  const randomness = clamp(control.randomness, 0, 1);
   const step = Math.floor(timeSec * rate + control.id.length * 0.67);
+  const previousStep = Math.floor((timeSec - (0.06 + drift * 0.1)) * rate + control.id.length * 0.67);
   const stepped = ((step % 8) / 7) * 2 - 1;
+  const delayed = ((previousStep % 8) / 7) * 2 - 1;
   const rnd = hash(step + 99.1) * 2 - 1;
-  return clamp((stepped * (1 - randomness) + rnd * randomness) * amount, -1, 1);
+  const wandering = stepped * (1 - drift) + delayed * drift;
+  return clamp((wandering * (1 - randomness) + rnd * randomness) * amount, -1, 1);
 }
 
 export function sampleControl01(control: ControlModule, timeSec: number): number {
