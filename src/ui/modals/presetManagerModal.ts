@@ -52,46 +52,72 @@ export function openPresetManagerModal(params: PresetManagerModalParams) {
   actions.append(btnNew, btnSave, btnImport, btnExportPreset, btnExportSession);
   body.appendChild(actions);
 
+  const filterWrap = el("div", "presetManagerFilterWrap");
+  const filterLabel = el("label", "small presetManagerFilterLabel", "Find session");
+  const filterInput = el("input", "presetManagerFilterInput") as HTMLInputElement;
+  filterInput.type = "search";
+  filterInput.maxLength = 72;
+  filterInput.spellcheck = false;
+  filterInput.placeholder = "Search by session name";
+  filterWrap.append(filterLabel, filterInput);
+  body.appendChild(filterWrap);
+
   const list = el("div", "presetList");
-  params.presets.forEach((preset) => {
-    const row = el("div", "presetRow");
-    const meta = el("div", "presetMeta");
-    const name = el("div", preset.id === params.selectedPresetId ? "presetName active" : "presetName", preset.name);
-    const ts = el("div", "small", `updated ${new Date(preset.updatedAt).toLocaleString()}`);
-    meta.append(name, ts);
+  list.classList.add("presetListScrollable");
+  const empty = el("div", "small presetManagerEmpty hidden", "No sessions match this filter.");
 
-    const btnLoad = el("button", "", "Load");
-    btnLoad.onclick = () => {
-      params.onSelectPreset(preset.id);
-      m.destroy();
-    };
+  const renderList = (rawFilter: string) => {
+    list.replaceChildren();
+    const filter = rawFilter.trim().toLowerCase();
+    const visible = params.presets.filter((preset) => !filter || preset.name.toLowerCase().includes(filter));
 
-    const btnRename = el("button", "", "Rename");
-    btnRename.onclick = () => {
-      const next = prompt("Rename preset", preset.name);
-      if (!next) return;
-      params.onRenamePreset(preset.id, next);
-      m.destroy();
-    };
+    visible.forEach((preset) => {
+      const row = el("div", "presetRow");
+      const meta = el("div", "presetMeta");
+      const name = el("div", preset.id === params.selectedPresetId ? "presetName active" : "presetName", preset.name);
+      const ts = el("div", "small", `updated ${new Date(preset.updatedAt).toLocaleString()}`);
+      meta.append(name, ts);
 
-    const btnDuplicate = el("button", "", "Duplicate");
-    btnDuplicate.onclick = () => {
-      params.onDuplicatePreset(preset.id);
-      m.destroy();
-    };
+      const btnLoad = el("button", "", "Load");
+      btnLoad.onclick = () => {
+        params.onSelectPreset(preset.id);
+        m.destroy();
+      };
 
-    const btnDelete = el("button", "danger", "Delete");
-    btnDelete.onclick = () => {
-      params.onDeletePreset(preset.id);
-      m.destroy();
-    };
+      const btnRename = el("button", "", "Rename");
+      btnRename.onclick = () => {
+        const next = prompt("Rename preset", preset.name);
+        if (!next) return;
+        params.onRenamePreset(preset.id, next);
+        m.destroy();
+      };
 
-    const btns = el("div", "settingsBtnRow");
-    btns.append(btnLoad, btnRename, btnDuplicate, btnDelete);
-    row.append(meta, btns);
-    list.appendChild(row);
-  });
+      const btnDuplicate = el("button", "", "Duplicate");
+      btnDuplicate.onclick = () => {
+        params.onDuplicatePreset(preset.id);
+        m.destroy();
+      };
+
+      const btnDelete = el("button", "danger", "Delete");
+      btnDelete.onclick = () => {
+        params.onDeletePreset(preset.id);
+        m.destroy();
+      };
+
+      const btns = el("div", "settingsBtnRow");
+      btns.append(btnLoad, btnRename, btnDuplicate, btnDelete);
+      row.append(meta, btns);
+      list.appendChild(row);
+    });
+
+    empty.classList.toggle("hidden", visible.length > 0);
+  };
+
+  filterInput.addEventListener("input", () => renderList(filterInput.value));
+  renderList("");
 
   body.appendChild(list);
+  body.appendChild(empty);
   m.open();
+  queueMicrotask(() => filterInput.focus());
 }
