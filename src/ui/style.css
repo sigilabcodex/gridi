@@ -1091,6 +1091,17 @@ header {
   box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.28) inset;
 }
 
+.moduleDragHandle {
+  min-width: 28px;
+  padding-inline: 0;
+  letter-spacing: 1px;
+  cursor: grab;
+}
+
+.moduleDragHandle:active {
+  cursor: grabbing;
+}
+
 .triggerPrimary,
 .drumSurfaceBody,
 .synthSurfaceBody,

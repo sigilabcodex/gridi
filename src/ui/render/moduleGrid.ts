@@ -339,7 +339,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     };
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
-      surface.draggable = true;
       surface.tabIndex = 0;
       surface.classList.add("draggableModule");
       surface.dataset.moduleId = moduleId;
@@ -355,13 +354,25 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         applyRoutingHighlight();
       };
 
-      surface.addEventListener("dragstart", (e) => {
+      const dragHandle = document.createElement("button");
+      dragHandle.type = "button";
+      dragHandle.className = "moduleDragHandle module-drag-handle";
+      dragHandle.draggable = true;
+      dragHandle.setAttribute("aria-label", `Drag module ${moduleId.slice(-4)} to another slot`);
+      dragHandle.textContent = "⋮⋮";
+
+      const header = surface.querySelector<HTMLElement>(".surfaceHeader");
+      const rightControls = header?.querySelector<HTMLElement>(".rightControls");
+      if (rightControls) rightControls.prepend(dragHandle);
+      else header?.appendChild(dragHandle);
+
+      dragHandle.addEventListener("dragstart", (e) => {
         surface.classList.add("dragging");
         e.dataTransfer?.setData("text/module-id", moduleId);
         e.dataTransfer?.setData("text/module-kind", moduleKind);
         if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
       });
-      surface.addEventListener("dragend", () => surface.classList.remove("dragging"));
+      dragHandle.addEventListener("dragend", () => surface.classList.remove("dragging"));
       surface.addEventListener("pointerdown", inspect);
       surface.addEventListener("focusin", inspect);
     };
