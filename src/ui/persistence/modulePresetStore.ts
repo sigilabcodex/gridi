@@ -358,7 +358,11 @@ function starterModulePresets() {
     buildPresetRecord(makeControl("stepped", 0), "Stepped Motion"),
     buildPresetRecord(makeVisual("scope", 0), "Scope Default"),
     buildPresetRecord(makeVisual("spectrum", 0), "Spectrum Default"),
-    buildPresetRecord(makeVisual("pattern", 0), "Pattern Default"),
+    buildPresetRecord(makeVisual("vectorscope", 0), "Vectorscope Default"),
+    buildPresetRecord(makeVisual("spectral-depth", 0), "Spectral Depth Default"),
+    buildPresetRecord(makeVisual("flow", 0), "Flow Default"),
+    buildPresetRecord(makeVisual("ritual", 0), "Ritual Default"),
+    buildPresetRecord(makeVisual("glitch", 0), "Glitch Default"),
     ...drumFactory,
     ...synthFactory,
   ].filter((record): record is ModulePresetRecord => Boolean(record));
