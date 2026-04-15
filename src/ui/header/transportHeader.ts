@@ -7,7 +7,6 @@ import type { TooltipBinder } from "../tooltip";
 type HeaderParams = {
   root: HTMLElement;
   patch: () => Patch;
-  presetLabel: () => string;
   presetNames: () => { id: string; name: string }[];
   selectedPresetId: () => string;
   hasUnsavedChanges: () => boolean;
@@ -35,7 +34,17 @@ type HeaderParams = {
 
 export function createTransportHeader(params: HeaderParams) {
   const makeIcon = (
-    name: "play" | "stop" | "mute" | "unmute" | "audioOn" | "audioOff" | "settings" | "actions" | "save" | "generator"
+    name:
+      | "play"
+      | "stop"
+      | "mute"
+      | "unmute"
+      | "audioOn"
+      | "audioOff"
+      | "settings"
+      | "session"
+      | "save"
+      | "generator"
   ) => {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("viewBox", "0 0 24 24");
@@ -89,13 +98,13 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M18.2 5.8l-1.5 1.5");
       stroke("M7.3 16.7l-1.5 1.5");
     }
-    if (name === "actions") {
-      stroke("M7 6h10");
-      stroke("M7 12h10");
-      stroke("M7 18h10");
-      fill("M4.5 5.2h1.8v1.8H4.5z");
-      fill("M4.5 11.2h1.8V13H4.5z");
-      fill("M4.5 17.2h1.8V19H4.5z");
+    if (name === "session") {
+      stroke("M5 6.5h14");
+      stroke("M5 10.5h14");
+      stroke("M8 4v4");
+      stroke("M16 4v4");
+      stroke("M8 14h8");
+      stroke("M8 18h5");
     }
     if (name === "save") {
       stroke("M5 4h12l2 2v14H5z");
@@ -103,12 +112,12 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M9 18h6");
     }
     if (name === "generator") {
-      stroke("M5 6h5");
-      stroke("M5 12h9");
-      stroke("M5 18h13");
-      fill("M14 5.2h4.8V10H14z");
-      fill("M18 11.2h2.8V13.8H18z");
-      fill("M20 17.2h2V18.8h-2z");
+      stroke("M6 7l4-4");
+      stroke("M14 21l4-4");
+      stroke("M6 17h4l4 4");
+      stroke("M14 3l4 4h-4l-4-4");
+      stroke("M10 7l4 4");
+      stroke("M10 17l4-4");
     }
     return icon;
   };
@@ -316,37 +325,6 @@ export function createTransportHeader(params: HeaderParams) {
   const sessionBlock = document.createElement("div");
   sessionBlock.className = "transportSessionBlock";
 
-  const presetWrap = document.createElement("div");
-  presetWrap.className = "presetWrap transportPresetWrap";
-
-  const presetLabel = document.createElement("div");
-  presetLabel.className = "small transportPresetLabel";
-
-  const presetButton = document.createElement("button");
-  presetButton.type = "button";
-  presetButton.className = "presetSelect transportPresetTrigger";
-  presetButton.setAttribute("aria-haspopup", "listbox");
-  presetButton.setAttribute("aria-expanded", "false");
-  presetButton.textContent = "Select preset";
-  params.attachTooltip(presetButton, {
-    text: "Choose the active preset for the current session.",
-    ariaLabel: "Preset selector",
-  });
-
-  const btnSavePreset = document.createElement("button");
-  btnSavePreset.className = "transportGhostBtn transportIconBtn transportSaveBtn";
-  btnSavePreset.onclick = params.onSavePreset;
-  params.attachTooltip(btnSavePreset, {
-    text: "Save the current patch into the selected preset.",
-    ariaLabel: "Save preset",
-  });
-
-  const sessionSelectRow = document.createElement("div");
-  sessionSelectRow.className = "transportSessionSelectRow";
-  sessionSelectRow.append(presetButton, btnSavePreset);
-
-  presetWrap.append(presetLabel, sessionSelectRow);
-
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
 
@@ -355,10 +333,10 @@ export function createTransportHeader(params: HeaderParams) {
 
   const sessionSummary = document.createElement("button");
   sessionSummary.type = "button";
-  sessionSummary.className = "transportGhostBtn transportUtilitySummary";
+  sessionSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySummarySession";
   const sessionSummaryIcon = document.createElement("span");
   sessionSummaryIcon.className = "transportUtilitySummaryIcon";
-  sessionSummaryIcon.append(makeIcon("actions"));
+  sessionSummaryIcon.append(makeIcon("session"));
   const sessionSummaryLabel = document.createElement("span");
   sessionSummaryLabel.className = "transportUtilitySummaryLabel";
   sessionSummaryLabel.textContent = "Session";
@@ -376,7 +354,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   const generatorSummary = document.createElement("button");
   generatorSummary.type = "button";
-  generatorSummary.className = "transportGhostBtn transportUtilitySummary";
+  generatorSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySummaryGenerator";
   const generatorSummaryIcon = document.createElement("span");
   generatorSummaryIcon.className = "transportUtilitySummaryIcon";
   generatorSummaryIcon.append(makeIcon("generator"));
@@ -451,6 +429,41 @@ export function createTransportHeader(params: HeaderParams) {
     "Open session manager",
   );
 
+  const btnSaveSession = makeUtilityBtn(
+    "Save session",
+    params.onSavePreset,
+    "Save changes to the active session patch.",
+    "Save current session",
+  );
+
+  const sessionPresetSectionLabel = document.createElement("div");
+  sessionPresetSectionLabel.className = "small transportUtilitySectionLabel";
+  sessionPresetSectionLabel.textContent = "Load session";
+  const sessionPresetSection = document.createElement("div");
+  sessionPresetSection.className = "transportUtilitySection transportSessionList";
+
+  const refreshSessionList = () => {
+    const selectedId = params.selectedPresetId();
+    sessionPresetSection.replaceChildren();
+    for (const preset of params.presetNames()) {
+      const presetBtn = document.createElement("button");
+      presetBtn.type = "button";
+      presetBtn.className = "transportGhostBtn transportUtilityBtn transportSessionOption";
+      presetBtn.textContent = preset.name;
+      presetBtn.setAttribute("role", "menuitemradio");
+      const isSelected = preset.id === selectedId;
+      presetBtn.setAttribute("aria-checked", isSelected ? "true" : "false");
+      presetBtn.classList.toggle("isSelected", isSelected);
+      if (isSelected) presetBtn.title = "Active session";
+      presetBtn.onclick = () => {
+        params.onSelectPreset(preset.id);
+        closeSessionMenu();
+        sessionSummary.focus();
+      };
+      sessionPresetSection.append(presetBtn);
+    }
+  };
+
   const appendMenuSection = (panel: HTMLElement, title: string, buttons: HTMLButtonElement[]) => {
     const label = document.createElement("div");
     label.className = "small transportUtilitySectionLabel";
@@ -461,13 +474,14 @@ export function createTransportHeader(params: HeaderParams) {
     panel.append(label, row);
   };
 
-  appendMenuSection(sessionPanel, "Session patch", [btnNewSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
+  sessionPanel.append(sessionPresetSectionLabel, sessionPresetSection);
+  appendMenuSection(sessionPanel, "Session patch", [btnNewSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
   sessionMenu.append(sessionSummary);
   generatorMenu.append(generatorSummary);
 
   sessionActions.append(sessionMenu, generatorMenu);
-  sessionBlock.append(presetWrap, sessionActions);
+  sessionBlock.append(sessionActions);
   sessionCluster.append(sessionBlock);
 
   const settingsDock = document.createElement("div");
@@ -524,125 +538,6 @@ export function createTransportHeader(params: HeaderParams) {
 
   params.root.appendChild(header);
 
-  const presetPanel = document.createElement("div");
-  presetPanel.className = "floatingPanel transportPresetPanel hidden";
-  presetPanel.setAttribute("role", "listbox");
-  presetPanel.setAttribute("aria-label", "Session preset list");
-  document.body.appendChild(presetPanel);
-
-  let presetPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
-  let activePresetIndex = -1;
-  let presetOptions: HTMLButtonElement[] = [];
-
-  const updatePresetHighlight = () => {
-    presetOptions.forEach((option, index) => {
-      const active = index === activePresetIndex;
-      option.classList.toggle("isActive", active);
-      option.setAttribute("aria-selected", active ? "true" : "false");
-    });
-  };
-
-  const closePresetMenu = () => {
-    if (presetPanel.classList.contains("hidden")) return;
-    presetPanel.classList.add("hidden");
-    presetButton.setAttribute("aria-expanded", "false");
-    presetPanelCleanup?.destroy();
-    presetPanelCleanup = null;
-    activePresetIndex = -1;
-  };
-
-  const openPresetMenu = (focusActive = false) => {
-    const names = params.presetNames();
-    const selectedId = params.selectedPresetId();
-    presetPanel.innerHTML = "";
-    presetOptions = names.map((preset, index) => {
-      const option = document.createElement("button");
-      option.type = "button";
-      option.className = "transportGhostBtn transportPresetOption";
-      option.textContent = preset.name;
-      option.value = preset.id;
-      option.setAttribute("role", "option");
-      option.setAttribute("aria-selected", "false");
-      option.classList.toggle("isSelected", preset.id === selectedId);
-      option.onclick = () => {
-        params.onSelectPreset(preset.id);
-        closePresetMenu();
-        presetButton.focus();
-      };
-      if (preset.id === selectedId) activePresetIndex = index;
-      return option;
-    });
-    if (activePresetIndex < 0) activePresetIndex = 0;
-    presetPanel.append(...presetOptions);
-    updatePresetHighlight();
-    presetPanel.classList.remove("hidden");
-    presetButton.setAttribute("aria-expanded", "true");
-    placeFloatingPanel(presetPanel, presetButton.getBoundingClientRect(), {
-      offset: 8,
-      align: "start",
-      preferredSide: "bottom",
-      minWidth: 200,
-      matchAnchorWidth: true,
-      maxWidth: 320,
-    });
-    presetPanelCleanup = bindFloatingPanelReposition(
-      presetPanel,
-      () => (presetButton.isConnected ? presetButton.getBoundingClientRect() : null),
-      {
-        offset: 8,
-        align: "start",
-        preferredSide: "bottom",
-        minWidth: 200,
-        matchAnchorWidth: true,
-        maxWidth: 320,
-      }
-    );
-    if (focusActive) presetOptions[activePresetIndex]?.focus();
-  };
-
-  const movePresetHighlight = (delta: number) => {
-    if (!presetOptions.length) return;
-    activePresetIndex = (activePresetIndex + delta + presetOptions.length) % presetOptions.length;
-    updatePresetHighlight();
-    presetOptions[activePresetIndex]?.scrollIntoView({ block: "nearest" });
-  };
-
-  presetButton.onclick = () => {
-    if (presetPanel.classList.contains("hidden")) openPresetMenu();
-    else closePresetMenu();
-  };
-
-  presetButton.addEventListener("keydown", (event) => {
-    if ((event.key === "ArrowDown" || event.key === "ArrowUp") && presetPanel.classList.contains("hidden")) {
-      event.preventDefault();
-      openPresetMenu(true);
-      movePresetHighlight(event.key === "ArrowDown" ? 1 : -1);
-    }
-  });
-
-  presetPanel.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      closePresetMenu();
-      presetButton.focus();
-      return;
-    }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      movePresetHighlight(1);
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      movePresetHighlight(-1);
-      return;
-    }
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      presetOptions[activePresetIndex]?.click();
-    }
-  });
-
   let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let generatorPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
 
@@ -667,6 +562,7 @@ export function createTransportHeader(params: HeaderParams) {
     document.body.appendChild(sessionPanel);
     sessionPanel.classList.remove("hidden");
     sessionSummary.setAttribute("aria-expanded", "true");
+    refreshSessionList();
     closeGeneratorMenu();
     placeFloatingPanel(sessionPanel, sessionSummary.getBoundingClientRect(), {
       offset: 8,
@@ -742,9 +638,6 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
-    if (target && !presetPanel.classList.contains("hidden")) {
-      if (!presetPanel.contains(target) && !presetButton.contains(target)) closePresetMenu();
-    }
     if (target && !sessionPanel.classList.contains("hidden")) {
       if (!sessionPanel.contains(target) && !sessionSummary.contains(target)) closeSessionMenu();
     }
@@ -755,7 +648,6 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      closePresetMenu();
       closeSessionMenu();
       closeGeneratorMenu();
     }
@@ -808,17 +700,17 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   const updatePresetUI = () => {
-    presetLabel.textContent = `Session${params.hasUnsavedChanges() ? " • unsaved" : ""}`;
-
     const names = params.presetNames();
     const selected = names.find((preset) => preset.id === params.selectedPresetId());
-    presetButton.textContent = selected?.name ?? "Select preset";
-    presetButton.title = selected?.name ?? "Select preset";
-    if (!presetPanel.classList.contains("hidden")) openPresetMenu();
-
-    btnSavePreset.replaceChildren(makeIcon("save"));
-    btnSavePreset.classList.toggle("primary", params.hasUnsavedChanges());
-    btnSavePreset.classList.toggle("hasPending", params.hasUnsavedChanges());
+    const activeName = selected?.name ?? "Session";
+    const pending = params.hasUnsavedChanges();
+    sessionSummaryLabel.textContent = pending ? "Session*" : "Session";
+    sessionSummary.title = `${activeName}${pending ? " (unsaved)" : ""}`;
+    sessionSummary.setAttribute("aria-label", `Open session patch actions for ${activeName}`);
+    if (!sessionPanel.classList.contains("hidden")) refreshSessionList();
+    btnSaveSession.classList.toggle("primary", pending);
+    btnSaveSession.classList.toggle("hasPending", pending);
+    btnSaveSession.textContent = pending ? "Save session*" : "Save session";
   };
 
   const updateBpmUI = () => {

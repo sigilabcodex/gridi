@@ -3169,6 +3169,14 @@ button:focus-visible,
   user-select: none;
 }
 
+.transportUtilitySummarySession {
+  border-color: rgba(123, 193, 255, 0.38);
+}
+
+.transportUtilitySummaryGenerator {
+  border-color: rgba(142, 217, 175, 0.34);
+}
+
 .transportUtilitySummaryIcon {
   width: 14px;
   height: 14px;
@@ -3188,6 +3196,14 @@ button:focus-visible,
   height: 13px;
 }
 
+.transportUtilitySummarySession .transportUtilitySummaryIcon {
+  color: rgba(152, 212, 255, 0.92);
+}
+
+.transportUtilitySummaryGenerator .transportUtilitySummaryIcon {
+  color: rgba(167, 236, 193, 0.9);
+}
+
 .transportUtilitySummary::after {
   content: "▾";
   margin-left: 2px;
@@ -3199,7 +3215,6 @@ button:focus-visible,
   content: "▴";
 }
 
-.transportPresetPanel,
 .transportUtilityPanel {
   z-index: 360;
   min-width: 168px;
@@ -3212,49 +3227,20 @@ button:focus-visible,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
 }
 
-.transportPresetTrigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.transportPresetTrigger::after {
-  content: "▾";
-  font-size: 10px;
-  opacity: 0.7;
-}
-
-.transportPresetTrigger[aria-expanded="true"]::after {
-  content: "▴";
-}
-
-.transportPresetOption {
-  justify-content: flex-start;
-  text-align: left;
-  width: 100%;
-}
-
-.transportPresetOption.isSelected {
-  border-color: rgba(74, 163, 255, 0.48);
-}
-
-.transportPresetOption.isActive {
-  background: rgba(74, 163, 255, 0.2);
-}
-
-.transportPresetWrap .presetSelect {
-  min-width: 136px;
-  max-width: 220px;
-  padding: 5px 8px;
-  border-radius: 7px;
-  border-color: rgba(207, 214, 221, 0.2);
-}
-
 .transportUtilityBtn {
   justify-content: flex-start;
   text-align: left;
   width: 100%;
+}
+
+.transportSessionList {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.transportSessionOption.isSelected {
+  border-color: rgba(74, 163, 255, 0.5);
+  background: rgba(74, 163, 255, 0.18);
 }
 
 .transportUtilityBtn.isPlaceholder {
