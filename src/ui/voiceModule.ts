@@ -938,6 +938,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
+  const headerRight = h.header.querySelector(".rightControls");
   const pitchMapProfiles = [
     { value: "BASS", label: "Bass", coarseTune: 0.14, fineTune: 0.42 },
     { value: "SEQ", label: "Seq", coarseTune: 0.34, fineTune: 0.5 },
@@ -1019,6 +1020,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const synthHeaderSelectors = document.createElement("div");
   synthHeaderSelectors.className = "synthHeaderSelectors";
   synthHeaderSelectors.append(pitchMapField.wrap, articulationField.wrap);
+  if (headerRight) headerRight.prepend(synthHeaderSelectors);
   const synthFeatureZone = (() => {
     const feature = createFaceplateSection("feature", "synthMainFeature");
 
@@ -1054,10 +1056,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     spreadMarker.setAttribute("class", "synthBehaviorSpreadMarker");
     spreadMarker.setAttribute("r", "2.5");
     svg.append(spreadField, spreadAxis, baseline, cutoffLine, envelope, waveform, spreadMarker);
-    const side = document.createElement("div");
-    side.className = "synthFeatureSide";
-    side.append(synthHeaderSelectors);
-    stage.append(svg, side);
+    stage.append(svg);
     feature.append(stage);
 
     let spreadRadiusX = 9;
