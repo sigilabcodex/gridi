@@ -645,6 +645,12 @@ main { margin-top: 8px; }
   margin-top: 12px;
 }
 
+.presetListScrollable {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
 .presetRow {
   border: 1px solid rgba(42,52,63,0.45);
   border-radius: 10px;
@@ -665,6 +671,21 @@ main { margin-top: 8px; }
 
 .presetName.active {
   color: var(--acc-green);
+}
+
+.presetManagerFilterWrap {
+  margin-top: 10px;
+  display: grid;
+  gap: 5px;
+}
+
+.presetManagerFilterInput {
+  width: 100%;
+}
+
+.presetManagerEmpty {
+  margin-top: 8px;
+  opacity: 0.74;
 }
 .chkRow {
   display: flex;
@@ -2484,9 +2505,11 @@ button:focus-visible,
 }
 
 .modulePresetPanel {
-  width: min(320px, calc(100vw - 20px));
+  width: min(360px, calc(100vw - 20px));
+  max-height: min(82vh, 640px);
   padding: 10px;
   display: grid;
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 10px;
   background: rgba(8, 13, 18, 0.98);
   border: 1px solid rgba(207, 214, 221, 0.2);
@@ -2514,6 +2537,15 @@ button:focus-visible,
 .modulePresetSummaryValue,
 .modulePresetListName {
   font-weight: 600;
+}
+
+.modulePresetSummaryValue,
+.modulePresetPanelSubtitle,
+.modulePresetListName,
+.modulePresetListInfo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .modulePresetPanelBadge {
@@ -2545,6 +2577,12 @@ button:focus-visible,
 .modulePresetListWrap {
   display: grid;
   gap: 8px;
+  min-width: 0;
+}
+
+.modulePresetSearchWrap {
+  display: grid;
+  gap: 5px;
 }
 
 .modulePresetActionRow {
@@ -2560,9 +2598,14 @@ button:focus-visible,
 .modulePresetList {
   display: grid;
   gap: 6px;
-  max-height: min(44vh, 320px);
+  max-height: min(50vh, 420px);
   overflow: auto;
   padding-right: 2px;
+}
+
+.modulePresetListGroups {
+  display: grid;
+  gap: 6px;
 }
 
 .modulePresetGroup {
@@ -2620,6 +2663,7 @@ button:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
 }
 
 .modulePresetSourceTag {
@@ -2641,6 +2685,11 @@ button:focus-visible,
   text-align: center;
   font-size: 11px;
   padding: 5px 8px;
+}
+
+.modulePresetEmptyResults {
+  opacity: 0.76;
+  padding: 4px 2px 0;
 }
 
 /* === Mobile workspace + header refinement pass === */
@@ -2923,8 +2972,8 @@ button:focus-visible,
 .transportPrimaryBtn,
 .transportGhostBtn,
 .transportAudioChip {
-  min-height: 28px;
-  padding: 4px 8px;
+  min-height: 32px;
+  padding: 5px 10px;
   font-size: 11px;
   letter-spacing: 0.2px;
 }
@@ -2951,8 +3000,9 @@ button:focus-visible,
 }
 
 .transportIconBtn {
-  width: 30px;
-  min-width: 30px;
+  width: 34px;
+  min-width: 34px;
+  min-height: 34px;
   padding: 0;
   justify-content: center;
   align-items: center;
@@ -2960,8 +3010,8 @@ button:focus-visible,
 }
 
 .transportIconGlyph {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
 }
 
 .transportSaveBtn.hasPending {
@@ -3062,9 +3112,9 @@ button:focus-visible,
 }
 
 .transportSettings.iconBtn {
-  min-width: 30px;
-  width: 30px;
-  height: 30px;
+  min-width: 34px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   font-size: 11px;
 }
@@ -3164,7 +3214,8 @@ button:focus-visible,
   min-width: 0;
   width: auto;
   max-width: 100%;
-  padding: 4px 9px;
+  min-height: 34px;
+  padding: 5px 10px;
   cursor: pointer;
   user-select: none;
 }
@@ -3178,8 +3229,8 @@ button:focus-visible,
 }
 
 .transportUtilitySummaryIcon {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -3192,8 +3243,8 @@ button:focus-visible,
 }
 
 .transportUtilitySummary .transportIconGlyph {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
 
 .transportUtilitySummarySession .transportUtilitySummaryIcon {
@@ -3234,8 +3285,19 @@ button:focus-visible,
 }
 
 .transportSessionList {
-  max-height: 180px;
+  max-height: min(36vh, 240px);
   overflow-y: auto;
+}
+
+.transportSessionFilter {
+  width: 100%;
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.transportSessionEmpty {
+  opacity: 0.72;
+  padding: 5px 2px;
 }
 
 .transportSessionOption.isSelected {
@@ -5314,7 +5376,7 @@ button:focus-visible,
 .transportCluster {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: auto;
   flex: 0 1 auto;
 }
@@ -5336,7 +5398,7 @@ button:focus-visible,
 }
 
 .transportClusterSession {
-  min-width: 210px;
+  min-width: 228px;
 }
 
 .transportSettingsDock {

@@ -99,12 +99,12 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M7.3 16.7l-1.5 1.5");
     }
     if (name === "session") {
-      stroke("M5 6.5h14");
-      stroke("M5 10.5h14");
-      stroke("M8 4v4");
-      stroke("M16 4v4");
-      stroke("M8 14h8");
-      stroke("M8 18h5");
+      stroke("M4.5 6.5h15");
+      stroke("M4.5 17.5h15");
+      stroke("M8 4.5v4");
+      stroke("M16 4.5v4");
+      stroke("M6.5 9h11v9h-11z");
+      stroke("M9 12h6");
     }
     if (name === "save") {
       stroke("M5 4h12l2 2v14H5z");
@@ -112,12 +112,14 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M9 18h6");
     }
     if (name === "generator") {
-      stroke("M6 7l4-4");
-      stroke("M14 21l4-4");
-      stroke("M6 17h4l4 4");
-      stroke("M14 3l4 4h-4l-4-4");
-      stroke("M10 7l4 4");
-      stroke("M10 17l4-4");
+      stroke("M7 7h10");
+      stroke("M7 17h10");
+      stroke("M7 7l3-3");
+      stroke("M7 7l3 3");
+      stroke("M17 17l-3-3");
+      stroke("M17 17l-3 3");
+      stroke("M10 12h4");
+      stroke("M12 10v4");
     }
     return icon;
   };
@@ -439,13 +441,21 @@ export function createTransportHeader(params: HeaderParams) {
   const sessionPresetSectionLabel = document.createElement("div");
   sessionPresetSectionLabel.className = "small transportUtilitySectionLabel";
   sessionPresetSectionLabel.textContent = "Load session";
+  const sessionPresetFilter = document.createElement("input");
+  sessionPresetFilter.type = "search";
+  sessionPresetFilter.className = "transportSessionFilter";
+  sessionPresetFilter.placeholder = "Search sessions";
+  sessionPresetFilter.maxLength = 72;
+  sessionPresetFilter.spellcheck = false;
   const sessionPresetSection = document.createElement("div");
   sessionPresetSection.className = "transportUtilitySection transportSessionList";
 
   const refreshSessionList = () => {
     const selectedId = params.selectedPresetId();
+    const filter = sessionPresetFilter.value.trim().toLowerCase();
     sessionPresetSection.replaceChildren();
-    for (const preset of params.presetNames()) {
+    const presets = params.presetNames().filter((preset) => !filter || preset.name.toLowerCase().includes(filter));
+    for (const preset of presets) {
       const presetBtn = document.createElement("button");
       presetBtn.type = "button";
       presetBtn.className = "transportGhostBtn transportUtilityBtn transportSessionOption";
@@ -462,6 +472,15 @@ export function createTransportHeader(params: HeaderParams) {
       };
       sessionPresetSection.append(presetBtn);
     }
+    if (!presets.length) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "small transportSessionEmpty";
+      emptyState.textContent = "No sessions match this filter.";
+      sessionPresetSection.append(emptyState);
+    }
+    sessionPresetSectionLabel.textContent = filter
+      ? `Load session · ${presets.length} match${presets.length === 1 ? "" : "es"}`
+      : "Load session";
   };
 
   const appendMenuSection = (panel: HTMLElement, title: string, buttons: HTMLButtonElement[]) => {
@@ -474,7 +493,8 @@ export function createTransportHeader(params: HeaderParams) {
     panel.append(label, row);
   };
 
-  sessionPanel.append(sessionPresetSectionLabel, sessionPresetSection);
+  sessionPresetFilter.addEventListener("input", refreshSessionList);
+  sessionPanel.append(sessionPresetSectionLabel, sessionPresetFilter, sessionPresetSection);
   appendMenuSection(sessionPanel, "Session patch", [btnNewSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
   sessionMenu.append(sessionSummary);
@@ -582,6 +602,7 @@ export function createTransportHeader(params: HeaderParams) {
         maxWidth: 220,
       }
     );
+    queueMicrotask(() => sessionPresetFilter.focus());
   };
 
   const openGeneratorMenu = () => {

@@ -22,7 +22,7 @@ export type ModulePresetControlParams = {
 
 export function createModulePresetControl(params: ModulePresetControlParams) {
   const RECENT_PRESET_LIMIT = 6;
-  const INITIAL_GROUP_LIMIT = 10;
+  const INITIAL_GROUP_LIMIT = 12;
 
   const presetButton = document.createElement("button");
   presetButton.type = "button";
@@ -43,11 +43,6 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
   const recencySortedPresets = availablePresets
     .slice()
     .sort((a, b) => b.updatedAt - a.updatedAt);
-  const recentPresets = recencySortedPresets
-    .filter((record) => record.id !== linkedPreset?.id)
-    .slice(0, RECENT_PRESET_LIMIT);
-  const factoryPresets = availablePresets.filter((record) => record.source === "factory");
-  const userPresets = availablePresets.filter((record) => record.source !== "factory");
 
   const syncButton = () => {
     const base = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
@@ -165,6 +160,18 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     actions.append(btnSaveNew, btnOverwrite);
     saveBlock.append(saveLabel, saveInput, actions);
 
+    const searchWrap = document.createElement("div");
+    searchWrap.className = "modulePresetSearchWrap";
+    const searchLabel = document.createElement("label");
+    searchLabel.className = "small modulePresetInputLabel";
+    searchLabel.textContent = "Find preset";
+    const searchInput = document.createElement("input");
+    searchInput.type = "search";
+    searchInput.maxLength = 64;
+    searchInput.spellcheck = false;
+    searchInput.placeholder = "Search name / subtype / source";
+    searchWrap.append(searchLabel, searchInput);
+
     const listWrap = document.createElement("div");
     listWrap.className = "modulePresetListWrap";
 
@@ -173,9 +180,18 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
     const listTitle = document.createElement("div");
     listTitle.className = "small modulePresetListTitle";
     listTitle.textContent = availablePresets.length
-      ? `${availablePresets.length} compatible ${moduleSubtype.toUpperCase()} presets`
+      ? `${availablePresets.length} compatible presets`
       : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
     list.appendChild(listTitle);
+
+    const listGroups = document.createElement("div");
+    listGroups.className = "modulePresetListGroups";
+    list.appendChild(listGroups);
+
+    const emptyResults = document.createElement("div");
+    emptyResults.className = "small modulePresetEmptyResults hidden";
+    emptyResults.textContent = "No presets match this filter.";
+    list.appendChild(emptyResults);
 
     const createPresetRow = (record: ModulePresetRecord, opts?: { compact?: boolean }) => {
       const row = document.createElement("button");
@@ -255,18 +271,79 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
       }
 
       group.append(summary, rows);
-      list.appendChild(group);
+      listGroups.appendChild(group);
     };
 
-    if (linkedPreset) {
-      appendListGroup("Current / linked", [linkedPreset], { open: true, compact: true });
-    }
-    appendListGroup("Recent", recentPresets, { open: true, compact: true });
-    appendListGroup("User presets", userPresets, { open: true, defaultLimit: INITIAL_GROUP_LIMIT });
-    appendListGroup("Factory presets", factoryPresets, { open: false, defaultLimit: INITIAL_GROUP_LIMIT });
+    const appendBySubtype = (
+      title: string,
+      records: ModulePresetRecord[],
+      opts: { open?: boolean; compact?: boolean; defaultLimit?: number; subtypeOpen?: boolean }
+    ) => {
+      if (!records.length) return;
+      const subtypeMap = new Map<string, ModulePresetRecord[]>();
+      for (const record of records) {
+        const subtypeKey = getModulePresetSubtypeLabel(record);
+        const existing = subtypeMap.get(subtypeKey);
+        if (existing) existing.push(record);
+        else subtypeMap.set(subtypeKey, [record]);
+      }
+
+      if (subtypeMap.size <= 1) {
+        appendListGroup(title, records, opts);
+        return;
+      }
+
+      const sortedEntries = [...subtypeMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+      for (const [index, [subtypeLabel, subtypeRecords]] of sortedEntries.entries()) {
+        appendListGroup(`${title} · ${subtypeLabel}`, subtypeRecords, {
+          ...opts,
+          open: index === 0 ? Boolean(opts.open) : Boolean(opts.subtypeOpen),
+        });
+      }
+    };
+
+    const renderList = (rawFilter: string) => {
+      const filter = rawFilter.trim().toLowerCase();
+      const matchesFilter = (record: ModulePresetRecord) => {
+        if (!filter) return true;
+        const pool = [
+          record.name,
+          getModulePresetSubtypeLabel(record),
+          record.source === "factory" ? "factory" : "user",
+        ].join(" ").toLowerCase();
+        return pool.includes(filter);
+      };
+
+      const filtered = availablePresets.filter(matchesFilter);
+      const filteredLinkedPreset = linkedPreset && matchesFilter(linkedPreset) ? linkedPreset : null;
+      const filteredRecentPresets = recencySortedPresets
+        .filter((record) => record.id !== filteredLinkedPreset?.id)
+        .filter(matchesFilter)
+        .slice(0, RECENT_PRESET_LIMIT);
+      const filteredFactoryPresets = filtered.filter((record) => record.source === "factory");
+      const filteredUserPresets = filtered.filter((record) => record.source !== "factory");
+
+      listGroups.replaceChildren();
+      if (filteredLinkedPreset) {
+        appendListGroup("Current / linked", [filteredLinkedPreset], { open: true, compact: true });
+      }
+      appendListGroup("Recent", filteredRecentPresets, { open: true, compact: true });
+      appendBySubtype("User presets", filteredUserPresets, { open: true, defaultLimit: INITIAL_GROUP_LIMIT, subtypeOpen: true });
+      appendBySubtype("Factory presets", filteredFactoryPresets, { open: false, defaultLimit: INITIAL_GROUP_LIMIT, subtypeOpen: false });
+
+      emptyResults.classList.toggle("hidden", listGroups.childElementCount > 0);
+      listTitle.textContent = filter
+        ? `${filtered.length} matching presets`
+        : availablePresets.length
+          ? `${availablePresets.length} compatible presets`
+          : `No ${moduleSubtype.toUpperCase()} presets saved yet`;
+    };
+
+    searchInput.addEventListener("input", () => renderList(searchInput.value));
+    renderList("");
 
     listWrap.appendChild(list);
-    floating.append(heading, summary, linkedRow, saveBlock, listWrap);
+    floating.append(heading, summary, linkedRow, saveBlock, searchWrap, listWrap);
     document.body.appendChild(floating);
 
     const position = () => (presetButton.isConnected ? presetButton.getBoundingClientRect() : null);
