@@ -34,7 +34,9 @@ type HeaderParams = {
 };
 
 export function createTransportHeader(params: HeaderParams) {
-  const makeIcon = (name: "play" | "stop" | "mute" | "unmute" | "audioOn" | "audioOff" | "settings" | "actions" | "save") => {
+  const makeIcon = (
+    name: "play" | "stop" | "mute" | "unmute" | "audioOn" | "audioOff" | "settings" | "actions" | "save" | "generator"
+  ) => {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("viewBox", "0 0 24 24");
     icon.setAttribute("aria-hidden", "true");
@@ -99,6 +101,14 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M5 4h12l2 2v14H5z");
       stroke("M8 4v6h8");
       stroke("M9 18h6");
+    }
+    if (name === "generator") {
+      stroke("M5 6h5");
+      stroke("M5 12h9");
+      stroke("M5 18h13");
+      fill("M14 5.2h4.8V10H14z");
+      fill("M18 11.2h2.8V13.8H18z");
+      fill("M20 17.2h2V18.8h-2z");
     }
     return icon;
   };
@@ -340,26 +350,47 @@ export function createTransportHeader(params: HeaderParams) {
   const sessionActions = document.createElement("div");
   sessionActions.className = "transportActionRow";
 
-  const utilityMenu = document.createElement("div");
-  utilityMenu.className = "transportUtilityMenu transportSecondaryMenu";
+  const sessionMenu = document.createElement("div");
+  sessionMenu.className = "transportUtilityMenu transportSecondaryMenu";
 
-  const utilitySummary = document.createElement("button");
-  utilitySummary.type = "button";
-  utilitySummary.className = "transportGhostBtn transportUtilitySummary";
-  const utilitySummaryIcon = document.createElement("span");
-  utilitySummaryIcon.className = "transportUtilitySummaryIcon";
-  utilitySummaryIcon.append(makeIcon("actions"));
-  const utilitySummaryLabel = document.createElement("span");
-  utilitySummaryLabel.className = "transportUtilitySummaryLabel";
-  utilitySummaryLabel.textContent = "Session";
-  utilitySummary.append(utilitySummaryIcon, utilitySummaryLabel);
-  utilitySummary.setAttribute("aria-label", "Open session and utility actions");
-  utilitySummary.setAttribute("aria-haspopup", "menu");
-  utilitySummary.setAttribute("aria-expanded", "false");
+  const sessionSummary = document.createElement("button");
+  sessionSummary.type = "button";
+  sessionSummary.className = "transportGhostBtn transportUtilitySummary";
+  const sessionSummaryIcon = document.createElement("span");
+  sessionSummaryIcon.className = "transportUtilitySummaryIcon";
+  sessionSummaryIcon.append(makeIcon("actions"));
+  const sessionSummaryLabel = document.createElement("span");
+  sessionSummaryLabel.className = "transportUtilitySummaryLabel";
+  sessionSummaryLabel.textContent = "Session";
+  sessionSummary.append(sessionSummaryIcon, sessionSummaryLabel);
+  sessionSummary.setAttribute("aria-label", "Open session patch actions");
+  sessionSummary.setAttribute("aria-haspopup", "menu");
+  sessionSummary.setAttribute("aria-expanded", "false");
 
-  const utilityPanel = document.createElement("div");
-  utilityPanel.className = "floatingPanel transportUtilityPanel hidden";
-  utilityPanel.setAttribute("role", "menu");
+  const sessionPanel = document.createElement("div");
+  sessionPanel.className = "floatingPanel transportUtilityPanel hidden";
+  sessionPanel.setAttribute("role", "menu");
+
+  const generatorMenu = document.createElement("div");
+  generatorMenu.className = "transportUtilityMenu transportSecondaryMenu";
+
+  const generatorSummary = document.createElement("button");
+  generatorSummary.type = "button";
+  generatorSummary.className = "transportGhostBtn transportUtilitySummary";
+  const generatorSummaryIcon = document.createElement("span");
+  generatorSummaryIcon.className = "transportUtilitySummaryIcon";
+  generatorSummaryIcon.append(makeIcon("generator"));
+  const generatorSummaryLabel = document.createElement("span");
+  generatorSummaryLabel.className = "transportUtilitySummaryLabel";
+  generatorSummaryLabel.textContent = "Generators";
+  generatorSummary.append(generatorSummaryIcon, generatorSummaryLabel);
+  generatorSummary.setAttribute("aria-label", "Open generator and randomizer actions");
+  generatorSummary.setAttribute("aria-haspopup", "menu");
+  generatorSummary.setAttribute("aria-expanded", "false");
+
+  const generatorPanel = document.createElement("div");
+  generatorPanel.className = "floatingPanel transportUtilityPanel hidden";
+  generatorPanel.setAttribute("role", "menu");
 
   const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
     const btn = document.createElement("button");
@@ -369,7 +400,8 @@ export function createTransportHeader(params: HeaderParams) {
     btn.setAttribute("role", "menuitem");
     btn.onclick = () => {
       onClick();
-      closeUtilityMenu();
+      closeSessionMenu();
+      closeGeneratorMenu();
     };
     params.attachTooltip(btn, { text: tooltip, ariaLabel });
     return btn;
@@ -419,21 +451,22 @@ export function createTransportHeader(params: HeaderParams) {
     "Open session manager",
   );
 
-  const appendUtilitySection = (title: string, buttons: HTMLButtonElement[]) => {
+  const appendMenuSection = (panel: HTMLElement, title: string, buttons: HTMLButtonElement[]) => {
     const label = document.createElement("div");
     label.className = "small transportUtilitySectionLabel";
     label.textContent = title;
     const row = document.createElement("div");
     row.className = "transportUtilitySection";
     row.append(...buttons);
-    utilityPanel.append(label, row);
+    panel.append(label, row);
   };
 
-  appendUtilitySection("Session patch", [btnNewSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
-  appendUtilitySection("Generator tools", [btnRegen, btnReseed, btnRandom]);
-  utilityMenu.append(utilitySummary);
+  appendMenuSection(sessionPanel, "Session patch", [btnNewSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
+  appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
+  sessionMenu.append(sessionSummary);
+  generatorMenu.append(generatorSummary);
 
-  sessionActions.append(utilityMenu);
+  sessionActions.append(sessionMenu, generatorMenu);
   sessionBlock.append(presetWrap, sessionActions);
   sessionCluster.append(sessionBlock);
 
@@ -610,31 +643,41 @@ export function createTransportHeader(params: HeaderParams) {
     }
   });
 
-  let utilityPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let generatorPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
 
-  const closeUtilityMenu = () => {
-    if (utilityPanel.classList.contains("hidden")) return;
-    utilityPanel.classList.add("hidden");
-    utilitySummary.setAttribute("aria-expanded", "false");
-    utilityPanelCleanup?.destroy();
-    utilityPanelCleanup = null;
+  const closeSessionMenu = () => {
+    if (sessionPanel.classList.contains("hidden")) return;
+    sessionPanel.classList.add("hidden");
+    sessionSummary.setAttribute("aria-expanded", "false");
+    sessionPanelCleanup?.destroy();
+    sessionPanelCleanup = null;
   };
 
-  const openUtilityMenu = () => {
-    if (utilityPanel.isConnected) utilityPanel.remove();
-    document.body.appendChild(utilityPanel);
-    utilityPanel.classList.remove("hidden");
-    utilitySummary.setAttribute("aria-expanded", "true");
-    placeFloatingPanel(utilityPanel, utilitySummary.getBoundingClientRect(), {
+  const closeGeneratorMenu = () => {
+    if (generatorPanel.classList.contains("hidden")) return;
+    generatorPanel.classList.add("hidden");
+    generatorSummary.setAttribute("aria-expanded", "false");
+    generatorPanelCleanup?.destroy();
+    generatorPanelCleanup = null;
+  };
+
+  const openSessionMenu = () => {
+    if (sessionPanel.isConnected) sessionPanel.remove();
+    document.body.appendChild(sessionPanel);
+    sessionPanel.classList.remove("hidden");
+    sessionSummary.setAttribute("aria-expanded", "true");
+    closeGeneratorMenu();
+    placeFloatingPanel(sessionPanel, sessionSummary.getBoundingClientRect(), {
       offset: 8,
       align: "end",
       preferredSide: "bottom",
       minWidth: 180,
       maxWidth: 220,
     });
-    utilityPanelCleanup = bindFloatingPanelReposition(
-      utilityPanel,
-      () => (utilitySummary.isConnected ? utilitySummary.getBoundingClientRect() : null),
+    sessionPanelCleanup = bindFloatingPanelReposition(
+      sessionPanel,
+      () => (sessionSummary.isConnected ? sessionSummary.getBoundingClientRect() : null),
       {
         offset: 8,
         align: "end",
@@ -645,16 +688,55 @@ export function createTransportHeader(params: HeaderParams) {
     );
   };
 
-  utilitySummary.onclick = () => {
-    if (utilityPanel.classList.contains("hidden")) openUtilityMenu();
-    else closeUtilityMenu();
+  const openGeneratorMenu = () => {
+    if (generatorPanel.isConnected) generatorPanel.remove();
+    document.body.appendChild(generatorPanel);
+    generatorPanel.classList.remove("hidden");
+    generatorSummary.setAttribute("aria-expanded", "true");
+    closeSessionMenu();
+    placeFloatingPanel(generatorPanel, generatorSummary.getBoundingClientRect(), {
+      offset: 8,
+      align: "end",
+      preferredSide: "bottom",
+      minWidth: 180,
+      maxWidth: 220,
+    });
+    generatorPanelCleanup = bindFloatingPanelReposition(
+      generatorPanel,
+      () => (generatorSummary.isConnected ? generatorSummary.getBoundingClientRect() : null),
+      {
+        offset: 8,
+        align: "end",
+        preferredSide: "bottom",
+        minWidth: 180,
+        maxWidth: 220,
+      }
+    );
   };
 
-  utilityPanel.addEventListener("keydown", (event) => {
+  sessionSummary.onclick = () => {
+    if (sessionPanel.classList.contains("hidden")) openSessionMenu();
+    else closeSessionMenu();
+  };
+
+  generatorSummary.onclick = () => {
+    if (generatorPanel.classList.contains("hidden")) openGeneratorMenu();
+    else closeGeneratorMenu();
+  };
+
+  sessionPanel.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
-      closeUtilityMenu();
-      utilitySummary.focus();
+      closeSessionMenu();
+      sessionSummary.focus();
+    }
+  });
+
+  generatorPanel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeGeneratorMenu();
+      generatorSummary.focus();
     }
   });
 
@@ -663,15 +745,19 @@ export function createTransportHeader(params: HeaderParams) {
     if (target && !presetPanel.classList.contains("hidden")) {
       if (!presetPanel.contains(target) && !presetButton.contains(target)) closePresetMenu();
     }
-    if (target && !utilityPanel.classList.contains("hidden")) {
-      if (!utilityPanel.contains(target) && !utilitySummary.contains(target)) closeUtilityMenu();
+    if (target && !sessionPanel.classList.contains("hidden")) {
+      if (!sessionPanel.contains(target) && !sessionSummary.contains(target)) closeSessionMenu();
+    }
+    if (target && !generatorPanel.classList.contains("hidden")) {
+      if (!generatorPanel.contains(target) && !generatorSummary.contains(target)) closeGeneratorMenu();
     }
   });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       closePresetMenu();
-      closeUtilityMenu();
+      closeSessionMenu();
+      closeGeneratorMenu();
     }
   });
 
