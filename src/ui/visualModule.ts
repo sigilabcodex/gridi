@@ -291,39 +291,194 @@ const VISUAL_MODE_SPECS: Record<VisualModule["kind"], VisualModeSpec> = {
     label: "Glitch",
     draw: ({ canvas, ctx2d, engine, specBuf, readout, frame }) => {
       engine.getSpectrumData(specBuf);
+      smoothArray(frame.smoothedSpectrum, specBuf, 0.24);
       const w = canvas.width;
       const h = canvas.height;
       const activity = engine.getMasterActivity();
-      const bands = 10;
       frame.glitchSeed = (frame.glitchSeed * 1664525 + 1013904223) >>> 0;
       const prng = () => {
         frame.glitchSeed = (frame.glitchSeed * 1664525 + 1013904223) >>> 0;
         return frame.glitchSeed / 0xffffffff;
       };
+      const smoothed = frame.smoothedSpectrum;
+      const bands = 14;
 
       for (let i = 0; i < bands; i += 1) {
         const y = (i / bands) * h;
-        const height = h / bands - 2;
-        const energy = specBuf[4 + i * 10] ?? 0;
-        const shift = (prng() - 0.5) * (8 + energy * 42 + activity.transient * 28);
-        const alpha = 0.12 + energy * 0.36;
-        ctx2d.fillStyle = `rgba(${Math.round(96 + energy * 126)}, ${Math.round(168 + energy * 70)}, 255, ${alpha})`;
-        ctx2d.fillRect(shift, y, w * (0.66 + energy * 0.28), height);
+        const height = h / bands - 1;
+        const energy = smoothed[4 + i * 8] ?? 0;
+        const jitter = (prng() - 0.5) * (3 + energy * 12 + activity.transient * 10);
+        const alpha = 0.06 + energy * 0.18;
+        ctx2d.fillStyle = `rgba(${Math.round(88 + energy * 90)}, ${Math.round(130 + energy * 70)}, ${Math.round(160 + energy * 70)}, ${alpha})`;
+        ctx2d.fillRect(jitter, y, w, height);
+      }
+
+      const scanlineStep = Math.max(2, Math.floor(h / 46));
+      ctx2d.strokeStyle = "rgba(255, 222, 178, 0.07)";
+      ctx2d.lineWidth = 1;
+      for (let y = scanlineStep; y < h; y += scanlineStep) {
+        ctx2d.beginPath();
+        ctx2d.moveTo(0, y + 0.5);
+        ctx2d.lineTo(w, y + 0.5);
+        ctx2d.stroke();
+      }
+
+      const bandCount = 3 + Math.floor(activity.transient * 4);
+      for (let i = 0; i < bandCount; i += 1) {
+        const base = 0.16 + i * 0.24;
+        const height = Math.max(8, h * (0.045 + prng() * 0.06));
+        const y = Math.min(h - height, h * base + (prng() - 0.5) * h * 0.06);
+        ctx2d.fillStyle = `rgba(${Math.round(122 + prng() * 50)}, ${Math.round(176 + prng() * 52)}, 255, ${0.08 + prng() * 0.08})`;
+        ctx2d.fillRect(0, y, w, height);
       }
 
       ctx2d.strokeStyle = "rgba(255, 233, 189, 0.82)";
       ctx2d.lineWidth = 1.4;
       ctx2d.beginPath();
-      for (let i = 0; i < specBuf.length; i += 2) {
-        const x = (i / (specBuf.length - 1)) * w;
-        const y = h * 0.62 - specBuf[i] * h * (0.26 + activity.level * 0.2) + Math.sin(i * 0.15 + frame.frame * 0.06) * (1.8 + activity.transient * 5);
-        if (i === 0) ctx2d.moveTo(x, y);
-        else ctx2d.lineTo(x, y);
+      let inDropout = false;
+      for (let i = 0; i < smoothed.length; i += 2) {
+        const xNorm = i / Math.max(1, smoothed.length - 1);
+        const x = xNorm * w;
+        const dropout = (Math.floor(xNorm * 11 + frame.frame * 0.015) % 7) === 0;
+        if (dropout) {
+          inDropout = true;
+          continue;
+        }
+        const y =
+          h * 0.64
+          - smoothed[i] * h * (0.22 + activity.level * 0.2)
+          + Math.sin(i * 0.2 + frame.frame * 0.045) * (1.4 + activity.transient * 3.2);
+        if (inDropout || i <= 2) {
+          ctx2d.moveTo(x, y);
+          inDropout = false;
+        } else {
+          ctx2d.lineTo(x, y);
+        }
       }
       ctx2d.stroke();
 
+      const slices = 8 + Math.floor(activity.level * 8);
+      for (let i = 0; i < slices; i += 1) {
+        const width = Math.max(3, Math.floor(3 + prng() * (w * 0.018)));
+        const x = Math.floor(prng() * (w - width));
+        const top = Math.floor(prng() * h * 0.82);
+        const sliceH = Math.floor(h * (0.18 + prng() * 0.62));
+        ctx2d.fillStyle = `rgba(${Math.round(150 + prng() * 60)}, ${Math.round(205 + prng() * 35)}, 255, ${0.12 + prng() * 0.2})`;
+        ctx2d.fillRect(x, top, width, sliceH);
+      }
+
+      const masks = 2 + Math.floor(activity.transient * 3);
+      for (let i = 0; i < masks; i += 1) {
+        const maskW = Math.floor(w * (0.08 + prng() * 0.16));
+        const maskH = Math.floor(h * (0.1 + prng() * 0.18));
+        const x = Math.floor(prng() * Math.max(1, w - maskW));
+        const y = Math.floor(prng() * Math.max(1, h - maskH));
+        ctx2d.fillStyle = `rgba(3, 6, 10, ${0.34 + prng() * 0.2})`;
+        ctx2d.fillRect(x, y, maskW, maskH);
+        ctx2d.strokeStyle = "rgba(255, 208, 152, 0.18)";
+        ctx2d.lineWidth = 1;
+        ctx2d.strokeRect(x + 0.5, y + 0.5, maskW - 1, maskH - 1);
+      }
+
       const corruption = clamp01(activity.transient * 0.7 + activity.level * 0.4);
-      readout.textContent = `Glitch ${corruption.toFixed(2)} · Stable`;
+      readout.textContent = `Glitch ${corruption.toFixed(2)} · Slice/Mask`;
+    },
+  },
+  cymat: {
+    label: "Cymat",
+    draw: ({ canvas, ctx2d, engine, specBuf, readout, frame }) => {
+      engine.getSpectrumData(specBuf);
+      smoothArray(frame.smoothedSpectrum, specBuf, 0.2);
+      const w = canvas.width;
+      const h = canvas.height;
+      const plateInsetX = w * 0.08;
+      const plateInsetY = h * 0.1;
+      const plateW = w - plateInsetX * 2;
+      const plateH = h - plateInsetY * 2;
+      const cx = plateInsetX + plateW * 0.5;
+      const cy = plateInsetY + plateH * 0.5;
+
+      const low = frame.smoothedSpectrum.slice(2, 28).reduce((sum, value) => sum + value, 0) / 26;
+      const mid = frame.smoothedSpectrum.slice(30, 96).reduce((sum, value) => sum + value, 0) / 66;
+      const high = frame.smoothedSpectrum.slice(96, 210).reduce((sum, value) => sum + value, 0) / 114;
+      const nodalMix = clamp01(low * 0.55 + mid * 0.35 + high * 0.1);
+
+      const modeA = 2 + Math.floor(low * 7);
+      const modeB = 3 + Math.floor(mid * 8);
+      const modeC = 1 + Math.floor(high * 6);
+      const phaseA = frame.frame * (0.012 + low * 0.05);
+      const phaseB = frame.frame * (0.01 + mid * 0.04);
+      const phaseC = frame.frame * (0.018 + high * 0.05);
+
+      ctx2d.strokeStyle = "rgba(255, 219, 168, 0.36)";
+      ctx2d.lineWidth = 1.2;
+      ctx2d.strokeRect(plateInsetX + 0.5, plateInsetY + 0.5, plateW - 1, plateH - 1);
+
+      const cols = 84;
+      const rows = 48;
+      const eps = 0.095 - nodalMix * 0.045;
+      const grainAlpha = 0.08 + nodalMix * 0.14;
+
+      for (let yi = 0; yi < rows; yi += 1) {
+        const yNorm = yi / Math.max(1, rows - 1);
+        const y = plateInsetY + yNorm * plateH;
+        for (let xi = 0; xi < cols; xi += 1) {
+          const xNorm = xi / Math.max(1, cols - 1);
+          const x = plateInsetX + xNorm * plateW;
+          const px = (x - cx) / (plateW * 0.5);
+          const py = (y - cy) / (plateH * 0.5);
+
+          const standingA = Math.sin(modeA * Math.PI * px + phaseA) * Math.sin((modeB - 1) * Math.PI * py - phaseB);
+          const standingB = Math.cos((modeB + 1) * Math.PI * px - phaseB) * Math.sin((modeA + modeC) * Math.PI * py + phaseC);
+          const radial = Math.sin((Math.sqrt(px * px + py * py) * (6 + modeC) - phaseA * 0.7));
+          const field = standingA * 0.58 + standingB * 0.3 + radial * (0.12 + high * 0.16);
+          const nodeDistance = Math.abs(field);
+
+          if (nodeDistance < eps) {
+            const brightness = 0.46 + (eps - nodeDistance) / eps * 0.48;
+            ctx2d.fillStyle = `rgba(255, ${Math.round(194 + brightness * 48)}, ${Math.round(142 + brightness * 64)}, ${grainAlpha + brightness * 0.18})`;
+            ctx2d.fillRect(x, y, 1.4, 1.4);
+          }
+        }
+      }
+
+      const contourLevels = [0.09, 0.18, 0.28];
+      ctx2d.lineWidth = 1;
+      contourLevels.forEach((level, idx) => {
+        const band = level + high * 0.06;
+        ctx2d.strokeStyle = `rgba(${Math.round(112 + idx * 26)}, ${Math.round(170 + idx * 22)}, 255, ${0.16 + idx * 0.07})`;
+        for (let yi = 0; yi < rows - 1; yi += 1) {
+          const yNorm = yi / Math.max(1, rows - 1);
+          const y = plateInsetY + yNorm * plateH;
+          ctx2d.beginPath();
+          let started = false;
+          for (let xi = 0; xi < cols; xi += 1) {
+            const xNorm = xi / Math.max(1, cols - 1);
+            const x = plateInsetX + xNorm * plateW;
+            const px = (x - cx) / (plateW * 0.5);
+            const py = (y - cy) / (plateH * 0.5);
+            const standingA = Math.sin(modeA * Math.PI * px + phaseA) * Math.sin((modeB - 1) * Math.PI * py - phaseB);
+            const standingB = Math.cos((modeB + 1) * Math.PI * px - phaseB) * Math.sin((modeA + modeC) * Math.PI * py + phaseC);
+            const radial = Math.sin((Math.sqrt(px * px + py * py) * (6 + modeC) - phaseA * 0.7));
+            const field = standingA * 0.58 + standingB * 0.3 + radial * (0.12 + high * 0.16);
+            if (Math.abs(field) < band) {
+              if (!started) {
+                ctx2d.moveTo(x, y);
+                started = true;
+              } else {
+                ctx2d.lineTo(x, y);
+              }
+            } else if (started) {
+              ctx2d.stroke();
+              ctx2d.beginPath();
+              started = false;
+            }
+          }
+          if (started) ctx2d.stroke();
+        }
+      });
+
+      readout.textContent = `Cymat ${nodalMix.toFixed(2)} · M${modeA}/${modeB}`;
     },
   },
 };
@@ -405,7 +560,7 @@ export function renderVisualSurface(
   fftChip.setAttribute("aria-haspopup", "dialog");
   chipRow.append(modeChip, sourceChip, fftChip);
 
-  const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "vectorscope", "spectral-depth", "flow", "ritual", "glitch"];
+  const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "vectorscope", "spectral-depth", "flow", "ritual", "glitch", "cymat"];
   const fftSizes: Array<NonNullable<VisualModule["fftSize"]>> = [512, 1024, 2048, 4096];
   const sourceOptions = [{ value: "master", label: visualSource?.sourceLabel ?? "Master mix" }];
 

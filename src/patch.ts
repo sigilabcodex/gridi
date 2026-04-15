@@ -141,7 +141,7 @@ export type TonalModule = TonalSynthModule;
 
 export type SoundModule = DrumModule | TonalModule;
 
-export type VisualKind = "scope" | "spectrum" | "vectorscope" | "spectral-depth" | "flow" | "ritual" | "glitch";
+export type VisualKind = "scope" | "spectrum" | "vectorscope" | "spectral-depth" | "flow" | "ritual" | "glitch" | "cymat";
 
 export type VisualModule = ModuleBase & {
   type: "visual";
@@ -363,6 +363,7 @@ export function makeVisual(kind: VisualKind, i = 0): VisualModule {
     flow: "Flow Default",
     ritual: "Ritual Default",
     glitch: "Glitch Default",
+    cymat: "Cymat Default",
   };
   return {
     id: uid("vis"),
@@ -589,7 +590,7 @@ function normalizeConnection(raw: unknown): Connection | null {
 }
 
 function normalizeVisualKind(raw: unknown): VisualKind {
-  if (raw === "scope" || raw === "spectrum" || raw === "vectorscope" || raw === "spectral-depth" || raw === "flow" || raw === "ritual" || raw === "glitch") {
+  if (raw === "scope" || raw === "spectrum" || raw === "vectorscope" || raw === "spectral-depth" || raw === "flow" || raw === "ritual" || raw === "glitch" || raw === "cymat") {
     return raw;
   }
   if (raw === "pattern") return "ritual";

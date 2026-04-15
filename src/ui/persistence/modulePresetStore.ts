@@ -363,6 +363,7 @@ function starterModulePresets() {
     buildPresetRecord(makeVisual("flow", 0), "Flow Default"),
     buildPresetRecord(makeVisual("ritual", 0), "Ritual Default"),
     buildPresetRecord(makeVisual("glitch", 0), "Glitch Default"),
+    buildPresetRecord(makeVisual("cymat", 0), "Cymat Default"),
     ...drumFactory,
     ...synthFactory,
   ].filter((record): record is ModulePresetRecord => Boolean(record));
