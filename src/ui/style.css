@@ -5113,12 +5113,14 @@ button:focus-visible,
 }
 
 .controlMainKnobGrid,
+.controlAdvancedKnobGrid,
 .moduleKnobGrid {
   display: grid;
 }
 
 .controlMainKnobGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .controlFeatureRack {
@@ -5136,6 +5138,11 @@ button:focus-visible,
 
 .moduleKnobGrid-2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.controlAdvancedKnobGrid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .utilityPanel,
@@ -5315,6 +5322,14 @@ button:focus-visible,
   font-size: 10px;
 }
 
+.controlChipRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  justify-items: stretch;
+  gap: 6px;
+}
+
 .visualChipRow {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -5429,7 +5444,7 @@ button:focus-visible,
 }
 
 .controlChipRow .compactSelectField {
-  flex: 1 1 0;
+  width: 100%;
   min-width: 0;
 }
 
@@ -5464,6 +5479,44 @@ button:focus-visible,
 }
 
 .controlChipRow .routingChip {
-  flex: 0 0 auto;
+  width: 100%;
   white-space: nowrap;
+  text-align: center;
+}
+
+.controlSurface .knobCtl {
+  width: 52px;
+  gap: 1px;
+  padding-top: 0;
+}
+
+.controlSurface .ctlLabel {
+  font-size: 9px;
+  letter-spacing: 0.2px;
+  line-height: 1;
+  min-height: 10px;
+  margin-bottom: -1px;
+}
+
+.controlSurface .knob {
+  width: 34px;
+  height: 34px;
+}
+
+.controlSurface .knob svg {
+  width: 34px;
+  height: 34px;
+}
+
+.controlSurface .knobVal {
+  font-size: 8px;
+  line-height: 1;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.controlGridGhostSlot {
+  width: 52px;
+  height: 52px;
+  justify-self: center;
 }

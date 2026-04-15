@@ -22,6 +22,13 @@ function formatControlInstanceToken(name: string) {
   return name.trim().replace(/\s+/g, "_").toUpperCase();
 }
 
+function createControlGridGhostSlot() {
+  const slot = document.createElement("div");
+  slot.className = "controlGridGhostSlot";
+  slot.setAttribute("aria-hidden", "true");
+  return slot;
+}
+
 export function renderControlSurface(
   root: HTMLElement,
   mod: ControlModule,
@@ -133,6 +140,9 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.rate = x;
     }, { regen: false }) }),
+    createControlGridGhostSlot(),
+    createControlGridGhostSlot(),
+    createControlGridGhostSlot(),
   );
 
   panelMain.append(
@@ -158,7 +168,7 @@ export function renderControlSurface(
   panelRouting.appendChild(targetCard);
 
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel controlSettingsPanel");
-  const settingsKnobGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
+  const settingsKnobGrid = createFaceplateSection("controls", "moduleKnobGrid controlAdvancedKnobGrid");
   settingsKnobGrid.append(
     ctlFloat({ label: "Phase", value: mod.phase, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => {
       const m = p.modules.find((z) => z.id === mod.id);
@@ -168,6 +178,10 @@ export function renderControlSurface(
       const m = p.modules.find((z) => z.id === mod.id);
       if (m?.type === "control") m.randomness = x;
     }, { regen: false }) }),
+    createControlGridGhostSlot(),
+    createControlGridGhostSlot(),
+    createControlGridGhostSlot(),
+    createControlGridGhostSlot(),
   );
   panelSettings.append(settingsKnobGrid);
 
