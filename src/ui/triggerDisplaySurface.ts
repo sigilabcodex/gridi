@@ -165,64 +165,75 @@ function createGearView(): DisplayView {
   const stage = document.createElement("div");
   stage.className = "triggerDisplayGearStage";
 
-  const meshLinkAB = document.createElement("span");
-  meshLinkAB.className = "triggerDisplayGearMesh triggerDisplayGearMesh--ab";
-  const meshLinkAC = document.createElement("span");
-  meshLinkAC.className = "triggerDisplayGearMesh triggerDisplayGearMesh--ac";
-  const outputArm = document.createElement("span");
-  outputArm.className = "triggerDisplayGearOutputArm";
-
-  stage.append(meshLinkAB, meshLinkAC, outputArm);
+  const coincidenceSpoke = document.createElement("span");
+  coincidenceSpoke.className = "triggerDisplayGearCoincidence";
+  stage.appendChild(coincidenceSpoke);
   root.appendChild(stage);
 
   const ratioReadout = document.createElement("div");
   ratioReadout.className = "triggerDisplayGearRatio";
   root.appendChild(ratioReadout);
 
+  type GearDisplayRing = {
+    length: number;
+    rotation: number;
+    phase: number;
+    pattern: Uint8Array;
+    label: string;
+    isDerivedCycle?: boolean;
+  };
+
   const ringTeeth: HTMLElement[][] = [];
   const ringBodies: HTMLElement[] = [];
-  const ringModels: ReturnType<typeof createGearModel>["rings"] = [];
+  const ringMarkers: HTMLElement[] = [];
+  const ringModels: GearDisplayRing[] = [];
   let triggerPattern = new Uint8Array(0);
   let lastPlayhead = -1;
   let alignmentUntil = 0;
 
-  const buildRing = (ringIndex: number, steps: number, activeCount: number) => {
+  const buildRing = (ringIndex: number, ringModel: GearDisplayRing, activeCount: number) => {
     const ring = document.createElement("div");
     ring.className = `triggerDisplayGearWheel triggerDisplayGearWheel--${ringIndex + 1}`;
     ring.classList.toggle("is-enabled", ringIndex < activeCount);
     ring.style.setProperty("--gear-angle", "0deg");
+    ring.style.setProperty("--gear-ring-index", String(ringIndex));
+    ring.style.setProperty("--gear-ring-count", String(Math.max(1, activeCount)));
 
-    const rim = document.createElement("span");
-    rim.className = "triggerDisplayGearRim";
-
-    const hub = document.createElement("span");
-    hub.className = "triggerDisplayGearHub";
-
-    const phase = document.createElement("span");
-    phase.className = "triggerDisplayGearPhase";
+    const ringBody = document.createElement("span");
+    ringBody.className = "triggerDisplayGearRingBody";
 
     const badge = document.createElement("span");
     badge.className = "triggerDisplayGearBadge";
-    badge.textContent = `T${steps}`;
+    badge.textContent = ringModel.label;
 
-    const toothCount = clamp(Math.round(steps * 0.7), 10, 42);
+    const toothCount = clamp(Math.round(ringModel.length * 0.85), 10, 52);
     ring.style.setProperty("--gear-teeth", String(toothCount));
     const teeth: HTMLElement[] = [];
     for (let i = 0; i < toothCount; i++) {
       const tooth = document.createElement("span");
-      tooth.className = "triggerDisplayGearTooth";
+      tooth.className = "triggerDisplayGearSegment";
       tooth.style.setProperty("--gear-tooth-angle", `${((i / toothCount) * 360).toFixed(3)}deg`);
-      ring.appendChild(tooth);
+      ringBody.appendChild(tooth);
       teeth.push(tooth);
     }
 
-    ring.append(rim, hub, phase, badge);
+    const marker = document.createElement("span");
+    marker.className = "triggerDisplayGearMarker";
+    ring.append(ringBody, marker, badge);
     stage.appendChild(ring);
     ringBodies[ringIndex] = ring;
+    ringMarkers[ringIndex] = marker;
     ringTeeth[ringIndex] = teeth;
   };
 
+  const normalizeAngle = (angle: number) => {
+    const wrapped = ((angle % 360) + 360) % 360;
+    return wrapped;
+  };
+
   const setPlayheadState = (nextPlayhead: number, triggerOn: boolean) => {
+    const markerAngles: number[] = [];
+    let activeAlignedCount = 0;
     ringTeeth.forEach((teeth, ringIndex) => {
       const ring = ringModels[ringIndex];
       if (!ring?.length || !teeth.length) return;
@@ -233,9 +244,30 @@ function createGearView(): DisplayView {
       const index = ((Math.floor(nextPlayhead + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
       const active = ring.pattern[index] === 1;
       const toothIndex = Math.floor((index / ring.length) * teeth.length);
+      const phase = index / ring.length;
+      const angle = normalizeAngle(phase * 360);
+      markerAngles.push(angle);
+      if (active) activeAlignedCount += 1;
+      ringMarkers[ringIndex]?.style.setProperty("--gear-marker-angle", `${angle.toFixed(3)}deg`);
       teeth[toothIndex]?.classList.add("is-playhead");
-      teeth[toothIndex]?.classList.toggle("is-aligned", triggerOn && active);
+      teeth[toothIndex]?.classList.toggle("is-aligned", triggerOn && active && !ring.isDerivedCycle);
     });
+
+    const isCoincident = triggerOn && activeAlignedCount >= Math.max(2, ringModels.length - 1);
+    if (isCoincident && markerAngles.length) {
+      let anchor = markerAngles[0];
+      let sum = anchor;
+      for (let i = 1; i < markerAngles.length; i++) {
+        const raw = markerAngles[i];
+        let adjusted = raw;
+        while (adjusted - anchor > 180) adjusted -= 360;
+        while (adjusted - anchor < -180) adjusted += 360;
+        sum += adjusted;
+      }
+      const mean = normalizeAngle(sum / markerAngles.length);
+      coincidenceSpoke.style.setProperty("--gear-coincidence-angle", `${mean.toFixed(3)}deg`);
+    }
+    stage.classList.toggle("is-coincident", isCoincident);
   };
 
   return {
@@ -248,15 +280,37 @@ function createGearView(): DisplayView {
       ringModels.length = 0;
       ringTeeth.length = 0;
       ringBodies.length = 0;
+      ringMarkers.length = 0;
       stage.querySelectorAll(".triggerDisplayGearWheel").forEach((el) => el.remove());
       root.classList.remove("is-aligned");
       ratioReadout.textContent = "";
 
       model.rings.forEach((ringModel, ringIndex) => {
-        ringModels[ringIndex] = ringModel;
-        buildRing(ringIndex, ringModel.length, model.ringCount);
+        ringModels[ringIndex] = {
+          length: ringModel.length,
+          rotation: ringModel.rotation,
+          phase: ringModel.phase,
+          pattern: ringModel.pattern,
+          label: `R${ringIndex + 1}:${ringModel.length}`,
+        };
+      });
+      if (model.ringCount >= 3 && triggerPattern.length > Math.max(...model.rings.map((ring) => ring.length)) + 6) {
+        ringModels.push({
+          length: triggerPattern.length,
+          rotation: 0,
+          phase: 0,
+          pattern: triggerPattern,
+          label: `C:${triggerPattern.length}`,
+          isDerivedCycle: true,
+        });
+      }
+
+      const visibleRings = clamp(ringModels.length, 2, 4);
+      ringModels.splice(visibleRings);
+      ringModels.forEach((ringModel, ringIndex) => {
+        buildRing(ringIndex, ringModel, visibleRings);
         ringTeeth[ringIndex]?.forEach((tooth, i) => {
-          const sampleIndex = Math.floor((i / ringTeeth[ringIndex].length) * ringModel.length);
+          const sampleIndex = Math.floor((i / ringTeeth[ringIndex].length) * ringModel.length) % ringModel.length;
           tooth.classList.toggle("on", ringModel.pattern[sampleIndex] === 1);
         });
       });
@@ -275,7 +329,7 @@ function createGearView(): DisplayView {
       ringBodies.forEach((ringEl, ringIndex) => {
         const ring = ringModels[ringIndex];
         if (!ring?.length) return;
-        const direction = ringIndex === 1 ? -1 : 1;
+        const direction = ringIndex % 2 === 1 ? -1 : 1;
         const driftWarp = 1 + clamp(liveModule.weird, 0, 1) * ring.phase * 0.9;
         const angle = ring.rotation + (progress * 360 * (triggerPattern.length / ring.length) * direction * driftWarp);
         ringEl.style.setProperty("--gear-angle", `${angle.toFixed(3)}deg`);
@@ -291,6 +345,7 @@ function createGearView(): DisplayView {
       const aligned = alignmentUntil > timeMs;
       root.classList.toggle("is-aligned", aligned);
       stage.classList.toggle("is-aligned", aligned);
+      if (!aligned) stage.classList.remove("is-coincident");
     },
   };
 }
