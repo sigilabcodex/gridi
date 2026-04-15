@@ -84,6 +84,7 @@ export function renderControlSurface(
 
   const kindField = createCompactSelectField({
     label: "Mode",
+    className: "compactSelectField--chip",
     options: KINDS.map((kind) => ({ value: kind, label: kind.toUpperCase() })),
     selected: mod.kind,
     onChange: (value) => onPatchChange((p) => {
@@ -94,6 +95,7 @@ export function renderControlSurface(
 
   const waveField = createCompactSelectField({
     label: "Shape",
+    className: "compactSelectField--chip",
     options: WAVES.map((wave) => ({ value: wave, label: wave })),
     selected: mod.waveform,
     onChange: (value) => onPatchChange((p) => {
