@@ -141,7 +141,7 @@ export type TonalModule = TonalSynthModule;
 
 export type SoundModule = DrumModule | TonalModule;
 
-export type VisualKind = "scope" | "spectrum" | "pattern";
+export type VisualKind = "scope" | "spectrum" | "vectorscope" | "spectral-depth" | "flow" | "ritual" | "glitch";
 
 export type VisualModule = ModuleBase & {
   type: "visual";
@@ -355,12 +355,21 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
 }
 
 export function makeVisual(kind: VisualKind, i = 0): VisualModule {
+  const presetNameByKind: Record<VisualKind, string> = {
+    scope: "Scope Default",
+    spectrum: "Spectrum Default",
+    vectorscope: "Vectorscope Default",
+    "spectral-depth": "Spectral Depth Default",
+    flow: "Flow Default",
+    ritual: "Ritual Default",
+    glitch: "Glitch Default",
+  };
   return {
     id: uid("vis"),
     type: "visual",
     engine: "visual",
     name: `Scope ${i + 1}`,
-    presetName: kind === "scope" ? "Scope Default" : kind === "spectrum" ? "Spectrum Default" : "Pattern Default",
+    presetName: presetNameByKind[kind],
     enabled: true,
     x: 0,
     y: 0,
@@ -579,6 +588,14 @@ function normalizeConnection(raw: unknown): Connection | null {
   };
 }
 
+function normalizeVisualKind(raw: unknown): VisualKind {
+  if (raw === "scope" || raw === "spectrum" || raw === "vectorscope" || raw === "spectral-depth" || raw === "flow" || raw === "ritual" || raw === "glitch") {
+    return raw;
+  }
+  if (raw === "pattern") return "ritual";
+  return "scope";
+}
+
 export function migratePatch(patch: Patch): Patch {
   const migrated: Module[] = [];
   const legacyVoiceToTrigger = new Map<string, string>();
@@ -652,6 +669,7 @@ export function migratePatch(patch: Patch): Patch {
       migrated.push({
         ...moduleAny,
         engine: "visual",
+        kind: normalizeVisualKind((moduleAny as any).kind),
         presetName: typeof (moduleAny as any).presetName === "string" && (moduleAny as any).presetName.trim()
           ? (moduleAny as any).presetName
           : "Scope Default",

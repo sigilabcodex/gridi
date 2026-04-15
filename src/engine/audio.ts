@@ -23,6 +23,7 @@ export type Engine = {
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
+  getStereoScopeData(outLeft?: Float32Array, outRight?: Float32Array): { left: Float32Array; right: Float32Array };
   getSpectrumData(out?: Float32Array): Float32Array; // 0..1 (normalized)
   getMasterActivity(): { level: number; transient: number; active: boolean; left: number; right: number };
 };
@@ -262,19 +263,27 @@ export function createEngine(): Engine {
     return buf;
   }
 
-  function getMasterActivity() {
-    getScopeData(scopeBuf);
+  function getStereoScopeData(outLeft?: Float32Array, outRight?: Float32Array) {
+    const left = outLeft && outLeft.length === scopeLeft.length ? outLeft : scopeLeft;
+    const right = outRight && outRight.length === scopeRight.length ? outRight : scopeRight;
     const anyLeft = analyserLeft as any;
     const anyRight = analyserRight as any;
     if (typeof anyLeft.getFloatTimeDomainData === "function") {
-      anyLeft.getFloatTimeDomainData(scopeLeft);
-      anyRight.getFloatTimeDomainData(scopeRight);
-    } else {
-      analyserLeft.getByteTimeDomainData(scopeByte);
-      for (let i = 0; i < scopeLeft.length; i += 1) scopeLeft[i] = (scopeByte[i] - 128) / 128;
-      analyserRight.getByteTimeDomainData(scopeByte);
-      for (let i = 0; i < scopeRight.length; i += 1) scopeRight[i] = (scopeByte[i] - 128) / 128;
+      anyLeft.getFloatTimeDomainData(left);
+      anyRight.getFloatTimeDomainData(right);
+      return { left, right };
     }
+
+    analyserLeft.getByteTimeDomainData(scopeByte);
+    for (let i = 0; i < left.length; i += 1) left[i] = (scopeByte[i] - 128) / 128;
+    analyserRight.getByteTimeDomainData(scopeByte);
+    for (let i = 0; i < right.length; i += 1) right[i] = (scopeByte[i] - 128) / 128;
+    return { left, right };
+  }
+
+  function getMasterActivity() {
+    getScopeData(scopeBuf);
+    getStereoScopeData(scopeLeft, scopeRight);
 
     let peak = 0;
     let rmsSum = 0;
@@ -546,6 +555,7 @@ export function createEngine(): Engine {
     dispose,
     triggerVoice,
     getScopeData,
+    getStereoScopeData,
     getSpectrumData,
     getMasterActivity,
   };
