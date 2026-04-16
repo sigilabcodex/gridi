@@ -150,7 +150,32 @@ export function createTransportHeader(params: HeaderParams) {
   mobileToggle.type = "button";
   mobileToggle.textContent = "Controls";
 
-  titleWrap.append(h1, subtitle, mobileToggle);
+  const compactQuickRow = document.createElement("div");
+  compactQuickRow.className = "transportCompactQuickRow";
+
+  const btnCompactAudio = document.createElement("button");
+  btnCompactAudio.className = "transportCompactQuickBtn transportIconBtn";
+  btnCompactAudio.type = "button";
+  btnCompactAudio.onclick = params.onToggleAudio;
+  params.attachTooltip(btnCompactAudio, {
+    text: "Start or suspend audio.",
+    ariaLabel: "Toggle audio engine",
+  });
+
+  const btnCompactPlay = document.createElement("button");
+  btnCompactPlay.className = "transportCompactQuickBtn transportIconBtn";
+  btnCompactPlay.type = "button";
+  btnCompactPlay.onclick = params.onTogglePlay;
+  params.attachTooltip(btnCompactPlay, {
+    text: "Play or stop current patch.",
+    ariaLabel: "Toggle transport playback",
+  });
+
+  const compactStatus = document.createElement("div");
+  compactStatus.className = "small transportCompactStatus";
+
+  compactQuickRow.append(btnCompactAudio, btnCompactPlay, compactStatus, mobileToggle);
+  titleWrap.append(h1, subtitle, compactQuickRow);
 
   const transportRow = document.createElement("div");
   transportRow.className = "transportRow transportRowMain";
@@ -568,6 +593,11 @@ export function createTransportHeader(params: HeaderParams) {
 
   syncCompactHeaderState();
 
+  const closeCompactPanel = () => {
+    if (!compactExpanded) return;
+    setCompactExpanded(false);
+  };
+
   params.root.appendChild(header);
 
   let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
@@ -671,6 +701,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
+    if (compactExpanded && target && !header.contains(target)) closeCompactPanel();
     if (target && !sessionPanel.classList.contains("hidden")) {
       if (!sessionPanel.contains(target) && !sessionSummary.contains(target)) closeSessionMenu();
     }
@@ -681,6 +712,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      closeCompactPanel();
       closeSessionMenu();
       closeGeneratorMenu();
     }
@@ -692,13 +724,17 @@ export function createTransportHeader(params: HeaderParams) {
     const experimental = params.settingsExperimental() ? " (exp)" : "";
     statusPlayback.textContent = `status: ${play}`;
     statusAudio.textContent = `audio: ${audio}${experimental}`;
+    compactStatus.textContent = `${play} · ${audio}`;
   };
 
   const updateAudioBtn = () => {
     const running = params.audioState() === "running";
     btnAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
+    btnCompactAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
     btnAudio.classList.toggle("isOn", running);
+    btnCompactAudio.classList.toggle("isOn", running);
     btnAudio.setAttribute("aria-pressed", running ? "true" : "false");
+    btnCompactAudio.setAttribute("aria-pressed", running ? "true" : "false");
   };
 
   const updateOutputMeter = () => {
@@ -714,8 +750,11 @@ export function createTransportHeader(params: HeaderParams) {
   const updatePlayBtn = () => {
     const playing = params.isPlaying();
     btnPlay.replaceChildren(makeIcon("play"));
+    btnCompactPlay.replaceChildren(makeIcon("play"));
     btnPlay.classList.toggle("isOn", playing);
+    btnCompactPlay.classList.toggle("isOn", playing);
     btnPlay.setAttribute("aria-pressed", playing ? "true" : "false");
+    btnCompactPlay.setAttribute("aria-pressed", playing ? "true" : "false");
     btnStop.disabled = !playing;
   };
 

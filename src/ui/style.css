@@ -5964,10 +5964,9 @@ button:focus-visible,
 
 .transportHeader.isCompactGlobal .transportTitle {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 8px;
-  row-gap: 2px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  row-gap: 4px;
   padding: 0;
 }
 
@@ -5984,10 +5983,41 @@ button:focus-visible,
   grid-column: 1;
   grid-row: 2;
   margin: 0;
-  max-width: min(64vw, 340px);
+  max-width: min(72vw, 340px);
   font-size: 9px;
   line-height: 1.1;
-  opacity: 0.62;
+  opacity: 0.56;
+}
+
+.transportCompactQuickRow {
+  display: none;
+}
+
+.transportHeader.isCompactGlobal .transportCompactQuickRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.transportHeader.isCompactGlobal .transportCompactQuickBtn {
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-color: rgba(143, 170, 198, 0.38);
+}
+
+.transportHeader.isCompactGlobal .transportCompactStatus {
+  margin-left: 2px;
+  font-size: 10px;
+  letter-spacing: 0.25px;
+  opacity: 0.82;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .transportHeader.isCompactGlobal .transportMain {
@@ -6055,13 +6085,11 @@ button:focus-visible,
 }
 
 .transportHeader.isCompactGlobal .transportMobileToggle {
-  min-height: 26px;
-  padding: 3px 8px;
+  margin-left: auto;
+  min-height: 32px;
+  padding: 3px 10px;
   font-size: 10px;
   border-color: rgba(74, 163, 255, 0.4);
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
 }
 
 .transportHeader.isShortHeightCompact {
@@ -6076,6 +6104,10 @@ button:focus-visible,
 .transportHeader.isShortHeightCompact .transportTitle h1 {
   font-size: clamp(13px, 2.2vw, 16px);
   line-height: 1;
+}
+
+.transportHeader.isShortHeightCompact .transportCompactQuickRow {
+  grid-row: 2;
 }
 
 .transportHeader.isShortHeightCompact .transportMain {
@@ -6100,6 +6132,12 @@ button:focus-visible,
   width: 30px;
   min-width: 30px;
   min-height: 30px;
+}
+
+.transportHeader.isShortHeightCompact .transportCompactQuickBtn,
+.transportHeader.isShortHeightCompact .transportMobileToggle {
+  min-height: 28px;
+  min-width: 28px;
 }
 
 .transportHeader.isShortHeightCompact .transportIconGlyph {
@@ -6161,8 +6199,8 @@ button:focus-visible,
   }
 
   .transportTitle {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
     gap: 3px;
     padding: 0;
   }
@@ -6187,12 +6225,18 @@ button:focus-visible,
   }
 
   .transportMobileToggle {
-    min-height: 30px;
+    margin-left: auto;
+    min-height: 32px;
     padding: 4px 8px;
     font-size: 11px;
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
+  }
+
+  .transportCompactQuickRow {
+    width: 100%;
+  }
+
+  .transportCompactStatus {
+    max-width: 24vw;
   }
 
   .transportHeader.isCompactGlobal .transportStatus {
