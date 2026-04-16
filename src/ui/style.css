@@ -5980,19 +5980,28 @@ button:focus-visible,
     margin: 0;
     font-size: clamp(16px, 5vw, 18px);
     letter-spacing: 0.65px;
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .transportSubtitle {
     font-size: 9px;
     line-height: 1.15;
-    max-width: min(55vw, 240px);
+    max-width: min(62vw, 260px);
     opacity: 0.66;
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    white-space: normal;
   }
 
   .transportMobileToggle {
     min-height: 30px;
     padding: 4px 8px;
     font-size: 11px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
   .transportRowMain {
@@ -6084,6 +6093,98 @@ button:focus-visible,
   .transportHeader.mobileCollapsed .transportZoneCenter,
   .transportHeader.mobileCollapsed .transportZoneRight {
     display: none;
+  }
+}
+
+@media (max-width: 960px) and (max-height: 560px) and (orientation: landscape) {
+  .transportHeader {
+    gap: 4px;
+    padding: 4px 8px;
+    margin-bottom: 6px;
+  }
+
+  .transportTitle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .transportTitle h1 {
+    font-size: clamp(14px, 2.7vw, 17px);
+    line-height: 1;
+  }
+
+  .transportSubtitle {
+    display: none;
+  }
+
+  .transportMobileToggle {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 10px;
+  }
+
+  .transportRowMain {
+    gap: 4px;
+  }
+
+  .transportZone,
+  .transportCenterGroup {
+    gap: 4px;
+  }
+
+  .transportCluster {
+    gap: 4px;
+    padding: 3px 4px;
+  }
+
+  .transportIconBtn {
+    width: 30px;
+    min-width: 30px;
+    min-height: 30px;
+  }
+
+  .transportIconGlyph {
+    width: 13px;
+    height: 13px;
+  }
+
+  .transportDial {
+    width: 108px;
+    flex-basis: 108px;
+    gap: 2px;
+  }
+
+  .transportDial > .small {
+    font-size: 8px;
+  }
+
+  .transportDial input[type="range"] {
+    height: 14px;
+  }
+
+  .transportDialNumber {
+    max-width: 66px;
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+
+  .transportStatus {
+    font-size: 8px;
+    gap: 1px;
+  }
+
+  .transportStatusLine:last-child {
+    display: none;
+  }
+
+  .transportOutputMeter {
+    width: 58px;
+    height: 12px;
+  }
+
+  .transportClusterSession {
+    min-width: 0;
   }
 }
 

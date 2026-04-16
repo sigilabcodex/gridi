@@ -30,6 +30,7 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 3. Expand module preset banks from starter seeds toward curated instrument-grade defaults.
 4. Improve display-surface interaction feedback so displays act as behavior surfaces, not passive labels.
 5. Refine top/global header and add-slot affordances without breaking current shell/routing architecture.
+6. Introduce a dedicated mobile global-controls pattern (recommended next: compact launcher + sheet/drawer) so transport/session utilities stop competing with module workspace height on landscape phones/tablets.
 
 ## Longer-term ideas (not implemented yet)
 
