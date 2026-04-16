@@ -8,6 +8,7 @@ export type KnobOpts = {
   format?: (v: number) => string;
   onChange: (v: number) => void;
   onRequestEditor?: () => void;
+  tapOpensEditor?: boolean;
 
   /**
    * If provided, value==center maps to the middle of the travel (12 o'clock).
@@ -170,6 +171,7 @@ export function knob(
   let wheelGestureTimer: number | null = null;
 
   knobEl.addEventListener("pointerdown", (e) => {
+    if (opts.tapOpensEditor) return;
     if (!dragging) emitHistoryGesture("start");
     dragging = true;
     knobEl.classList.add("drag");
@@ -180,6 +182,7 @@ export function knob(
   });
 
   knobEl.addEventListener("pointermove", (e) => {
+    if (opts.tapOpensEditor) return;
     if (!dragging) return;
     const dy = startY - e.clientY;
     const range = opts.max - opts.min;
@@ -189,6 +192,7 @@ export function knob(
   });
 
   const stopDrag = () => {
+    if (opts.tapOpensEditor) return;
     if (dragging) emitHistoryGesture("end");
     dragging = false;
     knobEl.classList.remove("drag");
@@ -199,6 +203,7 @@ export function knob(
   knobEl.addEventListener(
     "wheel",
     (e) => {
+      if (opts.tapOpensEditor) return;
       e.preventDefault();
       if (wheelGestureTimer === null) emitHistoryGesture("start");
       if (wheelGestureTimer !== null) window.clearTimeout(wheelGestureTimer);
@@ -262,7 +267,20 @@ export function knob(
     if ((e.key === "Enter" || e.key === " ") && opts.onRequestEditor) {
       e.preventDefault();
       opts.onRequestEditor();
+      return;
     }
+    if (opts.tapOpensEditor && opts.onRequestEditor) {
+      if (e.key.startsWith("Arrow") || e.key === "PageUp" || e.key === "PageDown" || e.key === "Home" || e.key === "End") {
+        e.preventDefault();
+        opts.onRequestEditor();
+      }
+    }
+  });
+
+  knobEl.addEventListener("click", (e) => {
+    if (!opts.tapOpensEditor || !opts.onRequestEditor) return;
+    e.preventDefault();
+    opts.onRequestEditor();
   });
 
   valEl.addEventListener("click", (e) => {
