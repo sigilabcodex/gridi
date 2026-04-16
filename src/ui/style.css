@@ -5950,6 +5950,197 @@ button:focus-visible,
 }
 
 /* === Responsive shell pass: viewport-first grid + compact transport === */
+@media (max-width: 1180px) {
+  .workspaceViewport {
+    overflow-x: hidden;
+  }
+}
+
+.transportHeader.isCompactGlobal {
+  gap: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.transportHeader.isCompactGlobal .transportTitle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 0;
+}
+
+.transportHeader.isCompactGlobal .transportTitle h1 {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: clamp(15px, 2.4vw, 19px);
+  line-height: 1.03;
+  letter-spacing: 0.55px;
+}
+
+.transportHeader.isCompactGlobal .transportSubtitle {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  max-width: min(64vw, 340px);
+  font-size: 9px;
+  line-height: 1.1;
+  opacity: 0.62;
+}
+
+.transportHeader.isCompactGlobal .transportMain {
+  display: none;
+}
+
+.transportHeader.isCompactGlobal.compactExpanded .transportMain {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 8px;
+  right: 8px;
+  z-index: 240;
+  display: block;
+  max-height: min(62vh, 420px);
+  overflow: auto;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(74, 163, 255, 0.24);
+  background: linear-gradient(180deg, rgba(9, 15, 22, 0.96), rgba(8, 13, 20, 0.95));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.transportHeader.isCompactGlobal .transportRowMain {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.transportHeader.isCompactGlobal .transportZone,
+.transportHeader.isCompactGlobal .transportCenterGroup {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.transportHeader.isCompactGlobal .transportZoneCenter,
+.transportHeader.isCompactGlobal .transportZoneRight {
+  width: 100%;
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.transportHeader.isCompactGlobal .transportCluster {
+  gap: 6px;
+  padding: 4px 5px;
+  border-radius: 8px;
+}
+
+.transportHeader.isCompactGlobal .transportClusterTempo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.transportHeader.isCompactGlobal .transportDial {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.transportHeader.isCompactGlobal .transportClusterSession {
+  min-width: 0;
+  width: 100%;
+}
+
+.transportHeader.isCompactGlobal .transportMobileToggle {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 10px;
+  border-color: rgba(74, 163, 255, 0.4);
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.transportHeader.isShortHeightCompact {
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+
+.transportHeader.isShortHeightCompact .transportSubtitle {
+  display: none;
+}
+
+.transportHeader.isShortHeightCompact .transportTitle h1 {
+  font-size: clamp(13px, 2.2vw, 16px);
+  line-height: 1;
+}
+
+.transportHeader.isShortHeightCompact .transportMain {
+  max-height: min(70vh, 340px);
+}
+
+.transportHeader.isShortHeightCompact .transportRowMain {
+  gap: 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportZone,
+.transportHeader.isShortHeightCompact .transportCenterGroup {
+  gap: 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportCluster {
+  gap: 4px;
+  padding: 3px 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportIconBtn {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.transportHeader.isShortHeightCompact .transportIconGlyph {
+  width: 13px;
+  height: 13px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial {
+  width: 108px;
+  flex-basis: 108px;
+  gap: 2px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial > .small {
+  font-size: 8px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial input[type="range"] {
+  height: 14px;
+}
+
+.transportHeader.isShortHeightCompact .transportDialNumber {
+  max-width: 66px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.transportHeader.isShortHeightCompact .transportStatus {
+  font-size: 8px;
+  gap: 1px;
+}
+
+.transportHeader.isShortHeightCompact .transportStatusLine:last-child {
+  display: none;
+}
+
+.transportHeader.isShortHeightCompact .transportOutputMeter {
+  width: 58px;
+  height: 12px;
+}
+
 @media (max-width: 760px) {
   :root {
     --module-cell-w: min(100%, 340px);
@@ -5980,77 +6171,33 @@ button:focus-visible,
     margin: 0;
     font-size: clamp(16px, 5vw, 18px);
     letter-spacing: 0.65px;
+    grid-column: 1;
+    grid-row: 1;
   }
 
   .transportSubtitle {
     font-size: 9px;
     line-height: 1.15;
-    max-width: min(55vw, 240px);
+    max-width: min(62vw, 260px);
     opacity: 0.66;
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+    white-space: normal;
   }
 
   .transportMobileToggle {
     min-height: 30px;
     padding: 4px 8px;
     font-size: 11px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
   }
 
-  .transportRowMain {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .transportZone {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
-  }
-
-  .transportZoneCenter,
-  .transportZoneRight {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
-  }
-
-  .transportCenterGroup {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .transportCluster {
-    gap: 6px;
-    padding: 4px 5px;
-    border-radius: 8px;
-  }
-
-  .transportClusterTempo {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .transportDial {
-    width: 100%;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .transportClusterSession {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .transportStatus {
+  .transportHeader.isCompactGlobal .transportStatus {
     font-size: 10px;
     line-height: 1.2;
-  }
-
-  .transportSettingsDock {
-    margin-left: 0;
   }
 }
 
@@ -6081,10 +6228,6 @@ button:focus-visible,
     max-width: 100%;
   }
 
-  .transportHeader.mobileCollapsed .transportZoneCenter,
-  .transportHeader.mobileCollapsed .transportZoneRight {
-    display: none;
-  }
 }
 
 @media (max-width: 420px) {
