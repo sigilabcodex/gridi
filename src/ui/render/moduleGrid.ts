@@ -222,24 +222,27 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     windowX: number;
     windowY: number;
     viewportScrollLeft: number;
+    lockHorizontal: boolean;
   };
 
   const snapshotScrollPosition = (): ScrollSnapshot => {
     const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
+    const lockHorizontal = isMobilePortraitViewport();
     return {
       windowX: window.scrollX,
       windowY: window.scrollY,
-      viewportScrollLeft: viewport?.scrollLeft ?? 0,
+      viewportScrollLeft: lockHorizontal ? 0 : (viewport?.scrollLeft ?? 0),
+      lockHorizontal,
     };
   };
 
   const restoreScrollPosition = (snapshot: ScrollSnapshot) => {
     const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
-    if (viewport) viewport.scrollLeft = snapshot.viewportScrollLeft;
+    if (viewport) viewport.scrollLeft = snapshot.lockHorizontal ? 0 : snapshot.viewportScrollLeft;
     window.scrollTo(snapshot.windowX, snapshot.windowY);
     requestAnimationFrame(() => {
       const refreshedViewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
-      if (refreshedViewport) refreshedViewport.scrollLeft = snapshot.viewportScrollLeft;
+      if (refreshedViewport) refreshedViewport.scrollLeft = snapshot.lockHorizontal ? 0 : snapshot.viewportScrollLeft;
       window.scrollTo(snapshot.windowX, snapshot.windowY);
     });
   };
@@ -658,6 +661,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     workspaceViewport.style.setProperty("--workspace-side-gutter", `${sideGutter}px`);
     workspaceGrid.style.setProperty("--workspace-visible-columns", String(visibleColumns));
     workspaceGrid.style.setProperty("--workspace-render-columns", String(renderedColumns));
+    if (isMobilePortraitViewport()) workspaceViewport.scrollLeft = 0;
 
     if (inspectedModuleId && !patch.modules.some((module) => module.id === inspectedModuleId)) inspectedModuleId = null;
 

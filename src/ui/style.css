@@ -6055,6 +6055,32 @@ button:focus-visible,
 }
 
 @media (max-width: 760px) and (orientation: portrait) {
+  :root {
+    --module-cell-w: 100%;
+  }
+
+  .workspaceViewport {
+    overflow-x: hidden;
+    padding-inline: 0;
+  }
+
+  .workspaceViewportInner,
+  .workspaceGrid {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .workspaceGrid {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
+    padding-inline: 6px;
+  }
+
+  .moduleCell {
+    width: 100%;
+    max-width: 100%;
+  }
+
   .transportHeader.mobileCollapsed .transportZoneCenter,
   .transportHeader.mobileCollapsed .transportZoneRight {
     display: none;
