@@ -5,6 +5,8 @@ import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisu
 import {
   getModuleGridPosition,
   gridPositionKey,
+  gridPositionToSlotIndex,
+  slotIndexToGridPosition,
   setModuleGridPosition,
   type GridPosition,
   resolveGridLayout,
@@ -200,6 +202,14 @@ function readVisibleColumnCount(main: HTMLElement) {
   return cleanFittedColumns;
 }
 
+function readPositionFromKey(key: string): GridPosition | null {
+  const [xRaw, yRaw] = key.split(",");
+  const x = Number.parseInt(xRaw ?? "", 10);
+  const y = Number.parseInt(yRaw ?? "", 10);
+  if (!Number.isInteger(x) || !Number.isInteger(y)) return null;
+  return { x, y };
+}
+
 export function createModuleGridRenderer(params: ModuleGridParams) {
   let updaters: Array<() => void> = [];
   const failedUpdaterIndices = new Set<number>();
@@ -212,24 +222,27 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     windowX: number;
     windowY: number;
     viewportScrollLeft: number;
+    lockHorizontal: boolean;
   };
 
   const snapshotScrollPosition = (): ScrollSnapshot => {
     const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
+    const lockHorizontal = isMobilePortraitViewport();
     return {
       windowX: window.scrollX,
       windowY: window.scrollY,
-      viewportScrollLeft: viewport?.scrollLeft ?? 0,
+      viewportScrollLeft: lockHorizontal ? 0 : (viewport?.scrollLeft ?? 0),
+      lockHorizontal,
     };
   };
 
   const restoreScrollPosition = (snapshot: ScrollSnapshot) => {
     const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
-    if (viewport) viewport.scrollLeft = snapshot.viewportScrollLeft;
+    if (viewport) viewport.scrollLeft = snapshot.lockHorizontal ? 0 : snapshot.viewportScrollLeft;
     window.scrollTo(snapshot.windowX, snapshot.windowY);
     requestAnimationFrame(() => {
       const refreshedViewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
-      if (refreshedViewport) refreshedViewport.scrollLeft = snapshot.viewportScrollLeft;
+      if (refreshedViewport) refreshedViewport.scrollLeft = snapshot.lockHorizontal ? 0 : snapshot.viewportScrollLeft;
       window.scrollTo(snapshot.windowX, snapshot.windowY);
     });
   };
@@ -635,7 +648,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     };
 
     const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
-    renderedColumns = Math.max(visibleColumns, maxOccupiedX + 1, MIN_VISIBLE_COLUMNS);
+    const compactViewport = isMobilePortraitViewport() || isMobileLandscapeViewport();
+    renderedColumns = compactViewport
+      ? Math.max(visibleColumns, MIN_VISIBLE_COLUMNS)
+      : Math.max(visibleColumns, maxOccupiedX + 1, MIN_VISIBLE_COLUMNS);
     const rootStyles = getComputedStyle(document.documentElement);
     const cellWidth = measureCssVariablePx(params.main, "--module-cell-w", 330);
     const gap = parseCssLengthPx(rootStyles.getPropertyValue("--workspace-grid-gap"), 10);
@@ -645,41 +661,86 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     workspaceViewport.style.setProperty("--workspace-side-gutter", `${sideGutter}px`);
     workspaceGrid.style.setProperty("--workspace-visible-columns", String(visibleColumns));
     workspaceGrid.style.setProperty("--workspace-render-columns", String(renderedColumns));
+    if (isMobilePortraitViewport()) workspaceViewport.scrollLeft = 0;
 
     if (inspectedModuleId && !patch.modules.some((module) => module.id === inspectedModuleId)) inspectedModuleId = null;
 
-    for (let y = 0; y < totalRows; y++) {
-      for (let x = 0; x < renderedColumns; x++) {
-        const position = { x, y };
-        const slotIndex = y * renderedColumns + x;
-        const module = modulesByPosition.get(gridPositionKey(position));
-        if (module) {
-          const surface = renderModuleSurface(module, position);
-          if (movedModuleIds.has(module.id)) {
-            surface.classList.add("dropSettled");
-            requestAnimationFrame(() => surface.classList.remove("dropSettled"));
-          }
-          workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
-          continue;
-        }
+    const renderEmptySlot = (displayPosition: GridPosition, targetPosition: GridPosition, slotIndex: number) => {
+      const slot = renderAddModuleSlot({
+        position: targetPosition,
+        onPick: (what) => createModuleAt(what, targetPosition),
+        onDropModule: (moduleId) => moveModuleToCell(moduleId, targetPosition),
+        attachTooltip: params.attachTooltip,
+      });
+      focusableByPosition.set(gridPositionKey(displayPosition), slot);
+      handleGridNavigation(slot, displayPosition);
+      slot.addEventListener("focusin", () => {
+        inspectedModuleId = null;
+        applyRoutingHighlight();
+      });
+      slot.addEventListener("pointerdown", () => {
+        inspectedModuleId = null;
+        applyRoutingHighlight();
+      });
+      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position: displayPosition }));
+    };
 
-        const slot = renderAddModuleSlot({
-          position,
-          onPick: (what) => createModuleAt(what, position),
-          onDropModule: (moduleId) => moveModuleToCell(moduleId, position),
-          attachTooltip: params.attachTooltip,
-        });
-        focusableByPosition.set(gridPositionKey(position), slot);
-        handleGridNavigation(slot, position);
-        slot.addEventListener("focusin", () => {
-          inspectedModuleId = null;
-          applyRoutingHighlight();
-        });
-        slot.addEventListener("pointerdown", () => {
-          inspectedModuleId = null;
-          applyRoutingHighlight();
-        });
-        workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position }));
+    if (compactViewport) {
+      const moduleEntries = Array.from(modulesByPosition.entries())
+        .map(([key, module]) => {
+          const sourcePosition = readPositionFromKey(key);
+          if (!sourcePosition) return null;
+          return {
+            module,
+            sourcePosition,
+            sourceSlot: gridPositionToSlotIndex(sourcePosition),
+          };
+        })
+        .filter((entry): entry is { module: Patch["modules"][number]; sourcePosition: GridPosition; sourceSlot: number } => Boolean(entry))
+        .sort((a, b) => a.sourceSlot - b.sourceSlot);
+
+      moduleEntries.forEach((entry, displaySlot) => {
+        const displayPosition = slotIndexToGridPosition(displaySlot, renderedColumns);
+        const surface = renderModuleSurface(entry.module, displayPosition);
+        if (movedModuleIds.has(entry.module.id)) {
+          surface.classList.add("dropSettled");
+          requestAnimationFrame(() => surface.classList.remove("dropSettled"));
+        }
+        workspaceGrid.appendChild(
+          createModuleCell(surface, {
+            occupied: true,
+            index: displaySlot,
+            position: displayPosition,
+          }),
+        );
+      });
+
+      const emptySlots = renderedColumns * 2;
+      const firstEmptySlot = moduleEntries.length;
+      for (let offset = 0; offset < emptySlots; offset++) {
+        const displaySlot = firstEmptySlot + offset;
+        const displayPosition = slotIndexToGridPosition(displaySlot, renderedColumns);
+        const canonicalPosition = slotIndexToGridPosition(displaySlot);
+        renderEmptySlot(displayPosition, canonicalPosition, displaySlot);
+      }
+    } else {
+      for (let y = 0; y < totalRows; y++) {
+        for (let x = 0; x < renderedColumns; x++) {
+          const position = { x, y };
+          const slotIndex = y * renderedColumns + x;
+          const module = modulesByPosition.get(gridPositionKey(position));
+          if (module) {
+            const surface = renderModuleSurface(module, position);
+            if (movedModuleIds.has(module.id)) {
+              surface.classList.add("dropSettled");
+              requestAnimationFrame(() => surface.classList.remove("dropSettled"));
+            }
+            workspaceGrid.appendChild(createModuleCell(surface, { occupied: true, index: slotIndex, position }));
+            continue;
+          }
+
+          renderEmptySlot(position, position, slotIndex);
+        }
       }
     }
 
