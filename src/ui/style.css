@@ -6010,11 +6010,11 @@ button:focus-visible,
 }
 
 .transportHeader.isCompactGlobal.compactExpanded .transportMain {
-  position: fixed;
+  position: absolute;
+  top: calc(100% + 6px);
   left: 8px;
   right: 8px;
-  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
-  z-index: 260;
+  z-index: 320;
   display: block;
   max-height: min(60vh, 420px);
   overflow: auto;
