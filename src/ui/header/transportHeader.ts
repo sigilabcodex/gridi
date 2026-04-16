@@ -525,17 +525,20 @@ export function createTransportHeader(params: HeaderParams) {
   mobileToggle.setAttribute("aria-controls", main.id);
   header.append(main);
 
-  const compactGlobalMql =
-    typeof window === "undefined" || typeof window.matchMedia !== "function"
-      ? null
-      : window.matchMedia(
-        "(max-width: 760px), ((max-width: 1100px) and (max-height: 760px)), ((orientation: portrait) and (max-width: 900px) and (max-height: 1200px))"
-      );
+  const supportsMedia = typeof window !== "undefined" && typeof window.matchMedia === "function";
+  const compactGlobalMql = supportsMedia
+    ? window.matchMedia("(max-width: 760px), ((orientation: portrait) and (max-width: 1024px))")
+    : null;
+  const shortHeightCompactMql = supportsMedia
+    ? window.matchMedia("(max-height: 760px) and (max-width: 1366px)")
+    : null;
 
   let compactExpanded = false;
   const syncCompactHeaderState = () => {
-    const compactActive = compactGlobalMql?.matches ?? false;
+    const compactActive = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
+    const shortHeightActive = shortHeightCompactMql?.matches ?? false;
     header.classList.toggle("isCompactGlobal", compactActive);
+    header.classList.toggle("isShortHeightCompact", compactActive && shortHeightActive);
     header.classList.toggle("compactExpanded", compactActive && compactExpanded);
     header.classList.toggle("mobileCollapsed", compactActive && !compactExpanded);
     mobileToggle.setAttribute("aria-expanded", compactExpanded ? "true" : "false");
@@ -550,11 +553,17 @@ export function createTransportHeader(params: HeaderParams) {
 
   mobileToggle.onclick = () => setCompactExpanded(!compactExpanded);
 
-  if (compactGlobalMql) {
-    compactGlobalMql.addEventListener("change", () => {
-      if (!compactGlobalMql.matches) compactExpanded = false;
-      syncCompactHeaderState();
-    });
+  const handleCompactQueryChange = () => {
+    const active = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
+    if (!active) compactExpanded = false;
+    syncCompactHeaderState();
+  };
+
+  compactGlobalMql?.addEventListener("change", handleCompactQueryChange);
+  shortHeightCompactMql?.addEventListener("change", handleCompactQueryChange);
+
+  if (!compactGlobalMql && !shortHeightCompactMql) {
+    compactExpanded = false;
   }
 
   syncCompactHeaderState();

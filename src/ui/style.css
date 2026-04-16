@@ -5962,6 +5962,34 @@ button:focus-visible,
   margin-bottom: 8px;
 }
 
+.transportHeader.isCompactGlobal .transportTitle {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 0;
+}
+
+.transportHeader.isCompactGlobal .transportTitle h1 {
+  grid-column: 1;
+  grid-row: 1;
+  margin: 0;
+  font-size: clamp(15px, 2.4vw, 19px);
+  line-height: 1.03;
+  letter-spacing: 0.55px;
+}
+
+.transportHeader.isCompactGlobal .transportSubtitle {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 0;
+  max-width: min(64vw, 340px);
+  font-size: 9px;
+  line-height: 1.1;
+  opacity: 0.62;
+}
+
 .transportHeader.isCompactGlobal .transportMain {
   display: none;
 }
@@ -6031,6 +6059,86 @@ button:focus-visible,
   padding: 3px 8px;
   font-size: 10px;
   border-color: rgba(74, 163, 255, 0.4);
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.transportHeader.isShortHeightCompact {
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+
+.transportHeader.isShortHeightCompact .transportSubtitle {
+  display: none;
+}
+
+.transportHeader.isShortHeightCompact .transportTitle h1 {
+  font-size: clamp(13px, 2.2vw, 16px);
+  line-height: 1;
+}
+
+.transportHeader.isShortHeightCompact .transportMain {
+  max-height: min(70vh, 340px);
+}
+
+.transportHeader.isShortHeightCompact .transportRowMain {
+  gap: 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportZone,
+.transportHeader.isShortHeightCompact .transportCenterGroup {
+  gap: 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportCluster {
+  gap: 4px;
+  padding: 3px 4px;
+}
+
+.transportHeader.isShortHeightCompact .transportIconBtn {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+}
+
+.transportHeader.isShortHeightCompact .transportIconGlyph {
+  width: 13px;
+  height: 13px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial {
+  width: 108px;
+  flex-basis: 108px;
+  gap: 2px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial > .small {
+  font-size: 8px;
+}
+
+.transportHeader.isShortHeightCompact .transportDial input[type="range"] {
+  height: 14px;
+}
+
+.transportHeader.isShortHeightCompact .transportDialNumber {
+  max-width: 66px;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.transportHeader.isShortHeightCompact .transportStatus {
+  font-size: 8px;
+  gap: 1px;
+}
+
+.transportHeader.isShortHeightCompact .transportStatusLine:last-child {
+  display: none;
+}
+
+.transportHeader.isShortHeightCompact .transportOutputMeter {
+  width: 58px;
+  height: 12px;
 }
 
 @media (max-width: 760px) {
@@ -6120,82 +6228,6 @@ button:focus-visible,
     max-width: 100%;
   }
 
-}
-
-@media (max-width: 1100px) and (max-height: 760px) {
-  .transportHeader.isCompactGlobal .transportTitle {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .transportHeader.isCompactGlobal .transportTitle h1 {
-    font-size: clamp(14px, 2.7vw, 17px);
-    line-height: 1;
-  }
-
-  .transportHeader.isCompactGlobal .transportSubtitle {
-    display: none;
-  }
-
-  .transportHeader.isCompactGlobal .transportRowMain {
-    gap: 4px;
-  }
-
-  .transportHeader.isCompactGlobal .transportZone,
-  .transportHeader.isCompactGlobal .transportCenterGroup {
-    gap: 4px;
-  }
-
-  .transportHeader.isCompactGlobal .transportCluster {
-    gap: 4px;
-    padding: 3px 4px;
-  }
-
-  .transportHeader.isCompactGlobal .transportIconBtn {
-    width: 30px;
-    min-width: 30px;
-    min-height: 30px;
-  }
-
-  .transportHeader.isCompactGlobal .transportIconGlyph {
-    width: 13px;
-    height: 13px;
-  }
-
-  .transportHeader.isCompactGlobal .transportDial {
-    width: 108px;
-    flex-basis: 108px;
-    gap: 2px;
-  }
-
-  .transportHeader.isCompactGlobal .transportDial > .small {
-    font-size: 8px;
-  }
-
-  .transportHeader.isCompactGlobal .transportDial input[type="range"] {
-    height: 14px;
-  }
-
-  .transportHeader.isCompactGlobal .transportDialNumber {
-    max-width: 66px;
-    padding: 2px 5px;
-    font-size: 10px;
-  }
-
-  .transportHeader.isCompactGlobal .transportStatus {
-    font-size: 8px;
-    gap: 1px;
-  }
-
-  .transportHeader.isCompactGlobal .transportStatusLine:last-child {
-    display: none;
-  }
-
-  .transportHeader.isCompactGlobal .transportOutputMeter {
-    width: 58px;
-    height: 12px;
-  }
 }
 
 @media (max-width: 420px) {
