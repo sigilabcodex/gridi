@@ -3511,6 +3511,21 @@ button:focus-visible,
   display: none;
 }
 
+.transportCompactLauncher {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 265;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border-color: rgba(74, 163, 255, 0.5);
+  background: linear-gradient(180deg, rgba(16, 24, 35, 0.94), rgba(9, 14, 21, 0.94));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
+  font-size: 11px;
+  letter-spacing: 0.25px;
+}
+
 /* === Canonical layout authority (PR88) ===
    Shell + face + transport zone geometry is defined here.
    Do not introduce additional late-pass overrides for these selectors.
@@ -5999,9 +6014,9 @@ button:focus-visible,
   top: calc(100% + 6px);
   left: 8px;
   right: 8px;
-  z-index: 240;
+  z-index: 320;
   display: block;
-  max-height: min(62vh, 420px);
+  max-height: min(60vh, 420px);
   overflow: auto;
   padding: 8px;
   border-radius: 12px;
@@ -6055,13 +6070,7 @@ button:focus-visible,
 }
 
 .transportHeader.isCompactGlobal .transportMobileToggle {
-  min-height: 26px;
-  padding: 3px 8px;
-  font-size: 10px;
-  border-color: rgba(74, 163, 255, 0.4);
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
+  display: none;
 }
 
 .transportHeader.isShortHeightCompact {
@@ -6079,7 +6088,7 @@ button:focus-visible,
 }
 
 .transportHeader.isShortHeightCompact .transportMain {
-  max-height: min(70vh, 340px);
+  max-height: min(72vh, 340px);
 }
 
 .transportHeader.isShortHeightCompact .transportRowMain {
@@ -6187,17 +6196,18 @@ button:focus-visible,
   }
 
   .transportMobileToggle {
-    min-height: 30px;
-    padding: 4px 8px;
-    font-size: 11px;
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: center;
+    display: none;
   }
 
   .transportHeader.isCompactGlobal .transportStatus {
     font-size: 10px;
     line-height: 1.2;
+  }
+}
+
+@media (min-width: 1181px) {
+  .transportCompactLauncher {
+    display: none;
   }
 }
 

@@ -150,7 +150,7 @@ export function createTransportHeader(params: HeaderParams) {
   mobileToggle.type = "button";
   mobileToggle.textContent = "Controls";
 
-  titleWrap.append(h1, subtitle, mobileToggle);
+  titleWrap.append(h1, subtitle);
 
   const transportRow = document.createElement("div");
   transportRow.className = "transportRow transportRowMain";
@@ -522,8 +522,16 @@ export function createTransportHeader(params: HeaderParams) {
   main.append(transportRow);
   main.id = "transport-main-controls";
 
+  const compactLauncher = document.createElement("button");
+  compactLauncher.className = "transportCompactLauncher";
+  compactLauncher.type = "button";
+  compactLauncher.textContent = "Global";
+  compactLauncher.hidden = true;
+  compactLauncher.setAttribute("aria-controls", main.id);
+
   mobileToggle.setAttribute("aria-controls", main.id);
   header.append(main);
+  params.root.append(compactLauncher);
 
   const supportsMedia = typeof window !== "undefined" && typeof window.matchMedia === "function";
   const compactGlobalMql = supportsMedia
@@ -541,9 +549,12 @@ export function createTransportHeader(params: HeaderParams) {
     header.classList.toggle("isShortHeightCompact", compactActive && shortHeightActive);
     header.classList.toggle("compactExpanded", compactActive && compactExpanded);
     header.classList.toggle("mobileCollapsed", compactActive && !compactExpanded);
-    mobileToggle.setAttribute("aria-expanded", compactExpanded ? "true" : "false");
-    mobileToggle.textContent = compactExpanded ? "Hide" : "Global";
-    mobileToggle.hidden = !compactActive;
+    const expanded = compactActive && compactExpanded;
+    mobileToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    compactLauncher.setAttribute("aria-expanded", expanded ? "true" : "false");
+    compactLauncher.textContent = expanded ? "Hide global" : "Global";
+    mobileToggle.hidden = true;
+    compactLauncher.hidden = !compactActive;
   };
 
   const setCompactExpanded = (next: boolean) => {
@@ -552,6 +563,7 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   mobileToggle.onclick = () => setCompactExpanded(!compactExpanded);
+  compactLauncher.onclick = () => setCompactExpanded(!compactExpanded);
 
   const handleCompactQueryChange = () => {
     const active = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
@@ -671,6 +683,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
+    if (compactExpanded && target && !header.contains(target) && !compactLauncher.contains(target)) setCompactExpanded(false);
     if (target && !sessionPanel.classList.contains("hidden")) {
       if (!sessionPanel.contains(target) && !sessionSummary.contains(target)) closeSessionMenu();
     }
@@ -681,6 +694,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (compactExpanded) setCompactExpanded(false);
       closeSessionMenu();
       closeGeneratorMenu();
     }
