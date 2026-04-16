@@ -148,9 +148,9 @@ export function createTransportHeader(params: HeaderParams) {
   const mobileToggle = document.createElement("button");
   mobileToggle.className = "transportMobileToggle";
   mobileToggle.type = "button";
-  mobileToggle.textContent = "Controls";
+  mobileToggle.textContent = "⋯";
 
-  titleWrap.append(h1, subtitle, mobileToggle);
+  titleWrap.append(h1, subtitle);
 
   const transportRow = document.createElement("div");
   transportRow.className = "transportRow transportRowMain";
@@ -243,6 +243,59 @@ export function createTransportHeader(params: HeaderParams) {
   });
 
   transportCluster.append(btnPlay, btnStop, btnMute);
+
+  const compactDock = document.createElement("div");
+  compactDock.className = "transportCompactDock";
+
+  const compactPrimary = document.createElement("div");
+  compactPrimary.className = "transportCompactPrimary";
+
+  const compactUtility = document.createElement("div");
+  compactUtility.className = "transportCompactUtility";
+
+  const compactPlay = document.createElement("button");
+  compactPlay.className = "transportCompactBtn transportPrimaryBtn transportIconBtn";
+  compactPlay.type = "button";
+  compactPlay.onclick = params.onTogglePlay;
+  params.attachTooltip(compactPlay, {
+    text: "Play or stop the current patch.",
+    ariaLabel: "Transport play stop",
+  });
+
+  const compactAudio = document.createElement("button");
+  compactAudio.className = "transportCompactBtn transportAudioChip transportIconBtn";
+  compactAudio.type = "button";
+  compactAudio.onclick = params.onToggleAudio;
+  params.attachTooltip(compactAudio, {
+    text: "Start or suspend the audio engine for this tab.",
+    ariaLabel: "Audio engine",
+  });
+
+  const compactMute = document.createElement("button");
+  compactMute.className = "transportCompactBtn transportGhostBtn transportIconBtn";
+  compactMute.type = "button";
+  compactMute.onclick = params.onToggleMute;
+  params.attachTooltip(compactMute, {
+    text: "Mute or unmute the master output.",
+    ariaLabel: "Master mute",
+  });
+
+  const compactSettings = document.createElement("button");
+  compactSettings.className = "transportCompactBtn transportGhostBtn transportIconBtn";
+  compactSettings.type = "button";
+  compactSettings.onclick = params.onOpenSettings;
+  compactSettings.append(makeIcon("settings"));
+  params.attachTooltip(compactSettings, {
+    text: "Open app settings and UI preferences.",
+    ariaLabel: "Settings",
+  });
+
+  const compactStatus = document.createElement("div");
+  compactStatus.className = "small transportCompactStatus";
+
+  compactPrimary.append(compactPlay, compactAudio, compactMute);
+  compactUtility.append(compactStatus, mobileToggle, compactSettings);
+  compactDock.append(compactPrimary, compactUtility);
 
   const masterWrap = el("div", "bpmWrap");
   masterWrap.classList.add("transportDial", "transportDialMaster");
@@ -523,38 +576,52 @@ export function createTransportHeader(params: HeaderParams) {
   main.id = "transport-main-controls";
 
   mobileToggle.setAttribute("aria-controls", main.id);
-  header.append(main);
+  header.append(compactDock, main);
 
-  const mobileMql =
-    typeof window === "undefined" || typeof window.matchMedia !== "function"
-      ? null
-      : window.matchMedia("(max-width: 760px)");
+  const supportsMedia = typeof window !== "undefined" && typeof window.matchMedia === "function";
+  const compactGlobalMql = supportsMedia
+    ? window.matchMedia("(max-width: 760px), ((orientation: portrait) and (max-width: 1024px))")
+    : null;
+  const shortHeightCompactMql = supportsMedia
+    ? window.matchMedia("(max-height: 760px) and (max-width: 1366px)")
+    : null;
 
-  let mobileExpanded = false;
-  const syncMobileHeaderState = () => {
-    const mobileActive = mobileMql?.matches ?? false;
-    header.classList.toggle("isMobile", mobileActive);
-    header.classList.toggle("mobileCollapsed", mobileActive && !mobileExpanded);
-    mobileToggle.setAttribute("aria-expanded", mobileExpanded ? "true" : "false");
-    mobileToggle.textContent = mobileExpanded ? "Hide" : "Controls";
-    mobileToggle.hidden = !mobileActive;
+  let compactExpanded = false;
+  const syncCompactHeaderState = () => {
+    const compactActive = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
+    const shortHeightActive = shortHeightCompactMql?.matches ?? false;
+    header.classList.toggle("isCompactGlobal", compactActive);
+    header.classList.toggle("isShortHeightCompact", compactActive && shortHeightActive);
+    header.classList.toggle("compactExpanded", compactActive && compactExpanded);
+    header.classList.toggle("mobileCollapsed", compactActive && !compactExpanded);
+    mobileToggle.setAttribute("aria-expanded", compactExpanded ? "true" : "false");
+    mobileToggle.textContent = compactExpanded ? "✕" : "⋯";
+    mobileToggle.setAttribute("aria-label", compactExpanded ? "Hide global controls" : "Show global controls");
+    mobileToggle.hidden = !compactActive;
+    compactDock.setAttribute("aria-hidden", compactActive ? "false" : "true");
   };
 
-  const setMobileExpanded = (next: boolean) => {
-    mobileExpanded = next;
-    syncMobileHeaderState();
+  const setCompactExpanded = (next: boolean) => {
+    compactExpanded = next;
+    syncCompactHeaderState();
   };
 
-  mobileToggle.onclick = () => setMobileExpanded(!mobileExpanded);
+  mobileToggle.onclick = () => setCompactExpanded(!compactExpanded);
 
-  if (mobileMql) {
-    mobileMql.addEventListener("change", () => {
-      if (!mobileMql.matches) mobileExpanded = false;
-      syncMobileHeaderState();
-    });
+  const handleCompactQueryChange = () => {
+    const active = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
+    if (!active) compactExpanded = false;
+    syncCompactHeaderState();
+  };
+
+  compactGlobalMql?.addEventListener("change", handleCompactQueryChange);
+  shortHeightCompactMql?.addEventListener("change", handleCompactQueryChange);
+
+  if (!compactGlobalMql && !shortHeightCompactMql) {
+    compactExpanded = false;
   }
 
-  syncMobileHeaderState();
+  syncCompactHeaderState();
 
   params.root.appendChild(header);
 
@@ -680,13 +747,17 @@ export function createTransportHeader(params: HeaderParams) {
     const experimental = params.settingsExperimental() ? " (exp)" : "";
     statusPlayback.textContent = `status: ${play}`;
     statusAudio.textContent = `audio: ${audio}${experimental}`;
+    compactStatus.textContent = `${params.patch().bpm} BPM · ${play}`;
   };
 
   const updateAudioBtn = () => {
     const running = params.audioState() === "running";
     btnAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
+    compactAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
     btnAudio.classList.toggle("isOn", running);
+    compactAudio.classList.toggle("isOn", running);
     btnAudio.setAttribute("aria-pressed", running ? "true" : "false");
+    compactAudio.setAttribute("aria-pressed", running ? "true" : "false");
   };
 
   const updateOutputMeter = () => {
@@ -702,16 +773,22 @@ export function createTransportHeader(params: HeaderParams) {
   const updatePlayBtn = () => {
     const playing = params.isPlaying();
     btnPlay.replaceChildren(makeIcon("play"));
+    compactPlay.replaceChildren(makeIcon("play"));
     btnPlay.classList.toggle("isOn", playing);
+    compactPlay.classList.toggle("isOn", playing);
     btnPlay.setAttribute("aria-pressed", playing ? "true" : "false");
+    compactPlay.setAttribute("aria-pressed", playing ? "true" : "false");
     btnStop.disabled = !playing;
   };
 
   const updateMuteBtn = () => {
     const patch = params.patch();
     btnMute.replaceChildren(makeIcon(patch.masterMute ? "mute" : "unmute"));
+    compactMute.replaceChildren(makeIcon(patch.masterMute ? "mute" : "unmute"));
     btnMute.classList.toggle("isOn", patch.masterMute);
+    compactMute.classList.toggle("isOn", patch.masterMute);
     btnMute.setAttribute("aria-pressed", patch.masterMute ? "true" : "false");
+    compactMute.setAttribute("aria-pressed", patch.masterMute ? "true" : "false");
   };
 
   const updateMasterGainUI = () => {
@@ -738,6 +815,7 @@ export function createTransportHeader(params: HeaderParams) {
     const patch = params.patch();
     bpm.value = String(patch.bpm);
     bpmNum.value = String(patch.bpm);
+    compactStatus.textContent = `${patch.bpm} BPM · ${params.isPlaying() ? "playing" : "stopped"}`;
   };
 
   return {

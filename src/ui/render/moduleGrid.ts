@@ -48,6 +48,7 @@ const MOBILE_LANDSCAPE_DEFAULT_COLUMNS = 2;
 const MOBILE_LANDSCAPE_MAX_COLUMNS = 3;
 const MOBILE_LANDSCAPE_MAX_WIDTH = 960;
 const MOBILE_LANDSCAPE_MAX_HEIGHT = 560;
+const TABLET_MAX_WIDTH = 1180;
 const CLEAN_FIT_ALLOWANCE_PX = 24;
 const CLEAN_FIT_ALLOWANCE_NARROW_PX = 42;
 
@@ -167,6 +168,11 @@ function isMobileLandscapeViewport() {
   ).matches;
 }
 
+function isConstrainedWorkspaceViewport() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia(`(max-width: ${TABLET_MAX_WIDTH}px)`).matches;
+}
+
 function readVisibleColumnCount(main: HTMLElement) {
   const rootStyles = getComputedStyle(document.documentElement);
   const cellWidth = measureCssVariablePx(main, "--module-cell-w", 330);
@@ -227,7 +233,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
   const snapshotScrollPosition = (): ScrollSnapshot => {
     const viewport = params.main.querySelector<HTMLElement>(".workspaceViewport");
-    const lockHorizontal = isMobilePortraitViewport();
+    const lockHorizontal = isConstrainedWorkspaceViewport();
     return {
       windowX: window.scrollX,
       windowY: window.scrollY,
@@ -648,8 +654,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     };
 
     const { modulesByPosition, maxOccupiedX, totalRows } = resolveGridLayout(patch.modules);
-    const compactViewport = isMobilePortraitViewport() || isMobileLandscapeViewport();
-    renderedColumns = compactViewport
+    const constrainedViewport = isConstrainedWorkspaceViewport();
+    renderedColumns = constrainedViewport
       ? Math.max(visibleColumns, MIN_VISIBLE_COLUMNS)
       : Math.max(visibleColumns, maxOccupiedX + 1, MIN_VISIBLE_COLUMNS);
     const rootStyles = getComputedStyle(document.documentElement);
@@ -661,7 +667,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     workspaceViewport.style.setProperty("--workspace-side-gutter", `${sideGutter}px`);
     workspaceGrid.style.setProperty("--workspace-visible-columns", String(visibleColumns));
     workspaceGrid.style.setProperty("--workspace-render-columns", String(renderedColumns));
-    if (isMobilePortraitViewport()) workspaceViewport.scrollLeft = 0;
+    if (constrainedViewport) workspaceViewport.scrollLeft = 0;
 
     if (inspectedModuleId && !patch.modules.some((module) => module.id === inspectedModuleId)) inspectedModuleId = null;
 
@@ -685,7 +691,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position: displayPosition }));
     };
 
-    if (compactViewport) {
+    if (constrainedViewport) {
       const moduleEntries = Array.from(modulesByPosition.entries())
         .map(([key, module]) => {
           const sourcePosition = readPositionFromKey(key);
