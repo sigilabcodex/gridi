@@ -2503,6 +2503,15 @@ button:focus-visible,
   border-radius: 10px;
 }
 
+.ctlEditorSliderField {
+  gap: 6px;
+}
+
+.ctlEditorSlider {
+  width: 100%;
+  accent-color: var(--acc-blue);
+}
+
 .compactSelectField,
 .routingSummaryBlock,
 .utilityRouteCard,
@@ -2891,6 +2900,19 @@ button:focus-visible,
 
 /* === Mobile workspace + header refinement pass === */
 @media (max-width: 760px) {
+  .ctlEditor {
+    width: min(310px, calc(100vw - 20px));
+    padding: 12px;
+  }
+
+  .ctlEditorSlider {
+    min-height: 36px;
+  }
+
+  .ctlEditorSliderField {
+    justify-items: center;
+  }
+
   .transportHeader {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2987,6 +3009,20 @@ button:focus-visible,
   .settingsEditor {
     min-width: 0;
     width: 100%;
+  }
+}
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .ctlEditorSliderField {
+    justify-items: center;
+  }
+
+  .ctlEditorSlider {
+    inline-size: 34px;
+    block-size: min(44vh, 210px);
+    writing-mode: vertical-lr;
+    direction: rtl;
+    touch-action: none;
   }
 }
 

@@ -17,3 +17,8 @@ export function prefersSliders(): boolean {
 
   return false;
 }
+
+export function prefersMobileParameterEditor(): boolean {
+  const mm = (q: string) => window.matchMedia?.(q).matches ?? false;
+  return mm("(max-width: 760px)") || mm("(pointer: coarse)");
+}

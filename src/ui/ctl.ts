@@ -1,6 +1,6 @@
 // src/ui/ctl.ts
 import { knob } from "./knob";
-import { prefersSliders } from "./env";
+import { prefersMobileParameterEditor, prefersSliders } from "./env";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createCompactSelectField } from "./routingVisibility";
 import type { TooltipBinder } from "./tooltip";
@@ -64,6 +64,8 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
   let focusRestoreEl: HTMLElement | null = null;
   let syncControlVisual: (x: number) => void = () => {};
   let inputGestureActive = false;
+  const useMobileParameterEditor = prefersMobileParameterEditor();
+  let sliderInput: HTMLInputElement | null = null;
 
   const emitHistoryGesture = (phase: "start" | "end") => {
     (anchorScopeEl ?? valueBtn)?.dispatchEvent(new CustomEvent(`gridi-history-gesture-${phase}`, { bubbles: true }));
@@ -85,6 +87,7 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
     currentValue = normalize(x);
     if (valueBtn) valueBtn.textContent = fmt(currentValue);
     if (numberInput && document.activeElement !== numberInput) numberInput.value = String(currentValue);
+    if (sliderInput && document.activeElement !== sliderInput) sliderInput.value = String(currentValue);
   };
 
   const applyValue = (x: number, opts?: { emit?: boolean; syncControl?: boolean }) => {
@@ -123,6 +126,21 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
   numberInput.value = String(currentValue);
   valueField.append(valueFieldLabel, numberInput);
 
+  const sliderField = document.createElement("label");
+  sliderField.className = "ctlEditorField ctlEditorSliderField";
+  const sliderFieldLabel = document.createElement("span");
+  sliderFieldLabel.className = "compactSelectLabel";
+  sliderFieldLabel.textContent = "Adjust";
+  sliderInput = document.createElement("input");
+  sliderInput.type = "range";
+  sliderInput.className = "ctlEditorSlider";
+  sliderInput.min = String(o.min);
+  sliderInput.max = String(o.max);
+  sliderInput.step = String(o.step);
+  sliderInput.value = String(currentValue);
+  sliderInput.setAttribute("aria-label", `${o.label} adjustment slider`);
+  sliderField.append(sliderFieldLabel, sliderInput);
+
   const commitFromInput = () => {
     const parsed = Number.parseFloat(numberInput?.value ?? "");
     if (!Number.isFinite(parsed)) {
@@ -153,7 +171,18 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
     }
   });
 
-  editor.append(editorHead, valueField);
+  sliderInput.addEventListener("input", () => {
+    const parsed = Number.parseFloat(sliderInput?.value ?? "");
+    if (!Number.isFinite(parsed)) return;
+    startInputGesture();
+    applyValue(parsed, { emit: true, syncControl: true });
+  });
+  sliderInput.addEventListener("pointerdown", startInputGesture);
+  sliderInput.addEventListener("pointerup", endInputGesture);
+  sliderInput.addEventListener("pointercancel", endInputGesture);
+  sliderInput.addEventListener("blur", endInputGesture);
+
+  editor.append(editorHead, sliderField, valueField);
 
   if (o.modulation) {
     const modulationField = createCompactSelectField({
@@ -253,6 +282,7 @@ export function ctlFloat(o: CtlFloatOpts): CtlFloatElement {
         o.onChange(normalize(x));
       },
       onRequestEditor: () => openEditor(k.knobEl),
+      tapOpensEditor: useMobileParameterEditor,
       center: o.center,
     });
     if (o.tooltip && o.attachTooltip) {
