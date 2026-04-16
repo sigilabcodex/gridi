@@ -5950,6 +5950,89 @@ button:focus-visible,
 }
 
 /* === Responsive shell pass: viewport-first grid + compact transport === */
+@media (max-width: 1180px) {
+  .workspaceViewport {
+    overflow-x: hidden;
+  }
+}
+
+.transportHeader.isCompactGlobal {
+  gap: 4px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+}
+
+.transportHeader.isCompactGlobal .transportMain {
+  display: none;
+}
+
+.transportHeader.isCompactGlobal.compactExpanded .transportMain {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 8px;
+  right: 8px;
+  z-index: 240;
+  display: block;
+  max-height: min(62vh, 420px);
+  overflow: auto;
+  padding: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(74, 163, 255, 0.24);
+  background: linear-gradient(180deg, rgba(9, 15, 22, 0.96), rgba(8, 13, 20, 0.95));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.transportHeader.isCompactGlobal .transportRowMain {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.transportHeader.isCompactGlobal .transportZone,
+.transportHeader.isCompactGlobal .transportCenterGroup {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.transportHeader.isCompactGlobal .transportZoneCenter,
+.transportHeader.isCompactGlobal .transportZoneRight {
+  width: 100%;
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.transportHeader.isCompactGlobal .transportCluster {
+  gap: 6px;
+  padding: 4px 5px;
+  border-radius: 8px;
+}
+
+.transportHeader.isCompactGlobal .transportClusterTempo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.transportHeader.isCompactGlobal .transportDial {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.transportHeader.isCompactGlobal .transportClusterSession {
+  min-width: 0;
+  width: 100%;
+}
+
+.transportHeader.isCompactGlobal .transportMobileToggle {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 10px;
+  border-color: rgba(74, 163, 255, 0.4);
+}
+
 @media (max-width: 760px) {
   :root {
     --module-cell-w: min(100%, 340px);
@@ -6004,62 +6087,9 @@ button:focus-visible,
     align-self: center;
   }
 
-  .transportRowMain {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .transportZone {
-    width: 100%;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 6px;
-  }
-
-  .transportZoneCenter,
-  .transportZoneRight {
-    width: 100%;
-    margin-left: 0;
-    justify-content: flex-start;
-  }
-
-  .transportCenterGroup {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .transportCluster {
-    gap: 6px;
-    padding: 4px 5px;
-    border-radius: 8px;
-  }
-
-  .transportClusterTempo {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
-
-  .transportDial {
-    width: 100%;
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-
-  .transportClusterSession {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .transportStatus {
+  .transportHeader.isCompactGlobal .transportStatus {
     font-size: 10px;
     line-height: 1.2;
-  }
-
-  .transportSettingsDock {
-    margin-left: 0;
   }
 }
 
@@ -6090,101 +6120,81 @@ button:focus-visible,
     max-width: 100%;
   }
 
-  .transportHeader.mobileCollapsed .transportZoneCenter,
-  .transportHeader.mobileCollapsed .transportZoneRight {
-    display: none;
-  }
 }
 
-@media (max-width: 960px) and (max-height: 560px) and (orientation: landscape) {
-  .transportHeader {
-    gap: 4px;
-    padding: 4px 8px;
-    margin-bottom: 6px;
-  }
-
-  .transportTitle {
+@media (max-width: 1100px) and (max-height: 760px) {
+  .transportHeader.isCompactGlobal .transportTitle {
     display: flex;
     align-items: center;
     gap: 8px;
   }
 
-  .transportTitle h1 {
+  .transportHeader.isCompactGlobal .transportTitle h1 {
     font-size: clamp(14px, 2.7vw, 17px);
     line-height: 1;
   }
 
-  .transportSubtitle {
+  .transportHeader.isCompactGlobal .transportSubtitle {
     display: none;
   }
 
-  .transportMobileToggle {
-    min-height: 24px;
-    padding: 3px 7px;
-    font-size: 10px;
-  }
-
-  .transportRowMain {
+  .transportHeader.isCompactGlobal .transportRowMain {
     gap: 4px;
   }
 
-  .transportZone,
-  .transportCenterGroup {
+  .transportHeader.isCompactGlobal .transportZone,
+  .transportHeader.isCompactGlobal .transportCenterGroup {
     gap: 4px;
   }
 
-  .transportCluster {
+  .transportHeader.isCompactGlobal .transportCluster {
     gap: 4px;
     padding: 3px 4px;
   }
 
-  .transportIconBtn {
+  .transportHeader.isCompactGlobal .transportIconBtn {
     width: 30px;
     min-width: 30px;
     min-height: 30px;
   }
 
-  .transportIconGlyph {
+  .transportHeader.isCompactGlobal .transportIconGlyph {
     width: 13px;
     height: 13px;
   }
 
-  .transportDial {
+  .transportHeader.isCompactGlobal .transportDial {
     width: 108px;
     flex-basis: 108px;
     gap: 2px;
   }
 
-  .transportDial > .small {
+  .transportHeader.isCompactGlobal .transportDial > .small {
     font-size: 8px;
   }
 
-  .transportDial input[type="range"] {
+  .transportHeader.isCompactGlobal .transportDial input[type="range"] {
     height: 14px;
   }
 
-  .transportDialNumber {
+  .transportHeader.isCompactGlobal .transportDialNumber {
     max-width: 66px;
     padding: 2px 5px;
     font-size: 10px;
   }
 
-  .transportStatus {
+  .transportHeader.isCompactGlobal .transportStatus {
     font-size: 8px;
     gap: 1px;
   }
 
-  .transportStatusLine:last-child {
+  .transportHeader.isCompactGlobal .transportStatusLine:last-child {
     display: none;
   }
 
-  .transportOutputMeter {
+  .transportHeader.isCompactGlobal .transportOutputMeter {
     width: 58px;
     height: 12px;
-  }
-
-  .transportClusterSession {
-    min-width: 0;
   }
 }
 

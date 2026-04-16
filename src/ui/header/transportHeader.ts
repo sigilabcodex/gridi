@@ -525,36 +525,39 @@ export function createTransportHeader(params: HeaderParams) {
   mobileToggle.setAttribute("aria-controls", main.id);
   header.append(main);
 
-  const mobileMql =
+  const compactGlobalMql =
     typeof window === "undefined" || typeof window.matchMedia !== "function"
       ? null
-      : window.matchMedia("(max-width: 760px)");
+      : window.matchMedia(
+        "(max-width: 760px), ((max-width: 1100px) and (max-height: 760px)), ((orientation: portrait) and (max-width: 900px) and (max-height: 1200px))"
+      );
 
-  let mobileExpanded = false;
-  const syncMobileHeaderState = () => {
-    const mobileActive = mobileMql?.matches ?? false;
-    header.classList.toggle("isMobile", mobileActive);
-    header.classList.toggle("mobileCollapsed", mobileActive && !mobileExpanded);
-    mobileToggle.setAttribute("aria-expanded", mobileExpanded ? "true" : "false");
-    mobileToggle.textContent = mobileExpanded ? "Hide" : "Controls";
-    mobileToggle.hidden = !mobileActive;
+  let compactExpanded = false;
+  const syncCompactHeaderState = () => {
+    const compactActive = compactGlobalMql?.matches ?? false;
+    header.classList.toggle("isCompactGlobal", compactActive);
+    header.classList.toggle("compactExpanded", compactActive && compactExpanded);
+    header.classList.toggle("mobileCollapsed", compactActive && !compactExpanded);
+    mobileToggle.setAttribute("aria-expanded", compactExpanded ? "true" : "false");
+    mobileToggle.textContent = compactExpanded ? "Hide" : "Global";
+    mobileToggle.hidden = !compactActive;
   };
 
-  const setMobileExpanded = (next: boolean) => {
-    mobileExpanded = next;
-    syncMobileHeaderState();
+  const setCompactExpanded = (next: boolean) => {
+    compactExpanded = next;
+    syncCompactHeaderState();
   };
 
-  mobileToggle.onclick = () => setMobileExpanded(!mobileExpanded);
+  mobileToggle.onclick = () => setCompactExpanded(!compactExpanded);
 
-  if (mobileMql) {
-    mobileMql.addEventListener("change", () => {
-      if (!mobileMql.matches) mobileExpanded = false;
-      syncMobileHeaderState();
+  if (compactGlobalMql) {
+    compactGlobalMql.addEventListener("change", () => {
+      if (!compactGlobalMql.matches) compactExpanded = false;
+      syncCompactHeaderState();
     });
   }
 
-  syncMobileHeaderState();
+  syncCompactHeaderState();
 
   params.root.appendChild(header);
 
