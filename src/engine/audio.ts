@@ -6,6 +6,7 @@ import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
 import { sampleControl01 } from "./control";
 import { compileRoutingGraph } from "../routingGraph.ts";
+import { selectNotesForReception, type GridiTriggerEvent } from "./events.ts";
 
 export type Engine = {
   ctx: AudioContext;
@@ -20,7 +21,7 @@ export type Engine = {
   disconnectModule(moduleId: string): void;
   dispose(): void;
 
-  triggerVoice(moduleId: string, patch: Patch, when?: number, incomingValue?: number): void;
+  triggerVoice(moduleId: string, patch: Patch, when?: number, event?: GridiTriggerEvent): void;
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
@@ -317,7 +318,7 @@ export function createEngine(): Engine {
     };
   }
 
-  function triggerVoice(moduleId: string, patch: Patch, when?: number, incomingValue?: number) {
+  function triggerVoice(moduleId: string, patch: Patch, when?: number, event?: GridiTriggerEvent) {
     voiceLastTrigMs.set(moduleId, performance.now());
 
     const voices = getSoundModules(patch);
@@ -325,7 +326,11 @@ export function createEngine(): Engine {
     const v = i >= 0 ? voices[i] : undefined;
     if (!v || !v.enabled) return;
 
-    const now = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
+    const now = typeof when === "number" && Number.isFinite(when)
+      ? when
+      : event && Number.isFinite(event.timeSec)
+        ? event.timeSec
+        : ctx.currentTime;
     const amp = clamp(safe(v.amp, 0.12), 0, 1);
     const panBase = v.type === "drum" ? safe(v.panBias, safe(v.pan, 0)) : safe(v.pan, 0);
     const panSpread = v.type === "drum" ? (0.35 + clamp01(safe(v.stereoWidth, 0.72)) * 0.65) : 1;
@@ -473,8 +478,6 @@ export function createEngine(): Engine {
 
     const voiceGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
-    const oscA = ctx.createOscillator();
-    const oscB = ctx.createOscillator();
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
 
@@ -488,15 +491,30 @@ export function createEngine(): Engine {
     const glide = clamp01(safe(v.glide, 0.08));
 
     const freq = tonalBaseFreq(v, i, patch.macro);
-    const normalizedIncoming = Number.isFinite(incomingValue) ? clamp01(incomingValue as number) : 0.5;
-    const semitoneOffset = (normalizedIncoming - 0.5) * 14;
-    const routedFreq = freq * Math.pow(2, semitoneOffset / 12);
+    const fallbackSemitone = [0];
+    const incomingNotes = event?.kind === "note" && Array.isArray(event.notes)
+      ? event.notes.filter((note) => Number.isFinite(note))
+      : fallbackSemitone;
+    const tonalPolicy = v.reception === "poly" ? "poly" : "mono";
+    const semanticNotes = selectNotesForReception(tonalPolicy, incomingNotes);
+    const ampPerNote = amp / Math.sqrt(Math.max(1, semanticNotes.length));
     const glideTime = 0.001 + glide * 0.35;
-
-    oscA.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3)));
-    oscB.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3) + 0.22));
-    oscA.frequency.setTargetAtTime(routedFreq, now, glideTime);
-    oscB.frequency.setTargetAtTime(routedFreq * 1.004, now, glideTime);
+    const oscAs: OscillatorNode[] = [];
+    const oscBs: OscillatorNode[] = [];
+    const noteSemitones = semanticNotes;
+    for (const semitoneOffset of noteSemitones) {
+      const routedFreq = freq * Math.pow(2, semitoneOffset / 12);
+      const noteOscA = ctx.createOscillator();
+      const noteOscB = ctx.createOscillator();
+      noteOscA.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3)));
+      noteOscB.type = oscTypeFromWaveform(clamp01(safe(v.waveform, 0.3) + 0.22));
+      noteOscA.frequency.setTargetAtTime(routedFreq, now, glideTime);
+      noteOscB.frequency.setTargetAtTime(routedFreq * 1.004, now, glideTime);
+      noteOscA.connect(voiceGain);
+      noteOscB.connect(voiceGain);
+      oscAs.push(noteOscA);
+      oscBs.push(noteOscB);
+    }
 
     filter.type = "lowpass";
     filter.frequency.value = cutoff;
@@ -506,36 +524,38 @@ export function createEngine(): Engine {
     const modRate = 0.2 + clamp01(safe(v.modRate, 0.25)) * 11;
     lfo.type = "sine";
     lfo.frequency.value = modRate;
-    lfoGain.gain.value = routedFreq * modDepth * 0.08;
+    const primaryFreq = freq * Math.pow(2, (noteSemitones[0] ?? 0) / 12);
+    lfoGain.gain.value = primaryFreq * modDepth * 0.08;
 
     lfo.connect(lfoGain);
-    lfoGain.connect(oscA.frequency);
-    lfoGain.connect(oscB.frequency);
-
-    oscA.connect(voiceGain);
-    oscB.connect(voiceGain);
+    for (let noteIndex = 0; noteIndex < oscAs.length; noteIndex += 1) {
+      lfoGain.connect(oscAs[noteIndex].frequency);
+      lfoGain.connect(oscBs[noteIndex].frequency);
+    }
     voiceGain.connect(filter);
     filter.connect(panNode);
 
     voiceGain.gain.cancelScheduledValues(now);
     voiceGain.gain.setValueAtTime(EPS, now);
-    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp), now + attack);
-    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, amp * sustain), now + attack + decay);
-    voiceGain.gain.setValueAtTime(Math.max(EPS, amp * sustain), now + attack + decay + 0.06);
+    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, ampPerNote), now + attack);
+    voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, ampPerNote * sustain), now + attack + decay);
+    voiceGain.gain.setValueAtTime(Math.max(EPS, ampPerNote * sustain), now + attack + decay + 0.06);
     voiceGain.gain.exponentialRampToValueAtTime(EPS, now + attack + decay + release + 0.08);
 
     const stopAt = now + attack + decay + release + 0.12;
-    oscA.start(now);
-    oscB.start(now);
+    for (const oscillator of oscAs) oscillator.start(now);
+    for (const oscillator of oscBs) oscillator.start(now);
     lfo.start(now);
-    oscA.stop(stopAt);
-    oscB.stop(stopAt);
+    for (const oscillator of oscAs) oscillator.stop(stopAt);
+    for (const oscillator of oscBs) oscillator.stop(stopAt);
     lfo.stop(stopAt);
-    oscA.onended = () => {
+    const firstOsc = oscAs[0];
+    if (!firstOsc) return;
+    firstOsc.onended = () => {
       lfo.disconnect();
       lfoGain.disconnect();
-      oscA.disconnect();
-      oscB.disconnect();
+      for (const oscillator of oscAs) oscillator.disconnect();
+      for (const oscillator of oscBs) oscillator.disconnect();
       voiceGain.disconnect();
       filter.disconnect();
       panNode.disconnect();

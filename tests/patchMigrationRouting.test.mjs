@@ -75,6 +75,23 @@ test('migration backfills triggerSource from canonical event routes when needed'
   assert.equal(sound.triggerSource, 'trg-1');
 });
 
+test('migration defaults tonal synth reception policy to mono', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'ton-1', type: 'tonal', name: 'SYN', enabled: true, triggerSource: null, amp: 0.2, pan: 0 },
+    ],
+    buses: [],
+    connections: [],
+  });
+  const tonal = migrated.modules.find((m) => m.id === 'ton-1');
+  assert.equal(tonal.reception, 'mono');
+});
+
 test('migration normalizes buses/effects/connections for malformed legacy input', () => {
   const patch = migratePatch({
     version: '0.3',
