@@ -1,5 +1,6 @@
 // src/patch.ts
 import { normalizeModuleGridPositions, setModuleGridPosition, slotIndexToGridPosition } from "./workspacePlacement.ts";
+import { normalizePatchRoutes, type PatchRoute } from "./routingGraph.ts";
 
 export type Mode =
   | "step-sequencer"
@@ -197,6 +198,7 @@ export type Patch = {
   modules: Module[];
   buses: Bus[];
   connections: Connection[];
+  routes?: PatchRoute[];
 };
 
 let _id = 0;
@@ -692,6 +694,26 @@ export function migratePatch(patch: Patch): Patch {
   }
 
   const triggerIds = new Set(migrated.filter(isTrigger).map((m) => m.id));
+  // Transitional bridge: allow patch-owned event routes to repopulate legacy
+  // voice-owned triggerSource when a patch only carries route records.
+  if (Array.isArray((patch as any).routes)) {
+    const routeTriggerByTarget = new Map<string, string[]>();
+    for (const route of normalizePatchRoutes({ modules: migrated, connections: [], routes: (patch as any).routes })) {
+      if (route.domain !== "event" || route.to.type !== "module" || !route.to.id) continue;
+      const target = migrated.find((m) => m.id === route.to.id);
+      const source = migrated.find((m) => m.id === route.from.moduleId);
+      if (!target || !isSound(target) || !source || !isTrigger(source)) continue;
+      const refs = routeTriggerByTarget.get(target.id) ?? [];
+      refs.push(source.id);
+      routeTriggerByTarget.set(target.id, refs);
+    }
+    for (const module of migrated) {
+      if (!isSound(module) || module.triggerSource) continue;
+      const candidates = routeTriggerByTarget.get(module.id) ?? [];
+      if (candidates.length === 1) module.triggerSource = candidates[0];
+    }
+  }
+
   for (const module of migrated) {
     if (!isSound(module)) continue;
     if (module.triggerSource && !triggerIds.has(module.triggerSource)) module.triggerSource = null;
@@ -721,5 +743,6 @@ export function migratePatch(patch: Patch): Patch {
     modules: migrated,
     buses,
     connections,
+    routes: normalizePatchRoutes({ modules: migrated, connections, routes: (patch as any).routes }),
   };
 }

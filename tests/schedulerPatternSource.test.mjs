@@ -78,3 +78,31 @@ test('missing trigger assignment is a safe no-op', () => {
 
   assert.deepEqual(triggered, []);
 });
+
+test('scheduler resolves trigger from canonical event routes when triggerSource is absent', () => {
+  const trigger = makeTrigger({ id: 'route-trigger', seed: 11, density: 0.6, drop: 0, mode: 'euclid' });
+  const sound = makeSound({ id: 'route-sound', triggerSource: null });
+  const patch = makePatch([sound, trigger]);
+  patch.routes = [
+    {
+      id: 'evt-route',
+      domain: 'event',
+      from: { moduleId: trigger.id, port: 'trigger-out' },
+      to: { type: 'module', id: sound.id, port: 'trigger-in' },
+      enabled: true,
+    },
+  ];
+
+  const triggered = [];
+  const engine = { ctx: { currentTime: 0 }, triggerVoice: (id, _patch, when) => triggered.push({ id, when }) };
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    scheduler.stop();
+  });
+
+  assert.ok(triggered.some((ev) => ev.id === sound.id));
+});

@@ -1,5 +1,6 @@
 import type { Module, Patch, SoundModule } from "../patch";
 import type { TooltipBinder } from "./tooltip";
+import { compileRoutingGraph } from "../routingGraph";
 
 export type RouteRef = {
   id: string;
@@ -48,6 +49,7 @@ export function getParameterLabel(key: string) {
 }
 
 export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
+  const compiled = compileRoutingGraph(patch);
   const modules = new Map<string, RouteRef>();
   const triggerTargets = new Map<string, RouteRef[]>();
   const controlTargets = new Map<string, ControlTargetRef[]>();
@@ -61,20 +63,19 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
 
   for (const module of patch.modules) {
     if (module.type === "drum" || module.type === "tonal") {
-      const trigger = module.triggerSource ? modules.get(module.triggerSource) ?? null : null;
-      const modulations = Object.entries(module.modulations ?? {})
-        .map(([parameter, sourceId]) => {
+      const triggerId = compiled.eventSourceBySoundId.get(module.id) ?? module.triggerSource;
+      const trigger = triggerId ? modules.get(triggerId) ?? null : null;
+      const modulations = (compiled.modulationIncomingByTarget.get(module.id) ?? [])
+        .map(({ parameter, sourceId }) => {
           const source = sourceId ? modules.get(sourceId) : null;
           return source ? { parameter, parameterLabel: getParameterLabel(parameter), source } : null;
         })
         .filter((entry): entry is { parameter: string; parameterLabel: string; source: RouteRef } => Boolean(entry));
       voiceIncoming.set(module.id, { trigger, modulations });
 
-      if (trigger) {
-        const voices = triggerTargets.get(trigger.id) ?? [];
-        voices.push(modules.get(module.id)!);
-        triggerTargets.set(trigger.id, voices);
-      }
+      if (trigger) triggerTargets.set(trigger.id, (compiled.triggerTargets.get(trigger.id) ?? [])
+        .map((voiceId) => modules.get(voiceId))
+        .filter((entry): entry is RouteRef => Boolean(entry)));
 
       for (const modulation of modulations) {
         const targets = controlTargets.get(modulation.source.id) ?? [];
@@ -92,8 +93,8 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
     }
 
     if (module.type === "trigger") {
-      const incoming = Object.entries(module.modulations ?? {})
-        .map(([parameter, sourceId]) => {
+      const incoming = (compiled.modulationIncomingByTarget.get(module.id) ?? [])
+        .map(({ parameter, sourceId }) => {
           const source = sourceId ? modules.get(sourceId) : null;
           return source ? { parameter, parameterLabel: getParameterLabel(parameter), source } : null;
         })

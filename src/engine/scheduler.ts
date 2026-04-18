@@ -4,6 +4,7 @@ import { clamp, getSoundModules, isControl, isTrigger } from "../patch.ts";
 import type { Engine } from "./audio";
 import { createPatternModuleForTrigger, type PatternEvent } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
+import { compileRoutingGraph } from "../routingGraph.ts";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -24,6 +25,7 @@ export function createScheduler(engine: Engine): Scheduler {
 
   let bpm = 124;
   let patch: Patch | null = null;
+  let compiledRouting = compileRoutingGraph({ modules: [], connections: [] });
   let transportStartTimeSec = 0;
   let transportStartBeatAbs = 0;
   const sequenceStates = new Map<string, SequenceState>();
@@ -41,8 +43,9 @@ export function createScheduler(engine: Engine): Scheduler {
   const getBeatAbs = (nowSec: number) => transportStartBeatAbs + (nowSec - transportStartTimeSec) / secondsPerBeat();
 
   function resolveTrigger(sound: SoundModule, allModules: Patch["modules"]): TriggerModule | null {
-    if (!sound.triggerSource) return null;
-    const trg = allModules.find((m): m is TriggerModule => m.id === sound.triggerSource && isTrigger(m));
+    const triggerId = compiledRouting.eventSourceBySoundId.get(sound.id) ?? sound.triggerSource;
+    if (!triggerId) return null;
+    const trg = allModules.find((m): m is TriggerModule => m.id === triggerId && isTrigger(m));
     return trg ?? null;
   }
 
@@ -76,6 +79,7 @@ export function createScheduler(engine: Engine): Scheduler {
 
   function setPatch(next: Patch, opts?: { regen?: boolean }) {
     patch = next;
+    compiledRouting = compileRoutingGraph(next);
     if (opts?.regen !== false) regenAll();
   }
 
