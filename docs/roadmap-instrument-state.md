@@ -46,6 +46,12 @@ Treat curated banks as part of the playable instrument, not just storage.
 - Explore custom chip-like slider language for global controls.
 - Iterate routing UX affordances without forcing immediate routing-ownership migration.
 
+## D) Visual family expansion (near-to-medium term)
+
+- Expand VISUAL with analyzer modes that improve both performance feedback and engineering diagnosis.
+- Prioritize a **time-sensitive spectrogram** mode direction (frequency + intensity history over time) as a first-class Visual-family extension.
+- Keep scope instrument-aligned: compact module surfaces, immediate readability, and no DAW-style analyzer workspace sprawl.
+
 ## Longer-term ideas (speculative / not yet implemented)
 
 ## Generator and display evolution
@@ -54,6 +60,11 @@ Treat curated banks as part of the playable instrument, not just storage.
 - Full graphical representation coverage for all generator modes.
 - Animated/live behavior for generator displays.
 - More interactive behavior/display surfaces.
+- Image-driven generation family (image-to-sound scanning/mapping modes where large source images can be reduced into compact internal 2D fields).
+- Expanded traversal language for image-driven generation: axial, diagonal, rotating-angle, and time-varying scan behavior, including future CTRL-driven scan modulation.
+- Quantum/Schrödinger-inspired conceptual generation family (state ambiguity/collapse metaphors as musical behavior controls).
+- Dataset/spreadsheet-driven generation family (tabular sources mapped into rhythm/pitch/probability/event structures for repetitive patterns and weighted variation).
+- Data-driven generation remains explicitly non-AI: no AI-agent requirement and no analytics-product pivot.
 
 ## Module-family expansion
 
@@ -75,3 +86,6 @@ Treat curated banks as part of the playable instrument, not just storage.
 - How far Main-face density can increase before reducing playability.
 - How deeply display surfaces should become interactive versus remaining explanatory.
 - How preset-bank curation should be authored/versioned/distributed over time.
+- What minimum constraints should apply to image/data ingestion so the instrument remains responsive and predictable.
+- Which mapping abstractions can be shared across image-driven and dataset-driven generation without overfitting early architecture.
+- How to present conceptual generation metaphors clearly without implying scientific literalism.

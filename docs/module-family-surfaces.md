@@ -17,3 +17,4 @@ This pass intentionally changes **visible module anatomy** so family identity re
 - Tabs remain secondary; each family uses a different **main-panel anatomy**.
 - Distinction is carried by structure and grouping, not just color/icon/labels.
 - Workspace footprint and lane model are unchanged.
+- Visual-family planned growth includes analyzer-mode depth (for example a time-sensitive spectrogram mode) while keeping the same fixed-shell discipline.

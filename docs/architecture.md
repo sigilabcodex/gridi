@@ -58,6 +58,15 @@ The current model is designed so new capabilities can be added without changing 
 - Preset system work can expand on `presetName`/`presetMeta`.
 - Routing UX can evolve while keeping patch-level connections as source of truth.
 
+Planned extensibility themes (high level):
+
+- **Visual mode extensibility**: Visual modules should support additional analyzer/display modes (including time-sensitive spectrogram behavior) without changing shell or routing fundamentals.
+- **Generation-mode extensibility**: Trigger/GEN mode families should remain pluggable so conceptual/image/data-driven generation modes can share common scheduling boundaries.
+- **External source ingestion boundaries**: future image/table inputs should be treated as lightweight creative assets with explicit size/format constraints rather than unrestricted file pipelines.
+- **Image reduction boundary**: large uploaded images may be accepted at input, but generation modes should operate on reduced/quantized internal image fields for predictable performance.
+- **Mapping layer growth**: reserve room for future mapping policies (scan direction/angle, traversal changes over time, value translation, weighting), with CTRL-modulatable traversal in scope; keep mapping contracts provisional until mode semantics are validated musically.
+- **Data-driven (non-AI) scope**: spreadsheet/CSV generation should remain deterministic creative mapping behavior, not AI-agent or ML-analysis architecture.
+
 ## 6) Session vs Stage (Scene/Worktable)
 
 - A **session** is the full patch state in one browser tab.
