@@ -37,6 +37,22 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - Better transport/clock interfaces for extensibility.
 - Additional safety checks around invalid graph states.
 
+### `v0.45` — Stage / Workspace System (planned)
+
+Motivation:
+- Scale the grid for larger patches without losing instrument readability.
+- Improve live-performance navigation by enabling fast workspace switching.
+
+Initial version:
+- Basic stage switching inside a single session.
+- Layout separation per stage while keeping one shared patch/runtime context.
+- No routing/engine/transport partitioning (all remain global).
+
+Future expansion:
+- Performance-oriented scene workflows built on stages.
+- Optional transition-oriented interaction ideas that keep transport continuity.
+- Deeper navigation ergonomics for larger live sets without DAW-like shells.
+
 ### `v0.5` — Generative ecosystem (planned)
 
 - Additional pattern engines and module types.

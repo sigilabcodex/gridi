@@ -57,3 +57,18 @@ The current model is designed so new capabilities can be added without changing 
 - New pattern/control engines can plug into scheduler/engine boundaries.
 - Preset system work can expand on `presetName`/`presetMeta`.
 - Routing UX can evolve while keeping patch-level connections as source of truth.
+
+## 6) Session vs Stage (Scene/Worktable)
+
+- A **session** is the full patch state in one browser tab.
+- A **stage** is a selectable workspace inside that same session.
+- Stages are intended for layout segmentation and cognitive/performance navigation.
+
+Non-goals of stages:
+
+- Not separate audio worlds.
+- Not separate engines.
+- Not separate transport timelines.
+- Not separate routing graphs.
+
+Routing, engine state, and transport remain global across all stages so the instrument behaves as one coherent patch while the visible workspace changes.
