@@ -76,3 +76,9 @@ For every module family, GRIDI should support three layers:
 
 This principle is not GEN-only; it applies to Drum, Synth, Control, Visual, and future module families.
 
+## Module organization via stages
+
+- Stages (Scenes/Worktables) provide additional workspace organization within a single session.
+- Typical usage is role-based grouping: e.g. a drums stage, synth stage, bass stage, lead stage, or part-based stage split.
+- This supports live performance navigation by letting players jump quickly between focused module groupings.
+- Module behavior, routing semantics, and transport context remain global across stages.

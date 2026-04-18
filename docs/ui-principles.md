@@ -49,6 +49,16 @@ Why: preserve clear mental models and avoid conflating runtime behavior with UI 
 - Add/remove actions are local to grid cells.
 - Interaction should emphasize patch-building and performance flow, not menu depth.
 
+## 6.1) Stage (scene/worktable) navigation philosophy
+
+- Stages are switchable workspaces inside one session, not separate projects.
+- Stage access should stay lightweight and instrument-like (for example a compact header selector/control), not DAW-style tabs or timeline metaphors.
+- Switching stages should feel immediate and non-disruptive: no transport interruption and no routing context reset.
+- Keep stage controls visually secondary to play controls so workspace navigation does not dominate the instrument surface.
+- Stages should reduce clutter by letting performers group modules by musical role while preserving one coherent patch.
+
+Why: support larger live-performance patches without turning GRIDI into a DAW-style shell.
+
 ## 7) Module shell expectations
 
 - The shell is fixed-size and deterministic: no per-module card growth based on tab content.
@@ -103,3 +113,10 @@ Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 - Footer status tokens
 
 This is the active canonical layout contract for future modules.
+
+## 13) Stage UX constraints
+
+- Stages are for layout segmentation and performance navigation only.
+- Do not introduce mixer-panel, arrangement-page, or tabbed-DAW interaction patterns under the stage concept.
+- Preserve module identity/faceplate grammar across stages; stage context should not alter module shell rules.
+- No internal scrolling/layout hacks should be introduced to emulate stage behavior.
