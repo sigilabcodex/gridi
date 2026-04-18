@@ -675,6 +675,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateMasterGainUI();
       maybeAutosaveCurrentPreset();
     },
+    onInspectRoutingModule: (moduleId) => {
+      gridRenderer.setRoutingInspect(moduleId);
+    },
     attachTooltip: tooltips.attachTooltip,
   });
 

@@ -223,6 +223,21 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   let visibleColumns = readVisibleColumnCount(params.main);
   let renderedColumns = visibleColumns;
   let movedModuleIds = new Set<string>();
+  let latestPatch: Patch | null = null;
+  let latestRouting = buildRoutingSnapshot(params.patch());
+  let surfaceByModuleId = new Map<string, HTMLElement>();
+
+  const applyRoutingHighlight = () => {
+    const patch = latestPatch;
+    if (!patch) return;
+    const inspected = inspectedModuleId ? patch.modules.find((module) => module.id === inspectedModuleId) : null;
+    const related = inspected ? new Set(getConnectedModuleIds(latestRouting, inspected)) : new Set<string>();
+
+    for (const [moduleId, surface] of surfaceByModuleId.entries()) {
+      surface.classList.toggle("routingInspect", moduleId === inspectedModuleId);
+      surface.classList.toggle("routingLinked", related.has(moduleId));
+    }
+  };
 
   type ScrollSnapshot = {
     windowX: number;
@@ -366,6 +381,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
     const patch = params.patch();
     const routing = buildRoutingSnapshot(patch);
+    latestPatch = patch;
+    latestRouting = routing;
     params.main.innerHTML = "";
 
     const workspaceViewport = document.createElement("div");
@@ -387,7 +404,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     const triggerOptions = triggers.map((t) => ({ id: t.id, label: `${t.name} (${t.id.slice(-4)})` }));
     const controlOptions = controls.map((c) => ({ id: c.id, label: `${c.name} (${c.kind})` }));
 
-    const surfaceByModuleId = new Map<string, HTMLElement>();
+    surfaceByModuleId = new Map<string, HTMLElement>();
     const focusableByPosition = new Map<string, HTMLElement>();
 
     const focusPosition = (position: GridPosition) => {
@@ -417,16 +434,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
           focusFirstInteractive(surface);
         }
       });
-    };
-
-    const applyRoutingHighlight = () => {
-      const inspected = inspectedModuleId ? patch.modules.find((module) => module.id === inspectedModuleId) : null;
-      const related = inspected ? new Set(getConnectedModuleIds(routing, inspected)) : new Set<string>();
-
-      for (const [moduleId, surface] of surfaceByModuleId.entries()) {
-        surface.classList.toggle("routingInspect", moduleId === inspectedModuleId);
-        surface.classList.toggle("routingLinked", related.has(moduleId));
-      }
     };
 
     const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
@@ -766,6 +773,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
   return {
     rerender,
+    setRoutingInspect: (moduleId: string | null) => {
+      inspectedModuleId = moduleId;
+      applyRoutingHighlight();
+    },
     updateFrame: () => {
       for (let i = 0; i < updaters.length; i++) {
         const update = updaters[i];

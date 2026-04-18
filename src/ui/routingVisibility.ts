@@ -1,6 +1,7 @@
 import type { Module, Patch, SoundModule } from "../patch";
+import type { CompiledRouting, PatchRoute, RouteDomain, RouteEndpoint } from "../routingGraph.ts";
+import { compileRoutingGraph } from "../routingGraph.ts";
 import type { TooltipBinder } from "./tooltip";
-import { compileRoutingGraph } from "../routingGraph";
 
 export type RouteRef = {
   id: string;
@@ -19,8 +20,27 @@ export type ControlTargetRef = {
   parameterLabel: string;
 };
 
+export type UIRoutingOverviewRoute = {
+  id: string;
+  domain: RouteDomain;
+  source: RouteRef | null;
+  sourceLabel: string;
+  target: RouteRef | null;
+  targetLabel: string;
+  parameterLabel?: string;
+  parameter?: string;
+};
+
+export type UIRoutingOverview = {
+  eventRoutes: UIRoutingOverviewRoute[];
+  modulationRoutes: UIRoutingOverviewRoute[];
+  audioRoutes: UIRoutingOverviewRoute[];
+  byModule: Map<string, { incoming: UIRoutingOverviewRoute[]; outgoing: UIRoutingOverviewRoute[] }>;
+};
+
 export type RoutingSnapshot = {
   modules: Map<string, RouteRef>;
+  overview: UIRoutingOverview;
   triggerTargets: Map<string, RouteRef[]>;
   controlTargets: Map<string, ControlTargetRef[]>;
   voiceIncoming: Map<string, { trigger: RouteRef | null; modulations: Array<{ parameter: string; parameterLabel: string; source: RouteRef }> }>;
@@ -44,8 +64,73 @@ function makeRouteRef(module: Module): RouteRef {
   };
 }
 
+function endpointLabel(endpoint: RouteEndpoint, modules: Map<string, RouteRef>) {
+  if (endpoint.kind === "module") return modules.get(endpoint.moduleId)?.name ?? endpoint.moduleId;
+  if (endpoint.kind === "bus") return `Bus ${endpoint.busId}`;
+  if (endpoint.kind === "master") return "Master";
+  const channel = endpoint.channel ? ` ch${endpoint.channel}` : "";
+  return `MIDI${channel}`;
+}
+
+function includeByModule(map: UIRoutingOverview["byModule"], moduleId: string, route: UIRoutingOverviewRoute, direction: "incoming" | "outgoing") {
+  const entry = map.get(moduleId) ?? { incoming: [], outgoing: [] };
+  entry[direction].push(route);
+  map.set(moduleId, entry);
+}
+
 export function getParameterLabel(key: string) {
   return PARAM_LABELS[key] ?? key;
+}
+
+export function buildUIRoutingOverview(compiled: CompiledRouting, modules: Map<string, RouteRef>): UIRoutingOverview {
+  const eventRoutes: UIRoutingOverviewRoute[] = [];
+  const modulationRoutes: UIRoutingOverviewRoute[] = [];
+  const audioRoutes: UIRoutingOverviewRoute[] = [];
+  const byModule = new Map<string, { incoming: UIRoutingOverviewRoute[]; outgoing: UIRoutingOverviewRoute[] }>();
+
+  const include = (routeRecord: PatchRoute) => {
+    const source = routeRecord.source.kind === "module" ? modules.get(routeRecord.source.moduleId) ?? null : null;
+    const target = routeRecord.target.kind === "module" ? modules.get(routeRecord.target.moduleId) ?? null : null;
+    const route: UIRoutingOverviewRoute = {
+      id: routeRecord.id,
+      domain: routeRecord.domain,
+      source,
+      sourceLabel: endpointLabel(routeRecord.source, modules),
+      target,
+      targetLabel: endpointLabel(routeRecord.target, modules),
+      parameterLabel: routeRecord.domain === "modulation" && routeRecord.metadata?.parameter
+        ? getParameterLabel(routeRecord.metadata.parameter)
+        : undefined,
+      parameter: routeRecord.metadata?.parameter,
+    };
+
+    if (route.domain === "event") eventRoutes.push(route);
+    else if (route.domain === "modulation") modulationRoutes.push(route);
+    else if (route.domain === "audio") audioRoutes.push(route);
+
+    if (source) includeByModule(byModule, source.id, route, "outgoing");
+    if (target) includeByModule(byModule, target.id, route, "incoming");
+  };
+
+  for (const route of compiled.routes) {
+    if (route.domain === "event" || route.domain === "modulation" || route.domain === "audio") include(route);
+  }
+
+  const sortRoutes = (items: UIRoutingOverviewRoute[]) => {
+    items.sort((a, b) => {
+      const sourceCmp = a.sourceLabel.localeCompare(b.sourceLabel);
+      if (sourceCmp !== 0) return sourceCmp;
+      const targetCmp = a.targetLabel.localeCompare(b.targetLabel);
+      if (targetCmp !== 0) return targetCmp;
+      return a.id.localeCompare(b.id);
+    });
+  };
+
+  sortRoutes(eventRoutes);
+  sortRoutes(modulationRoutes);
+  sortRoutes(audioRoutes);
+
+  return { eventRoutes, modulationRoutes, audioRoutes, byModule };
 }
 
 export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
@@ -61,43 +146,51 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
     modules.set(module.id, makeRouteRef(module));
   }
 
+  const overview = buildUIRoutingOverview(compiled, modules);
+
   for (const module of patch.modules) {
     if (module.type === "drum" || module.type === "tonal") {
-      const triggerId = compiled.eventSourceBySoundId.get(module.id) ?? module.triggerSource;
-      const trigger = triggerId ? modules.get(triggerId) ?? null : null;
-      const modulations = (compiled.modulationIncomingByTarget.get(module.id) ?? [])
-        .map(({ parameter, sourceId }) => {
-          const source = sourceId ? modules.get(sourceId) : null;
-          return source ? { parameter, parameterLabel: getParameterLabel(parameter), source } : null;
-        })
+      const incomingRoutes = overview.byModule.get(module.id)?.incoming ?? [];
+      const triggerRoute = incomingRoutes.find((route) => route.domain === "event") ?? null;
+      const modulationRoutes = incomingRoutes.filter((route) => route.domain === "modulation");
+      const trigger = triggerRoute?.source ?? null;
+      const modulations = modulationRoutes
+        .map((route) => (route.source && route.parameterLabel && route.parameter)
+          ? { parameter: route.parameter, parameterLabel: route.parameterLabel, source: route.source }
+          : null)
         .filter((entry): entry is { parameter: string; parameterLabel: string; source: RouteRef } => Boolean(entry));
       voiceIncoming.set(module.id, { trigger, modulations });
 
-      if (trigger) triggerTargets.set(trigger.id, (compiled.triggerTargets.get(trigger.id) ?? [])
-        .map((voiceId) => modules.get(voiceId))
-        .filter((entry): entry is RouteRef => Boolean(entry)));
+      if (trigger) {
+        const triggerEventTargets = overview.byModule.get(trigger.id)?.outgoing
+          .filter((route) => route.domain === "event")
+          .map((route) => route.target)
+          .filter((target): target is RouteRef => Boolean(target)) ?? [];
+        triggerTargets.set(trigger.id, triggerEventTargets);
+      }
 
-      for (const modulation of modulations) {
-        const targets = controlTargets.get(modulation.source.id) ?? [];
+      modulationRoutes.forEach((route) => {
+        if (!route.source || !route.parameterLabel) return;
+        const targets = controlTargets.get(route.source.id) ?? [];
         targets.push({
-          controlId: modulation.source.id,
+          controlId: route.source.id,
           targetId: module.id,
           targetName: module.name,
           targetFamily: module.type,
-          parameter: modulation.parameter,
-          parameterLabel: modulation.parameterLabel,
+          parameter: route.parameterLabel,
+          parameterLabel: route.parameterLabel,
         });
-        controlTargets.set(modulation.source.id, targets);
-      }
+        controlTargets.set(route.source.id, targets);
+      });
       continue;
     }
 
     if (module.type === "trigger") {
-      const incoming = (compiled.modulationIncomingByTarget.get(module.id) ?? [])
-        .map(({ parameter, sourceId }) => {
-          const source = sourceId ? modules.get(sourceId) : null;
-          return source ? { parameter, parameterLabel: getParameterLabel(parameter), source } : null;
-        })
+      const incoming = (overview.byModule.get(module.id)?.incoming ?? [])
+        .filter((route) => route.domain === "modulation")
+        .map((route) => (route.source && route.parameterLabel && route.parameter)
+          ? { parameter: route.parameter, parameterLabel: route.parameterLabel, source: route.source }
+          : null)
         .filter((entry): entry is { parameter: string; parameterLabel: string; source: RouteRef } => Boolean(entry));
       triggerIncoming.set(module.id, incoming);
 
@@ -127,6 +220,7 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
 
   return {
     modules,
+    overview,
     triggerTargets,
     controlTargets,
     voiceIncoming,
@@ -137,21 +231,14 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
 
 export function getConnectedModuleIds(snapshot: RoutingSnapshot, module: Module): string[] {
   const ids = new Set<string>();
+  const byModule = snapshot.overview.byModule.get(module.id);
 
-  if (module.type === "drum" || module.type === "tonal") {
-    const incoming = snapshot.voiceIncoming.get(module.id);
-    if (incoming?.trigger) ids.add(incoming.trigger.id);
-    incoming?.modulations.forEach((modulation) => ids.add(modulation.source.id));
-  }
-
-  if (module.type === "trigger") {
-    (snapshot.triggerTargets.get(module.id) ?? []).forEach((target) => ids.add(target.id));
-    (snapshot.triggerIncoming.get(module.id) ?? []).forEach((modulation) => ids.add(modulation.source.id));
-  }
-
-  if (module.type === "control") {
-    (snapshot.controlTargets.get(module.id) ?? []).forEach((target) => ids.add(target.targetId));
-  }
+  byModule?.incoming.forEach((route) => {
+    if (route.source) ids.add(route.source.id);
+  });
+  byModule?.outgoing.forEach((route) => {
+    if (route.target) ids.add(route.target.id);
+  });
 
   if (module.type === "visual") {
     (snapshot.visualSources.get(module.id)?.contributors ?? []).forEach((ref) => ids.add(ref.id));
