@@ -1,8 +1,10 @@
 import type { PatternEvent } from "./pattern/module.ts";
-import type { TriggerModule } from "../patch.ts";
+import type { DrumModule, TriggerModule } from "../patch.ts";
 
 export type DrumLaneRole = "low" | "mid" | "high" | "accent";
 export type SynthReceptionPolicy = "mono" | "poly";
+export const DRUM_LANES: readonly DrumLaneRole[] = ["low", "mid", "high", "accent"];
+export const DEFAULT_DRUM_LANE: DrumLaneRole = "mid";
 
 export type DrumTriggerEvent = {
   kind: "drum";
@@ -36,6 +38,19 @@ export function selectNotesForReception(policy: SynthReceptionPolicy, notes: num
 export function laneRoleFromPatternEvent(event: PatternEvent): DrumLaneRole {
   const laneIndex = ((event.targetLane ?? 0) % 4 + 4) % 4;
   return laneIndex === 0 ? "low" : laneIndex === 1 ? "mid" : laneIndex === 2 ? "high" : "accent";
+}
+
+export function normalizeDrumLane(lane: DrumTriggerEvent["lane"]): DrumLaneRole {
+  return lane === "low" || lane === "mid" || lane === "high" || lane === "accent" ? lane : DEFAULT_DRUM_LANE;
+}
+
+export function preferredLaneForDrumModule(module: DrumModule): DrumLaneRole | null {
+  const pitch = Number.isFinite(module.basePitch) ? module.basePitch : null;
+  if (pitch == null) return null;
+  if (pitch < 0.3) return "low";
+  if (pitch < 0.62) return "mid";
+  if (pitch < 0.88) return "high";
+  return "accent";
 }
 
 export function tonalValueFromPatternEvent(event: PatternEvent, trigger: TriggerModule) {

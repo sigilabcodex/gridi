@@ -45,6 +45,7 @@ test('scheduler emits drum semantic events with lane roles', () => {
     assert.ok(['low', 'mid', 'high', 'accent'].includes(event.lane));
     assert.equal(typeof event.velocity, 'number');
   }
+  assert.ok(new Set(triggered.map((event) => event.lane)).size > 1);
 });
 
 test('note semantics are deterministic and preserve scalar-compatible primary note', () => {

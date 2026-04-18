@@ -5,7 +5,7 @@ import type { Engine } from "./audio";
 import { createPatternModuleForTrigger } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
 import { compileRoutingGraph } from "../routingGraph.ts";
-import { laneRoleFromPatternEvent, noteOffsetsFromPatternEvent, type GridiTriggerEvent } from "./events.ts";
+import { laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -91,6 +91,13 @@ export function createScheduler(engine: Engine): Scheduler {
     const windowStartBeatAbs = getBeatAbs(now);
     const windowEndBeatAbs = getBeatAbs(now + lookaheadSec);
     const secPerBeat = secondsPerBeat();
+    const drumCountByTriggerId = new Map<string, number>();
+    for (const sound of getSoundModules(patch)) {
+      if (sound.type !== "drum") continue;
+      const trigger = resolveTrigger(sound, patch.modules);
+      if (!trigger?.enabled) continue;
+      drumCountByTriggerId.set(trigger.id, (drumCountByTriggerId.get(trigger.id) ?? 0) + 1);
+    }
 
     for (const sound of getSoundModules(patch)) {
       if (!sound.enabled) continue;
@@ -115,7 +122,7 @@ export function createScheduler(engine: Engine): Scheduler {
             kind: "drum",
             timeSec: eventTimeSec,
             velocity: ev.value,
-            lane: laneRoleFromPatternEvent(ev),
+            lane: normalizeDrumLane(laneRoleFromPatternEvent(ev)),
           }
           : {
             kind: "note",
@@ -123,6 +130,16 @@ export function createScheduler(engine: Engine): Scheduler {
             velocity: ev.value,
             notes: noteOffsetsFromPatternEvent(ev, effectiveTrigger),
           };
+        if (sound.type === "drum" && voiceEvent.kind === "drum") {
+          const connectedDrumCount = drumCountByTriggerId.get(trigger.id) ?? 0;
+          if (connectedDrumCount > 1) {
+            const preferredLane = preferredLaneForDrumModule(sound);
+            if (preferredLane && preferredLane !== normalizeDrumLane(voiceEvent.lane)) {
+              st.lastScheduledBeat = eventBeat;
+              continue;
+            }
+          }
+        }
         engine.triggerVoice(sound.id, patch, eventTimeSec, voiceEvent);
         st.lastScheduledBeat = eventBeat;
       }
