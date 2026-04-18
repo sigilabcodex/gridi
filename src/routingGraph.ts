@@ -1,71 +1,239 @@
 import type { Connection, Module, Patch, SoundModule } from "./patch.ts";
 
-export type RouteDomain = "event" | "modulation" | "audio";
+export type RouteDomain = "event" | "modulation" | "audio" | "midi";
+
+export type RouteEndpoint =
+  | { kind: "module"; moduleId: string; port: string }
+  | { kind: "bus"; busId: string; port?: string }
+  | { kind: "master"; port?: string }
+  | { kind: "external"; externalType: "midi"; portId?: string; channel?: number };
+
+export type PatchRouteMetadata = {
+  createdFrom?: "legacy-triggerSource" | "legacy-modulations" | "legacy-connections" | "ui";
+  parameter?: string;
+  lane?: string;
+};
 
 export type PatchRoute = {
   id: string;
   domain: RouteDomain;
-  from: { moduleId: string; port: string };
-  to: { type: "module" | "bus" | "master"; id?: string; port?: string };
+  source: RouteEndpoint;
+  target: RouteEndpoint;
   enabled: boolean;
-  parameter?: string;
-  lane?: string;
   gain?: number;
+  metadata?: PatchRouteMetadata;
 };
 
 export type CompiledRouting = {
   routes: PatchRoute[];
+  warnings: string[];
   eventSourceBySoundId: Map<string, string>;
   triggerTargets: Map<string, string[]>;
   modulationIncomingByTarget: Map<string, Array<{ parameter: string; sourceId: string }>>;
   audioConnections: Connection[];
 };
 
+type NormalizeRouteResult = {
+  routes: PatchRoute[];
+  warnings: string[];
+  hasTypedByDomain: Partial<Record<RouteDomain, boolean>>;
+};
+
 function isSoundModule(module: Module): module is SoundModule {
   return module.type === "drum" || module.type === "tonal";
 }
 
-function normalizeRoute(raw: unknown): PatchRoute | null {
+function normalizeRouteEndpoint(raw: unknown, side: "source" | "target"): RouteEndpoint | null {
+  if (!raw || typeof raw !== "object") return null;
+  const endpoint = raw as Partial<RouteEndpoint>;
+
+  if (endpoint.kind === "module") {
+    if (typeof endpoint.moduleId !== "string" || !endpoint.moduleId.trim()) return null;
+    const fallbackPort = side === "source" ? "out" : "in";
+    const port = typeof endpoint.port === "string" && endpoint.port.trim() ? endpoint.port : fallbackPort;
+    return { kind: "module", moduleId: endpoint.moduleId, port };
+  }
+
+  if (endpoint.kind === "bus") {
+    if (typeof endpoint.busId !== "string" || !endpoint.busId.trim()) return null;
+    const port = typeof endpoint.port === "string" && endpoint.port.trim() ? endpoint.port : undefined;
+    return { kind: "bus", busId: endpoint.busId, port };
+  }
+
+  if (endpoint.kind === "master") {
+    const port = typeof endpoint.port === "string" && endpoint.port.trim() ? endpoint.port : undefined;
+    return { kind: "master", port };
+  }
+
+  if (endpoint.kind === "external") {
+    const externalType = endpoint.externalType;
+    if (externalType !== "midi") return null;
+    const portId = typeof endpoint.portId === "string" && endpoint.portId.trim() ? endpoint.portId : undefined;
+    const channel = typeof endpoint.channel === "number" ? endpoint.channel : undefined;
+    return {
+      kind: "external",
+      externalType,
+      portId,
+      channel: typeof channel === "number" && channel >= 1 && channel <= 16 ? channel : undefined,
+    };
+  }
+
+  return null;
+}
+
+function normalizeRawRoute(raw: unknown): PatchRoute | null {
   if (!raw || typeof raw !== "object") return null;
   const route = raw as Partial<PatchRoute>;
-  if (route.domain !== "event" && route.domain !== "modulation" && route.domain !== "audio") return null;
-  if (!route.from || typeof route.from.moduleId !== "string" || !route.from.moduleId.trim()) return null;
-  const fromPort = typeof route.from.port === "string" && route.from.port.trim()
-    ? route.from.port
-    : route.domain === "audio" ? "main" : "out";
-  if (!route.to || (route.to.type !== "module" && route.to.type !== "bus" && route.to.type !== "master")) return null;
-  const toId = typeof route.to.id === "string" ? route.to.id : undefined;
-  if (route.to.type !== "master" && !toId) return null;
-  const toPort = typeof route.to.port === "string" && route.to.port.trim()
-    ? route.to.port
-    : route.domain === "audio" ? "in" : "in";
+  if (route.domain !== "event" && route.domain !== "modulation" && route.domain !== "audio" && route.domain !== "midi") return null;
+
+  const source = normalizeRouteEndpoint(route.source, "source");
+  const target = normalizeRouteEndpoint(route.target, "target");
+  if (!source || !target) return null;
 
   return {
-    id: typeof route.id === "string" && route.id.trim()
-      ? route.id
-      : `${route.domain}:${route.from.moduleId}:${fromPort}:${route.to.type}:${toId ?? "master"}:${toPort}`,
+    id: typeof route.id === "string" && route.id.trim() ? route.id : `${route.domain}:${Math.random().toString(36).slice(2)}`,
     domain: route.domain,
-    from: { moduleId: route.from.moduleId, port: fromPort },
-    to: { type: route.to.type, id: toId, port: toPort },
+    source,
+    target,
     enabled: route.enabled !== false,
-    parameter: typeof route.parameter === "string" && route.parameter.trim() ? route.parameter : undefined,
-    lane: typeof route.lane === "string" && route.lane.trim() ? route.lane : undefined,
     gain: typeof route.gain === "number" ? route.gain : undefined,
+    metadata: route.metadata && typeof route.metadata === "object"
+      ? {
+        createdFrom: route.metadata.createdFrom,
+        parameter: typeof route.metadata.parameter === "string" && route.metadata.parameter.trim() ? route.metadata.parameter : undefined,
+        lane: typeof route.metadata.lane === "string" && route.metadata.lane.trim() ? route.metadata.lane : undefined,
+      }
+      : undefined,
   };
 }
 
 function routeIdentity(route: PatchRoute) {
-  return `${route.domain}|${route.from.moduleId}|${route.from.port}|${route.to.type}|${route.to.id ?? ""}|${route.to.port ?? ""}|${route.parameter ?? ""}|${route.lane ?? ""}`;
+  const sourceId = route.source.kind === "module"
+    ? route.source.moduleId
+    : route.source.kind === "bus"
+      ? route.source.busId
+      : route.source.kind === "external"
+        ? `${route.source.externalType}:${route.source.portId ?? ""}:${route.source.channel ?? ""}`
+        : "master";
+  const sourcePort = "port" in route.source ? route.source.port ?? "" : "";
+
+  const targetId = route.target.kind === "module"
+    ? route.target.moduleId
+    : route.target.kind === "bus"
+      ? route.target.busId
+      : route.target.kind === "external"
+        ? `${route.target.externalType}:${route.target.portId ?? ""}:${route.target.channel ?? ""}`
+        : "master";
+  const targetPort = "port" in route.target ? route.target.port ?? "" : "";
+
+  return `${route.domain}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}`;
+}
+
+function validateRoute(
+  route: PatchRoute,
+  patch: Pick<Patch, "modules" | "buses">,
+  knownIds: Set<string>,
+): string | null {
+  if (knownIds.has(route.id)) return `duplicate route id: ${route.id}`;
+  knownIds.add(route.id);
+
+  const modulesById = new Map(patch.modules.map((m) => [m.id, m]));
+  const busesById = new Set((patch.buses ?? []).map((b) => b.id));
+
+  const resolveEndpointModule = (endpoint: RouteEndpoint): Module | null => {
+    if (endpoint.kind !== "module") return null;
+    return modulesById.get(endpoint.moduleId) ?? null;
+  };
+
+  if (route.source.kind === "module" && !modulesById.has(route.source.moduleId)) return `missing source module: ${route.source.moduleId}`;
+  if (route.target.kind === "module" && !modulesById.has(route.target.moduleId)) return `missing target module: ${route.target.moduleId}`;
+  if (route.source.kind === "bus" && !busesById.has(route.source.busId)) return `missing source bus: ${route.source.busId}`;
+  if (route.target.kind === "bus" && !busesById.has(route.target.busId)) return `missing target bus: ${route.target.busId}`;
+
+  const sourceModule = resolveEndpointModule(route.source);
+  const targetModule = resolveEndpointModule(route.target);
+
+  if (route.domain === "event") {
+    if (route.source.kind !== "module" || route.target.kind !== "module") return "event routes must use module->module endpoints";
+    if (!sourceModule || sourceModule.type !== "trigger") return "event route source must be trigger module";
+    if (!targetModule || !isSoundModule(targetModule)) return "event route target must be sound module";
+    return null;
+  }
+
+  if (route.domain === "modulation") {
+    if (route.source.kind !== "module" || route.target.kind !== "module") return "modulation routes must use module->module endpoints";
+    if (!sourceModule || sourceModule.type !== "control") return "modulation route source must be control module";
+    if (!targetModule || !(targetModule.type === "trigger" || isSoundModule(targetModule))) return "modulation route target must be trigger or sound module";
+    if (!route.metadata?.parameter) return "modulation route requires metadata.parameter";
+    return null;
+  }
+
+  if (route.domain === "audio") {
+    if (route.source.kind !== "module") return "audio route source must be module";
+    if (!(route.target.kind === "module" || route.target.kind === "bus" || route.target.kind === "master")) {
+      return "audio route target must be module|bus|master";
+    }
+    return null;
+  }
+
+  if (route.domain === "midi") {
+    return null;
+  }
+
+  return "invalid route domain";
+}
+
+function makeLegacyEventRoute(sourceId: string, targetId: string): PatchRoute {
+  return {
+    id: `event:${sourceId}:${targetId}`,
+    domain: "event",
+    source: { kind: "module", moduleId: sourceId, port: "trigger-out" },
+    target: { kind: "module", moduleId: targetId, port: "trigger-in" },
+    enabled: true,
+    metadata: { createdFrom: "legacy-triggerSource" },
+  };
+}
+
+function makeLegacyModulationRoute(sourceId: string, targetId: string, parameter: string): PatchRoute {
+  return {
+    id: `mod:${sourceId}:${targetId}:${parameter}`,
+    domain: "modulation",
+    source: { kind: "module", moduleId: sourceId, port: "cv-out" },
+    target: { kind: "module", moduleId: targetId, port: "cv-in" },
+    enabled: true,
+    metadata: { createdFrom: "legacy-modulations", parameter },
+  };
+}
+
+function makeLegacyAudioRoute(connection: Connection): PatchRoute {
+  const target: RouteEndpoint = connection.to.type === "module" && connection.to.id
+    ? { kind: "module", moduleId: connection.to.id, port: connection.to.port ?? "in" }
+    : connection.to.type === "bus" && connection.to.id
+      ? { kind: "bus", busId: connection.to.id, port: connection.to.port }
+      : { kind: "master", port: connection.to.port };
+
+  return {
+    id: `audio:${connection.id}`,
+    domain: "audio",
+    source: { kind: "module", moduleId: connection.fromModuleId, port: connection.fromPort },
+    target,
+    enabled: true,
+    gain: connection.gain,
+    metadata: { createdFrom: "legacy-connections" },
+  };
 }
 
 /**
- * Transitional canonical route synthesis.
- * - route records are treated as patch-owned canonical routing data.
- * - triggerSource/modulations/connections remain compatibility source material.
+ * Hybrid routing resolver policy:
+ * - When valid typed routes exist for a domain, they are canonical for that domain.
+ * - Otherwise, legacy structures are backfilled into typed routes for that domain.
  */
-export function normalizePatchRoutes(patch: Pick<Patch, "modules" | "connections"> & { routes?: unknown }): PatchRoute[] {
+function normalizePatchRoutesInternal(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): NormalizeRouteResult {
   const modulesById = new Map(patch.modules.map((m) => [m.id, m]));
   const dedup = new Map<string, PatchRoute>();
+  const warnings: string[] = [];
+  const hasTypedByDomain: Partial<Record<RouteDomain, boolean>> = {};
+  const routeIds = new Set<string>();
 
   const include = (route: PatchRoute) => {
     const identity = routeIdentity(route);
@@ -74,64 +242,63 @@ export function normalizePatchRoutes(patch: Pick<Patch, "modules" | "connections
 
   if (Array.isArray(patch.routes)) {
     for (const raw of patch.routes) {
-      const route = normalizeRoute(raw);
-      if (!route || !route.enabled) continue;
-      if (!modulesById.has(route.from.moduleId)) continue;
-      if (route.to.type === "module" && (!route.to.id || !modulesById.has(route.to.id))) continue;
+      const route = normalizeRawRoute(raw);
+      if (!route) {
+        warnings.push("ignored invalid typed route record");
+        continue;
+      }
+      if (!route.enabled) continue;
+
+      const error = validateRoute(route, patch, routeIds);
+      if (error) {
+        warnings.push(`ignored route ${route.id}: ${error}`);
+        continue;
+      }
+
+      hasTypedByDomain[route.domain] = true;
       include(route);
     }
   }
 
-  for (const module of patch.modules) {
-    if (!isSoundModule(module) || !module.triggerSource) continue;
-    const trigger = modulesById.get(module.triggerSource);
-    if (!trigger || trigger.type !== "trigger") continue;
-    include({
-      id: `event:${trigger.id}:${module.id}`,
-      domain: "event",
-      from: { moduleId: trigger.id, port: "trigger-out" },
-      to: { type: "module", id: module.id, port: "trigger-in" },
-      enabled: true,
-    });
-  }
-
-  for (const module of patch.modules) {
-    const modulations = "modulations" in module && module.modulations && typeof module.modulations === "object"
-      ? module.modulations
-      : {};
-    const entries = Object.entries(modulations);
-    for (const [parameter, sourceId] of entries) {
-      if (!sourceId || typeof sourceId !== "string") continue;
-      const source = modulesById.get(sourceId);
-      if (!source || source.type !== "control") continue;
-      include({
-        id: `mod:${sourceId}:${module.id}:${parameter}`,
-        domain: "modulation",
-        from: { moduleId: sourceId, port: "cv-out" },
-        to: { type: "module", id: module.id, port: "cv-in" },
-        enabled: true,
-        parameter,
-      });
+  if (!hasTypedByDomain.event) {
+    for (const module of patch.modules) {
+      if (!isSoundModule(module) || !module.triggerSource) continue;
+      const trigger = modulesById.get(module.triggerSource);
+      if (!trigger || trigger.type !== "trigger") continue;
+      include(makeLegacyEventRoute(trigger.id, module.id));
     }
   }
 
-  for (const connection of patch.connections) {
-    if (!connection.enabled) continue;
-    include({
-      id: `audio:${connection.id}`,
-      domain: "audio",
-      from: { moduleId: connection.fromModuleId, port: connection.fromPort },
-      to: { type: connection.to.type, id: connection.to.id, port: connection.to.port },
-      enabled: true,
-      gain: connection.gain,
-    });
+  if (!hasTypedByDomain.modulation) {
+    for (const module of patch.modules) {
+      const modulations = "modulations" in module && module.modulations && typeof module.modulations === "object"
+        ? module.modulations
+        : {};
+      for (const [parameter, sourceId] of Object.entries(modulations)) {
+        if (!sourceId || typeof sourceId !== "string") continue;
+        const source = modulesById.get(sourceId);
+        if (!source || source.type !== "control") continue;
+        include(makeLegacyModulationRoute(sourceId, module.id, parameter));
+      }
+    }
   }
 
-  return [...dedup.values()];
+  if (!hasTypedByDomain.audio) {
+    for (const connection of patch.connections) {
+      if (!connection.enabled) continue;
+      include(makeLegacyAudioRoute(connection));
+    }
+  }
+
+  return { routes: [...dedup.values()], warnings, hasTypedByDomain };
 }
 
-export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections"> & { routes?: unknown }): CompiledRouting {
-  const routes = normalizePatchRoutes(patch);
+export function normalizePatchRoutes(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): PatchRoute[] {
+  return normalizePatchRoutesInternal(patch).routes;
+}
+
+export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): CompiledRouting {
+  const { routes, warnings } = normalizePatchRoutesInternal(patch);
   const modulesById = new Map(patch.modules.map((m) => [m.id, m]));
 
   const eventSourceBySoundId = new Map<string, string>();
@@ -141,9 +308,9 @@ export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections"
 
   for (const route of routes) {
     if (route.domain === "event") {
-      if (route.to.type !== "module" || !route.to.id) continue;
-      const source = modulesById.get(route.from.moduleId);
-      const target = modulesById.get(route.to.id);
+      if (route.source.kind !== "module" || route.target.kind !== "module") continue;
+      const source = modulesById.get(route.source.moduleId);
+      const target = modulesById.get(route.target.moduleId);
       if (!source || source.type !== "trigger" || !target || !isSoundModule(target)) continue;
       if (!eventSourceBySoundId.has(target.id)) eventSourceBySoundId.set(target.id, source.id);
       const targets = triggerTargets.get(source.id) ?? [];
@@ -153,28 +320,45 @@ export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections"
     }
 
     if (route.domain === "modulation") {
-      if (route.to.type !== "module" || !route.to.id || !route.parameter) continue;
-      const source = modulesById.get(route.from.moduleId);
-      const target = modulesById.get(route.to.id);
+      if (route.source.kind !== "module" || route.target.kind !== "module") continue;
+      const parameter = route.metadata?.parameter;
+      if (!parameter) continue;
+      const source = modulesById.get(route.source.moduleId);
+      const target = modulesById.get(route.target.moduleId);
       if (!source || source.type !== "control" || !target) continue;
       const incoming = modulationIncomingByTarget.get(target.id) ?? [];
-      incoming.push({ parameter: route.parameter, sourceId: source.id });
+      incoming.push({ parameter, sourceId: source.id });
       modulationIncomingByTarget.set(target.id, incoming);
       continue;
     }
 
-    audioConnections.push({
-      id: route.id,
-      fromModuleId: route.from.moduleId,
-      fromPort: route.from.port,
-      to: { type: route.to.type, id: route.to.id, port: route.to.port },
-      gain: typeof route.gain === "number" ? route.gain : 1,
-      enabled: route.enabled !== false,
-    });
+    if (route.domain === "audio") {
+      if (route.source.kind !== "module") continue;
+      let to: { type: "module" | "bus" | "master"; id?: string; port?: string };
+      if (route.target.kind === "module") {
+        to = { type: "module", id: route.target.moduleId, port: route.target.port ?? "in" };
+      } else if (route.target.kind === "bus") {
+        to = { type: "bus", id: route.target.busId, port: route.target.port ?? "in" };
+      } else if (route.target.kind === "master") {
+        to = { type: "master", port: route.target.port ?? "in" };
+      } else {
+        continue;
+      }
+
+      audioConnections.push({
+        id: route.id,
+        fromModuleId: route.source.moduleId,
+        fromPort: route.source.port,
+        to,
+        gain: typeof route.gain === "number" ? route.gain : 1,
+        enabled: route.enabled !== false,
+      });
+    }
   }
 
   return {
     routes,
+    warnings,
     eventSourceBySoundId,
     triggerTargets,
     modulationIncomingByTarget,

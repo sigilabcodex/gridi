@@ -64,8 +64,8 @@ test('migration backfills triggerSource from canonical event routes when needed'
       {
         id: 'evt-1',
         domain: 'event',
-        from: { moduleId: 'trg-1', port: 'trigger-out' },
-        to: { type: 'module', id: 'drm-1', port: 'trigger-in' },
+        source: { kind: 'module', moduleId: 'trg-1', port: 'trigger-out' },
+        target: { kind: 'module', moduleId: 'drm-1', port: 'trigger-in' },
         enabled: true,
       },
     ],

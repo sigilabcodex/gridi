@@ -87,8 +87,25 @@ function moduleTopologySignature(patch: Patch) {
 function routeTopologySignature(patch: Patch) {
   return (patch.routes ?? [])
     .map((route) => {
-      const toId = route.to.id ?? "";
-      return `${route.domain}|${route.enabled ? 1 : 0}|${route.from.moduleId}|${route.from.port}|${route.to.type}|${toId}|${route.to.port}|${route.parameter ?? ""}|${route.lane ?? ""}`;
+      const sourceId = route.source.kind === "module"
+        ? route.source.moduleId
+        : route.source.kind === "bus"
+          ? route.source.busId
+          : route.source.kind === "external"
+            ? `${route.source.externalType}:${route.source.portId ?? ""}:${route.source.channel ?? ""}`
+            : "master";
+      const sourcePort = "port" in route.source ? route.source.port ?? "" : "";
+
+      const targetId = route.target.kind === "module"
+        ? route.target.moduleId
+        : route.target.kind === "bus"
+          ? route.target.busId
+          : route.target.kind === "external"
+            ? `${route.target.externalType}:${route.target.portId ?? ""}:${route.target.channel ?? ""}`
+            : "master";
+      const targetPort = "port" in route.target ? route.target.port ?? "" : "";
+
+      return `${route.domain}|${route.enabled ? 1 : 0}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}`;
     })
     .sort();
 }

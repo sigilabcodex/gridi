@@ -698,10 +698,14 @@ export function migratePatch(patch: Patch): Patch {
   // voice-owned triggerSource when a patch only carries route records.
   if (Array.isArray((patch as any).routes)) {
     const routeTriggerByTarget = new Map<string, string[]>();
-    for (const route of normalizePatchRoutes({ modules: migrated, connections: [], routes: (patch as any).routes })) {
-      if (route.domain !== "event" || route.to.type !== "module" || !route.to.id) continue;
-      const target = migrated.find((m) => m.id === route.to.id);
-      const source = migrated.find((m) => m.id === route.from.moduleId);
+    for (const route of normalizePatchRoutes({ modules: migrated, buses: [], connections: [], routes: (patch as any).routes })) {
+      if (route.domain !== "event") continue;
+      if (route.target.kind !== "module") continue;
+      if (route.source.kind !== "module") continue;
+      const targetModuleId = route.target.moduleId;
+      const sourceModuleId = route.source.moduleId;
+      const target = migrated.find((m) => m.id === targetModuleId);
+      const source = migrated.find((m) => m.id === sourceModuleId);
       if (!target || !isSound(target) || !source || !isTrigger(source)) continue;
       const refs = routeTriggerByTarget.get(target.id) ?? [];
       refs.push(source.id);
@@ -743,6 +747,6 @@ export function migratePatch(patch: Patch): Patch {
     modules: migrated,
     buses,
     connections,
-    routes: normalizePatchRoutes({ modules: migrated, connections, routes: (patch as any).routes }),
+    routes: normalizePatchRoutes({ modules: migrated, buses, connections, routes: (patch as any).routes }),
   };
 }

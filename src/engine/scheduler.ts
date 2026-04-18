@@ -25,7 +25,7 @@ export function createScheduler(engine: Engine): Scheduler {
 
   let bpm = 124;
   let patch: Patch | null = null;
-  let compiledRouting = compileRoutingGraph({ modules: [], connections: [] });
+  let compiledRouting = compileRoutingGraph({ modules: [], buses: [], connections: [] });
   let transportStartTimeSec = 0;
   let transportStartBeatAbs = 0;
   const sequenceStates = new Map<string, SequenceState>();
