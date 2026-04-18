@@ -81,6 +81,33 @@ function normalizeRouteEndpoint(raw: unknown, side: "source" | "target"): RouteE
   return null;
 }
 
+function endpointIdentity(endpoint: RouteEndpoint) {
+  if (endpoint.kind === "module") return `module:${endpoint.moduleId}:${endpoint.port}`;
+  if (endpoint.kind === "bus") return `bus:${endpoint.busId}:${endpoint.port ?? ""}`;
+  if (endpoint.kind === "master") return `master:${endpoint.port ?? ""}`;
+  return `external:${endpoint.externalType}:${endpoint.portId ?? ""}:${endpoint.channel ?? ""}`;
+}
+
+function fallbackRouteId(route: {
+  domain: RouteDomain;
+  source: RouteEndpoint;
+  target: RouteEndpoint;
+  enabled: boolean;
+  gain?: number;
+  metadata?: PatchRouteMetadata;
+}) {
+  return [
+    route.domain,
+    endpointIdentity(route.source),
+    endpointIdentity(route.target),
+    route.enabled ? "1" : "0",
+    typeof route.gain === "number" ? String(route.gain) : "",
+    route.metadata?.parameter ?? "",
+    route.metadata?.lane ?? "",
+    route.metadata?.createdFrom ?? "",
+  ].join("|");
+}
+
 function normalizeRawRoute(raw: unknown): PatchRoute | null {
   if (!raw || typeof raw !== "object") return null;
   const route = raw as Partial<PatchRoute>;
@@ -90,20 +117,35 @@ function normalizeRawRoute(raw: unknown): PatchRoute | null {
   const target = normalizeRouteEndpoint(route.target, "target");
   if (!source || !target) return null;
 
+  const metadata = route.metadata && typeof route.metadata === "object"
+    ? {
+      createdFrom: route.metadata.createdFrom,
+      parameter: typeof route.metadata.parameter === "string" && route.metadata.parameter.trim() ? route.metadata.parameter : undefined,
+      lane: typeof route.metadata.lane === "string" && route.metadata.lane.trim() ? route.metadata.lane : undefined,
+    }
+    : undefined;
+
+  const enabled = route.enabled !== false;
+  const gain = typeof route.gain === "number" ? route.gain : undefined;
+  const id = typeof route.id === "string" && route.id.trim()
+    ? route.id
+    : fallbackRouteId({
+      domain: route.domain,
+      source,
+      target,
+      enabled,
+      gain,
+      metadata,
+    });
+
   return {
-    id: typeof route.id === "string" && route.id.trim() ? route.id : `${route.domain}:${Math.random().toString(36).slice(2)}`,
+    id,
     domain: route.domain,
     source,
     target,
-    enabled: route.enabled !== false,
-    gain: typeof route.gain === "number" ? route.gain : undefined,
-    metadata: route.metadata && typeof route.metadata === "object"
-      ? {
-        createdFrom: route.metadata.createdFrom,
-        parameter: typeof route.metadata.parameter === "string" && route.metadata.parameter.trim() ? route.metadata.parameter : undefined,
-        lane: typeof route.metadata.lane === "string" && route.metadata.lane.trim() ? route.metadata.lane : undefined,
-      }
-      : undefined,
+    enabled,
+    gain,
+    metadata,
   };
 }
 

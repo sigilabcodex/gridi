@@ -145,3 +145,23 @@ test('invalid typed route is ignored safely with warning', () => {
   assert.equal(compiled.eventSourceBySoundId.has(sound.id), false);
   assert.equal(compiled.warnings.length > 0, true);
 });
+
+test('typed route fallback id is deterministic when id is omitted', () => {
+  const trigger = makeTrigger({ id: 'trg-1' });
+  const sound = makeSound({ id: 'drm-1', triggerSource: null });
+  const patch = makePatch([trigger, sound]);
+  patch.routes = [
+    {
+      domain: 'event',
+      source: { kind: 'module', moduleId: trigger.id, port: 'trigger-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'trigger-in' },
+      enabled: true,
+      metadata: { createdFrom: 'ui' },
+    },
+  ];
+
+  const compiledA = compileRoutingGraph(patch);
+  const compiledB = compileRoutingGraph(structuredClone(patch));
+  assert.equal(compiledA.routes.length, 1);
+  assert.equal(compiledA.routes[0].id, compiledB.routes[0].id);
+});
