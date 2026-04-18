@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultPatch, makeSound, makeTrigger, makeVisual, migratePatch } from '../src/patch.ts';
+import { defaultPatch, makeSound, makeTrigger, makeVisual, migratePatch, normalizeSynthReceptionMode } from '../src/patch.ts';
 
 test('drum and tonal defaults are distinct and specialized', () => {
   const drum = makeSound('drum', 0, 'trg-1');
@@ -12,8 +12,32 @@ test('drum and tonal defaults are distinct and specialized', () => {
   assert.ok('pitchEnvAmt' in drum);
   assert.ok('waveform' in tonal);
   assert.ok('sustain' in tonal);
+  assert.equal(tonal.reception, 'mono');
   assert.ok(!('waveform' in drum));
   assert.ok(!('pitchEnvAmt' in tonal));
+});
+
+test('synth reception mode normalization is safe and defaults to mono', () => {
+  assert.equal(normalizeSynthReceptionMode('poly'), 'poly');
+  assert.equal(normalizeSynthReceptionMode('mono'), 'mono');
+  assert.equal(normalizeSynthReceptionMode('unexpected'), 'mono');
+  assert.equal(normalizeSynthReceptionMode(undefined), 'mono');
+
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 't1', type: 'tonal', name: 'T', enabled: true, triggerSource: null, amp: 0.2, pan: 0, reception: 'poly' },
+      { id: 't2', type: 'tonal', name: 'T2', enabled: true, triggerSource: null, amp: 0.2, pan: 0, reception: 'bad-data' },
+    ],
+    buses: [],
+    connections: [],
+  });
+  assert.equal(migrated.modules.find((m) => m.id === 't1').reception, 'poly');
+  assert.equal(migrated.modules.find((m) => m.id === 't2').reception, 'mono');
 });
 
 test('migration maps legacy timbre to new drum and tonal models', () => {

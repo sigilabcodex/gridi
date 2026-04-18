@@ -915,7 +915,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-  const reactiveState: Pick<TonalModule, "waveform" | "cutoff" | "resonance" | "attack" | "decay" | "amp" | "modDepth" | "glide" | "fineTune" | "modRate" | "coarseTune" | "pan" | "sustain" | "release" | "triggerSource"> = {
+  const reactiveState: Pick<TonalModule, "waveform" | "cutoff" | "resonance" | "attack" | "decay" | "amp" | "modDepth" | "glide" | "fineTune" | "modRate" | "coarseTune" | "pan" | "sustain" | "release" | "triggerSource" | "reception"> = {
     waveform: t.waveform,
     cutoff: t.cutoff,
     resonance: t.resonance,
@@ -931,6 +931,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     sustain: t.sustain,
     release: t.release,
     triggerSource: t.triggerSource,
+    reception: t.reception,
   };
 
   const surface = document.createElement("section");
@@ -974,9 +975,39 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     });
     return best;
   };
+  const triggerSourceField = createCompactSelectField({
+    label: "Trg",
+    className: "synthHeaderSelect",
+    options: triggerOptions.map((opt) => ({ value: opt.id, label: opt.label })),
+    selected: t.triggerSource,
+    emptyLabel: "None",
+    onChange: (value) => onRoutingChange((p) => {
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m?.type === "tonal") {
+        m.triggerSource = value;
+        setReactive({ triggerSource: value });
+      }
+    }, { regen: true }),
+  });
+  const receptionModeField = createCompactSelectField({
+    label: "Recv",
+    className: "synthHeaderSelect",
+    includeEmptyOption: false,
+    options: [
+      { value: "mono", label: "Mono" },
+      { value: "poly", label: "Poly" },
+    ],
+    selected: reactiveState.reception,
+    onChange: (value) => onPatchChange((p) => {
+      const nextReception = value === "poly" ? "poly" : "mono";
+      setReactive({ reception: nextReception });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "tonal") m.reception = nextReception;
+    }, { regen: false }),
+  });
   const pitchMapField = createCompactSelectField({
     label: "Pitch",
-    className: "synthHeaderSelect",
+    className: "routingInlineCard",
     includeEmptyOption: false,
     options: pitchMapProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
     selected: nearestPitchMap(reactiveState),
@@ -996,7 +1027,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   });
   const articulationField = createCompactSelectField({
     label: "Artic",
-    className: "synthHeaderSelect",
+    className: "routingInlineCard",
     includeEmptyOption: false,
     options: articulationProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
     selected: nearestArticulation(reactiveState),
@@ -1053,7 +1084,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     svg.append(spreadField, spreadAxis, baseline, cutoffLine, envelope, waveform, spreadMarker);
     const side = document.createElement("div");
     side.className = "synthFeatureSide";
-    side.append(pitchMapField.wrap, articulationField.wrap);
+    side.append(triggerSourceField.wrap, receptionModeField.wrap);
     stage.append(svg, side);
     feature.append(stage);
 
@@ -1158,6 +1189,8 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const setReactive = (partial: Partial<typeof reactiveState>) => {
     Object.assign(reactiveState, partial);
     synthFeatureZone.update(reactiveState);
+    triggerSourceField.select.value = reactiveState.triggerSource ?? "";
+    receptionModeField.select.value = reactiveState.reception;
     pitchMapField.select.value = nearestPitchMap(reactiveState);
     articulationField.select.value = nearestArticulation(reactiveState);
     synthInfo.update({
@@ -1166,6 +1199,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       cutoff: reactiveState.cutoff,
       resonance: reactiveState.resonance,
       waveform: reactiveState.waveform,
+      reception: reactiveState.reception,
     });
   };
 
@@ -1248,8 +1282,8 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     null,
     envVelocityCtl,
     panLawCtl,
-    null,
-    null,
+    pitchMapField.wrap,
+    articulationField.wrap,
     null,
     null,
     envAmountCtl,
@@ -1278,10 +1312,10 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     const meta = document.createElement("span");
     meta.className = "drumInfoToken drumInfoToken--meta";
     info.append(id, stateToken, route, meta);
-    const update = (state: Pick<TonalModule, "enabled" | "triggerSource" | "cutoff" | "resonance" | "waveform">) => {
+    const update = (state: Pick<TonalModule, "enabled" | "triggerSource" | "cutoff" | "resonance" | "waveform" | "reception">) => {
       stateToken.textContent = state.enabled ? "ACTIVE" : "BYPASS";
       route.textContent = state.triggerSource ? `SRC ${state.triggerSource.slice(-4).toUpperCase()}` : "SRC NONE";
-      meta.textContent = `WAVE ${Math.round(state.waveform * 100)} · CUTOFF ${Math.round(state.cutoff * 100)} · RESO ${Math.round(state.resonance * 100)}`;
+      meta.textContent = `${state.reception.toUpperCase()} · WAVE ${Math.round(state.waveform * 100)} · CUTOFF ${Math.round(state.cutoff * 100)} · RESO ${Math.round(state.resonance * 100)}`;
     };
     update(t);
     return { info, update };
@@ -1311,6 +1345,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       sustain: t.sustain,
       release: t.release,
       triggerSource: t.triggerSource,
+      reception: t.reception,
     });
   };
 }

@@ -1,6 +1,6 @@
 // src/engine/audio.ts
 import type { ControlModule, Patch, SoundModule } from "../patch";
-import { clamp, getSoundModules, isControl, isEffect } from "../patch";
+import { clamp, getSoundModules, isControl, isEffect, normalizeSynthReceptionMode } from "../patch";
 import type { AudioModuleInstance } from "./audioModule";
 import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
@@ -495,7 +495,7 @@ export function createEngine(): Engine {
     const incomingNotes = event?.kind === "note" && Array.isArray(event.notes)
       ? event.notes.filter((note) => Number.isFinite(note))
       : fallbackSemitone;
-    const tonalPolicy = v.reception === "poly" ? "poly" : "mono";
+    const tonalPolicy = normalizeSynthReceptionMode(v.reception);
     const semanticNotes = selectNotesForReception(tonalPolicy, incomingNotes);
     const ampPerNote = amp / Math.sqrt(Math.max(1, semanticNotes.length));
     const glideTime = 0.001 + glide * 0.35;

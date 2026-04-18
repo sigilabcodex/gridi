@@ -24,6 +24,7 @@ export const clamp = (x: number, a: number, b: number) =>
 export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | "effect" | "voice" | "control";
 
 export type ModulationMap = Partial<Record<string, string>>;
+export type SynthReceptionMode = "mono" | "poly";
 
 export type ModuleBase = {
   id: string;
@@ -124,7 +125,7 @@ export type DrumSynthModule = SoundBase & {
 
 export type TonalSynthModule = SoundBase & {
   type: "tonal";
-  reception: "mono" | "poly";
+  reception: SynthReceptionMode;
   waveform: number;
   coarseTune: number;
   fineTune: number;
@@ -226,6 +227,10 @@ export function isVisual(m: AnyKnownModule): m is VisualModule {
 
 export function isControl(m: AnyKnownModule): m is ControlModule {
   return m.type === "control";
+}
+
+export function normalizeSynthReceptionMode(value: unknown): SynthReceptionMode {
+  return value === "poly" ? "poly" : "mono";
 }
 
 export function getSoundModules(p: Patch): SoundModule[] {
@@ -341,7 +346,7 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
     x: 0,
     y: 0,
     triggerSource,
-    reception: "mono",
+    reception: normalizeSynthReceptionMode(undefined),
     amp: 0.11,
     pan: 0,
     waveform: 0.25,
@@ -528,7 +533,7 @@ function normalizeTonalModule(raw: any): TonalModule {
     engine: "synth",
     presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Rubber Bass",
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
-    reception: raw?.reception === "poly" ? "poly" : "mono",
+    reception: normalizeSynthReceptionMode(raw?.reception),
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.11, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
     waveform: clamp(typeof raw?.waveform === "number" ? raw.waveform : legacyTimbre, 0, 1),

@@ -1,8 +1,7 @@
 import type { PatternEvent } from "./pattern/module.ts";
-import type { DrumModule, TriggerModule } from "../patch.ts";
+import type { DrumModule, SynthReceptionMode, TriggerModule } from "../patch.ts";
 
 export type DrumLaneRole = "low" | "mid" | "high" | "accent";
-export type SynthReceptionPolicy = "mono" | "poly";
 export const DRUM_LANES: readonly DrumLaneRole[] = ["low", "mid", "high", "accent"];
 export const DEFAULT_DRUM_LANE: DrumLaneRole = "mid";
 
@@ -29,7 +28,7 @@ export type NoteTriggerEvent = {
 
 export type GridiTriggerEvent = DrumTriggerEvent | NoteTriggerEvent;
 
-export function selectNotesForReception(policy: SynthReceptionPolicy, notes: number[]): number[] {
+export function selectNotesForReception(policy: SynthReceptionMode, notes: number[]): number[] {
   const finite = notes.filter((note) => Number.isFinite(note));
   if (policy === "mono") return [finite[0] ?? 0];
   return (finite.length ? finite : [0]).slice(0, 4);
