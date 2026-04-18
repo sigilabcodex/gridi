@@ -106,3 +106,64 @@ test('scheduler resolves trigger from canonical event routes when triggerSource 
 
   assert.ok(triggered.some((ev) => ev.id === sound.id));
 });
+
+test('multi-drum lane dispatch differentiates trigger flow by inferred drum role', () => {
+  const trigger = makeTrigger({ id: 'lane-trigger', mode: 'step', length: 16, density: 1, drop: 0, seed: 9 });
+  const lowDrum = makeSound({ id: 'drm-low', triggerSource: trigger.id, basePitch: 0.2 });
+  const highDrum = makeSound({ id: 'drm-high', triggerSource: trigger.id, basePitch: 0.75 });
+  const patch = makePatch([lowDrum, highDrum, trigger]);
+  const triggered = [];
+  const engine = {
+    ctx: { currentTime: 0 },
+    triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, lane: event?.lane }),
+  };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    scheduler.stop();
+  });
+
+  const lowHits = triggered.filter((ev) => ev.id === lowDrum.id);
+  const highHits = triggered.filter((ev) => ev.id === highDrum.id);
+  assert.ok(lowHits.length > 0);
+  assert.ok(highHits.length > 0);
+  assert.ok(lowHits.every((ev) => ev.lane === 'low'));
+  assert.ok(highHits.every((ev) => ev.lane === 'high'));
+});
+
+test('lane dispatch remains deterministic for the same patch', () => {
+  const trigger = makeTrigger({ id: 'det-trigger', mode: 'euclid', length: 16, density: 0.8, drop: 0, seed: 5 });
+  const lowDrum = makeSound({ id: 'det-low', triggerSource: trigger.id, basePitch: 0.18 });
+  const midDrum = makeSound({ id: 'det-mid', triggerSource: trigger.id, basePitch: 0.45 });
+  const highDrum = makeSound({ id: 'det-high', triggerSource: trigger.id, basePitch: 0.7 });
+  const patch = makePatch([lowDrum, midDrum, highDrum, trigger]);
+
+  function runPass() {
+    const triggered = [];
+    const engine = {
+      ctx: { currentTime: 0 },
+      triggerVoice: (id, _patch, when, event) => triggered.push({
+        id,
+        beat: +((when / (60 / 120)).toFixed(6)),
+        lane: event?.lane,
+      }),
+    };
+    withWindowTimer((tick) => {
+      const scheduler = createScheduler(engine);
+      scheduler.setBpm(120);
+      scheduler.setPatch(patch);
+      scheduler.start();
+      for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+      scheduler.stop();
+    });
+    return triggered;
+  }
+
+  const passA = runPass();
+  const passB = runPass();
+  assert.deepEqual(passA, passB);
+});
