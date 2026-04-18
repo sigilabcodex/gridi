@@ -1239,9 +1239,6 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const synthSettingsPanel = createFaceplateSection("controls", "synthAdvancedPanel");
-  const synthMacroSelectors = document.createElement("div");
-  synthMacroSelectors.className = "routingSelectors";
-  synthMacroSelectors.append(pitchMapField.wrap, articulationField.wrap);
   const synthAdvancedHeaders = document.createElement("div");
   synthAdvancedHeaders.className = "synthAdvancedHeaders";
   const createAdvancedHeader = (label: string, column: string) => {
@@ -1285,8 +1282,8 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     null,
     envVelocityCtl,
     panLawCtl,
-    null,
-    null,
+    pitchMapField.wrap,
+    articulationField.wrap,
     null,
     null,
     envAmountCtl,
@@ -1301,7 +1298,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       synthAdvancedGrid.append(empty);
     }
   });
-  synthSettingsPanel.append(synthMacroSelectors, synthAdvancedHeaders, synthAdvancedGrid);
+  synthSettingsPanel.append(synthAdvancedHeaders, synthAdvancedGrid);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsPanel);
   const synthInfo = (() => {
     const info = createFaceplateSection("bottom", "drumInfoBar synthInfoBar");
