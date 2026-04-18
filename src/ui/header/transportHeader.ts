@@ -1,6 +1,7 @@
 import type { Patch } from "../../patch";
 import { APP_NAME, getVersionTooltipText } from "../../version";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
+import { createRoutingOverviewPanel } from "./routingOverviewPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
 
@@ -29,6 +30,7 @@ type HeaderParams = {
   onRegen: () => void;
   onSetBpm: (v: number) => void;
   onSetMasterGain: (v: number) => void;
+  onInspectRoutingModule?: (moduleId: string | null) => void;
   attachTooltip: TooltipBinder;
 };
 
@@ -45,6 +47,7 @@ export function createTransportHeader(params: HeaderParams) {
       | "session"
       | "save"
       | "generator"
+      | "routing"
   ) => {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("viewBox", "0 0 24 24");
@@ -120,6 +123,16 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M17 17l-3 3");
       stroke("M10 12h4");
       stroke("M12 10v4");
+    }
+    if (name === "routing") {
+      stroke("M5 6h6");
+      stroke("M13 18h6");
+      stroke("M8 6v4");
+      stroke("M16 14v4");
+      stroke("M8 10h8");
+      stroke("M16 14h-8");
+      stroke("M16 10l2 2-2 2");
+      stroke("M8 14l-2-2 2-2");
     }
     return icon;
   };
@@ -354,6 +367,9 @@ export function createTransportHeader(params: HeaderParams) {
   const generatorMenu = document.createElement("div");
   generatorMenu.className = "transportUtilityMenu transportSecondaryMenu";
 
+  const routingMenu = document.createElement("div");
+  routingMenu.className = "transportUtilityMenu transportSecondaryMenu";
+
   const generatorSummary = document.createElement("button");
   generatorSummary.type = "button";
   generatorSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySummaryGenerator";
@@ -371,6 +387,20 @@ export function createTransportHeader(params: HeaderParams) {
   const generatorPanel = document.createElement("div");
   generatorPanel.className = "floatingPanel transportUtilityPanel hidden";
   generatorPanel.setAttribute("role", "menu");
+
+  const routingSummary = document.createElement("button");
+  routingSummary.type = "button";
+  routingSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySummaryRouting";
+  const routingSummaryIcon = document.createElement("span");
+  routingSummaryIcon.className = "transportUtilitySummaryIcon";
+  routingSummaryIcon.append(makeIcon("routing"));
+  const routingSummaryLabel = document.createElement("span");
+  routingSummaryLabel.className = "transportUtilitySummaryLabel";
+  routingSummaryLabel.textContent = "Routing";
+  routingSummary.append(routingSummaryIcon, routingSummaryLabel);
+  routingSummary.setAttribute("aria-label", "Open global routing overview");
+  routingSummary.setAttribute("aria-haspopup", "dialog");
+  routingSummary.setAttribute("aria-expanded", "false");
 
   const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
     const btn = document.createElement("button");
@@ -500,7 +530,8 @@ export function createTransportHeader(params: HeaderParams) {
   sessionMenu.append(sessionSummary);
   generatorMenu.append(generatorSummary);
 
-  sessionActions.append(sessionMenu, generatorMenu);
+  routingMenu.append(routingSummary);
+  sessionActions.append(sessionMenu, generatorMenu, routingMenu);
   sessionBlock.append(sessionActions);
   sessionCluster.append(sessionBlock);
 
@@ -584,6 +615,11 @@ export function createTransportHeader(params: HeaderParams) {
 
   let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let generatorPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  const routingOverview = createRoutingOverviewPanel({
+    patch: params.patch,
+    attachTo: routingSummary,
+    onInspectModule: params.onInspectRoutingModule,
+  });
 
   const closeSessionMenu = () => {
     if (sessionPanel.classList.contains("hidden")) return;
@@ -601,6 +637,10 @@ export function createTransportHeader(params: HeaderParams) {
     generatorPanelCleanup = null;
   };
 
+  const closeRoutingMenu = () => {
+    routingOverview.close();
+  };
+
   const openSessionMenu = () => {
     if (sessionPanel.isConnected) sessionPanel.remove();
     document.body.appendChild(sessionPanel);
@@ -608,6 +648,7 @@ export function createTransportHeader(params: HeaderParams) {
     sessionSummary.setAttribute("aria-expanded", "true");
     refreshSessionList();
     closeGeneratorMenu();
+    closeRoutingMenu();
     placeFloatingPanel(sessionPanel, sessionSummary.getBoundingClientRect(), {
       offset: 8,
       align: "end",
@@ -635,6 +676,7 @@ export function createTransportHeader(params: HeaderParams) {
     generatorPanel.classList.remove("hidden");
     generatorSummary.setAttribute("aria-expanded", "true");
     closeSessionMenu();
+    closeRoutingMenu();
     placeFloatingPanel(generatorPanel, generatorSummary.getBoundingClientRect(), {
       offset: 8,
       align: "end",
@@ -663,6 +705,12 @@ export function createTransportHeader(params: HeaderParams) {
   generatorSummary.onclick = () => {
     if (generatorPanel.classList.contains("hidden")) openGeneratorMenu();
     else closeGeneratorMenu();
+  };
+
+  routingSummary.onclick = () => {
+    closeSessionMenu();
+    closeGeneratorMenu();
+    routingOverview.toggle();
   };
 
   sessionPanel.addEventListener("keydown", (event) => {
@@ -697,6 +745,7 @@ export function createTransportHeader(params: HeaderParams) {
       if (compactExpanded) setCompactExpanded(false);
       closeSessionMenu();
       closeGeneratorMenu();
+      closeRoutingMenu();
     }
   });
 
@@ -776,5 +825,6 @@ export function createTransportHeader(params: HeaderParams) {
     updatePresetUI,
     updateBpmUI,
     updateOutputMeter,
+    updateRoutingOverview: routingOverview.refresh,
   };
 }
