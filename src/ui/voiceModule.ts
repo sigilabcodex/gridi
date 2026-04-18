@@ -939,12 +939,30 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   surface.dataset.type = "tonal";
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
+  const pitchMapProfiles = [
+    { value: "BASS", label: "Bass", coarseTune: 0.14, fineTune: 0.42 },
+    { value: "SEQ", label: "Seq", coarseTune: 0.34, fineTune: 0.5 },
+    { value: "LEAD", label: "Lead", coarseTune: 0.57, fineTune: 0.58 },
+    { value: "CHROM", label: "Chrom", coarseTune: 0.84, fineTune: 0.5 },
+  ] as const;
   const articulationProfiles = [
     { value: "PLUCK", label: "Pluck", attack: 0.06, decay: 0.32, sustain: 0.24, release: 0.26 },
     { value: "STAB", label: "Stab", attack: 0.14, decay: 0.44, sustain: 0.38, release: 0.32 },
     { value: "HOLD", label: "Hold", attack: 0.22, decay: 0.5, sustain: 0.68, release: 0.56 },
     { value: "PAD", label: "Pad", attack: 0.54, decay: 0.66, sustain: 0.82, release: 0.9 },
   ] as const;
+  const nearestPitchMap = (state: Pick<typeof reactiveState, "coarseTune" | "fineTune">) => {
+    let best: string = pitchMapProfiles[0].value;
+    let bestDist = Number.POSITIVE_INFINITY;
+    pitchMapProfiles.forEach((profile) => {
+      const dist = Math.abs(profile.coarseTune - state.coarseTune) + Math.abs(profile.fineTune - state.fineTune) * 0.6;
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = profile.value;
+      }
+    });
+    return best;
+  };
   const nearestArticulation = (state: Pick<typeof reactiveState, "attack" | "decay" | "sustain" | "release">) => {
     let best: string = articulationProfiles[0].value;
     let bestDist = Number.POSITIVE_INFINITY;
@@ -971,9 +989,45 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       }
     }, { regen: true }),
   });
+  const receptionModeField = createCompactSelectField({
+    label: "Recv",
+    className: "synthHeaderSelect",
+    includeEmptyOption: false,
+    options: [
+      { value: "mono", label: "Mono" },
+      { value: "poly", label: "Poly" },
+    ],
+    selected: reactiveState.reception,
+    onChange: (value) => onPatchChange((p) => {
+      const nextReception = value === "poly" ? "poly" : "mono";
+      setReactive({ reception: nextReception });
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type === "tonal") m.reception = nextReception;
+    }, { regen: false }),
+  });
+  const pitchMapField = createCompactSelectField({
+    label: "Pitch",
+    className: "routingInlineCard",
+    includeEmptyOption: false,
+    options: pitchMapProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
+    selected: nearestPitchMap(reactiveState),
+    onChange: (value) => {
+      if (!value) return;
+      const profile = pitchMapProfiles.find((entry) => entry.value === value);
+      if (!profile) return;
+      onPatchChange((p) => {
+        setReactive({ coarseTune: profile.coarseTune, fineTune: profile.fineTune });
+        const m = p.modules.find((z) => z.id === v.id);
+        if (m?.type === "tonal") {
+          m.coarseTune = profile.coarseTune;
+          m.fineTune = profile.fineTune;
+        }
+      }, { regen: false });
+    },
+  });
   const articulationField = createCompactSelectField({
     label: "Artic",
-    className: "synthHeaderSelect",
+    className: "routingInlineCard",
     includeEmptyOption: false,
     options: articulationProfiles.map((profile) => ({ value: profile.value, label: profile.label })),
     selected: nearestArticulation(reactiveState),
@@ -1030,7 +1084,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     svg.append(spreadField, spreadAxis, baseline, cutoffLine, envelope, waveform, spreadMarker);
     const side = document.createElement("div");
     side.className = "synthFeatureSide";
-    side.append(triggerSourceField.wrap, articulationField.wrap);
+    side.append(triggerSourceField.wrap, receptionModeField.wrap);
     stage.append(svg, side);
     feature.append(stage);
 
@@ -1136,8 +1190,9 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     Object.assign(reactiveState, partial);
     synthFeatureZone.update(reactiveState);
     triggerSourceField.select.value = reactiveState.triggerSource ?? "";
-    articulationField.select.value = nearestArticulation(reactiveState);
     receptionModeField.select.value = reactiveState.reception;
+    pitchMapField.select.value = nearestPitchMap(reactiveState);
+    articulationField.select.value = nearestArticulation(reactiveState);
     synthInfo.update({
       enabled: t.enabled,
       triggerSource: reactiveState.triggerSource,
@@ -1184,22 +1239,9 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
 
   const shell = createFaceTabs(ui, main, triggerOptions, controlOptions, v, routing, onRoutingChange);
   const synthSettingsPanel = createFaceplateSection("controls", "synthAdvancedPanel");
-  const receptionModeField = createCompactSelectField({
-    label: "Reception",
-    className: "routingInlineCard",
-    includeEmptyOption: false,
-    options: [
-      { value: "mono", label: "Mono" },
-      { value: "poly", label: "Poly" },
-    ],
-    selected: reactiveState.reception,
-    onChange: (value) => onPatchChange((p) => {
-      const nextReception = value === "poly" ? "poly" : "mono";
-      setReactive({ reception: nextReception });
-      const m = p.modules.find((z) => z.id === v.id);
-      if (m?.type === "tonal") m.reception = nextReception;
-    }, { regen: false }),
-  });
+  const synthMacroSelectors = document.createElement("div");
+  synthMacroSelectors.className = "routingSelectors";
+  synthMacroSelectors.append(pitchMapField.wrap, articulationField.wrap);
   const synthAdvancedHeaders = document.createElement("div");
   synthAdvancedHeaders.className = "synthAdvancedHeaders";
   const createAdvancedHeader = (label: string, column: string) => {
@@ -1259,7 +1301,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       synthAdvancedGrid.append(empty);
     }
   });
-  synthSettingsPanel.append(receptionModeField.wrap, synthAdvancedHeaders, synthAdvancedGrid);
+  synthSettingsPanel.append(synthMacroSelectors, synthAdvancedHeaders, synthAdvancedGrid);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(synthSettingsPanel);
   const synthInfo = (() => {
     const info = createFaceplateSection("bottom", "drumInfoBar synthInfoBar");

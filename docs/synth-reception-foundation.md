@@ -6,10 +6,10 @@
   - `type SynthReceptionMode = "mono" | "poly"`
   - `normalizeSynthReceptionMode(value)` guards invalid persisted values.
 - Tonal normalization defaults to `mono` and runtime consumes the normalized mode.
-- A minimal **Reception** selector is exposed in Synth **Advanced** settings (`Mono` / `Poly`).
 - Synth faceplate upper pills now prioritize routing context:
   - **Trg** (incoming trigger/source)
-  - **Artic** (articulation profile)
+  - **Recv** (mono/poly reception mode)
+- `Pitch` and `Artic` compact selectors live in Synth **Advanced** to keep upper pills focused on signal origin + reception logic.
 
 ## Why synth behavior felt effectively mono before
 
