@@ -101,6 +101,7 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
 - Module display surfaces are semantic behavior layers, not decorative scopes.
 - Displays should communicate module-specific runtime behavior and parameter impact.
 - GEN and DRUM establish the baseline: algorithm-state visualization and behavior-coupled drum synthesis visualization.
+- VISUAL-family analyzer growth (including time-sensitive spectrogram direction) must remain module-scoped and performance-legible, not DAW-style detached analysis tooling.
 
 Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 

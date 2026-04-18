@@ -37,6 +37,12 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - Better transport/clock interfaces for extensibility.
 - Additional safety checks around invalid graph states.
 
+### `v0.41` — Visual analysis expansion (planned)
+
+- Expand the Visual family with performance-usable analyzer modes while preserving fixed-shell module ergonomics.
+- Add a **time-sensitive spectrogram** direction (frequency + intensity history over time) as an in-instrument visual mode.
+- Focus on musical/engineering readability and live feedback value, not on DAW-style metering panels.
+
 ### `v0.45` — Stage / Workspace System (planned)
 
 Motivation:
@@ -58,9 +64,20 @@ Future expansion:
 - Additional pattern engines and module types.
 - External sync and interoperability exploration.
 - Extended test coverage for cross-module interactions.
+- Exploration of advanced generation-mode families:
+  - image-driven (image-to-sound) generation,
+  - quantum/Schrödinger-inspired conceptual generation,
+  - dataset/spreadsheet-driven generation (data-driven, non-AI).
+
+### `v0.6+` — Exploratory generation families (long-term)
+
+- Mature non-traditional generation directions into coherent, instrument-grade mode families.
+- Keep image/data/conceptual generation module-scoped and performance-oriented.
+- Avoid DAW drift and avoid pivoting into generic media-analysis or analytics-product scope.
 
 ## Near-term priorities
 
 1. Keep behavior stable while reducing internal complexity.
 2. Expand architecture docs (`docs/architecture/`) with concrete diagrams.
 3. Preserve deterministic tests as data model evolves.
+4. Define lightweight external asset-ingestion guardrails (image/data limits, scan/mapping boundaries) before implementation.

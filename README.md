@@ -86,7 +86,9 @@ Near-term direction:
 1. **Control/modulation system**: clearer mapping, stronger feedback, safer defaults.
 2. **Preset system**: explicit preset workflows on top of existing preset identity.
 3. **Routing improvements**: better UX and validation visibility.
-4. **Stabilization discipline**: reduce hidden UI↔engine coupling and preserve deterministic behavior while refining shell ergonomics.
+4. **Visual analysis expansion**: grow the Visual module family with additional analyzer modes (including a planned time-sensitive spectrogram direction).
+5. **Generation-mode exploration**: develop image-driven, conceptual (quantum-inspired), and dataset-driven generation families as instrument workflows.
+6. **Stabilization discipline**: reduce hidden UI↔engine coupling and preserve deterministic behavior while refining shell ergonomics.
 
 ## Development
 

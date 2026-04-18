@@ -39,6 +39,10 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 - More animated/live module displays and interactive behavior surfaces.
 - CONTROL redesign and expansion.
 - VISUAL expansion with multiple dedicated visual modes.
+- Time-sensitive spectrogram visual mode for frequency/intensity-over-time analysis in performance and sound-design workflows.
+- Image-driven generation direction (image-to-sound scanning/mapping exploration).
+- Quantum/Schrödinger-inspired generation direction (conceptual indeterminacy/observation metaphors).
+- Dataset/spreadsheet-driven generation direction (tabular data as structured event source; data-driven and explicitly non-AI).
 - Possible dedicated routing-management module.
 - MIDI implementation and mapping workflows.
 - Live coding module exploration.
