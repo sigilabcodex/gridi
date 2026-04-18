@@ -87,8 +87,8 @@ test('scheduler resolves trigger from canonical event routes when triggerSource 
     {
       id: 'evt-route',
       domain: 'event',
-      from: { moduleId: trigger.id, port: 'trigger-out' },
-      to: { type: 'module', id: sound.id, port: 'trigger-in' },
+      source: { kind: 'module', moduleId: trigger.id, port: 'trigger-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'trigger-in' },
       enabled: true,
     },
   ];
