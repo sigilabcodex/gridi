@@ -47,6 +47,34 @@ test('legacy follower maps to source trigger id; missing source becomes null', (
   assert.equal(missing.triggerSource, null);
 });
 
+test('migration backfills triggerSource from canonical event routes when needed', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'trg-1', type: 'trigger', name: 'TRG', enabled: true, mode: 'step', seed: 1, determinism: 0.8, gravity: 0.6, density: 0.5, subdiv: 4, length: 16, drop: 0, weird: 0.5, euclidRot: 0, caRule: 90, caInit: 0.25 },
+      { id: 'drm-1', type: 'drum', name: 'DRM', enabled: true, triggerSource: null, amp: 0.2, pan: 0 },
+    ],
+    buses: [],
+    connections: [],
+    routes: [
+      {
+        id: 'evt-1',
+        domain: 'event',
+        from: { moduleId: 'trg-1', port: 'trigger-out' },
+        to: { type: 'module', id: 'drm-1', port: 'trigger-in' },
+        enabled: true,
+      },
+    ],
+  });
+
+  const sound = migrated.modules.find((m) => m.id === 'drm-1');
+  assert.equal(sound.triggerSource, 'trg-1');
+});
+
 test('migration normalizes buses/effects/connections for malformed legacy input', () => {
   const patch = migratePatch({
     version: '0.3',

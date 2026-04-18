@@ -5,6 +5,7 @@ import type { AudioModuleInstance } from "./audioModule";
 import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
 import { sampleControl01 } from "./control";
+import { compileRoutingGraph } from "../routingGraph.ts";
 
 export type Engine = {
   ctx: AudioContext;
@@ -164,7 +165,8 @@ export function createEngine(): Engine {
       module.disconnect();
     }
 
-    const validation = validateConnections(patch);
+    const compiled = compileRoutingGraph(patch);
+    const validation = validateConnections({ ...patch, connections: compiled.audioConnections });
     if (validation.warnings.length > 0) {
       for (const warning of validation.warnings) console.warn(`[routing] ${warning}`);
     }

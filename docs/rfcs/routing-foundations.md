@@ -14,12 +14,19 @@ This document captures the minimal scaffolding added ahead of full v0.4 routing 
   - `dispose()` for full cleanup.
 - Added `AudioModuleInstance` contract to normalize connect/disconnect/update/dispose behavior for DSP modules.
 - Added connection validation helper that safely drops invalid links and surfaces warnings.
+- Added transitional patch-owned `routes[]` normalization in `migratePatch`:
+  - event routes (trigger -> sound),
+  - modulation routes (control -> parameter target),
+  - audio routes (mirrored from `connections[]`).
 
 ## Behavioral constraints
 
 - Existing playback remains stable when no explicit connections are present.
   - Voices still route to master by default.
 - Scheduler/transport logic remains independent from routing internals.
+- `triggerSource` on sound modules remains compatibility-critical for existing UI/state.
+  - Migration now backfills `triggerSource` from event routes when possible.
+  - Runtime routing compilation resolves canonical routes first, then safely falls back.
 - Placeholder DSP (`gain` effect) is bypass-safe and intentionally removable.
 
 ## Why this is intentionally minimal

@@ -84,6 +84,15 @@ function moduleTopologySignature(patch: Patch) {
     .sort();
 }
 
+function routeTopologySignature(patch: Patch) {
+  return (patch.routes ?? [])
+    .map((route) => {
+      const toId = route.to.id ?? "";
+      return `${route.domain}|${route.enabled ? 1 : 0}|${route.from.moduleId}|${route.from.port}|${route.to.type}|${toId}|${route.to.port}|${route.parameter ?? ""}|${route.lane ?? ""}`;
+    })
+    .sort();
+}
+
 function hasRoutingTopologyChange(prev: Patch, next: Patch) {
   const prevConnections = connectionTopologySignature(prev);
   const nextConnections = connectionTopologySignature(next);
@@ -104,6 +113,13 @@ function hasRoutingTopologyChange(prev: Patch, next: Patch) {
   if (prevModules.length !== nextModules.length) return true;
   for (let i = 0; i < prevModules.length; i++) {
     if (prevModules[i] !== nextModules[i]) return true;
+  }
+
+  const prevRoutes = routeTopologySignature(prev);
+  const nextRoutes = routeTopologySignature(next);
+  if (prevRoutes.length !== nextRoutes.length) return true;
+  for (let i = 0; i < prevRoutes.length; i++) {
+    if (prevRoutes[i] !== nextRoutes[i]) return true;
   }
 
   return false;
