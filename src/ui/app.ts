@@ -30,6 +30,7 @@ import {
 import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
+import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
 
 function randInt(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
@@ -171,6 +172,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   let patch: Patch = clonePatch(selectedPreset().patch);
   let savedSnapshot = JSON.stringify(patch);
+  let midiTargetModuleId: string | null = patch.modules.find((module) => module.type === "tonal")?.id ?? null;
+  let midiStatus: MidiInputStatus = { kind: "pending" };
 
   const hasUnsavedChanges = () => JSON.stringify(patch) !== savedSnapshot;
 
@@ -242,6 +245,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   const applyPatch = (nextPatch: Patch) => {
     patch = nextPatch;
+    if (midiTargetModuleId && !patch.modules.some((module) => module.id === midiTargetModuleId && module.type === "tonal")) {
+      engine.stopAllMidiVoices(midiTargetModuleId);
+      midiTargetModuleId = patch.modules.find((module) => module.type === "tonal")?.id ?? null;
+    }
     syncEngineFromPatch(patch, true);
 
     if (settings.data.autosave) {
@@ -513,6 +520,67 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   const { getVoiceTab, setVoiceTab } = createVoiceTabsState();
 
+  const noteToFreqHz = (note: number) => 440 * Math.pow(2, (note - 69) / 12);
+  const freqToMidiFloat = (freq: number) => 69 + 12 * Math.log2(freq / 440);
+  const resolveMidiTarget = () => {
+    if (midiTargetModuleId) {
+      const current = patch.modules.find((module) => module.id === midiTargetModuleId && module.type === "tonal");
+      if (current?.enabled) return current;
+    }
+    const fallback = patch.modules.find((module) => module.type === "tonal" && module.enabled) ?? null;
+    if (fallback) midiTargetModuleId = fallback.id;
+    return fallback;
+  };
+  const noteOffsetForTarget = (note: number, targetId: string) => {
+    const soundModules = getSoundModules(patch);
+    const index = soundModules.findIndex((module) => module.id === targetId);
+    if (index < 0) return 0;
+    const target = soundModules[index];
+    if (target.type !== "tonal") return 0;
+    const basePool = [55, 82.41, 110, 146.83, 196, 220];
+    const base = basePool[index % basePool.length] ?? 110;
+    const octave = 1 + Math.floor(index / basePool.length) % 2;
+    const coarseRatio = Math.pow(2, target.coarseTune / 12);
+    const fineRatio = Math.pow(2, target.fineTune / 12);
+    const baseFreq = base * octave * coarseRatio * fineRatio * (0.92 + patch.macro * 0.16);
+    const noteFreq = noteToFreqHz(note);
+    return freqToMidiFloat(noteFreq) - freqToMidiFloat(baseFreq);
+  };
+
+  const midiInput = createMidiInputManager({
+    onStatus: (status) => {
+      midiStatus = status;
+      header.updateMidiUI();
+      gridRenderer.rerender();
+    },
+    onNote: (message) => {
+      const target = resolveMidiTarget();
+      if (!target) return;
+      const noteOffset = noteOffsetForTarget(message.note, target.id);
+      if (message.type === "noteon") {
+        engine.triggerVoice(target.id, patch, undefined, {
+          kind: "note",
+          source: "midi",
+          gate: "on",
+          midiNote: message.note,
+          velocity: message.velocity,
+          notes: [noteOffset],
+          timeSec: engine.ctx.currentTime,
+        });
+        return;
+      }
+      engine.triggerVoice(target.id, patch, undefined, {
+        kind: "note",
+        source: "midi",
+        gate: "off",
+        midiNote: message.note,
+        velocity: 0,
+        notes: [noteOffset],
+        timeSec: engine.ctx.currentTime,
+      });
+    },
+  });
+
   syncEngineFromPatch(patch, true);
 
   root.innerHTML = "";
@@ -548,6 +616,16 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     modulePresetRecords: modulePresetLibrary,
     onLoadModulePreset: loadModulePresetIntoModule,
     onSaveModulePreset: saveModulePresetFromInstance,
+    onInspectModule: (moduleId) => {
+      const module = patch.modules.find((item) => item.id === moduleId);
+      if (!module || module.type !== "tonal") return;
+      if (midiTargetModuleId === module.id) return;
+      if (midiTargetModuleId) engine.stopAllMidiVoices(midiTargetModuleId);
+      midiTargetModuleId = module.id;
+      header.updateMidiUI();
+      gridRenderer.rerender();
+    },
+    isMidiTargetModule: (moduleId) => moduleId === midiTargetModuleId,
   });
 
   const header = createTransportHeader({
@@ -679,6 +757,11 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       gridRenderer.setRoutingInspect(moduleId);
     },
     attachTooltip: tooltips.attachTooltip,
+    midiStatus: () => midiStatus,
+    midiTargetLabel: () => {
+      const target = patch.modules.find((module) => module.id === midiTargetModuleId && module.type === "tonal");
+      return target ? target.name : null;
+    },
   });
 
   shell.appendChild(main);
@@ -731,6 +814,11 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   header.updateAudioBtn();
   header.updatePlayBtn();
   header.updateStatus();
+  header.updateMidiUI();
+
+  void midiInput.init().then(() => {
+    header.updateMidiUI();
+  });
 
   maybeShowWelcomeModal({
     settings,
@@ -747,4 +835,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   };
 
   requestAnimationFrame(frame);
+
+  window.addEventListener("beforeunload", () => {
+    midiInput.dispose();
+    engine.stopAllMidiVoices();
+  });
 }

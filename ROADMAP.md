@@ -36,6 +36,7 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - More complete effect/module routing UX.
 - Better transport/clock interfaces for extensibility.
 - Additional safety checks around invalid graph states.
+- First direct USB/Web MIDI keyboard input for synth performance (single-target live play) is now in place; expanded MIDI routing and sync remain future work.
 
 ### `v0.41` — Visual analysis expansion (planned)
 

@@ -4,6 +4,7 @@ import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPane
 import { createRoutingOverviewPanel } from "./routingOverviewPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
+import type { MidiInputStatus } from "../midiInput";
 
 type HeaderParams = {
   root: HTMLElement;
@@ -32,6 +33,8 @@ type HeaderParams = {
   onSetMasterGain: (v: number) => void;
   onInspectRoutingModule?: (moduleId: string | null) => void;
   attachTooltip: TooltipBinder;
+  midiStatus: () => MidiInputStatus;
+  midiTargetLabel: () => string | null;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -330,7 +333,9 @@ export function createTransportHeader(params: HeaderParams) {
   const statusCluster = document.createElement("section");
   statusCluster.className = "transportCluster transportClusterStatus";
   statusCluster.setAttribute("aria-label", "Status");
-  statusCluster.append(btnAudio, outputCenter);
+  const midiChip = document.createElement("div");
+  midiChip.className = "transportMidiChip";
+  statusCluster.append(btnAudio, midiChip, outputCenter);
   statusCluster.prepend(status);
 
   const sessionCluster = document.createElement("section");
@@ -815,6 +820,29 @@ export function createTransportHeader(params: HeaderParams) {
     bpmNum.value = String(patch.bpm);
   };
 
+  const updateMidiUI = () => {
+    const status = params.midiStatus();
+    const target = params.midiTargetLabel();
+    if (status.kind === "unsupported") {
+      midiChip.textContent = "MIDI: unsupported";
+      return;
+    }
+    if (status.kind === "pending") {
+      midiChip.textContent = "MIDI: pending";
+      return;
+    }
+    if (status.kind === "denied") {
+      midiChip.textContent = "MIDI: denied";
+      return;
+    }
+    if (status.kind === "idle") {
+      midiChip.textContent = "MIDI: none";
+      return;
+    }
+    const targetLabel = target ? ` → ${target}` : "";
+    midiChip.textContent = `MIDI: ${status.name}${targetLabel}`;
+  };
+
   return {
     btnPlay,
     updateStatus,
@@ -826,5 +854,6 @@ export function createTransportHeader(params: HeaderParams) {
     updateBpmUI,
     updateOutputMeter,
     updateRoutingOverview: routingOverview.refresh,
+    updateMidiUI,
   };
 }
