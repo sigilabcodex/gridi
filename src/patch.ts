@@ -124,6 +124,7 @@ export type DrumSynthModule = SoundBase & {
 
 export type TonalSynthModule = SoundBase & {
   type: "tonal";
+  reception: "mono" | "poly";
   waveform: number;
   coarseTune: number;
   fineTune: number;
@@ -340,6 +341,7 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
     x: 0,
     y: 0,
     triggerSource,
+    reception: "mono",
     amp: 0.11,
     pan: 0,
     waveform: 0.25,
@@ -526,6 +528,7 @@ function normalizeTonalModule(raw: any): TonalModule {
     engine: "synth",
     presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Rubber Bass",
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
+    reception: raw?.reception === "poly" ? "poly" : "mono",
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.11, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
     waveform: clamp(typeof raw?.waveform === "number" ? raw.waveform : legacyTimbre, 0, 1),
