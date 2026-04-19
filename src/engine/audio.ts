@@ -22,6 +22,8 @@ export type Engine = {
   dispose(): void;
 
   triggerVoice(moduleId: string, patch: Patch, when?: number, event?: GridiTriggerEvent): void;
+  stopMidiVoice(moduleId: string, midiNote: number, when?: number): void;
+  stopAllMidiVoices(moduleId?: string, when?: number): void;
 
   // === visual data ===
   getScopeData(out?: Float32Array): Float32Array; // -1..+1
@@ -116,6 +118,20 @@ export function createEngine(): Engine {
 
   // now that voices are “modular”, allow more than 8
   const voiceLastTrigMs = new Map<string, number>();
+  type LiveMidiVoice = {
+    midiNote: number;
+    moduleId: string;
+    ampPerNote: number;
+    voiceGain: GainNode;
+    filter: BiquadFilterNode;
+    lfo: OscillatorNode;
+    lfoGain: GainNode;
+    oscAs: OscillatorNode[];
+    oscBs: OscillatorNode[];
+    panNode: StereoPannerNode;
+    sendGains: GainNode[];
+  };
+  const liveMidiVoicesByModule = new Map<string, Map<number, LiveMidiVoice>>();
 
   function setMasterMute(muted: boolean) {
     masterMuted = !!muted;
@@ -476,11 +492,6 @@ export function createEngine(): Engine {
       return;
     }
 
-    const voiceGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-
     const attack = 0.002 + clamp01(safe(v.attack, 0.02)) * 0.25;
     const decay = 0.01 + clamp01(safe(v.decay, 0.35)) * 0.8;
     const sustain = clamp01(safe(v.sustain, 0.6));
@@ -491,13 +502,64 @@ export function createEngine(): Engine {
     const glide = clamp01(safe(v.glide, 0.08));
 
     const freq = tonalBaseFreq(v, i, patch.macro);
+    const releaseMidiVoice = (voice: LiveMidiVoice, releaseAt: number) => {
+      const releaseFloor = Math.max(EPS, voice.ampPerNote * sustain);
+      voice.voiceGain.gain.cancelScheduledValues(releaseAt);
+      voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
+      voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + release + 0.02);
+      const stopAt = releaseAt + release + 0.06;
+      for (const osc of voice.oscAs) osc.stop(stopAt);
+      for (const osc of voice.oscBs) osc.stop(stopAt);
+      voice.lfo.stop(stopAt);
+    };
+    const cleanupMidiVoice = (voice: LiveMidiVoice) => {
+      voice.lfo.disconnect();
+      voice.lfoGain.disconnect();
+      for (const oscillator of voice.oscAs) oscillator.disconnect();
+      for (const oscillator of voice.oscBs) oscillator.disconnect();
+      voice.voiceGain.disconnect();
+      voice.filter.disconnect();
+      voice.panNode.disconnect();
+      for (const send of voice.sendGains) send.disconnect();
+      const moduleVoices = liveMidiVoicesByModule.get(voice.moduleId);
+      if (!moduleVoices) return;
+      moduleVoices.delete(voice.midiNote);
+      if (!moduleVoices.size) liveMidiVoicesByModule.delete(voice.moduleId);
+    };
+    const stopMidiVoice = (targetModuleId: string, midiNote: number, releaseAt = ctx.currentTime) => {
+      const moduleVoices = liveMidiVoicesByModule.get(targetModuleId);
+      const voice = moduleVoices?.get(midiNote);
+      if (!voice) return;
+      releaseMidiVoice(voice, releaseAt);
+    };
+    const moduleVoicesFor = (targetModuleId: string) => {
+      let moduleVoices = liveMidiVoicesByModule.get(targetModuleId);
+      if (!moduleVoices) {
+        moduleVoices = new Map<number, LiveMidiVoice>();
+        liveMidiVoicesByModule.set(targetModuleId, moduleVoices);
+      }
+      return moduleVoices;
+    };
+    const noteOff = event?.kind === "note" && event.source === "midi" && event.gate === "off";
+    const noteOn = event?.kind === "note" && event.source === "midi" && event.gate !== "off";
+    const eventMidiNote = event?.kind === "note" && typeof event.midiNote === "number" ? event.midiNote : null;
+    if (eventMidiNote != null && noteOff) {
+      stopMidiVoice(moduleId, eventMidiNote, now);
+      return;
+    }
+    if (eventMidiNote == null && noteOff) return;
+
+    const voiceGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
     const fallbackSemitone = [0];
     const incomingNotes = event?.kind === "note" && Array.isArray(event.notes)
       ? event.notes.filter((note) => Number.isFinite(note))
       : fallbackSemitone;
     const tonalPolicy = normalizeSynthReceptionMode(v.reception);
     const semanticNotes = selectNotesForReception(tonalPolicy, incomingNotes);
-    const ampPerNote = amp / Math.sqrt(Math.max(1, semanticNotes.length));
+    const ampPerNote = Math.max(EPS, amp * clamp01(event?.velocity ?? 1)) / Math.sqrt(Math.max(1, semanticNotes.length));
     const glideTime = 0.001 + glide * 0.35;
     const oscAs: OscillatorNode[] = [];
     const oscBs: OscillatorNode[] = [];
@@ -539,18 +601,42 @@ export function createEngine(): Engine {
     voiceGain.gain.setValueAtTime(EPS, now);
     voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, ampPerNote), now + attack);
     voiceGain.gain.exponentialRampToValueAtTime(Math.max(EPS, ampPerNote * sustain), now + attack + decay);
-    voiceGain.gain.setValueAtTime(Math.max(EPS, ampPerNote * sustain), now + attack + decay + 0.06);
-    voiceGain.gain.exponentialRampToValueAtTime(EPS, now + attack + decay + release + 0.08);
 
-    const stopAt = now + attack + decay + release + 0.12;
     for (const oscillator of oscAs) oscillator.start(now);
     for (const oscillator of oscBs) oscillator.start(now);
     lfo.start(now);
+    const firstOsc = oscAs[0];
+    if (!firstOsc) return;
+
+    if (noteOn && eventMidiNote != null) {
+      const moduleVoices = moduleVoicesFor(moduleId);
+      if (normalizeSynthReceptionMode(v.reception) === "mono") {
+        for (const voice of moduleVoices.values()) releaseMidiVoice(voice, now);
+      }
+      const activeVoice: LiveMidiVoice = {
+        midiNote: eventMidiNote,
+        moduleId,
+        ampPerNote,
+        voiceGain,
+        filter,
+        lfo,
+        lfoGain,
+        oscAs,
+        oscBs,
+        panNode,
+        sendGains,
+      };
+      moduleVoices.set(eventMidiNote, activeVoice);
+      firstOsc.onended = () => cleanupMidiVoice(activeVoice);
+      return;
+    }
+
+    voiceGain.gain.setValueAtTime(Math.max(EPS, ampPerNote * sustain), now + attack + decay + 0.06);
+    voiceGain.gain.exponentialRampToValueAtTime(EPS, now + attack + decay + release + 0.08);
+    const stopAt = now + attack + decay + release + 0.12;
     for (const oscillator of oscAs) oscillator.stop(stopAt);
     for (const oscillator of oscBs) oscillator.stop(stopAt);
     lfo.stop(stopAt);
-    const firstOsc = oscAs[0];
-    if (!firstOsc) return;
     firstOsc.onended = () => {
       lfo.disconnect();
       lfoGain.disconnect();
@@ -576,6 +662,50 @@ export function createEngine(): Engine {
     disconnectModule,
     dispose,
     triggerVoice,
+    stopMidiVoice: (moduleId, midiNote, when) => {
+      const releaseAt = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
+      const moduleVoices = liveMidiVoicesByModule.get(moduleId);
+      const voice = moduleVoices?.get(midiNote);
+      if (!voice) return;
+      const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
+      voice.voiceGain.gain.cancelScheduledValues(releaseAt);
+      voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
+      voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
+      const stopAt = releaseAt + 0.18;
+      for (const osc of voice.oscAs) osc.stop(stopAt);
+      for (const osc of voice.oscBs) osc.stop(stopAt);
+      voice.lfo.stop(stopAt);
+    },
+    stopAllMidiVoices: (moduleId, when) => {
+      const releaseAt = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
+      if (moduleId) {
+        const moduleVoices = liveMidiVoicesByModule.get(moduleId);
+        if (!moduleVoices) return;
+        for (const voice of moduleVoices.values()) {
+          const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
+          voice.voiceGain.gain.cancelScheduledValues(releaseAt);
+          voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
+          voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
+          const stopAt = releaseAt + 0.18;
+          for (const osc of voice.oscAs) osc.stop(stopAt);
+          for (const osc of voice.oscBs) osc.stop(stopAt);
+          voice.lfo.stop(stopAt);
+        }
+        return;
+      }
+      for (const moduleVoices of liveMidiVoicesByModule.values()) {
+        for (const voice of moduleVoices.values()) {
+          const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
+          voice.voiceGain.gain.cancelScheduledValues(releaseAt);
+          voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
+          voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
+          const stopAt = releaseAt + 0.18;
+          for (const osc of voice.oscAs) osc.stop(stopAt);
+          for (const osc of voice.oscBs) osc.stop(stopAt);
+          voice.lfo.stop(stopAt);
+        }
+      }
+    },
     getScopeData,
     getStereoScopeData,
     getSpectrumData,

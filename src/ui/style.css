@@ -6356,3 +6356,23 @@ button:focus-visible,
     display: none;
   }
 }
+
+.transportMidiChip {
+  min-width: 9.5rem;
+  max-width: 18rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(206, 188, 255, 0.28);
+  background: rgba(86, 64, 120, 0.26);
+  color: rgba(238, 232, 255, 0.92);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.moduleSurface.midiTargetModule {
+  box-shadow: 0 0 0 1px rgba(170, 128, 255, 0.38), 0 10px 22px rgba(48, 20, 70, 0.28);
+}

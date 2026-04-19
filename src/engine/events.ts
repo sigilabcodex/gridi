@@ -16,6 +16,9 @@ export type NoteTriggerEvent = {
   kind: "note";
   timeSec: number;
   velocity: number;
+  source?: "pattern" | "midi";
+  gate?: "on" | "off";
+  midiNote?: number;
   /**
    * Semitone offsets relative to the module's tonal base frequency.
    * This keeps current tonal behavior backward-compatible while making

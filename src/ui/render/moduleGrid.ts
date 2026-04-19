@@ -37,6 +37,8 @@ type ModuleGridParams = {
   modulePresetRecords: ModulePresetRecord[];
   onLoadModulePreset: (moduleId: string, presetId: string) => void;
   onSaveModulePreset: (moduleId: string, name: string, overwritePresetId?: string | null) => void;
+  onInspectModule?: (moduleId: string) => void;
+  isMidiTargetModule?: (moduleId: string) => boolean;
 };
 
 type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
@@ -236,6 +238,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     for (const [moduleId, surface] of surfaceByModuleId.entries()) {
       surface.classList.toggle("routingInspect", moduleId === inspectedModuleId);
       surface.classList.toggle("routingLinked", related.has(moduleId));
+      surface.classList.toggle("midiTargetModule", params.isMidiTargetModule?.(moduleId) ?? false);
     }
   };
 
@@ -454,6 +457,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
       const inspect = () => {
         inspectedModuleId = moduleId;
+        params.onInspectModule?.(moduleId);
         applyRoutingHighlight();
       };
 
