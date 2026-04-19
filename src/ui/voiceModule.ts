@@ -161,11 +161,15 @@ function createDrumFeatureZone(d: DrumModule) {
     className: "drumChannelField",
     includeEmptyOption: false,
     options: [
-      { value: "auto", label: "Auto" },
+      { value: "auto", label: "AU" },
       { value: "01", label: "01" },
       { value: "02", label: "02" },
       { value: "03", label: "03" },
       { value: "04", label: "04" },
+      { value: "05", label: "05" },
+      { value: "06", label: "06" },
+      { value: "07", label: "07" },
+      { value: "08", label: "08" },
     ],
     selected: normalizeDrumChannelMode(d.drumChannel),
     onChange: () => {},
@@ -253,7 +257,6 @@ function createDrumFeatureZone(d: DrumModule) {
     panMarker.setAttribute("style", `opacity:${0.56 + Math.abs(panNorm) * 0.38};stroke-width:${0.9 + widthNorm * 0.5}`);
     const channelMode = normalizeDrumChannelMode(state.drumChannel);
     channelValue.select.value = channelMode;
-    channelValue.wrap.dataset.channel = channelMode === "auto" ? "AU" : channelMode;
   };
 
   update(d);
@@ -879,15 +882,8 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     behaviorBendCurveCtl,
     behaviorSnapModeCtl,
     behaviorNoiseColorCtl,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
     boostTargetField.wrap,
+    null,
   ];
   orderedControls.forEach((control) => {
     if (control) {

@@ -47,10 +47,10 @@ export function normalizeDrumLane(lane: DrumTriggerEvent["lane"]): DrumLaneRole 
 }
 
 export function drumLaneForChannelMode(mode: DrumChannelMode): DrumLaneRole | null {
-  if (mode === "01") return "low";
-  if (mode === "02") return "mid";
-  if (mode === "03") return "high";
-  if (mode === "04") return "accent";
+  if (mode === "01" || mode === "05") return "low";
+  if (mode === "02" || mode === "06") return "mid";
+  if (mode === "03" || mode === "07") return "high";
+  if (mode === "04" || mode === "08") return "accent";
   return null;
 }
 

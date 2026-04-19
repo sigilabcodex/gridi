@@ -114,8 +114,11 @@ export function createScheduler(engine: Engine): Scheduler {
 
       const st = getSequenceState(sound.id);
       const effectiveTrigger = modulateTrigger(trigger, patch, now);
+      const channelMode = sound.type === "drum" ? normalizeDrumChannelMode(sound.drumChannel) : "auto";
+      const explicitChannel = sound.type === "drum" && channelMode !== "auto" ? channelMode : null;
+      const streamVoiceId = explicitChannel ? `${trigger.id}::drum-channel::${explicitChannel}` : sound.id;
       const window = createPatternModuleForTrigger(effectiveTrigger).renderWindow({
-        voiceId: sound.id,
+        voiceId: streamVoiceId,
         trigger: effectiveTrigger,
         startBeat: windowStartBeatAbs,
         endBeat: windowEndBeatAbs,
@@ -139,13 +142,13 @@ export function createScheduler(engine: Engine): Scheduler {
             notes: noteOffsetsFromPatternEvent(ev, effectiveTrigger),
           };
         if (sound.type === "drum" && voiceEvent.kind === "drum") {
-          const explicitLane = drumLaneForChannelMode(normalizeDrumChannelMode(sound.drumChannel));
+          const explicitLane = explicitChannel ? drumLaneForChannelMode(explicitChannel) : null;
           if (explicitLane && explicitLane !== normalizeDrumLane(voiceEvent.lane)) {
             st.lastScheduledBeat = eventBeat;
             continue;
           }
           const connectedDrumCount = drumCountByTriggerId.get(trigger.id) ?? 0;
-          if (!explicitLane && connectedDrumCount > 1) {
+          if (!explicitChannel && connectedDrumCount > 1) {
             const preferredLane = preferredLaneForDrumModule(sound);
             if (preferredLane && preferredLane !== normalizeDrumLane(voiceEvent.lane)) {
               st.lastScheduledBeat = eventBeat;

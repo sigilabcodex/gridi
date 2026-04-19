@@ -21,7 +21,7 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 
 - Shared fixed shell + tabbed module face system is stable.
 - Routing ownership is currently voice-owned (`triggerSource` on sound modules), with trigger-side routing UI acting as an editor/bridge.
-- Drum modules now support explicit channel assignment (`Auto`, `01`–`04`) with Auto fallback preserving previous differentiated dispatch behavior.
+- Drum modules now support explicit channel assignment (`Auto`, `01`–`08`) with Auto fallback preserving differentiated behavior, while explicit channels behave as strict shared subscriptions.
 - Session presets (whole-patch state) and module presets (local module state) both exist and are active.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
 
