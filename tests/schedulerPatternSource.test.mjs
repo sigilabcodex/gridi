@@ -223,3 +223,38 @@ test('multiple drums can intentionally share the same explicit channel', () => {
   assert.ok(aHits.every((ev) => ev.lane === 'mid'));
   assert.ok(bHits.every((ev) => ev.lane === 'mid'));
 });
+
+test('regen during transport does not duplicate already-scheduled near-future beats', () => {
+  const trigger = makeTrigger({ id: 'regen-trigger', mode: 'step', length: 16, density: 1, drop: 0, subdiv: 4, seed: 17 });
+  const sound = makeSound({ id: 'regen-drum', triggerSource: trigger.id });
+  const patch = makePatch([sound, trigger]);
+  const triggered = [];
+  const engine = { ctx: { currentTime: 0 }, triggerVoice: (_id, _patch, when) => triggered.push(when) };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setBpm(240);
+    scheduler.setPatch(patch);
+    scheduler.start();
+
+    engine.ctx.currentTime = 0;
+    tick();
+
+    trigger.weird = 0.72;
+    scheduler.setPatch(patch, { regen: true });
+    scheduler.regenAll();
+
+    engine.ctx.currentTime = 0.025;
+    tick();
+    scheduler.stop();
+  });
+
+  const secPerBeat = 60 / 240;
+  const beatCounts = new Map();
+  for (const when of triggered) {
+    const beat = +(when / secPerBeat).toFixed(6);
+    beatCounts.set(beat, (beatCounts.get(beat) ?? 0) + 1);
+  }
+
+  assert.equal(beatCounts.get(0.25), 1, 'beat at 0.25 should be scheduled exactly once after live regen');
+});
