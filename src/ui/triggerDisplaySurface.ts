@@ -180,6 +180,7 @@ function createGearView(): DisplayView {
     length: number;
     rotation: number;
     phase: number;
+    direction: 1 | -1;
     pattern: Uint8Array;
     emphasis: number;
   };
@@ -246,10 +247,10 @@ function createGearView(): DisplayView {
     ringSlots.forEach((slots, ringIndex) => {
       const ring = ringModels[ringIndex];
       if (!ring?.length || !slots.length) return;
-      const previous = ((Math.floor(lastPlayhead + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
+      const previous = ((Math.floor(lastPlayhead * ring.direction + ring.rotation + lastPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
       slots[previous]?.classList.remove("is-playhead", "is-aligned");
 
-      const index = ((Math.floor(nextPlayhead + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
+      const index = ((Math.floor(nextPlayhead * ring.direction + ring.rotation + nextPlayhead * ring.phase) % ring.length) + ring.length) % ring.length;
       const active = ring.pattern[index] === 1;
       const phase = index / ring.length;
       const angle = normalizeAngle(phase * 360);
@@ -298,11 +299,12 @@ function createGearView(): DisplayView {
           length: ringModel.length,
           rotation: ringModel.rotation,
           phase: ringModel.phase,
+          direction: ringModel.direction,
           pattern: ringModel.pattern,
           emphasis: 0.6 + ringIndex * 0.2,
         };
       });
-      visibleRings = clamp(ringModels.length, 2, 3);
+      visibleRings = clamp(model.ringCount, 2, 4);
       ringModels.splice(visibleRings);
       ringModels.forEach((ringModel, ringIndex) => {
         buildRing(ringIndex, ringModel, visibleRings);
@@ -315,6 +317,7 @@ function createGearView(): DisplayView {
       const ratios: string[] = [];
       if (model.rings[0] && model.rings[1]) ratios.push(`A:B ${model.rings[0].length}:${model.rings[1].length}`);
       if (model.rings[2]) ratios.push(`A:C ${model.rings[0].length}:${model.rings[2].length}`);
+      if (model.rings[3]) ratios.push(`A:D ${model.rings[0].length}:${model.rings[3].length}`);
       ratios.push(`LCM ${triggerPattern.length}`);
       ratioReadout.textContent = ratios.join(" · ");
     },
@@ -326,7 +329,7 @@ function createGearView(): DisplayView {
       ringBodies.forEach((ringEl, ringIndex) => {
         const ring = ringModels[ringIndex];
         if (!ring?.length) return;
-        const direction = ringIndex % 2 === 1 ? -1 : 1;
+        const direction = ring.direction;
         const driftWarp = 1 + clamp(liveModule.weird, 0, 1) * ring.phase * 0.9;
         const angle = ring.rotation + (progress * 360 * (triggerPattern.length / ring.length) * direction * driftWarp);
         ringEl.style.setProperty("--gear-angle", `${angle.toFixed(3)}deg`);
@@ -383,6 +386,7 @@ function createSonarView(): DisplayView {
   root.append(stage);
 
   const blips: HTMLElement[] = [];
+  const blipModels: Array<{ baseX: number; baseY: number; driftX: number; driftY: number }> = [];
   let lastPlayhead = -1;
   let pattern = new Uint8Array(0);
 
@@ -392,17 +396,25 @@ function createSonarView(): DisplayView {
       pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildSonarPattern(nextModule, Math.max(8, nextModule.length));
       stage.querySelectorAll(".triggerDisplaySonarBlip").forEach((el) => el.remove());
       blips.length = 0;
+      blipModels.length = 0;
       const count = clamp(7 + Math.round(nextModule.density * 14), 6, 20);
       for (let i = 0; i < count; i++) {
         const blip = document.createElement("span");
         blip.className = "triggerDisplaySonarBlip";
         const radius = 16 + hash01(nextModule.seed * 0.37 + i * 19.3) * 44;
         const angle = hash01(nextModule.seed * 0.19 + i * 7.7) * Math.PI * 2;
-        blip.style.setProperty("--sonar-x", `${(Math.cos(angle) * radius).toFixed(2)}px`);
-        blip.style.setProperty("--sonar-y", `${(Math.sin(angle) * radius).toFixed(2)}px`);
+        const baseX = Math.cos(angle) * radius;
+        const baseY = Math.sin(angle) * radius;
+        const driftHeading = hash01(nextModule.seed * 0.63 + i * 13.2) * Math.PI * 2;
+        const driftSpeed = 0.25 + nextModule.weird * 2.2;
+        const driftX = Math.cos(driftHeading) * driftSpeed;
+        const driftY = Math.sin(driftHeading) * driftSpeed;
+        blip.style.setProperty("--sonar-x", `${baseX.toFixed(2)}px`);
+        blip.style.setProperty("--sonar-y", `${baseY.toFixed(2)}px`);
         blip.style.setProperty("--sonar-phase", `${(hash01(nextModule.seed * 0.43 + i * 11.2) * 0.9 + 0.1).toFixed(3)}`);
         stage.appendChild(blip);
         blips.push(blip);
+        blipModels.push({ baseX, baseY, driftX, driftY });
       }
       lastPlayhead = -1;
     },
@@ -415,6 +427,15 @@ function createSonarView(): DisplayView {
       if (playhead === lastPlayhead) return;
       const hit = pattern[playhead % Math.max(1, pattern.length)] === 1;
       blips.forEach((blip, index) => {
+        const model = blipModels[index];
+        if (model) {
+          const t = timeMs * 0.001;
+          const wobble = 2 + liveModule.gravity * 4;
+          const x = model.baseX + Math.sin(t * model.driftX + index * 0.43) * wobble;
+          const y = model.baseY + Math.cos(t * model.driftY + index * 0.57) * wobble;
+          blip.style.setProperty("--sonar-x", `${x.toFixed(2)}px`);
+          blip.style.setProperty("--sonar-y", `${y.toFixed(2)}px`);
+        }
         const phase = Number(blip.style.getPropertyValue("--sonar-phase")) || 0.5;
         const local = Math.cos((sweepAngle * Math.PI) / 180 + phase * Math.PI * 2 + index * 0.3);
         const strength = clamp((local + 1) * 0.5, 0, 1);
