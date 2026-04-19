@@ -30,6 +30,7 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - UI tab separation (`MAIN` / `SEQ` / `MIDI`).
 - Stable look-ahead scheduler behavior with overlap dedupe tests.
 - Patch `0.3` module/bus/connection shape active.
+- Drum channel assignment (`Auto` + manual `01`–`04`) with compact faceplate control and backward-compatible auto dispatch fallback.
 
 ### `v0.4` — Performance routing (planned)
 

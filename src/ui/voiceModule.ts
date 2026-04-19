@@ -1,4 +1,5 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
+import { normalizeDrumChannelMode } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
@@ -155,14 +156,28 @@ function createDrumFeatureZone(d: DrumModule) {
     emptyLabel: "None",
     onChange: () => {},
   });
+  const channelValue = createCompactSelectField({
+    label: "Chan",
+    className: "drumChannelField",
+    includeEmptyOption: false,
+    options: [
+      { value: "auto", label: "Auto" },
+      { value: "01", label: "01" },
+      { value: "02", label: "02" },
+      { value: "03", label: "03" },
+      { value: "04", label: "04" },
+    ],
+    selected: normalizeDrumChannelMode(d.drumChannel),
+    onChange: () => {},
+  });
 
-  side.append(routeValue.wrap);
+  side.append(routeValue.wrap, channelValue.wrap);
   stage.append(svg, side);
   feature.append(stage);
 
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-  const update = (state: Pick<DrumModule, "basePitch" | "attack" | "snap" | "decay" | "noise" | "comp" | "compThreshold" | "compRatio" | "compAttack" | "compRelease" | "boost" | "tone" | "bodyTone" | "pitchEnvAmt" | "bendDecay" | "amp" | "panBias" | "stereoWidth" | "boostTarget" | "triggerSource">) => {
+  const update = (state: Pick<DrumModule, "basePitch" | "attack" | "snap" | "decay" | "noise" | "comp" | "compThreshold" | "compRatio" | "compAttack" | "compRelease" | "boost" | "tone" | "bodyTone" | "pitchEnvAmt" | "bendDecay" | "amp" | "panBias" | "stereoWidth" | "boostTarget" | "triggerSource" | "drumChannel">) => {
     const pitchNorm = clamp(state.basePitch, 0, 1);
     const attackNorm = clamp(state.attack, 0, 1);
     const driveNorm = clamp(state.bodyTone, 0, 1);
@@ -236,10 +251,13 @@ function createDrumFeatureZone(d: DrumModule) {
     panMarker.setAttribute("cx", (128 + panNorm * panFieldRadius).toFixed(2));
     panMarker.setAttribute("cy", "13");
     panMarker.setAttribute("style", `opacity:${0.56 + Math.abs(panNorm) * 0.38};stroke-width:${0.9 + widthNorm * 0.5}`);
+    const channelMode = normalizeDrumChannelMode(state.drumChannel);
+    channelValue.select.value = channelMode;
+    channelValue.wrap.dataset.channel = channelMode === "auto" ? "AU" : channelMode;
   };
 
   update(d);
-  return { feature, update, routeField: routeValue };
+  return { feature, update, routeField: routeValue, channelField: channelValue };
 }
 
 function createDrumInfoBar(d: DrumModule) {
@@ -384,7 +402,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
   const pitchNormToMidi = (value: number) => DRUM_PITCH_MIN + clamp01(value) * DRUM_PITCH_SPAN;
   const pitchMidiToNorm = (value: number) => clamp01((value - DRUM_PITCH_MIN) / DRUM_PITCH_SPAN);
-  const reactiveState: Pick<DrumModule, "basePitch" | "attack" | "decay" | "snap" | "noise" | "comp" | "compThreshold" | "compRatio" | "compAttack" | "compRelease" | "boost" | "tone" | "bodyTone" | "pitchEnvAmt" | "bendDecay" | "amp" | "panBias" | "stereoWidth" | "boostTarget" | "triggerSource"> = {
+  const reactiveState: Pick<DrumModule, "basePitch" | "attack" | "decay" | "snap" | "noise" | "comp" | "compThreshold" | "compRatio" | "compAttack" | "compRelease" | "boost" | "tone" | "bodyTone" | "pitchEnvAmt" | "bendDecay" | "amp" | "panBias" | "stereoWidth" | "boostTarget" | "triggerSource" | "drumChannel"> = {
     basePitch: d.basePitch,
     attack: d.attack,
     decay: d.decay,
@@ -405,6 +423,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     stereoWidth: d.stereoWidth,
     boostTarget: d.boostTarget,
     triggerSource: d.triggerSource,
+    drumChannel: normalizeDrumChannelMode(d.drumChannel),
   };
 
   const surface = document.createElement("section");
@@ -685,6 +704,12 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     }, { regen: true }),
   });
   featureZone.routeField.wrap.replaceWith(triggerField.wrap);
+  featureZone.channelField.select.onchange = () => onPatchChange((p) => {
+    const nextChannel = normalizeDrumChannelMode(featureZone.channelField.select.value);
+    setReactive({ drumChannel: nextChannel });
+    const m = p.modules.find((x) => x.id === v.id);
+    if (m?.type === "drum") m.drumChannel = nextChannel;
+  }, { regen: true });
   const drumSettingsPanel = createFaceplateSection("controls", "drumAdvancedPanel");
 
   const compKneeCtl = ctlFloat({
@@ -802,6 +827,23 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       if (m?.type === "drum") m.tone = x;
     }, { regen: false }),
   });
+  const boostTargetField = createCompactSelectField({
+    label: "Focus",
+    className: "drumFocusField",
+    options: [
+      { value: "body", label: "Low body" },
+      { value: "attack", label: "High punch" },
+      { value: "air", label: "High air" },
+    ],
+    selected: d.boostTarget,
+    emptyLabel: "Body",
+    onChange: (value) => onPatchChange((p) => {
+      const next = value === "attack" || value === "air" ? value : "body";
+      setReactive({ boostTarget: next });
+      const m = p.modules.find((x) => x.id === v.id);
+      if (m?.type === "drum") m.boostTarget = next;
+    }, { regen: false }),
+  });
 
   const drumAdvancedHeaders = document.createElement("div");
   drumAdvancedHeaders.className = "drumAdvancedHeaders";
@@ -845,7 +887,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     null,
     null,
     null,
-    null,
+    boostTargetField.wrap,
   ];
   orderedControls.forEach((control) => {
     if (control) {
@@ -858,24 +900,6 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     drumAdvancedGrid.append(empty);
   });
   drumSettingsPanel.append(drumAdvancedHeaders, drumAdvancedGrid);
-  const boostTargetField = createCompactSelectField({
-    label: "Focus",
-    className: "drumFocusField",
-    options: [
-      { value: "body", label: "Low body" },
-      { value: "attack", label: "High punch" },
-      { value: "air", label: "High air" },
-    ],
-    selected: d.boostTarget,
-    emptyLabel: "Body",
-    onChange: (value) => onPatchChange((p) => {
-      const next = value === "attack" || value === "air" ? value : "body";
-      setReactive({ boostTarget: next });
-      const m = p.modules.find((x) => x.id === v.id);
-      if (m?.type === "drum") m.boostTarget = next;
-    }, { regen: false }),
-  });
-  featureZone.feature.querySelector(".drumFeatureSide")?.append(boostTargetField.wrap);
   shell.face.querySelector(".surfaceSettingsPanel")?.append(drumSettingsPanel);
   const infoBar = createDrumInfoBar(d);
   surface.append(h.header, shell.face, shell.tabs, infoBar.info);
@@ -907,6 +931,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       stereoWidth: d.stereoWidth,
       boostTarget: d.boostTarget,
       triggerSource: d.triggerSource,
+      drumChannel: normalizeDrumChannelMode(d.drumChannel),
     });
   };
 }

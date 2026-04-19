@@ -167,3 +167,59 @@ test('lane dispatch remains deterministic for the same patch', () => {
   const passB = runPass();
   assert.deepEqual(passA, passB);
 });
+
+test('explicit drum channel override replaces inferred lane dispatch', () => {
+  const trigger = makeTrigger({ id: 'manual-trigger', mode: 'step', length: 16, density: 1, drop: 0, seed: 3 });
+  const manualLow = makeSound({ id: 'manual-low', triggerSource: trigger.id, basePitch: 0.82, drumChannel: '01' });
+  const manualHigh = makeSound({ id: 'manual-high', triggerSource: trigger.id, basePitch: 0.18, drumChannel: '03' });
+  const patch = makePatch([manualLow, manualHigh, trigger]);
+  const triggered = [];
+  const engine = {
+    ctx: { currentTime: 0 },
+    triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, lane: event?.lane }),
+  };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    scheduler.stop();
+  });
+
+  const lowHits = triggered.filter((ev) => ev.id === manualLow.id);
+  const highHits = triggered.filter((ev) => ev.id === manualHigh.id);
+  assert.ok(lowHits.length > 0);
+  assert.ok(highHits.length > 0);
+  assert.ok(lowHits.every((ev) => ev.lane === 'low'));
+  assert.ok(highHits.every((ev) => ev.lane === 'high'));
+});
+
+test('multiple drums can intentionally share the same explicit channel', () => {
+  const trigger = makeTrigger({ id: 'shared-trigger', mode: 'step', length: 16, density: 1, drop: 0, seed: 13 });
+  const first = makeSound({ id: 'shared-a', triggerSource: trigger.id, basePitch: 0.2, drumChannel: '02' });
+  const second = makeSound({ id: 'shared-b', triggerSource: trigger.id, basePitch: 0.9, drumChannel: '02' });
+  const patch = makePatch([first, second, trigger]);
+  const triggered = [];
+  const engine = {
+    ctx: { currentTime: 0 },
+    triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, lane: event?.lane }),
+  };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    scheduler.stop();
+  });
+
+  const aHits = triggered.filter((ev) => ev.id === first.id);
+  const bHits = triggered.filter((ev) => ev.id === second.id);
+  assert.ok(aHits.length > 0);
+  assert.ok(bHits.length > 0);
+  assert.ok(aHits.every((ev) => ev.lane === 'mid'));
+  assert.ok(bHits.every((ev) => ev.lane === 'mid'));
+});
