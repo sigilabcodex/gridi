@@ -5,12 +5,42 @@
 GRIDI now supports direct browser Web MIDI note input for synth modules:
 
 - Requests MIDI input access via `navigator.requestMIDIAccess({ sysex: false })`.
-- Auto-binds to the first available MIDI input device.
+- Auto-selects a preferred MIDI input device using lightweight hardware-first heuristics.
 - Reacts to device hot-plug changes (`MIDIAccess.onstatechange`).
 - Parses Note On / Note Off messages (including Note On with velocity 0 as Note Off).
 - Routes incoming note messages into the synth engine path with velocity.
 
 Scope is intentionally compact and instrument-oriented; this is not a full MIDI routing matrix.
+
+## MIDI input selection model
+
+### Automatic preference
+
+GRIDI no longer blindly binds the first enumerated input.
+
+- Inputs are scored with conservative heuristics.
+- Likely virtual/thru/loopback ports are deprioritized (for example names containing `MIDI Through`, `Through`, `Loopback`, or `Virtual`).
+- Connected/non-virtual ports are preferred when present.
+
+If a user has not manually selected a device, the auto-preferred input is used.
+
+### User input selector (minimal UI)
+
+The header MIDI chip now acts as a compact input selector:
+
+- click/tap the MIDI chip to open a small device list popover
+- choose:
+  - **Auto (prefer hardware)**, or
+  - a specific input device
+- active input is shown as selected in the popover
+
+No large settings page is introduced.
+
+### Hot-plug behavior
+
+- Device list updates when MIDI ports appear/disappear.
+- If a manually selected device disappears, GRIDI falls back to the current best available input and marks fallback state in status text.
+- Manual selection remains sticky when that device exists; GRIDI does not silently override it just because another port appears.
 
 ## MIDI target model
 
@@ -50,8 +80,10 @@ Result: no GEN removal, no routing redesign, and deterministic behavior boundari
 
 ## Minimal UI added
 
-- Header now shows a compact MIDI status chip:
-  - unsupported / pending / denied / none / connected device name (+ current target synth name)
+- Header now shows a compact MIDI status chip that can also open the input selector:
+  - pending / unsupported / denied / unavailable
+  - connected input label (and target synth when active)
+  - fallback/virtual-device clarity states when applicable
 - Target synth gets a subtle surface highlight so the performer can see where live MIDI lands.
 
 No giant MIDI preferences panel has been added.
@@ -64,5 +96,4 @@ Deferred for later phases:
 - Ardour integration / DAW sync / transport sync
 - Full multi-target MIDI routing matrix
 - CC mapping / aftertouch / MPE
-- Rich device selector UI (current behavior auto-binds first available device)
-
+- Advanced device routing / filtering UI beyond the compact selector

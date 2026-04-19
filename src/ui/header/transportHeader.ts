@@ -35,6 +35,7 @@ type HeaderParams = {
   attachTooltip: TooltipBinder;
   midiStatus: () => MidiInputStatus;
   midiTargetLabel: () => string | null;
+  onSelectMidiInput: (inputId: string | null) => void;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -333,8 +334,15 @@ export function createTransportHeader(params: HeaderParams) {
   const statusCluster = document.createElement("section");
   statusCluster.className = "transportCluster transportClusterStatus";
   statusCluster.setAttribute("aria-label", "Status");
-  const midiChip = document.createElement("div");
-  midiChip.className = "transportMidiChip";
+  const midiChip = document.createElement("button");
+  midiChip.type = "button";
+  midiChip.className = "transportMidiChip transportGhostBtn";
+  midiChip.setAttribute("aria-label", "Open MIDI input selector");
+  midiChip.setAttribute("aria-haspopup", "menu");
+  midiChip.setAttribute("aria-expanded", "false");
+  const midiPanel = document.createElement("div");
+  midiPanel.className = "floatingPanel transportUtilityPanel hidden";
+  midiPanel.setAttribute("role", "menu");
   statusCluster.append(btnAudio, midiChip, outputCenter);
   statusCluster.prepend(status);
 
@@ -620,6 +628,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let generatorPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let midiPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   const routingOverview = createRoutingOverviewPanel({
     patch: params.patch,
     attachTo: routingSummary,
@@ -646,6 +655,95 @@ export function createTransportHeader(params: HeaderParams) {
     routingOverview.close();
   };
 
+  const closeMidiMenu = () => {
+    if (midiPanel.classList.contains("hidden")) return;
+    midiPanel.classList.add("hidden");
+    midiChip.setAttribute("aria-expanded", "false");
+    midiPanelCleanup?.destroy();
+    midiPanelCleanup = null;
+  };
+
+  const renderMidiPanel = () => {
+    midiPanel.replaceChildren();
+    const status = params.midiStatus();
+    const title = document.createElement("div");
+    title.className = "small transportUtilitySectionLabel";
+    title.textContent = "MIDI input";
+    midiPanel.appendChild(title);
+
+    const section = document.createElement("div");
+    section.className = "transportUtilitySection";
+    const autoBtn = document.createElement("button");
+    autoBtn.type = "button";
+    autoBtn.className = "transportGhostBtn transportUtilityBtn";
+    autoBtn.setAttribute("role", "menuitemradio");
+    const selectedAuto = status.kind === "connected" ? status.selection !== "manual" : true;
+    autoBtn.setAttribute("aria-checked", selectedAuto ? "true" : "false");
+    autoBtn.classList.toggle("isSelected", selectedAuto);
+    autoBtn.textContent = "Auto (prefer hardware)";
+    autoBtn.onclick = () => {
+      params.onSelectMidiInput(null);
+      renderMidiPanel();
+    };
+    section.appendChild(autoBtn);
+
+    const inputs = status.kind === "connected" || status.kind === "idle" ? status.inputs : [];
+    for (const input of inputs) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "transportGhostBtn transportUtilityBtn transportSessionOption";
+      button.setAttribute("role", "menuitemradio");
+      const selected = status.kind === "connected" && status.inputId === input.id;
+      button.classList.toggle("isSelected", selected);
+      button.setAttribute("aria-checked", selected ? "true" : "false");
+      const virtualTag = input.likelyVirtual ? " · virtual" : "";
+      button.textContent = `${input.name}${virtualTag}`;
+      button.onclick = () => {
+        params.onSelectMidiInput(input.id);
+        renderMidiPanel();
+      };
+      section.appendChild(button);
+    }
+
+    if (!inputs.length) {
+      const empty = document.createElement("div");
+      empty.className = "small transportSessionEmpty";
+      empty.textContent = "No MIDI inputs available.";
+      section.appendChild(empty);
+    }
+
+    midiPanel.appendChild(section);
+  };
+
+  const openMidiMenu = () => {
+    if (midiPanel.isConnected) midiPanel.remove();
+    document.body.appendChild(midiPanel);
+    midiPanel.classList.remove("hidden");
+    midiChip.setAttribute("aria-expanded", "true");
+    renderMidiPanel();
+    closeSessionMenu();
+    closeGeneratorMenu();
+    closeRoutingMenu();
+    placeFloatingPanel(midiPanel, midiChip.getBoundingClientRect(), {
+      offset: 8,
+      align: "end",
+      preferredSide: "bottom",
+      minWidth: 220,
+      maxWidth: 280,
+    });
+    midiPanelCleanup = bindFloatingPanelReposition(
+      midiPanel,
+      () => (midiChip.isConnected ? midiChip.getBoundingClientRect() : null),
+      {
+        offset: 8,
+        align: "end",
+        preferredSide: "bottom",
+        minWidth: 220,
+        maxWidth: 280,
+      }
+    );
+  };
+
   const openSessionMenu = () => {
     if (sessionPanel.isConnected) sessionPanel.remove();
     document.body.appendChild(sessionPanel);
@@ -653,6 +751,7 @@ export function createTransportHeader(params: HeaderParams) {
     sessionSummary.setAttribute("aria-expanded", "true");
     refreshSessionList();
     closeGeneratorMenu();
+    closeMidiMenu();
     closeRoutingMenu();
     placeFloatingPanel(sessionPanel, sessionSummary.getBoundingClientRect(), {
       offset: 8,
@@ -681,6 +780,7 @@ export function createTransportHeader(params: HeaderParams) {
     generatorPanel.classList.remove("hidden");
     generatorSummary.setAttribute("aria-expanded", "true");
     closeSessionMenu();
+    closeMidiMenu();
     closeRoutingMenu();
     placeFloatingPanel(generatorPanel, generatorSummary.getBoundingClientRect(), {
       offset: 8,
@@ -715,7 +815,13 @@ export function createTransportHeader(params: HeaderParams) {
   routingSummary.onclick = () => {
     closeSessionMenu();
     closeGeneratorMenu();
+    closeMidiMenu();
     routingOverview.toggle();
+  };
+
+  midiChip.onclick = () => {
+    if (midiPanel.classList.contains("hidden")) openMidiMenu();
+    else closeMidiMenu();
   };
 
   sessionPanel.addEventListener("keydown", (event) => {
@@ -743,6 +849,9 @@ export function createTransportHeader(params: HeaderParams) {
     if (target && !generatorPanel.classList.contains("hidden")) {
       if (!generatorPanel.contains(target) && !generatorSummary.contains(target)) closeGeneratorMenu();
     }
+    if (target && !midiPanel.classList.contains("hidden")) {
+      if (!midiPanel.contains(target) && !midiChip.contains(target)) closeMidiMenu();
+    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -750,6 +859,7 @@ export function createTransportHeader(params: HeaderParams) {
       if (compactExpanded) setCompactExpanded(false);
       closeSessionMenu();
       closeGeneratorMenu();
+      closeMidiMenu();
       closeRoutingMenu();
     }
   });
@@ -836,11 +946,16 @@ export function createTransportHeader(params: HeaderParams) {
       return;
     }
     if (status.kind === "idle") {
-      midiChip.textContent = "MIDI: none";
+      midiChip.textContent = "MIDI: unavailable";
+      return;
+    }
+    if (status.selectedLikelyVirtual) {
+      midiChip.textContent = `MIDI: ${status.name} (virtual)`;
       return;
     }
     const targetLabel = target ? ` → ${target}` : "";
     midiChip.textContent = `MIDI: ${status.name}${targetLabel}`;
+    if (status.warning) midiChip.textContent = "MIDI: fallback active";
   };
 
   return {

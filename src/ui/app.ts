@@ -762,6 +762,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       const target = patch.modules.find((module) => module.id === midiTargetModuleId && module.type === "tonal");
       return target ? target.name : null;
     },
+    onSelectMidiInput: (inputId) => {
+      midiInput.setPreferredInput(inputId);
+      header.updateMidiUI();
+    },
   });
 
   shell.appendChild(main);

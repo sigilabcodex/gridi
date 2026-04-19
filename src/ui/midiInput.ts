@@ -1,9 +1,29 @@
+export type MidiInputInfo = {
+  id: string;
+  name: string;
+  manufacturer?: string;
+  state?: string;
+  connection?: string;
+  likelyVirtual: boolean;
+};
+
+export type MidiSelectionMode = "auto" | "manual" | "fallback";
+
 export type MidiInputStatus =
   | { kind: "unsupported" }
   | { kind: "pending" }
   | { kind: "denied"; reason: string }
-  | { kind: "idle"; message: string }
-  | { kind: "connected"; inputId: string; name: string; inputCount: number };
+  | { kind: "idle"; message: string; inputs: MidiInputInfo[] }
+  | {
+    kind: "connected";
+    inputId: string;
+    name: string;
+    inputCount: number;
+    inputs: MidiInputInfo[];
+    selection: MidiSelectionMode;
+    selectedLikelyVirtual: boolean;
+    warning?: string;
+  };
 
 export type MidiNoteMessage = {
   type: "noteon" | "noteoff";
@@ -18,6 +38,15 @@ export type MidiInputManager = {
   getStatus(): MidiInputStatus;
   setPreferredInput(inputId: string | null): void;
 };
+
+const LIKELY_VIRTUAL_PATTERNS = [
+  /\bmidi through\b/i,
+  /\bthrough\b/i,
+  /\bloopback\b/i,
+  /\bvirtual\b/i,
+  /\bdummy\b/i,
+  /\bmonitor\b/i,
+];
 
 function normalizeNote(value: number) {
   const note = value | 0;
@@ -49,6 +78,37 @@ export function parseMidiMessage(data: ArrayLike<number>): MidiNoteMessage | nul
   return null;
 }
 
+export function isLikelyVirtualMidiInputName(name: string, manufacturer?: string) {
+  const text = `${name} ${manufacturer ?? ""}`.trim();
+  return LIKELY_VIRTUAL_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function toInputInfo(input: MIDIInput): MidiInputInfo {
+  return {
+    id: input.id,
+    name: input.name || "Unnamed MIDI input",
+    manufacturer: input.manufacturer || undefined,
+    state: input.state,
+    connection: input.connection,
+    likelyVirtual: isLikelyVirtualMidiInputName(input.name || "", input.manufacturer || undefined),
+  };
+}
+
+function scoreInput(input: MidiInputInfo) {
+  let score = 0;
+  if (input.state === "connected") score += 3;
+  if (input.connection === "open") score += 2;
+  if (input.name && input.name !== "Unnamed MIDI input") score += 1;
+  if (input.likelyVirtual) score -= 6;
+  return score;
+}
+
+export function pickPreferredMidiInput(inputs: MidiInputInfo[]) {
+  if (!inputs.length) return null;
+  return [...inputs]
+    .sort((a, b) => scoreInput(b) - scoreInput(a) || a.name.localeCompare(b.name))[0] ?? null;
+}
+
 export function createMidiInputManager(params: {
   onStatus: (status: MidiInputStatus) => void;
   onNote: (message: MidiNoteMessage) => void;
@@ -57,6 +117,7 @@ export function createMidiInputManager(params: {
   let currentInput: MIDIInput | null = null;
   let status: MidiInputStatus = { kind: "pending" };
   let preferredInputId: string | null = null;
+  let hasManualSelection = false;
 
   const updateStatus = (next: MidiInputStatus) => {
     status = next;
@@ -69,44 +130,68 @@ export function createMidiInputManager(params: {
     currentInput = null;
   };
 
-  const refreshInputBinding = () => {
-    if (!midiAccess) return;
-    const inputs = Array.from(midiAccess.inputs.values());
-    const nextInput = preferredInputId
-      ? inputs.find((input) => input.id === preferredInputId) ?? inputs[0] ?? null
-      : inputs[0] ?? null;
-
-    if (!nextInput) {
-      clearInputListener();
-      updateStatus({ kind: "idle", message: "No MIDI input device detected" });
-      return;
-    }
-
-    if (currentInput?.id === nextInput.id) {
-      updateStatus({
-        kind: "connected",
-        inputId: nextInput.id,
-        name: nextInput.name || "MIDI input",
-        inputCount: inputs.length,
-      });
-      return;
-    }
-
+  const bindInput = (nextInput: MIDIInput) => {
+    if (currentInput?.id === nextInput.id) return;
     clearInputListener();
     currentInput = nextInput;
-    preferredInputId = nextInput.id;
     currentInput.onmidimessage = (event) => {
       if (!event.data) return;
       const parsed = parseMidiMessage(event.data);
       if (!parsed) return;
       params.onNote(parsed);
     };
+  };
+
+  const refreshInputBinding = () => {
+    if (!midiAccess) return;
+    const rawInputs = Array.from(midiAccess.inputs.values());
+    const inputs = rawInputs.map(toInputInfo);
+
+    if (!rawInputs.length) {
+      clearInputListener();
+      updateStatus({ kind: "idle", message: "No MIDI input device detected", inputs: [] });
+      return;
+    }
+
+    const exactPreferred = preferredInputId ? rawInputs.find((input) => input.id === preferredInputId) ?? null : null;
+    const autoPreferredInfo = pickPreferredMidiInput(inputs);
+    const autoPreferred = autoPreferredInfo ? rawInputs.find((input) => input.id === autoPreferredInfo.id) ?? null : rawInputs[0] ?? null;
+
+    let nextInput: MIDIInput | null = null;
+    let selection: MidiSelectionMode = "auto";
+    let warning: string | undefined;
+
+    if (exactPreferred) {
+      nextInput = exactPreferred;
+      selection = hasManualSelection ? "manual" : "auto";
+    } else if (hasManualSelection && preferredInputId) {
+      nextInput = autoPreferred;
+      selection = "fallback";
+      warning = "Selected device unavailable; using best available input.";
+    } else {
+      nextInput = autoPreferred;
+      selection = "auto";
+    }
+
+    if (!nextInput) {
+      clearInputListener();
+      updateStatus({ kind: "idle", message: "No usable MIDI input selected", inputs });
+      return;
+    }
+
+    bindInput(nextInput);
+    const selectedInfo = inputs.find((input) => input.id === nextInput.id) ?? toInputInfo(nextInput);
+    if (!hasManualSelection) preferredInputId = nextInput.id;
 
     updateStatus({
       kind: "connected",
       inputId: nextInput.id,
-      name: nextInput.name || "MIDI input",
-      inputCount: inputs.length,
+      name: selectedInfo.name,
+      inputCount: rawInputs.length,
+      inputs,
+      selection,
+      selectedLikelyVirtual: selectedInfo.likelyVirtual,
+      warning,
     });
   };
 
@@ -135,7 +220,7 @@ export function createMidiInputManager(params: {
     clearInputListener();
     if (midiAccess) midiAccess.onstatechange = null;
     midiAccess = null;
-    updateStatus({ kind: "idle", message: "MIDI input stopped" });
+    updateStatus({ kind: "idle", message: "MIDI input stopped", inputs: [] });
   };
 
   return {
@@ -144,6 +229,7 @@ export function createMidiInputManager(params: {
     getStatus: () => status,
     setPreferredInput: (inputId) => {
       preferredInputId = inputId;
+      hasManualSelection = inputId !== null;
       refreshInputBinding();
     },
   };

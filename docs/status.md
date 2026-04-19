@@ -22,7 +22,7 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 - Shared fixed shell + tabbed module face system is stable.
 - Routing ownership is currently voice-owned (`triggerSource` on sound modules), with trigger-side routing UI acting as an editor/bridge.
 - Session presets (whole-patch state) and module presets (local module state) both exist and are active.
-- First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception).
+- First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
 
 ## Near-term next steps (active priority)
 
