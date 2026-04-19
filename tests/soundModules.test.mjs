@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultPatch, makeSound, makeTrigger, makeVisual, migratePatch, normalizeSynthReceptionMode } from '../src/patch.ts';
+import { defaultPatch, makeSound, makeTrigger, makeVisual, migratePatch, normalizeDrumChannelMode, normalizeSynthReceptionMode } from '../src/patch.ts';
 
 test('drum and tonal defaults are distinct and specialized', () => {
   const drum = makeSound('drum', 0, 'trg-1');
@@ -38,6 +38,30 @@ test('synth reception mode normalization is safe and defaults to mono', () => {
   });
   assert.equal(migrated.modules.find((m) => m.id === 't1').reception, 'poly');
   assert.equal(migrated.modules.find((m) => m.id === 't2').reception, 'mono');
+});
+
+test('drum channel normalization is safe and defaults to auto', () => {
+  assert.equal(normalizeDrumChannelMode('01'), '01');
+  assert.equal(normalizeDrumChannelMode('04'), '04');
+  assert.equal(normalizeDrumChannelMode('auto'), 'auto');
+  assert.equal(normalizeDrumChannelMode('bad-data'), 'auto');
+  assert.equal(normalizeDrumChannelMode(undefined), 'auto');
+
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'd1', type: 'drum', name: 'D1', enabled: true, triggerSource: null, amp: 0.2, pan: 0, drumChannel: '03' },
+      { id: 'd2', type: 'drum', name: 'D2', enabled: true, triggerSource: null, amp: 0.2, pan: 0, drumChannel: 'oops' },
+    ],
+    buses: [],
+    connections: [],
+  });
+  assert.equal(migrated.modules.find((m) => m.id === 'd1').drumChannel, '03');
+  assert.equal(migrated.modules.find((m) => m.id === 'd2').drumChannel, 'auto');
 });
 
 test('migration maps legacy timbre to new drum and tonal models', () => {

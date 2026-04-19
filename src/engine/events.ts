@@ -1,5 +1,5 @@
 import type { PatternEvent } from "./pattern/module.ts";
-import type { DrumModule, SynthReceptionMode, TriggerModule } from "../patch.ts";
+import type { DrumChannelMode, DrumModule, SynthReceptionMode, TriggerModule } from "../patch.ts";
 
 export type DrumLaneRole = "low" | "mid" | "high" | "accent";
 export const DRUM_LANES: readonly DrumLaneRole[] = ["low", "mid", "high", "accent"];
@@ -44,6 +44,14 @@ export function laneRoleFromPatternEvent(event: PatternEvent): DrumLaneRole {
 
 export function normalizeDrumLane(lane: DrumTriggerEvent["lane"]): DrumLaneRole {
   return lane === "low" || lane === "mid" || lane === "high" || lane === "accent" ? lane : DEFAULT_DRUM_LANE;
+}
+
+export function drumLaneForChannelMode(mode: DrumChannelMode): DrumLaneRole | null {
+  if (mode === "01") return "low";
+  if (mode === "02") return "mid";
+  if (mode === "03") return "high";
+  if (mode === "04") return "accent";
+  return null;
 }
 
 export function preferredLaneForDrumModule(module: DrumModule): DrumLaneRole | null {

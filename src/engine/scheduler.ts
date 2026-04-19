@@ -1,11 +1,11 @@
 // src/engine/scheduler.ts
 import type { ControlModule, Patch, SoundModule, TriggerModule } from "../patch.ts";
-import { clamp, getSoundModules, isControl, isTrigger } from "../patch.ts";
+import { clamp, getSoundModules, isControl, isTrigger, normalizeDrumChannelMode } from "../patch.ts";
 import type { Engine } from "./audio";
 import { createPatternModuleForTrigger } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
 import { compileRoutingGraph } from "../routingGraph.ts";
-import { laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
+import { drumLaneForChannelMode, laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
 
 export type Scheduler = {
   readonly running: boolean;
@@ -131,8 +131,13 @@ export function createScheduler(engine: Engine): Scheduler {
             notes: noteOffsetsFromPatternEvent(ev, effectiveTrigger),
           };
         if (sound.type === "drum" && voiceEvent.kind === "drum") {
+          const explicitLane = drumLaneForChannelMode(normalizeDrumChannelMode(sound.drumChannel));
+          if (explicitLane && explicitLane !== normalizeDrumLane(voiceEvent.lane)) {
+            st.lastScheduledBeat = eventBeat;
+            continue;
+          }
           const connectedDrumCount = drumCountByTriggerId.get(trigger.id) ?? 0;
-          if (connectedDrumCount > 1) {
+          if (!explicitLane && connectedDrumCount > 1) {
             const preferredLane = preferredLaneForDrumModule(sound);
             if (preferredLane && preferredLane !== normalizeDrumLane(voiceEvent.lane)) {
               st.lastScheduledBeat = eventBeat;

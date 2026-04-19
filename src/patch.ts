@@ -25,6 +25,7 @@ export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | 
 
 export type ModulationMap = Partial<Record<string, string>>;
 export type SynthReceptionMode = "mono" | "poly";
+export type DrumChannelMode = "auto" | "01" | "02" | "03" | "04";
 
 export type ModuleBase = {
   id: string;
@@ -100,6 +101,7 @@ export type ControlModule = ModuleBase & {
 
 export type DrumSynthModule = SoundBase & {
   type: "drum";
+  drumChannel: DrumChannelMode;
   basePitch: number;
   attack: number;
   decay: number;
@@ -233,6 +235,10 @@ export function normalizeSynthReceptionMode(value: unknown): SynthReceptionMode 
   return value === "poly" ? "poly" : "mono";
 }
 
+export function normalizeDrumChannelMode(value: unknown): DrumChannelMode {
+  return value === "01" || value === "02" || value === "03" || value === "04" ? value : "auto";
+}
+
 export function getSoundModules(p: Patch): SoundModule[] {
   return p.modules.filter(isSound);
 }
@@ -310,6 +316,7 @@ export function makeSound(kind: "drum" | "tonal", i = 0, triggerSource: string |
       x: 0,
       y: 0,
       triggerSource,
+      drumChannel: normalizeDrumChannelMode(undefined),
       amp: 0.15,
       pan: 0,
       panBias: 0,
@@ -498,6 +505,7 @@ function normalizeDrumModule(raw: any): DrumModule {
     engine: "drum",
     presetName: typeof raw?.presetName === "string" && raw.presetName.trim() ? raw.presetName : "Deep Kick",
     triggerSource: typeof raw?.triggerSource === "string" ? raw.triggerSource : null,
+    drumChannel: normalizeDrumChannelMode(raw?.drumChannel),
     amp: clamp(typeof raw?.amp === "number" ? raw.amp : 0.15, 0, 1),
     pan: clamp(typeof raw?.pan === "number" ? raw.pan : 0, -1, 1),
     panBias: clamp(typeof raw?.panBias === "number" ? raw.panBias : (typeof raw?.pan === "number" ? raw.pan : 0), -1, 1),
