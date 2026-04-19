@@ -73,6 +73,14 @@ export function createScheduler(engine: Engine): Scheduler {
 
   function regenAll() {
     if (!patch) return;
+    if (running) {
+      const currentBeat = getBeatAbs(engine.ctx.currentTime);
+      for (const sound of getSoundModules(patch)) {
+        const st = getSequenceState(sound.id);
+        st.lastScheduledBeat = Math.max(st.lastScheduledBeat, currentBeat);
+      }
+      return;
+    }
     for (const sound of getSoundModules(patch)) {
       getSequenceState(sound.id).lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
