@@ -67,6 +67,8 @@ Planned extensibility themes (high level):
 - **Mapping layer growth**: reserve room for future mapping policies (scan direction/angle, traversal changes over time, value translation, weighting), with CTRL-modulatable traversal in scope; keep mapping contracts provisional until mode semantics are validated musically.
 - **Data-driven (non-AI) scope**: spreadsheet/CSV generation should remain deterministic creative mapping behavior, not AI-agent or ML-analysis architecture.
 
+See also staging guidance: [`docs/architecture/gen-family-staging-2026-04.md`](docs/architecture/gen-family-staging-2026-04.md).
+
 ## 6) Session vs Stage (Scene/Worktable)
 
 - A **session** is the full patch state in one browser tab.

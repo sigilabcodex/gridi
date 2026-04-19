@@ -585,9 +585,21 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     if (trigger.mode === "markov-chains") return Math.max(0, Math.min(1, pattern[idx] * 0.7 + stepNorm * 0.3));
     if (trigger.mode === "cellular-automata") return localDensity(idx);
     if (trigger.mode === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
+    if (trigger.mode === "gear") return Math.max(0, Math.min(1, localDensity(idx) * 0.75 + pulseIndexNormalized(idx) * 0.25));
     if (trigger.mode === "sonar") return Math.max(0, Math.min(1, 0.5 + Math.cos((idx / steps) * Math.PI * 2) * 0.5));
     if (trigger.mode === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
     return stepNorm;
+  }
+
+  function normalizedVelocity(baseValue: number) {
+    const base = Math.max(0.12, Math.min(1, baseValue));
+    const activity = totalPulses / Math.max(1, steps);
+    const targetActivity = trigger.mode === "gear" ? 0.3 : trigger.mode === "sonar" ? 0.33 : 0.36;
+    const activityComp = Math.sqrt(targetActivity / Math.max(0.06, activity));
+    const modeCeiling = trigger.mode === "gear" ? 0.78 : trigger.mode === "sonar" ? 0.82 : 0.9;
+    const modeFloor = trigger.mode === "gear" ? 0.2 : 0.16;
+    const stabilized = base * Math.max(0.76, Math.min(1.16, activityComp));
+    return Math.max(modeFloor, Math.min(modeCeiling, stabilized));
   }
 
   function stepLane(step: number, idx: number) {
@@ -611,7 +623,7 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
     if (pattern[idx] !== 1) continue;
     if (drop > 0 && stepRandom01(trigger.seed, voiceId, step) < drop) continue;
-    events.push({ voiceId, beatOffset: beat - startBeat, value: stepValue(step, idx), targetLane: stepLane(step, idx) });
+    events.push({ voiceId, beatOffset: beat - startBeat, value: normalizedVelocity(stepValue(step, idx)), targetLane: stepLane(step, idx) });
   }
 
   return { startBeat, endBeat, events };
