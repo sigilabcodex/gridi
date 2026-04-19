@@ -1,68 +1,54 @@
-# Drum channel assignment (Auto + manual override)
+# Drum channel assignment (Auto + explicit channels)
 
-This phase adds explicit drum-channel assignment while preserving the existing automatic differentiated drum behavior.
+This follow-up pass keeps the existing drum routing architecture but clarifies behavior and UI for explicit channel assignment.
 
 ## User-facing model
 
-Each drum module now has a `drumChannel` mode:
+Each drum module has a `drumChannel` mode:
 
 - `auto`
-- `01`
-- `02`
-- `03`
-- `04`
+- `01` … `08`
 
-`auto` is the default for new and migrated patches.
+`auto` remains the default for new and migrated patches.
 
-## Auto behavior and compatibility
+## Semantics
 
-`auto` keeps the previous lane-role behavior:
+### Auto (backward-compatible default)
 
-- If one drum is connected to a trigger, it accepts all trigger events (legacy behavior).
-- If multiple drums are connected to the same trigger, each drum is filtered by inferred role from `basePitch` (`low | mid | high | accent`).
+`auto` keeps the existing differentiated drum behavior:
 
-This means old patches continue to behave the same after migration because missing/invalid `drumChannel` values normalize to `auto`.
+- If one drum is connected to a trigger, it accepts all trigger events.
+- If multiple drums are connected to one trigger, drums are split by inferred role from `basePitch` (`low | mid | high | accent`).
 
-## Manual channel override behavior
+This preserves old patch behavior because missing/invalid `drumChannel` values normalize to `auto`.
 
-When `drumChannel` is explicitly set to a numbered channel, that drum no longer uses inferred role dispatch for that trigger relationship.
+### Explicit channels (`01` … `08`)
 
-Channel mapping in this phase:
+When `drumChannel` is explicitly set to a numbered channel:
 
-- `01` -> `low`
-- `02` -> `mid`
-- `03` -> `high`
-- `04` -> `accent`
+- inferred auto role filtering is disabled for that drum
+- the drum subscribes to a strict shared channel event stream for `(trigger, channel)`
+- drums on the same explicit channel receive the same timing pattern
+- drums on different explicit channels receive different channel streams
 
-This enables intentional channel choices and shared channels:
+In other words: explicit channels are true subscriptions, not lane hints.
 
-- multiple drum modules can be assigned to the same channel
-- explicit channel assignment wins over inferred auto dispatch
+## UI changes in this pass
 
-## UI changes
+- Compact selector still uses `Chan` label.
+- Channel value is displayed only once (no duplicated number readout).
+- Options now show:
+  - `AU`
+  - `01` … `08`
+- `Focus` remains in Drum Advanced, reflowed on the bottom row after `Noise color`, and allowed to span two slots to keep the fixed shell stable.
 
-### Drum upper selector area
+## Current limitations (intentional)
 
-The upper compact selector area now prioritizes:
+Still deferred in this phase:
 
-- `Trg` (trigger source)
-- `Chan` (drum channel)
+- no routing matrix/editor popup
+- no dynamic/infinite channel count
+- no MIDI routing expansion for drums
+- no per-channel parameter pages
 
-`Chan` includes a compact two-character hardware-style readout:
-
-- `AU` for Auto
-- `01` ... `04` for explicit channels
-
-### Focus control moved
-
-`Focus` (boost target) remains available but moved from the upper selector area into Drum **Advanced**.
-
-## Deferred in this phase
-
-- MIDI routing UI changes
-- CTRL routing expansion
-- per-channel parameter pages
-- arbitrary channel count expansion
-- full drum matrix/popup editors
-
-This phase is intentionally compact: explicit channel assignment layered on top of existing routing and event semantics.
+This remains a focused refinement on top of current scheduler/routing foundations.

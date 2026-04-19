@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createPatternModuleForTrigger } from '../src/engine/pattern/module.ts';
 import { createScheduler } from '../src/engine/scheduler.ts';
+import { laneRoleFromPatternEvent } from '../src/engine/events.ts';
 import { makePatch, makeSound, makeTrigger } from './helpers.mjs';
 
 function withWindowTimer(fn) {
@@ -168,15 +169,36 @@ test('lane dispatch remains deterministic for the same patch', () => {
   assert.deepEqual(passA, passB);
 });
 
-test('explicit drum channel override replaces inferred lane dispatch', () => {
-  const trigger = makeTrigger({ id: 'manual-trigger', mode: 'step', length: 16, density: 1, drop: 0, seed: 3 });
-  const manualLow = makeSound({ id: 'manual-low', triggerSource: trigger.id, basePitch: 0.82, drumChannel: '01' });
-  const manualHigh = makeSound({ id: 'manual-high', triggerSource: trigger.id, basePitch: 0.18, drumChannel: '03' });
-  const patch = makePatch([manualLow, manualHigh, trigger]);
+test('explicit drum channels override auto routing and create distinct streams per channel', () => {
+  let selectedSeed = 1;
+  let expectedA = [];
+  let expectedB = [];
+  for (let seed = 1; seed <= 128; seed++) {
+    const probeTrigger = makeTrigger({ id: 'manual-trigger', mode: 'hybrid', length: 16, density: 0.65, drop: 0.15, weird: 0.9, determinism: 0.3, seed });
+    expectedA = createPatternModuleForTrigger(probeTrigger)
+      .renderWindow({ trigger: probeTrigger, voiceId: `${probeTrigger.id}::drum-channel::01`, startBeat: 0, endBeat: 1.2 })
+      .events
+      .filter((ev) => laneRoleFromPatternEvent(ev) === 'low')
+      .map((ev) => +ev.beatOffset.toFixed(6));
+    expectedB = createPatternModuleForTrigger(probeTrigger)
+      .renderWindow({ trigger: probeTrigger, voiceId: `${probeTrigger.id}::drum-channel::03`, startBeat: 0, endBeat: 1.2 })
+      .events
+      .filter((ev) => laneRoleFromPatternEvent(ev) === 'high')
+      .map((ev) => +ev.beatOffset.toFixed(6));
+    if (JSON.stringify(expectedA) !== JSON.stringify(expectedB)) {
+      selectedSeed = seed;
+      break;
+    }
+  }
+
+  const trigger = makeTrigger({ id: 'manual-trigger', mode: 'hybrid', length: 16, density: 0.65, drop: 0.15, weird: 0.9, determinism: 0.3, seed: selectedSeed });
+  const manualA = makeSound({ id: 'manual-a', triggerSource: trigger.id, basePitch: 0.82, drumChannel: '01' });
+  const manualB = makeSound({ id: 'manual-b', triggerSource: trigger.id, basePitch: 0.18, drumChannel: '03' });
+  const patch = makePatch([manualA, manualB, trigger]);
   const triggered = [];
   const engine = {
     ctx: { currentTime: 0 },
-    triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, lane: event?.lane }),
+    triggerVoice: (id, _patch, when) => triggered.push({ id, beat: +((when / (60 / 120)).toFixed(6)) }),
   };
 
   withWindowTimer((tick) => {
@@ -184,19 +206,18 @@ test('explicit drum channel override replaces inferred lane dispatch', () => {
     scheduler.setBpm(120);
     scheduler.setPatch(patch);
     scheduler.start();
-    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    for (const t of [0, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3]) { engine.ctx.currentTime = t; tick(); }
     scheduler.stop();
   });
 
-  const lowHits = triggered.filter((ev) => ev.id === manualLow.id);
-  const highHits = triggered.filter((ev) => ev.id === manualHigh.id);
-  assert.ok(lowHits.length > 0);
-  assert.ok(highHits.length > 0);
-  assert.ok(lowHits.every((ev) => ev.lane === 'low'));
-  assert.ok(highHits.every((ev) => ev.lane === 'high'));
+  const aBeats = triggered.filter((ev) => ev.id === manualA.id).map((ev) => ev.beat);
+  const bBeats = triggered.filter((ev) => ev.id === manualB.id).map((ev) => ev.beat);
+  assert.ok(aBeats.length > 0);
+  assert.ok(bBeats.length > 0);
+  assert.notDeepEqual(aBeats, bBeats);
 });
 
-test('multiple drums can intentionally share the same explicit channel', () => {
+test('multiple drums can intentionally share the same explicit channel stream', () => {
   const trigger = makeTrigger({ id: 'shared-trigger', mode: 'step', length: 16, density: 1, drop: 0, seed: 13 });
   const first = makeSound({ id: 'shared-a', triggerSource: trigger.id, basePitch: 0.2, drumChannel: '02' });
   const second = makeSound({ id: 'shared-b', triggerSource: trigger.id, basePitch: 0.9, drumChannel: '02' });
@@ -204,7 +225,7 @@ test('multiple drums can intentionally share the same explicit channel', () => {
   const triggered = [];
   const engine = {
     ctx: { currentTime: 0 },
-    triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, lane: event?.lane }),
+    triggerVoice: (id, _patch, when) => triggered.push({ id, beat: +((when / (60 / 120)).toFixed(6)) }),
   };
 
   withWindowTimer((tick) => {
@@ -216,12 +237,10 @@ test('multiple drums can intentionally share the same explicit channel', () => {
     scheduler.stop();
   });
 
-  const aHits = triggered.filter((ev) => ev.id === first.id);
-  const bHits = triggered.filter((ev) => ev.id === second.id);
-  assert.ok(aHits.length > 0);
-  assert.ok(bHits.length > 0);
-  assert.ok(aHits.every((ev) => ev.lane === 'mid'));
-  assert.ok(bHits.every((ev) => ev.lane === 'mid'));
+  const aBeats = triggered.filter((ev) => ev.id === first.id).map((ev) => ev.beat);
+  const bBeats = triggered.filter((ev) => ev.id === second.id).map((ev) => ev.beat);
+  assert.ok(aBeats.length > 0);
+  assert.deepEqual(aBeats, bBeats);
 });
 
 test('regen during transport does not duplicate already-scheduled near-future beats', () => {

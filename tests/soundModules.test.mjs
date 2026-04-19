@@ -43,6 +43,7 @@ test('synth reception mode normalization is safe and defaults to mono', () => {
 test('drum channel normalization is safe and defaults to auto', () => {
   assert.equal(normalizeDrumChannelMode('01'), '01');
   assert.equal(normalizeDrumChannelMode('04'), '04');
+  assert.equal(normalizeDrumChannelMode('08'), '08');
   assert.equal(normalizeDrumChannelMode('auto'), 'auto');
   assert.equal(normalizeDrumChannelMode('bad-data'), 'auto');
   assert.equal(normalizeDrumChannelMode(undefined), 'auto');

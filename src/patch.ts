@@ -25,7 +25,7 @@ export type ModuleType = "drum" | "tonal" | "trigger" | "visual" | "terminal" | 
 
 export type ModulationMap = Partial<Record<string, string>>;
 export type SynthReceptionMode = "mono" | "poly";
-export type DrumChannelMode = "auto" | "01" | "02" | "03" | "04";
+export type DrumChannelMode = "auto" | "01" | "02" | "03" | "04" | "05" | "06" | "07" | "08";
 
 export type ModuleBase = {
   id: string;
@@ -236,7 +236,7 @@ export function normalizeSynthReceptionMode(value: unknown): SynthReceptionMode 
 }
 
 export function normalizeDrumChannelMode(value: unknown): DrumChannelMode {
-  return value === "01" || value === "02" || value === "03" || value === "04" ? value : "auto";
+  return value === "01" || value === "02" || value === "03" || value === "04" || value === "05" || value === "06" || value === "07" || value === "08" ? value : "auto";
 }
 
 export function getSoundModules(p: Patch): SoundModule[] {
