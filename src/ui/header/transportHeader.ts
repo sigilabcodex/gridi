@@ -586,42 +586,28 @@ export function createTransportHeader(params: HeaderParams) {
     ? window.matchMedia("(max-height: 760px) and (max-width: 1366px)")
     : null;
 
-  let compactExpanded = false;
   const syncCompactHeaderState = () => {
     const compactActive = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
     const shortHeightActive = shortHeightCompactMql?.matches ?? false;
     header.classList.toggle("isCompactGlobal", compactActive);
     header.classList.toggle("isShortHeightCompact", compactActive && shortHeightActive);
-    header.classList.toggle("compactExpanded", compactActive && compactExpanded);
-    header.classList.toggle("mobileCollapsed", compactActive && !compactExpanded);
-    const expanded = compactActive && compactExpanded;
-    mobileToggle.setAttribute("aria-expanded", expanded ? "true" : "false");
-    compactLauncher.setAttribute("aria-expanded", expanded ? "true" : "false");
-    compactLauncher.textContent = expanded ? "Hide global" : "Global";
+    header.classList.remove("compactExpanded");
+    header.classList.toggle("mobileCollapsed", compactActive);
+    mobileToggle.setAttribute("aria-expanded", "false");
+    compactLauncher.setAttribute("aria-expanded", "false");
+    compactLauncher.textContent = "Global";
     mobileToggle.hidden = true;
     compactLauncher.hidden = !compactActive;
   };
 
-  const setCompactExpanded = (next: boolean) => {
-    compactExpanded = next;
-    syncCompactHeaderState();
-  };
-
-  mobileToggle.onclick = () => setCompactExpanded(!compactExpanded);
-  compactLauncher.onclick = () => setCompactExpanded(!compactExpanded);
+  compactLauncher.setAttribute("aria-label", "Open global controls drawer");
 
   const handleCompactQueryChange = () => {
-    const active = (compactGlobalMql?.matches ?? false) || (shortHeightCompactMql?.matches ?? false);
-    if (!active) compactExpanded = false;
     syncCompactHeaderState();
   };
 
   compactGlobalMql?.addEventListener("change", handleCompactQueryChange);
   shortHeightCompactMql?.addEventListener("change", handleCompactQueryChange);
-
-  if (!compactGlobalMql && !shortHeightCompactMql) {
-    compactExpanded = false;
-  }
 
   syncCompactHeaderState();
 
@@ -843,7 +829,6 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
-    if (compactExpanded && target && !header.contains(target) && !compactLauncher.contains(target)) setCompactExpanded(false);
     if (target && !sessionPanel.classList.contains("hidden")) {
       if (!sessionPanel.contains(target) && !sessionSummary.contains(target)) closeSessionMenu();
     }
@@ -857,7 +842,6 @@ export function createTransportHeader(params: HeaderParams) {
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      if (compactExpanded) setCompactExpanded(false);
       closeSessionMenu();
       closeGeneratorMenu();
       closeMidiMenu();
@@ -1104,6 +1088,11 @@ export function createTransportHeader(params: HeaderParams) {
     drawer.classList.add("isOpen");
     setDrawerInteractionOwner(true);
   }
+
+  compactLauncher.onclick = () => {
+    if (drawerOpen) closeGlobalDrawer();
+    else openGlobalDrawer();
+  };
 
   const setChipText = () => {
     const patch = params.patch();
