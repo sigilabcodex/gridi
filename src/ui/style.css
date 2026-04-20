@@ -6428,3 +6428,144 @@ button:focus-visible,
 .moduleSurface.midiTargetModule {
   box-shadow: 0 0 0 1px rgba(170, 128, 255, 0.38), 0 10px 22px rgba(48, 20, 70, 0.28);
 }
+
+/* === Mobile global controls drawer === */
+.globalControlsDrawer {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  pointer-events: none;
+}
+
+.globalControlsDrawerBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  background: rgba(6, 10, 16, 0.48);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.globalControlsDrawerPanel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: min(86vw, 320px);
+  padding: 16px 12px calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: linear-gradient(180deg, rgba(10, 15, 22, 0.97), rgba(8, 12, 18, 0.97));
+  border-right: 1px solid rgba(73, 96, 120, 0.48);
+  transform: translateX(-102%);
+  transition: transform 0.22s ease;
+  overflow-y: auto;
+}
+
+.globalControlsDrawer.isOpen {
+  pointer-events: auto;
+}
+
+.globalControlsDrawer.isOpen .globalControlsDrawerBackdrop {
+  opacity: 1;
+}
+
+.globalControlsDrawer.isOpen .globalControlsDrawerPanel {
+  transform: translateX(0);
+}
+
+.globalControlsDrawerSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.globalControlsDrawerCoreBtn,
+.globalControlsDrawerIconBtn,
+.globalControlsDrawerChip,
+.globalControlsChipEditorStep {
+  min-height: 52px;
+  border-radius: 12px;
+}
+
+.globalControlsDrawerCoreBtn,
+.globalControlsDrawerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.globalControlsDrawerCoreBtn .transportIconGlyph,
+.globalControlsDrawerIconBtn .transportIconGlyph,
+.globalControlsDrawerSettings .transportIconGlyph {
+  width: 22px;
+  height: 22px;
+}
+
+.globalControlsDrawerChip {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.globalControlsDrawerAccess {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.globalControlsDrawerStatus {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.globalControlsDrawerStatusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.24);
+  background: rgba(255,255,255,0.16);
+}
+
+.globalControlsDrawerStatusDot.isOn {
+  background: var(--acc-green);
+  box-shadow: 0 0 12px rgba(98, 214, 139, 0.55);
+}
+
+.globalControlsDrawerStatusText {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.globalControlsDrawerStatusText:last-child {
+  grid-column: 1 / -1;
+}
+
+.globalControlsDrawerSettings {
+  grid-column: 1 / -1;
+}
+
+.globalControlsChipEditor {
+  width: min(240px, calc(100vw - 24px));
+}
+
+.globalControlsChipEditorRow {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 64px 1fr 64px;
+  gap: 8px;
+}
+
+.globalControlsChipEditorInput {
+  width: 100%;
+  min-height: 52px;
+  text-align: center;
+  font-size: 18px;
+  border-radius: 12px;
+}
+
+@media (min-width: 761px) {
+  .globalControlsDrawer {
+    display: none;
+  }
+}
