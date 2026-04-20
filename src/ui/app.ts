@@ -682,6 +682,12 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updatePlayBtn();
       header.updateStatus();
     },
+    onStop: () => {
+      if (!sched.running) return;
+      sched.stop();
+      header.updatePlayBtn();
+      header.updateStatus();
+    },
     onToggleMute: () => {
       patch.masterMute = !patch.masterMute;
       engine.setMasterMute(patch.masterMute);

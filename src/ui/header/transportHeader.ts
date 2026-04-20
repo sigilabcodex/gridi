@@ -24,6 +24,7 @@ type HeaderParams = {
   onNewSession: () => void;
   onToggleAudio: () => Promise<void>;
   onTogglePlay: () => Promise<void>;
+  onStop: () => void;
   onToggleMute: () => void;
   onReset: () => void;
   onReseed: () => void;
@@ -253,7 +254,7 @@ export function createTransportHeader(params: HeaderParams) {
   btnStop.className = "transportGhostBtn transportIconBtn";
   btnStop.type = "button";
   btnStop.append(makeIcon("stop"));
-  btnStop.onclick = params.onTogglePlay;
+  btnStop.onclick = params.onStop;
   params.attachTooltip(btnStop, {
     text: "Stop the current patch playback.",
     ariaLabel: "Transport stop",
@@ -877,6 +878,8 @@ export function createTransportHeader(params: HeaderParams) {
     btnAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
     btnAudio.classList.toggle("isOn", running);
     btnAudio.setAttribute("aria-pressed", running ? "true" : "false");
+    audioDot.classList.toggle("isOn", running);
+    audioLabel.textContent = running ? "Audio ready" : "Audio suspended";
   };
 
   const updateOutputMeter = () => {
@@ -895,6 +898,8 @@ export function createTransportHeader(params: HeaderParams) {
     btnPlay.classList.toggle("isOn", playing);
     btnPlay.setAttribute("aria-pressed", playing ? "true" : "false");
     btnStop.disabled = !playing;
+    drawerPlayBtn.classList.toggle("isOn", playing);
+    drawerStopBtn.disabled = !playing;
   };
 
   const updateMuteBtn = () => {
@@ -908,6 +913,7 @@ export function createTransportHeader(params: HeaderParams) {
     const patch = params.patch();
     master.value = String(patch.masterGain);
     masterNum.value = String(patch.masterGain);
+    setChipText();
   };
 
   const updatePresetUI = () => {
@@ -928,6 +934,7 @@ export function createTransportHeader(params: HeaderParams) {
     const patch = params.patch();
     bpm.value = String(patch.bpm);
     bpmNum.value = String(patch.bpm);
+    setChipText();
   };
 
   const updateMidiUI = () => {
@@ -935,29 +942,298 @@ export function createTransportHeader(params: HeaderParams) {
     const target = params.midiTargetLabel();
     if (status.kind === "unsupported") {
       midiChip.textContent = "MIDI: unsupported";
+      midiLabel.textContent = "MIDI unsupported";
       return;
     }
     if (status.kind === "pending") {
       midiChip.textContent = "MIDI: pending";
+      midiLabel.textContent = "MIDI pending";
       return;
     }
     if (status.kind === "denied") {
       midiChip.textContent = "MIDI: denied";
+      midiLabel.textContent = "MIDI denied";
       return;
     }
     if (status.kind === "idle") {
       midiChip.textContent = "MIDI: unavailable";
+      midiLabel.textContent = "MIDI unavailable";
       return;
     }
     if (status.selectedLikelyVirtual) {
       midiChip.textContent = `MIDI: ${status.name} (virtual)`;
+      midiLabel.textContent = `MIDI ${status.name}`;
       return;
     }
     const targetLabel = target ? ` → ${target}` : "";
     midiChip.textContent = `MIDI: ${status.name}${targetLabel}`;
+    midiLabel.textContent = status.warning ? "MIDI fallback active" : `MIDI ${status.name}`;
     if (status.warning) midiChip.textContent = "MIDI: fallback active";
   };
 
+
+  const drawer = document.createElement("aside");
+  drawer.className = "globalControlsDrawer";
+  drawer.setAttribute("aria-label", "Global controls drawer");
+
+  const drawerBackdrop = document.createElement("button");
+  drawerBackdrop.type = "button";
+  drawerBackdrop.className = "globalControlsDrawerBackdrop";
+  drawerBackdrop.setAttribute("aria-label", "Close global controls drawer");
+
+  const drawerPanel = document.createElement("div");
+  drawerPanel.className = "globalControlsDrawerPanel";
+
+  const makeDrawerIconButton = (name: "generator" | "routing" | "session", label: string, onClick: () => void) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "globalControlsDrawerIconBtn";
+    btn.setAttribute("aria-label", label);
+    btn.append(makeIcon(name));
+    btn.onclick = onClick;
+    return btn;
+  };
+
+  const drawerCore = document.createElement("section");
+  drawerCore.className = "globalControlsDrawerSection";
+  const drawerPlayBtn = document.createElement("button");
+  drawerPlayBtn.type = "button";
+  drawerPlayBtn.className = "globalControlsDrawerCoreBtn";
+  drawerPlayBtn.setAttribute("aria-label", "Play");
+  drawerPlayBtn.append(makeIcon("play"));
+  drawerPlayBtn.onclick = params.onTogglePlay;
+
+  const drawerStopBtn = document.createElement("button");
+  drawerStopBtn.type = "button";
+  drawerStopBtn.className = "globalControlsDrawerCoreBtn";
+  drawerStopBtn.setAttribute("aria-label", "Stop");
+  drawerStopBtn.append(makeIcon("stop"));
+  drawerStopBtn.onclick = params.onStop;
+  drawerCore.append(drawerPlayBtn, drawerStopBtn);
+
+  const drawerTempo = document.createElement("section");
+  drawerTempo.className = "globalControlsDrawerSection";
+  const bpmChip = document.createElement("button");
+  bpmChip.type = "button";
+  bpmChip.className = "globalControlsDrawerChip";
+  const gainChip = document.createElement("button");
+  gainChip.type = "button";
+  gainChip.className = "globalControlsDrawerChip";
+  drawerTempo.append(bpmChip, gainChip);
+
+  const drawerAccess = document.createElement("section");
+  drawerAccess.className = "globalControlsDrawerSection globalControlsDrawerAccess";
+  const regenBtn = makeDrawerIconButton("generator", "Regeneration tools", () => {
+    openGeneratorMenu();
+    closeGlobalDrawer();
+  });
+  const routingBtn = makeDrawerIconButton("routing", "Routing overview", () => {
+    routingOverview.toggle();
+    closeGlobalDrawer();
+  });
+  const sessionBtn = makeDrawerIconButton("session", "Session actions", () => {
+    openSessionMenu();
+    closeGlobalDrawer();
+  });
+  drawerAccess.append(regenBtn, routingBtn, sessionBtn);
+
+  const drawerStatus = document.createElement("section");
+  drawerStatus.className = "globalControlsDrawerSection globalControlsDrawerStatus";
+  const audioDot = document.createElement("span");
+  audioDot.className = "globalControlsDrawerStatusDot";
+  const audioLabel = document.createElement("span");
+  audioLabel.className = "globalControlsDrawerStatusText";
+  const midiLabel = document.createElement("span");
+  midiLabel.className = "globalControlsDrawerStatusText";
+  drawerStatus.append(audioDot, audioLabel, midiLabel);
+
+  const drawerSettingsSection = document.createElement("section");
+  drawerSettingsSection.className = "globalControlsDrawerSection";
+  const drawerSettings = document.createElement("button");
+  drawerSettings.type = "button";
+  drawerSettings.className = "globalControlsDrawerCoreBtn globalControlsDrawerSettings";
+  drawerSettings.setAttribute("aria-label", "Open settings");
+  drawerSettings.append(makeIcon("settings"));
+  drawerSettings.onclick = () => {
+    params.onOpenSettings();
+    closeGlobalDrawer();
+  };
+  drawerSettingsSection.append(drawerSettings);
+
+  drawerPanel.append(drawerCore, drawerTempo, drawerAccess, drawerStatus, drawerSettingsSection);
+  drawer.append(drawerBackdrop, drawerPanel);
+  document.body.appendChild(drawer);
+
+  const supportsDrawerMedia = typeof window !== "undefined" && typeof window.matchMedia === "function";
+  const drawerMql = supportsDrawerMedia
+    ? window.matchMedia("(max-width: 760px), ((orientation: portrait) and (max-width: 1024px))")
+    : null;
+
+  let drawerOpen = false;
+  let drawerPointerId: number | null = null;
+  let drawerStartX = 0;
+  let drawerSwipeMode: "open" | "close" | null = null;
+
+  let chipPanel: HTMLElement | null = null;
+  let chipPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let chipPanelAnchor: HTMLElement | null = null;
+
+  const closeChipEditor = () => {
+    if (!chipPanel) return;
+    chipPanelCleanup?.destroy();
+    chipPanelCleanup = null;
+    chipPanel.remove();
+    chipPanel = null;
+    chipPanelAnchor = null;
+  };
+
+  const setDrawerInteractionOwner = (active: boolean) => {
+    if (active) document.body.dataset.interactionOwner = "edge-nav";
+    else if (document.body.dataset.interactionOwner === "edge-nav") delete document.body.dataset.interactionOwner;
+  };
+
+  function closeGlobalDrawer() {
+    drawerOpen = false;
+    drawer.classList.remove("isOpen");
+    setDrawerInteractionOwner(false);
+    closeChipEditor();
+  }
+
+  function openGlobalDrawer() {
+    drawerOpen = true;
+    drawer.classList.add("isOpen");
+    setDrawerInteractionOwner(true);
+  }
+
+  const setChipText = () => {
+    const patch = params.patch();
+    bpmChip.textContent = `BPM ${Math.round(patch.bpm)}`;
+    gainChip.textContent = `VOL ${Math.round(patch.masterGain * 100)}`;
+  };
+
+  const buildChipEditor = (title: string, value: number, min: number, max: number, step: number, onApply: (next: number) => void) => {
+    closeChipEditor();
+    const panel = document.createElement("div");
+    panel.className = "floatingPanel globalControlsChipEditor";
+
+    const heading = document.createElement("div");
+    heading.className = "small transportUtilitySectionLabel";
+    heading.textContent = title;
+
+    const row = document.createElement("div");
+    row.className = "globalControlsChipEditorRow";
+    const dec = document.createElement("button");
+    dec.type = "button";
+    dec.className = "globalControlsChipEditorStep";
+    dec.textContent = "−";
+    const num = document.createElement("input");
+    num.type = "number";
+    num.className = "globalControlsChipEditorInput";
+    num.min = String(min);
+    num.max = String(max);
+    num.step = String(step);
+    num.value = String(value);
+    const inc = document.createElement("button");
+    inc.type = "button";
+    inc.className = "globalControlsChipEditorStep";
+    inc.textContent = "+";
+
+    const apply = (next: number) => {
+      const safe = Math.min(max, Math.max(min, next));
+      onApply(safe);
+      num.value = String(safe);
+      setChipText();
+    };
+
+    dec.onclick = () => apply((Number(num.value) || value) - step);
+    inc.onclick = () => apply((Number(num.value) || value) + step);
+    num.onchange = () => apply(Number(num.value) || value);
+
+    row.append(dec, num, inc);
+    panel.append(heading, row);
+    document.body.appendChild(panel);
+    chipPanel = panel;
+    const anchor = chipPanelAnchor;
+    if (!anchor) return;
+
+    placeFloatingPanel(panel, anchor.getBoundingClientRect(), {
+      offset: 8,
+      align: "start",
+      preferredSide: "bottom",
+      minWidth: 200,
+      maxWidth: 260,
+    });
+    chipPanelCleanup = bindFloatingPanelReposition(panel, () => (anchor.isConnected ? anchor.getBoundingClientRect() : null), {
+      offset: 8,
+      align: "start",
+      preferredSide: "bottom",
+      minWidth: 200,
+      maxWidth: 260,
+    });
+    queueMicrotask(() => num.focus());
+  };
+
+  bpmChip.onclick = () => {
+    chipPanelAnchor = bpmChip;
+    buildChipEditor("Tempo", Math.round(params.patch().bpm), 40, 240, 1, (next) => params.onSetBpm(next));
+  };
+
+  gainChip.onclick = () => {
+    chipPanelAnchor = gainChip;
+    buildChipEditor("Master level", Math.round(params.patch().masterGain * 100), 0, 100, 1, (next) => params.onSetMasterGain(next / 100));
+  };
+
+  drawerBackdrop.onclick = () => closeGlobalDrawer();
+
+  const onDrawerPointerDown = (event: PointerEvent) => {
+    if (!drawerMql?.matches) return;
+    const startAtEdge = !drawerOpen && event.clientX <= 22;
+    const startOnDrawer = drawerOpen && drawerPanel.contains(event.target as Node);
+    if (!startAtEdge && !startOnDrawer) return;
+
+    drawerPointerId = event.pointerId;
+    drawerStartX = event.clientX;
+    drawerSwipeMode = startAtEdge ? "open" : "close";
+    setDrawerInteractionOwner(true);
+  };
+
+  const onDrawerPointerMove = (event: PointerEvent) => {
+    if (drawerPointerId !== event.pointerId || !drawerSwipeMode) return;
+    const dx = event.clientX - drawerStartX;
+    if (drawerSwipeMode === "open" && dx > 42) {
+      openGlobalDrawer();
+      drawerSwipeMode = null;
+      drawerPointerId = null;
+    }
+    if (drawerSwipeMode === "close" && dx < -42) {
+      closeGlobalDrawer();
+      drawerSwipeMode = null;
+      drawerPointerId = null;
+    }
+  };
+
+  const onDrawerPointerEnd = (event: PointerEvent) => {
+    if (drawerPointerId !== event.pointerId) return;
+    drawerPointerId = null;
+    drawerSwipeMode = null;
+    if (!drawerOpen) setDrawerInteractionOwner(false);
+  };
+
+  const handleDrawerMedia = () => {
+    if (!drawerMql?.matches) closeGlobalDrawer();
+  };
+
+  drawerMql?.addEventListener("change", handleDrawerMedia);
+  document.addEventListener("pointerdown", onDrawerPointerDown, true);
+  document.addEventListener("pointermove", onDrawerPointerMove, true);
+  document.addEventListener("pointerup", onDrawerPointerEnd, true);
+  document.addEventListener("pointercancel", onDrawerPointerEnd, true);
+
+  document.addEventListener("pointerdown", (event) => {
+    const target = event.target as Node | null;
+    if (!target) return;
+    if (chipPanel && chipPanelAnchor && !chipPanel.contains(target) && !chipPanelAnchor.contains(target)) closeChipEditor();
+  }, true);
   return {
     btnPlay,
     updateStatus,
