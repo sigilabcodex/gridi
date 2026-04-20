@@ -205,7 +205,10 @@ function validateRoute(
   if (route.domain === "modulation") {
     if (route.source.kind !== "module" || route.target.kind !== "module") return "modulation routes must use module->module endpoints";
     if (!sourceModule || sourceModule.type !== "control") return "modulation route source must be control module";
-    if (!targetModule || !(targetModule.type === "trigger" || isSoundModule(targetModule))) return "modulation route target must be trigger or sound module";
+    if (!targetModule || !(targetModule.type === "trigger" || targetModule.type === "control" || targetModule.type === "visual" || isSoundModule(targetModule))) {
+      return "modulation route target must be trigger|sound|control|visual module";
+    }
+    if (sourceModule.id === targetModule.id) return "modulation route cannot target source module (self-modulation blocked)";
     if (!route.metadata?.parameter) return "modulation route requires metadata.parameter";
     return null;
   }
@@ -346,6 +349,7 @@ export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections"
   const eventSourceBySoundId = new Map<string, string>();
   const triggerTargets = new Map<string, string[]>();
   const modulationIncomingByTarget = new Map<string, Array<{ parameter: string; sourceId: string }>>();
+  const modulationOwnerByTargetParam = new Map<string, string>();
   const audioConnections: Connection[] = [];
 
   for (const route of routes) {
@@ -368,6 +372,17 @@ export function compileRoutingGraph(patch: Pick<Patch, "modules" | "connections"
       const source = modulesById.get(route.source.moduleId);
       const target = modulesById.get(route.target.moduleId);
       if (!source || source.type !== "control" || !target) continue;
+      if (source.id === target.id) {
+        warnings.push(`ignored route ${route.id}: modulation route cannot target source module (self-modulation blocked)`);
+        continue;
+      }
+      const claimKey = `${target.id}:${parameter}`;
+      const existingOwner = modulationOwnerByTargetParam.get(claimKey);
+      if (existingOwner && existingOwner !== source.id) {
+        warnings.push(`ignored route ${route.id}: parameter "${parameter}" on ${target.id} already controlled by ${existingOwner}`);
+        continue;
+      }
+      modulationOwnerByTargetParam.set(claimKey, source.id);
       const incoming = modulationIncomingByTarget.get(target.id) ?? [];
       incoming.push({ parameter, sourceId: source.id });
       modulationIncomingByTarget.set(target.id, incoming);

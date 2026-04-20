@@ -18,6 +18,7 @@ import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel
 import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import type { TooltipBinder } from "./tooltip";
+import { applyCenteredModulation } from "./modulationView";
 
 const GENERATOR_MODES: Array<{ value: Mode; label: string }> = GEN_MODES
   .map((value) => ({ value, label: getGenModeMeta(value).fullLabel }));
@@ -749,6 +750,7 @@ export function renderTriggerSurface(
   isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
+  sampleModulationValue: (controlId: string | null | undefined) => number | null,
   controlOptions: ControlOption[],
   attachTooltip?: TooltipBinder,
   modulePresetRecords: ModulePresetRecord[] = [],
@@ -811,6 +813,11 @@ export function renderTriggerSurface(
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("triggerPrimary");
+  const activeInteractionKeys = new Set<string>();
+  const bindInteractionTracking = (el: HTMLElement, key: string) => {
+    el.addEventListener("gridi-history-gesture-start", () => activeInteractionKeys.add(key));
+    el.addEventListener("gridi-history-gesture-end", () => activeInteractionKeys.delete(key));
+  };
 
   const metaRow = createFaceplateSection("io", "triggerMetaRow");
 
@@ -1190,6 +1197,7 @@ export function renderTriggerSurface(
         onChange: (x) => setParam(spec.key, x),
       }),
     }));
+    renderedModeControls.forEach(({ spec, el }) => bindInteractionTracking(el, spec.key));
     renderedMode = t.mode;
     mainControlRack.replaceChildren(...renderedModeControls.map((control) => control.el));
   };
@@ -1368,6 +1376,17 @@ export function renderTriggerSurface(
       closeModePanel();
     }
     syncModeControlValues();
+    const densityControl = renderedModeControls.find((control) => control.spec.key === "density")?.el;
+    const densitySourceId = t.modulations?.density;
+    const densitySample = sampleModulationValue(densitySourceId);
+    const densityModulated = densitySourceId ? densitySample != null : false;
+    if (densityControl) {
+      densityControl.classList.toggle("ctlModulated", densityModulated);
+      densityControl.title = densityModulated ? `CTRL ${densitySourceId}` : "";
+      if (densityModulated && !activeInteractionKeys.has("density")) {
+        densityControl.syncValue?.(applyCenteredModulation(t.density, densitySample, 0.85, 0, 1));
+      }
+    }
     badge.textContent = "GEN";
     generatorLabel.textContent = "MODE";
     generatorValue.textContent = getGenModeMeta(t.mode).shortLabel;
