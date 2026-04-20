@@ -1,6 +1,10 @@
 import { sampleControl01 } from "../engine/control.ts";
 import type { ControlModule, Patch } from "../patch.ts";
 
+export function isModulationRuntimeActive(opts: { transportRunning: boolean; audioState?: string | null }) {
+  return opts.transportRunning && opts.audioState === "running";
+}
+
 export function resolveControlModule(patch: Patch, controlId: string | null | undefined): ControlModule | null {
   if (!controlId) return null;
   const found = patch.modules.find((module) => module.id === controlId);

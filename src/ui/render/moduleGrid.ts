@@ -20,7 +20,7 @@ import { renderAddModuleSlot } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
 import type { ModulePresetRecord } from "../persistence/modulePresetStore";
-import { sampleControlValue01WhenActive } from "../modulationView";
+import { isModulationRuntimeActive, sampleControlValue01WhenActive } from "../modulationView";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -449,7 +449,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
         params.patch(),
         controlId,
         performance.now() / 1000,
-        params.sched.running && params.engine.ctx.state === "running",
+        isModulationRuntimeActive({
+          transportRunning: params.sched.running,
+          audioState: params.engine.ctx.state,
+        }),
       );
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
