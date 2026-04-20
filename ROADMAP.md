@@ -31,6 +31,7 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - Stable look-ahead scheduler behavior with overlap dedupe tests.
 - Patch `0.3` module/bus/connection shape active.
 - Drum channel assignment (`Auto` + manual `01`–`04`) with compact faceplate control and backward-compatible auto dispatch fallback.
+- CTRL routing refinement: one-controller-per-parameter enforcement, self-modulation blocking, and visible in-place modulation feedback with user override/resume behavior.
 
 ### `v0.4` — Performance routing (planned)
 

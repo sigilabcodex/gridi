@@ -20,6 +20,7 @@ import { renderAddModuleSlot } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
 import type { ModulePresetRecord } from "../persistence/modulePresetStore";
+import { sampleControlValue01WhenActive } from "../modulationView";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -443,6 +444,13 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       params.onPatchChange(fn, opts);
       rerender();
     };
+    const sampleModulationValue = (controlId: string | null | undefined) =>
+      sampleControlValue01WhenActive(
+        params.patch(),
+        controlId,
+        performance.now() / 1000,
+        params.sched.running && params.engine.ctx.state === "running",
+      );
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
       surface.tabIndex = 0;
@@ -535,6 +543,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             () => params.sched.running,
             params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             controlOptions,
             params.attachTooltip,
             params.modulePresetRecords,
@@ -557,6 +566,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             getLedState: params.led,
             onPatchChange: params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
             triggerOptions,
             controlOptions,
@@ -581,6 +591,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             getLedState: params.led,
             onPatchChange: params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
             triggerOptions,
             controlOptions,
@@ -604,6 +615,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             routing,
             () => params.sched.running,
             params.onPatchChange,
+            onRoutingChange,
             params.modulePresetRecords,
             params.onLoadModulePreset,
             params.onSaveModulePreset,

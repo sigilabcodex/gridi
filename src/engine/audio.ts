@@ -17,6 +17,7 @@ export type Engine = {
   start(): Promise<void>;
   setMasterMute(muted: boolean): void;
   setMasterGain(g: number): void;
+  setTransportRunning(running: boolean): void;
   syncRouting(patch: Patch): void;
   disconnectModule(moduleId: string): void;
   dispose(): void;
@@ -44,16 +45,17 @@ function clamp01(x: number) {
 
 
 
-function modulationValue(patch: Patch, controlId: string | undefined, now: number): number | null {
+function modulationValue(patch: Patch, controlId: string | undefined, now: number, modulationActive: boolean): number | null {
+  if (!modulationActive) return null;
   if (!controlId) return null;
   const control = patch.modules.find((m): m is ControlModule => m.id === controlId && isControl(m));
   if (!control || !control.enabled) return null;
   return sampleControl01(control, now);
 }
 
-function modulate(base: number, patch: Patch, module: SoundModule, key: string, now: number, depth: number) {
+function modulate(base: number, patch: Patch, module: SoundModule, key: string, now: number, depth: number, modulationActive: boolean) {
   const controlId = module.modulations?.[key];
-  const value = modulationValue(patch, controlId, now);
+  const value = modulationValue(patch, controlId, now, modulationActive);
   if (value == null) return base;
   return clamp(base + (value - 0.5) * depth, 0, 1);
 }
@@ -85,6 +87,7 @@ export function createEngine(): Engine {
   // Keep target gain when toggling mute.
   let masterTarget = 0.8;
   let masterMuted = false;
+  let transportRunning = false;
   master.gain.value = masterTarget;
 
   const analyser = ctx.createAnalyser();
@@ -147,6 +150,10 @@ export function createEngine(): Engine {
       master.gain.cancelScheduledValues(now);
       master.gain.setTargetAtTime(masterTarget, now, 0.01);
     }
+  }
+
+  function setTransportRunning(running: boolean) {
+    transportRunning = !!running;
   }
 
   async function start() {
@@ -396,7 +403,8 @@ export function createEngine(): Engine {
       const compRelease = clamp01(safe(v.compRelease, 0.42));
       const boost = clamp01(safe(v.boost, 0.24));
       const boostTarget = v.boostTarget === "attack" || v.boostTarget === "air" ? v.boostTarget : "body";
-      const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9);
+      const modulationActive = transportRunning && ctx.state === "running";
+      const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9, modulationActive);
 
       bodyOsc.type = bodyTone < 0.55 ? "sine" : "triangle";
       const baseFreq = 45 + modBasePitch * 180 + i * 4 + clamp01(safe(patch.macro, 0.5)) * 24;
@@ -496,7 +504,8 @@ export function createEngine(): Engine {
     const decay = 0.01 + clamp01(safe(v.decay, 0.35)) * 0.8;
     const sustain = clamp01(safe(v.sustain, 0.6));
     const release = 0.03 + clamp01(safe(v.release, 0.5)) * 1.3;
-    const modCutoff = modulate(clamp01(safe(v.cutoff, 0.55)), patch, v, "cutoff", now, 0.9);
+    const modulationActive = transportRunning && ctx.state === "running";
+    const modCutoff = modulate(clamp01(safe(v.cutoff, 0.55)), patch, v, "cutoff", now, 0.9, modulationActive);
     const cutoff = 150 + modCutoff * 9000;
     const resonance = 0.25 + clamp01(safe(v.resonance, 0.2)) * 16;
     const glide = clamp01(safe(v.glide, 0.08));
@@ -658,6 +667,7 @@ export function createEngine(): Engine {
     start,
     setMasterMute,
     setMasterGain,
+    setTransportRunning,
     syncRouting,
     disconnectModule,
     dispose,

@@ -2060,6 +2060,13 @@ button.danger.armed {
   min-width: 0;
 }
 
+.routingCheckboxInput {
+  inline-size: 14px;
+  block-size: 14px;
+  margin: 0;
+  accent-color: rgba(120, 205, 255, 0.95);
+}
+
 .routingSelectors {
   margin-top: 4px;
 }
@@ -2363,6 +2370,13 @@ button:focus-visible,
 .ctlFloat.ctlEditorOpen .ctlPrimaryHit {
   border-color: rgba(125, 212, 255, 0.48);
   box-shadow: 0 0 0 1px rgba(74, 163, 255, 0.16) inset;
+}
+
+.ctlFloat.ctlModulated .ctlValueButton,
+.ctlFloat.ctlModulated .knob,
+.ctlFloat.ctlModulated .ctlPrimaryHit {
+  border-color: rgba(143, 230, 255, 0.42);
+  box-shadow: 0 0 0 1px rgba(90, 180, 255, 0.14) inset;
 }
 
 .ctlSlider {

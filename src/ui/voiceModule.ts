@@ -7,6 +7,7 @@ import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
+import { applyCenteredModulation } from "./modulationView";
 import {
   createCompactSelectField,
   createModuleRefChip,
@@ -32,6 +33,7 @@ type SurfaceParams = {
   getLedState: (moduleId: string) => { active: boolean; hit: boolean };
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void;
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void;
+  sampleModulationValue: (controlId: string | null | undefined) => number | null;
   ui: UiState;
   triggerOptions: TriggerOption[];
   controlOptions: ControlOption[];
@@ -397,7 +399,7 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 }
 
 export function renderDrumModuleSurface(params: SurfaceParams) {
-  const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
+  const { root, v, routing, onPatchChange, onRoutingChange, sampleModulationValue, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
   const DRUM_PITCH_MIN = 24;
   const DRUM_PITCH_MAX = 84;
@@ -432,6 +434,11 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
   const surface = document.createElement("section");
   surface.className = "moduleSurface drumSurface drumSurface--withStatus";
   surface.dataset.type = "drum";
+  const activeInteractionKeys = new Set<string>();
+  const bindInteractionTracking = (el: HTMLElement, key: string) => {
+    el.addEventListener("gridi-history-gesture-start", () => activeInteractionKeys.add(key));
+    el.addEventListener("gridi-history-gesture-end", () => activeInteractionKeys.delete(key));
+  };
 
   const h = makeHeader(v, "DRUM", params, onRemove);
   const pitchCtl = ctlFloat({
@@ -449,6 +456,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
         if (m?.type === "drum") m.basePitch = normalizedPitch;
       }, { regen: false }),
     });
+  bindInteractionTracking(pitchCtl, "basePitch");
   const decayCtl = ctlFloat({
     label: "Decay",
     value: d.decay,
@@ -929,11 +937,20 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       triggerSource: d.triggerSource,
       drumChannel: normalizeDrumChannelMode(d.drumChannel),
     });
+    const pitchSource = d.modulations?.basePitch;
+    const pitchSample = sampleModulationValue(pitchSource);
+    const isPitchModulated = Boolean(pitchSource && pitchSample != null);
+    pitchCtl.classList.toggle("ctlModulated", isPitchModulated);
+    pitchCtl.title = isPitchModulated ? `CTRL ${pitchSource}` : "";
+    if (isPitchModulated && !activeInteractionKeys.has("basePitch")) {
+      const modulated = applyCenteredModulation(d.basePitch, pitchSample, 0.9, 0, 1);
+      pitchCtl.syncValue?.(pitchNormToMidi(modulated));
+    }
   };
 }
 
 export function renderSynthModuleSurface(params: SurfaceParams) {
-  const { root, v, routing, onPatchChange, onRoutingChange, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
+  const { root, v, routing, onPatchChange, onRoutingChange, sampleModulationValue, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
   const reactiveState: Pick<TonalModule, "waveform" | "cutoff" | "resonance" | "attack" | "decay" | "amp" | "modDepth" | "glide" | "fineTune" | "modRate" | "coarseTune" | "pan" | "sustain" | "release" | "triggerSource" | "reception"> = {
@@ -958,6 +975,11 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
   const surface = document.createElement("section");
   surface.className = "moduleSurface synthSurface synthSurface--withStatus";
   surface.dataset.type = "tonal";
+  const activeInteractionKeys = new Set<string>();
+  const bindInteractionTracking = (el: HTMLElement, key: string) => {
+    el.addEventListener("gridi-history-gesture-start", () => activeInteractionKeys.add(key));
+    el.addEventListener("gridi-history-gesture-end", () => activeInteractionKeys.delete(key));
+  };
 
   const h = makeHeader(v, "SYNTH", params, onRemove);
   const pitchMapProfiles = [
@@ -1226,6 +1248,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
 
   const waveCtl = ctlFloat({ label: "Wave", value: t.waveform, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ waveform: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.waveform = x; }, { regen: false }) });
   const cutoffCtl = ctlFloat({ label: "Cutoff", value: t.cutoff, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ cutoff: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.cutoff = x; }, { regen: false }) });
+  bindInteractionTracking(cutoffCtl, "cutoff");
   const resoCtl = ctlFloat({ label: "Reso", value: t.resonance, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ resonance: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.resonance = x; }, { regen: false }) });
   const attackCtl = ctlFloat({ label: "Attack", value: t.attack, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ attack: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.attack = x; }, { regen: false }) });
   const decayCtl = ctlFloat({ label: "Decay", value: t.decay, min: 0, max: 1, step: 0.001, onChange: (x) => onPatchChange((p) => { setReactive({ decay: x }); const m = p.modules.find((z) => z.id === v.id); if (m?.type === "tonal") m.decay = x; }, { regen: false }) });
@@ -1368,5 +1391,13 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       triggerSource: t.triggerSource,
       reception: t.reception,
     });
+    const cutoffSource = t.modulations?.cutoff;
+    const cutoffSample = sampleModulationValue(cutoffSource);
+    const isCutoffModulated = Boolean(cutoffSource && cutoffSample != null);
+    cutoffCtl.classList.toggle("ctlModulated", isCutoffModulated);
+    cutoffCtl.title = isCutoffModulated ? `CTRL ${cutoffSource}` : "";
+    if (isCutoffModulated && !activeInteractionKeys.has("cutoff")) {
+      cutoffCtl.syncValue?.(applyCenteredModulation(t.cutoff, cutoffSample, 0.9, 0, 1));
+    }
   };
 }

@@ -14,6 +14,7 @@ import {
   createRoutingChip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import { getControllableFamilies, getTargetParameterGroups } from "./controlTargetCatalog";
 
 const KINDS: ControlKind[] = ["lfo", "drift", "stepped"];
 const WAVES: Array<{ value: LfoWaveform; label: string }> = [
@@ -35,6 +36,7 @@ export function renderControlSurface(
   routing: RoutingSnapshot,
   isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
+  onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   modulePresetRecords: ModulePresetRecord[] = [],
   onLoadModulePreset?: (moduleId: string, presetId: string) => void,
   onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
@@ -163,6 +165,110 @@ export function renderControlSurface(
   );
 
   const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--controlRouting");
+  const controllableFamilies = new Set(getControllableFamilies());
+  const targetModules = [...routing.modules.values()]
+    .filter((moduleRef) => moduleRef.id !== mod.id && controllableFamilies.has(moduleRef.family))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  let selectedTargetId: string | null = targetModules[0]?.id ?? null;
+  let selectedGroupKey: string | null = selectedTargetId
+    ? (getTargetParameterGroups(routing.modules.get(selectedTargetId)?.family ?? "trigger")[0]?.key ?? null)
+    : null;
+
+  const selectedTargetField = createCompactSelectField({
+    label: "Target",
+    options: targetModules.map((target) => ({ value: target.id, label: `${target.name} · ${target.family.toUpperCase()}` })),
+    selected: selectedTargetId,
+    emptyLabel: "No targets",
+    includeEmptyOption: false,
+    onChange: (value) => {
+      selectedTargetId = value ?? null;
+      const selectedTargetFamily = value ? routing.modules.get(value)?.family : undefined;
+      const nextGroups = getTargetParameterGroups(selectedTargetFamily ?? "trigger");
+      selectedGroupKey = nextGroups[0]?.key ?? null;
+      syncRoutingSelectors();
+    },
+  });
+
+  const selectedGroupField = createCompactSelectField({
+    label: "Group",
+    options: [],
+    selected: selectedGroupKey,
+    emptyLabel: "No groups",
+    includeEmptyOption: false,
+    onChange: (value) => {
+      selectedGroupKey = value;
+      renderParameterChecklist();
+    },
+  });
+
+  const parameterChecklist = document.createElement("div");
+  parameterChecklist.className = "routingChipList";
+
+  const listControlledByThisModule = (targetId: string) =>
+    (routing.controlTargets.get(mod.id) ?? []).filter((target) => target.targetId === targetId).map((target) => target.parameter);
+
+  const renderParameterChecklist = () => {
+    parameterChecklist.replaceChildren();
+    if (!selectedTargetId) {
+      parameterChecklist.appendChild(createRoutingChip("No target selected", "muted"));
+      return;
+    }
+    const target = routing.modules.get(selectedTargetId);
+    const groups = getTargetParameterGroups(target?.family ?? "trigger");
+    const group = groups.find((entry) => entry.key === selectedGroupKey) ?? groups[0];
+    if (!group) {
+      parameterChecklist.appendChild(createRoutingChip("No parameter groups", "muted"));
+      return;
+    }
+
+    const controlledByThis = new Set(listControlledByThisModule(selectedTargetId));
+    for (const param of group.parameters) {
+      const row = document.createElement("label");
+      row.className = "compactSelectField routingInlineCard";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "routingCheckboxInput";
+      checkbox.checked = controlledByThis.has(param.key);
+      const caption = document.createElement("span");
+      caption.className = "compactSelectLabel";
+      caption.textContent = param.label;
+      row.append(checkbox, caption);
+
+      checkbox.addEventListener("change", () => {
+        onRoutingChange((p) => {
+          const targetModule = p.modules.find((module) => module.id === selectedTargetId);
+          if (!targetModule || !(targetModule.type === "trigger" || targetModule.type === "drum" || targetModule.type === "tonal")) return;
+          targetModule.modulations = targetModule.modulations ?? {};
+          if (checkbox.checked) targetModule.modulations[param.key] = mod.id;
+          else if (targetModule.modulations[param.key] === mod.id) delete targetModule.modulations[param.key];
+        }, { regen: false });
+      });
+
+      parameterChecklist.appendChild(row);
+    }
+  };
+
+  const syncRoutingSelectors = () => {
+    const target = selectedTargetId ? routing.modules.get(selectedTargetId) : null;
+    const groups = getTargetParameterGroups(target?.family ?? "trigger");
+    selectedGroupField.select.replaceChildren();
+    groups.forEach((group) => {
+      const option = document.createElement("option");
+      option.value = group.key;
+      option.textContent = group.label;
+      option.selected = group.key === selectedGroupKey;
+      selectedGroupField.select.appendChild(option);
+    });
+    if (!groups.length) selectedGroupKey = null;
+    if (groups.length && !groups.some((group) => group.key === selectedGroupKey)) selectedGroupKey = groups[0].key;
+    if (selectedGroupKey) selectedGroupField.select.value = selectedGroupKey;
+    renderParameterChecklist();
+  };
+
+  const assignCard = createRoutingCard("Assign targets", targetModules.length ? "Module → Group → Parameters" : "No valid targets");
+  assignCard.append(selectedTargetField.wrap, selectedGroupField.wrap, parameterChecklist);
+  panelRouting.appendChild(assignCard);
+
   const targetCard = createRoutingCard("Targets", controlTargets.length ? `${controlTargets.length} lane${controlTargets.length === 1 ? "" : "s"}` : "No routes");
   const targetList = document.createElement("div");
   targetList.className = "routingChipList";
@@ -177,6 +283,7 @@ export function renderControlSurface(
   }
   targetCard.appendChild(targetList);
   panelRouting.appendChild(targetCard);
+  syncRoutingSelectors();
 
   const shell = createModuleTabShell({
     specs: [
