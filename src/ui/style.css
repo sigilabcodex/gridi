@@ -5577,9 +5577,49 @@ button:focus-visible,
   width: 5px;
   height: 5px;
   border-radius: 50%;
+  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px))) scale(calc(0.92 + var(--sonar-hit, 0) * 0.32));
+  background: rgba(173, 222, 255, calc(0.18 + var(--sonar-hit, 0.1) * 0.68 + var(--sonar-shimmer, 0) * 0.28));
+  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 10px) rgba(160, 223, 255, 0.52);
+  transform-origin: center;
+}
+
+.triggerDisplaySonarBlip[data-behavior="still"] {
+  width: 4px;
+  height: 4px;
+}
+
+.triggerDisplaySonarBlip[data-behavior="travelling"] {
+  width: 5px;
+  height: 5px;
+}
+
+.triggerDisplaySonarBlip[data-behavior="oscillating"] {
+  width: 5px;
+  height: 5px;
+}
+
+.triggerDisplaySonarTrail {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
   transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px)));
-  background: rgba(173, 222, 255, calc(0.2 + var(--sonar-hit, 0.1) * 0.66));
-  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 8px) rgba(160, 223, 255, 0.52);
+  background: rgba(165, 216, 251, 0.24);
+  pointer-events: none;
+}
+
+.triggerDisplaySonarTrail--1 {
+  opacity: 0.26;
+}
+
+.triggerDisplaySonarTrail--2 {
+  opacity: 0.16;
+}
+
+.triggerDisplaySonarTrail--3 {
+  opacity: 0.09;
 }
 
 .triggerDisplaySonarBlip.is-hot {
