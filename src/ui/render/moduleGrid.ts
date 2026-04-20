@@ -20,6 +20,7 @@ import { renderAddModuleSlot } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
 import type { ModulePresetRecord } from "../persistence/modulePresetStore";
+import { sampleControlValue01 } from "../modulationView";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -443,6 +444,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       params.onPatchChange(fn, opts);
       rerender();
     };
+    const sampleModulationValue = (controlId: string | null | undefined) =>
+      sampleControlValue01(params.patch(), controlId, performance.now() / 1000);
 
     const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
       surface.tabIndex = 0;
@@ -535,6 +538,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             () => params.sched.running,
             params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             controlOptions,
             params.attachTooltip,
             params.modulePresetRecords,
@@ -557,6 +561,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             getLedState: params.led,
             onPatchChange: params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
             triggerOptions,
             controlOptions,
@@ -581,6 +586,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             getLedState: params.led,
             onPatchChange: params.onPatchChange,
             onRoutingChange,
+            sampleModulationValue,
             ui: { tab: params.getVoiceTab(module.id), setTab: (tab) => params.setVoiceTab(module.id, tab) },
             triggerOptions,
             controlOptions,

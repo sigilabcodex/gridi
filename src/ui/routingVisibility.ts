@@ -177,7 +177,7 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
           targetId: module.id,
           targetName: module.name,
           targetFamily: module.type,
-          parameter: route.parameterLabel,
+          parameter: route.parameter ?? route.parameterLabel,
           parameterLabel: route.parameterLabel,
         });
         controlTargets.set(route.source.id, targets);

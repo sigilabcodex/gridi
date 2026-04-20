@@ -165,3 +165,52 @@ test('typed route fallback id is deterministic when id is omitted', () => {
   assert.equal(compiledA.routes.length, 1);
   assert.equal(compiledA.routes[0].id, compiledB.routes[0].id);
 });
+
+test('modulation routes enforce single controller per target parameter', () => {
+  const trigger = makeTrigger({ id: 'trg-1' });
+  const sound = makeSound({ id: 'drm-1', triggerSource: trigger.id, modulations: {} });
+  const controlA = makeControl({ id: 'ctl-a' });
+  const controlB = makeControl({ id: 'ctl-b' });
+  const patch = makePatch([trigger, sound, controlA, controlB]);
+  patch.routes = [
+    {
+      id: 'mod-a',
+      domain: 'modulation',
+      source: { kind: 'module', moduleId: controlA.id, port: 'cv-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'cv-in' },
+      enabled: true,
+      metadata: { createdFrom: 'ui', parameter: 'basePitch' },
+    },
+    {
+      id: 'mod-b',
+      domain: 'modulation',
+      source: { kind: 'module', moduleId: controlB.id, port: 'cv-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'cv-in' },
+      enabled: true,
+      metadata: { createdFrom: 'ui', parameter: 'basePitch' },
+    },
+  ];
+
+  const compiled = compileRoutingGraph(patch);
+  assert.deepEqual(compiled.modulationIncomingByTarget.get(sound.id), [{ parameter: 'basePitch', sourceId: controlA.id }]);
+  assert.equal(compiled.warnings.some((warning) => warning.includes('already controlled')), true);
+});
+
+test('self-modulation route is rejected', () => {
+  const control = makeControl({ id: 'ctl-self' });
+  const patch = makePatch([control]);
+  patch.routes = [
+    {
+      id: 'mod-self',
+      domain: 'modulation',
+      source: { kind: 'module', moduleId: control.id, port: 'cv-out' },
+      target: { kind: 'module', moduleId: control.id, port: 'cv-in' },
+      enabled: true,
+      metadata: { createdFrom: 'ui', parameter: 'amount' },
+    },
+  ];
+
+  const compiled = compileRoutingGraph(patch);
+  assert.equal(compiled.modulationIncomingByTarget.has(control.id), false);
+  assert.equal(compiled.warnings.some((warning) => warning.includes('self-modulation')), true);
+});
