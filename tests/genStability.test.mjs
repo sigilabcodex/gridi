@@ -13,6 +13,7 @@ function makeTrigger(overrides = {}) {
     seed: 4401,
     determinism: 0.7,
     gravity: 0.6,
+    accent: 0.5,
     density: 0.5,
     subdiv: 4,
     length: 32,
@@ -32,6 +33,31 @@ test('gear model supports up to four interlocking rings', () => {
   assert.equal(model.rings.length, 4);
   assert.ok(model.rings.every((ring) => ring.direction === 1 || ring.direction === -1));
   assert.ok(model.steps >= 8 && model.steps <= 128);
+});
+
+test('accent depth shapes velocity while preserving hit structure', () => {
+  const base = makeTrigger({
+    mode: 'euclidean',
+    seed: 1221,
+    length: 24,
+    density: 0.55,
+    weird: 0.4,
+    gravity: 0.6,
+    determinism: 0.7,
+    drop: 0,
+  });
+  const soft = createPatternModuleForTrigger({ ...base, accent: 0 }).renderWindow({ trigger: { ...base, accent: 0 }, voiceId: 'voice-a', startBeat: 0, endBeat: 2 });
+  const hard = createPatternModuleForTrigger({ ...base, accent: 1 }).renderWindow({ trigger: { ...base, accent: 1 }, voiceId: 'voice-a', startBeat: 0, endBeat: 2 });
+
+  assert.deepEqual(
+    soft.events.map((event) => event.beatOffset),
+    hard.events.map((event) => event.beatOffset),
+    'accent must not alter hit placement',
+  );
+  assert.ok(
+    soft.events.some((event, index) => Math.abs(event.value - hard.events[index].value) > 0.02),
+    'accent should alter at least part of the velocity contour',
+  );
 });
 
 test('gen event velocities remain inside safety headroom for dense scenarios', () => {

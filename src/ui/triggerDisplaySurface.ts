@@ -349,6 +349,7 @@ function createDisplaySyncSignature(module: TriggerModule) {
     module.density,
     module.weird,
     module.gravity,
+    module.accent,
     module.determinism,
     module.drop,
     module.euclidRot,
@@ -1242,15 +1243,35 @@ function writeCurrentPattern(state: StepGridState, index: number, next: 0 | 1) {
 
 function resolveStepGridLayout(length: number, subdiv: number) {
   const clampedLength = clamp(Math.round(length), 1, 128);
-  let rows = clamp(Math.round(subdiv), 1, 8);
-  let cols = Math.ceil(clampedLength / rows);
-  while (cols > 32 && rows < 8) {
-    rows += 1;
-    cols = Math.ceil(clampedLength / rows);
+  const maxRows = 6;
+  const desiredRows = clampedLength <= 16
+    ? 1
+    : clampedLength <= 32
+      ? 2
+      : clampedLength <= 48
+        ? 3
+        : clampedLength <= 64
+          ? 4
+          : clampedLength <= 96 ? 5 : 6;
+
+  let bestRows = 1;
+  let bestCols = clampedLength;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (let rows = 1; rows <= maxRows; rows += 1) {
+    const cols = clamp(Math.ceil(clampedLength / rows), 1, 32);
+    const used = cols * rows;
+    const spare = used - clampedLength;
+    const rowBias = Math.abs(rows - desiredRows);
+    const colBias = Math.abs(cols - 16) / 16;
+    const subdivBias = Math.abs(rows - clamp(Math.round(subdiv), 1, maxRows)) * 0.1;
+    const score = spare * 0.6 + rowBias * 1.2 + colBias + subdivBias;
+    if (score < bestScore) {
+      bestScore = score;
+      bestRows = rows;
+      bestCols = cols;
+    }
   }
-  cols = clamp(cols, 1, 32);
-  rows = Math.ceil(clampedLength / cols);
-  return { cols, rows };
+  return { cols: bestCols, rows: bestRows };
 }
 
 function resolveAnimatedStepIndex(timeMs: number, module: TriggerModule, steps: number) {

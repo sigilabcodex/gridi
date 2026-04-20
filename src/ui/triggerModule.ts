@@ -31,6 +31,7 @@ type TriggerControlKey =
   | "drop"
   | "determinism"
   | "gravity"
+  | "accent"
   | "euclidRot"
   | "caRule"
   | "caInit";
@@ -1298,6 +1299,16 @@ export function renderTriggerSurface(
       tooltip: "Pull generated hits toward denser clusters.",
       attachTooltip,
       onChange: (x) => setParam("gravity", x),
+    }),
+    ctlFloat({
+      label: "Accent",
+      value: t.accent,
+      min: 0,
+      max: 1,
+      step: 0.001,
+      tooltip: "Scale GEN velocity accents from neutral (0) to mode-shaped (1). Lives in Advanced for now; likely Fine-tune later.",
+      attachTooltip,
+      onChange: (x) => setParam("accent", x),
     }),
     ctlFloat({
       label: "Rotate",

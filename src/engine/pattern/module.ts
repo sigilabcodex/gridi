@@ -35,6 +35,11 @@ function clamp01(x: number) {
   return Math.max(0, Math.min(1, x));
 }
 
+function triggerAccentDepth(trigger: TriggerModule) {
+  const raw = (trigger as Partial<TriggerModule>).accent;
+  return clamp01(typeof raw === "number" ? raw : 0.5);
+}
+
 function patternLength(trigger: TriggerModule) {
   return Math.max(1, Math.min(MAX_PATTERN_STEPS, trigger.length | 0));
 }
@@ -516,21 +521,26 @@ function genSonarPattern(trigger: TriggerModule, voiceId: string) {
 }
 
 function patternForMode(mode: Mode, trigger: TriggerModule, voiceId: string) {
+  const modeId = mode as string;
+  const normalizedMode = modeId === "step" ? "step-sequencer"
+    : modeId === "euclid" ? "euclidean"
+      : modeId === "ca" ? "cellular-automata"
+        : mode;
   const generated =
-    mode === "step-sequencer" ? genStepPattern(trigger)
-      : mode === "euclidean" ? genEuclidPattern(trigger, voiceId)
-        : mode === "cellular-automata" ? genCAPattern(trigger, voiceId)
-          : mode === "fractal" ? genFractalPattern(trigger, voiceId)
-            : mode === "non-euclidean" ? genNonEuclideanPattern(trigger, voiceId)
-              : mode === "hybrid" ? genHybridPattern(trigger, voiceId)
-                : mode === "markov-chains" ? genMarkovPattern(trigger, voiceId)
-                  : mode === "l-systems" ? genLSystemsPattern(trigger, voiceId)
-                    : mode === "xronomorph" ? genXronoMorphPattern(trigger, voiceId)
-                      : mode === "genetic-algorithms" ? genGeneticPattern(trigger, voiceId)
-                      : mode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
-                        : mode === "gear" ? createGearPattern(trigger, voiceId)
-                          : mode === "sonar" ? genSonarPattern(trigger, voiceId)
-                          : genHybridPattern(trigger, voiceId);
+    normalizedMode === "step-sequencer" ? genStepPattern(trigger)
+      : normalizedMode === "euclidean" ? genEuclidPattern(trigger, voiceId)
+        : normalizedMode === "cellular-automata" ? genCAPattern(trigger, voiceId)
+          : normalizedMode === "fractal" ? genFractalPattern(trigger, voiceId)
+            : normalizedMode === "non-euclidean" ? genNonEuclideanPattern(trigger, voiceId)
+              : normalizedMode === "hybrid" ? genHybridPattern(trigger, voiceId)
+                : normalizedMode === "markov-chains" ? genMarkovPattern(trigger, voiceId)
+                  : normalizedMode === "l-systems" ? genLSystemsPattern(trigger, voiceId)
+                    : normalizedMode === "xronomorph" ? genXronoMorphPattern(trigger, voiceId)
+                      : normalizedMode === "genetic-algorithms" ? genGeneticPattern(trigger, voiceId)
+                      : normalizedMode === "one-over-f-noise" ? genOneOverFPattern(trigger, voiceId)
+                        : normalizedMode === "gear" ? createGearPattern(trigger, voiceId)
+                          : normalizedMode === "sonar" ? genSonarPattern(trigger, voiceId)
+                            : genHybridPattern(trigger, voiceId);
   const live = trigger.liveState;
   if (!live || live.mode !== mode || live.steps !== generated.length || typeof live.pattern !== "string") return generated;
   const out = generated.slice();
@@ -548,6 +558,10 @@ export function getPatternPreview(trigger: TriggerModule, voiceId = "preview", p
 }
 
 function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId: string, startBeat: number, endBeat: number): PatternEventWindow {
+  const modeId = (trigger.mode as string) === "step" ? "step-sequencer"
+    : (trigger.mode as string) === "euclid" ? "euclidean"
+      : (trigger.mode as string) === "ca" ? "cellular-automata"
+        : trigger.mode;
   const subdiv = Math.max(1, trigger.subdiv | 0);
   const stepsPerBeat = 2 * subdiv;
   const firstStep = Math.ceil(startBeat * stepsPerBeat - EPS);
@@ -578,39 +592,46 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     return count > 0 ? sum / count : 0.5;
   }
 
-  function stepValue(step: number, idx: number) {
+  function velocitySignal(step: number, idx: number) {
     const stepNorm = normalizedStep(idx);
-    if (trigger.mode === "step-sequencer") return stepNorm;
-    if (trigger.mode === "euclidean") return pulseIndexNormalized(idx);
-    if (trigger.mode === "markov-chains") return Math.max(0, Math.min(1, pattern[idx] * 0.7 + stepNorm * 0.3));
-    if (trigger.mode === "cellular-automata") return localDensity(idx);
-    if (trigger.mode === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
-    if (trigger.mode === "gear") return Math.max(0, Math.min(1, localDensity(idx) * 0.75 + pulseIndexNormalized(idx) * 0.25));
-    if (trigger.mode === "sonar") return Math.max(0, Math.min(1, 0.5 + Math.cos((idx / steps) * Math.PI * 2) * 0.5));
-    if (trigger.mode === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
+    if (modeId === "step-sequencer") return clamp01(0.35 + stepNorm * 0.45);
+    if (modeId === "euclidean") return pulseIndexNormalized(idx);
+    if (modeId === "markov-chains") return Math.max(0, Math.min(1, localDensity(idx) * 0.6 + stepNorm * 0.4));
+    if (modeId === "cellular-automata") return localDensity(idx);
+    if (modeId === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
+    if (modeId === "gear") return Math.max(0, Math.min(1, localDensity(idx) * 0.75 + pulseIndexNormalized(idx) * 0.25));
+    if (modeId === "sonar") return Math.max(0, Math.min(1, 0.5 + Math.cos((idx / steps) * Math.PI * 2) * 0.5));
+    if (modeId === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
     return stepNorm;
   }
 
-  function normalizedVelocity(baseValue: number) {
-    const base = Math.max(0.12, Math.min(1, baseValue));
+  function normalizedVelocity(structuralVelocity: number) {
+    const accentDepth = triggerAccentDepth(trigger);
     const activity = totalPulses / Math.max(1, steps);
-    const targetActivity = trigger.mode === "gear" ? 0.3 : trigger.mode === "sonar" ? 0.33 : 0.36;
+    const targetActivity = modeId === "gear" ? 0.3 : modeId === "sonar" ? 0.33 : 0.36;
     const activityComp = Math.sqrt(targetActivity / Math.max(0.06, activity));
-    const modeCeiling = trigger.mode === "gear" ? 0.78 : trigger.mode === "sonar" ? 0.82 : 0.9;
-    const modeFloor = trigger.mode === "gear" ? 0.2 : 0.16;
-    const stabilized = base * Math.max(0.76, Math.min(1.16, activityComp));
-    return Math.max(modeFloor, Math.min(modeCeiling, stabilized));
+    const modeCeiling = modeId === "gear" ? 0.78 : modeId === "sonar" ? 0.82 : 0.9;
+    const modeFloor = modeId === "gear" ? 0.2 : 0.16;
+    const stabilized = structuralVelocity * Math.max(0.76, Math.min(1.16, activityComp));
+    const neutralVelocity = 0.62;
+    const expressive = Math.max(modeFloor, Math.min(modeCeiling, stabilized));
+    const blended = neutralVelocity + (expressive - neutralVelocity) * accentDepth;
+    return Math.max(modeFloor, Math.min(modeCeiling, blended));
   }
 
   function stepLane(step: number, idx: number) {
-    if (trigger.mode === "gear") {
+    if (modeId === "step-sequencer") {
+      const laneCycle = [0, 2, 1, 3];
+      return laneCycle[((step % laneCycle.length) + laneCycle.length) % laneCycle.length] ?? 0;
+    }
+    if (modeId === "gear") {
       const teeth = Math.max(2, Math.min(16, Math.round(trigger.length / 4)));
       return ((Math.floor((idx / Math.max(1, steps)) * teeth) + (trigger.euclidRot | 0)) % 4 + 4) % 4;
     }
-    if (trigger.mode === "sonar") {
+    if (modeId === "sonar") {
       return ((Math.floor((idx / Math.max(1, steps)) * 8) + Math.round(trigger.gravity * 3)) % 4 + 4) % 4;
     }
-    if (trigger.mode === "fractal") {
+    if (modeId === "fractal") {
       return ((Math.floor(step / Math.max(1, trigger.subdiv | 0)) + Math.round(trigger.weird * 3)) % 4 + 4) % 4;
     }
     return ((idx + Math.round(trigger.gravity * 5)) % 4 + 4) % 4;
@@ -623,7 +644,12 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     const idx = pattern.length > 0 ? ((step % pattern.length) + pattern.length) % pattern.length : 0;
     if (pattern[idx] !== 1) continue;
     if (drop > 0 && stepRandom01(trigger.seed, voiceId, step) < drop) continue;
-    events.push({ voiceId, beatOffset: beat - startBeat, value: normalizedVelocity(stepValue(step, idx)), targetLane: stepLane(step, idx) });
+    events.push({
+      voiceId,
+      beatOffset: beat - startBeat,
+      value: normalizedVelocity(velocitySignal(step, idx)),
+      targetLane: stepLane(step, idx),
+    });
   }
 
   return { startBeat, endBeat, events };
