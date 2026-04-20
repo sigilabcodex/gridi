@@ -44,6 +44,7 @@ export type SequencerParams = {
   seed: number;
   determinism: number;
   gravity: number;
+  accent: number;
   density: number;
   subdiv: 1 | 2 | 4 | 8;
   length: number;
@@ -257,6 +258,7 @@ function defaultSequencer(i: number): SequencerParams {
     seed: 1000 + i * 77,
     determinism: 0.8,
     gravity: 0.6,
+    accent: 0.5,
     density: 0.35,
     subdiv: 4,
     length: 16,
@@ -470,6 +472,7 @@ function normalizeSequencer(raw: any, fallbackIndex = 0): SequencerParams {
     seed: typeof raw?.seed === "number" ? raw.seed | 0 : base.seed,
     determinism: clamp(typeof raw?.determinism === "number" ? raw.determinism : base.determinism, 0, 1),
     gravity: clamp(typeof raw?.gravity === "number" ? raw.gravity : base.gravity, 0, 1),
+    accent: clamp(typeof raw?.accent === "number" ? raw.accent : base.accent, 0, 1),
     density: clamp(typeof raw?.density === "number" ? raw.density : base.density, 0, 1),
     subdiv: ([1, 2, 4, 8].includes(raw?.subdiv) ? raw.subdiv : base.subdiv) as 1 | 2 | 4 | 8,
     length: clamp(typeof raw?.length === "number" ? raw.length : base.length, 1, 128) | 0,

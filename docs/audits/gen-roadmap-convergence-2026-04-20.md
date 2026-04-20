@@ -98,3 +98,15 @@ Why this improvement now:
 - It directly follows architecture staging guidance,
 - keeps patch compatibility untouched (flat mode IDs unchanged),
 - reduces duplication and creates a clean anchor for upcoming SONAR/GEAR and v0.5 family work.
+
+## D) Velocity editing staging note (added in stabilization follow-up)
+
+- Full editable per-step velocity should primarily target `step-sequencer` (and secondarily `hybrid`) because those modes are the clearest fit for explicit grid-style authoring.
+- That work is deferred in `v0.32.x` stabilization to avoid over-expanding Trigger into a DAW-like editor while core GEN semantics and layout readability are still being tightened.
+- Near-future direction:
+  - optional interactive GEN displays (mode-by-mode),
+  - per-step on/off editing where musically justified,
+  - per-step velocity editing (focused first on `step-sequencer`),
+  - pointer-gesture and mouse-wheel refinements for fast live editing,
+  - possible popup/lightbox editor for denser velocity work without overloading the compact faceplate.
+- UI naming/tab note: current `Advanced` placement is pragmatic; it may evolve into `Fine-tune`, and tab logic may need further crowding control as GEN controls expand.
