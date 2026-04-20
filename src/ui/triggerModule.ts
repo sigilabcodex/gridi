@@ -1,5 +1,6 @@
 import type { Mode, Patch, TriggerModule } from "../patch";
 import { getPatternPreview } from "../engine/pattern/module";
+import { GEN_MODES, getGenModeMeta } from "../engine/pattern/genModeRegistry";
 import { ctlFloat, type CtlFloatElement } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
@@ -18,24 +19,8 @@ import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import type { TooltipBinder } from "./tooltip";
 
-const GENERATOR_MODE_LABELS: Record<Mode, { full: string; short: string }> = {
-  "step-sequencer": { full: "Step Sequencer", short: "SSEQ" },
-  "cellular-automata": { full: "Cellular Automata", short: "CA" },
-  "euclidean": { full: "Euclidean", short: "EUC" },
-  "non-euclidean": { full: "Non-Euclidean", short: "NEUC" },
-  "fractal": { full: "Fractal", short: "FRACT" },
-  "hybrid": { full: "Hybrid", short: "HYB" },
-  "markov-chains": { full: "Markov Chains", short: "MARKOV" },
-  "l-systems": { full: "L-Systems", short: "LSYS" },
-  "xronomorph": { full: "XronoMorph", short: "XRM" },
-  "genetic-algorithms": { full: "Genetic Algorithms", short: "GA" },
-  "one-over-f-noise": { full: "1/f Noise", short: "1/F" },
-  "gear": { full: "GEAR", short: "GEAR" },
-  "sonar": { full: "SONAR", short: "SONAR" },
-};
-
-const GENERATOR_MODES: Array<{ value: Mode; label: string }> = (Object.entries(GENERATOR_MODE_LABELS) as Array<[Mode, { full: string }]>)
-  .map(([value, labels]) => ({ value, label: labels.full }));
+const GENERATOR_MODES: Array<{ value: Mode; label: string }> = GEN_MODES
+  .map((value) => ({ value, label: getGenModeMeta(value).fullLabel }));
 
 type ControlOption = { id: string; label: string };
 type TriggerControlKey =
@@ -1374,7 +1359,7 @@ export function renderTriggerSurface(
     syncModeControlValues();
     badge.textContent = "GEN";
     generatorLabel.textContent = "MODE";
-    generatorValue.textContent = GENERATOR_MODE_LABELS[t.mode]?.short ?? "GEN";
+    generatorValue.textContent = getGenModeMeta(t.mode).shortLabel;
     if (modePanel) {
       const rows = modePanel.querySelectorAll<HTMLElement>(".triggerModeSelectorRow");
       rows.forEach((row) => {
@@ -1388,7 +1373,7 @@ export function renderTriggerSurface(
     if (document.activeElement !== seedInput) seedInput.value = String(t.seed).padStart(6, "0");
     routingChip.textContent = !outgoingVoices.length ? "ROUT" : outgoingVoices.length >= 3 ? "ROUT 3+" : `ROUT ${outgoingVoices.length}`;
     stateToken.textContent = runtimeStateLabel(isTransportPlaying(), t.enabled);
-    modeToken.textContent = `MODE ${GENERATOR_MODE_LABELS[t.mode]?.full ?? "GEN"}`;
+    modeToken.textContent = `MODE ${getGenModeMeta(t.mode).fullLabel}`;
     display.sync(t);
     transportReadout.textContent = `${t.length} st · /${t.subdiv} · ${Math.round(t.density * 100)}%`;
   }

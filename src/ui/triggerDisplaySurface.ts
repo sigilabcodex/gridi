@@ -1,5 +1,6 @@
 import type { Mode, TriggerModule } from "../patch";
 import { createGearModel } from "../engine/pattern/gear";
+import { getGenModeMeta } from "../engine/pattern/genModeRegistry";
 
 type TriggerDisplayParams = {
   module: TriggerModule;
@@ -54,22 +55,6 @@ function livePatternString(module: TriggerModule) {
   if (typeof live.pattern !== "string") return null;
   return live.pattern;
 }
-
-const MODE_LABELS: Record<Mode, string> = {
-  "step-sequencer": "Step Sequencer",
-  "cellular-automata": "Cellular Automata",
-  euclidean: "Euclidean",
-  "non-euclidean": "Non-Euclidean",
-  fractal: "Fractal",
-  hybrid: "Hybrid",
-  "markov-chains": "Markov Chains",
-  "l-systems": "L-Systems",
-  xronomorph: "XronoMorph",
-  "genetic-algorithms": "Genetic Algorithms",
-  "one-over-f-noise": "1/f Noise",
-  gear: "GEAR",
-  sonar: "SONAR",
-};
 
 export function createTriggerDisplaySurface(params: TriggerDisplayParams): TriggerDisplayApi {
   const wrap = document.createElement("div");
@@ -1141,7 +1126,7 @@ function renderModePlaceholder(mode: Mode) {
   placeholder.className = "triggerDisplayPlaceholder";
 
   const title = document.createElement("strong");
-  title.textContent = MODE_LABELS[mode];
+  title.textContent = getGenModeMeta(mode).fullLabel;
 
   const hint = document.createElement("span");
   hint.textContent = "Mode renderer is intentionally deferred in this pass.";
