@@ -1902,6 +1902,28 @@ button.danger.armed {
   padding: var(--module-face-pad-y) var(--module-face-pad-x) 9px;
 }
 
+.surfaceFace > .surfaceTabPanel.routingTabScrollBody {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(130, 178, 226, 0.42) rgba(12, 22, 34, 0.18);
+}
+
+.surfaceFace > .surfaceTabPanel.routingTabScrollBody::-webkit-scrollbar {
+  width: 8px;
+}
+
+.surfaceFace > .surfaceTabPanel.routingTabScrollBody::-webkit-scrollbar-track {
+  background: rgba(12, 22, 34, 0.16);
+  border-radius: 999px;
+}
+
+.surfaceFace > .surfaceTabPanel.routingTabScrollBody::-webkit-scrollbar-thumb {
+  background: rgba(130, 178, 226, 0.44);
+  border-radius: 999px;
+  border: 1px solid rgba(10, 18, 30, 0.45);
+}
+
 .surfaceTabs {
   gap: 7px;
   padding-top: 2px;

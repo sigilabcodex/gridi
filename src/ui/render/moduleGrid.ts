@@ -274,10 +274,33 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     });
   };
 
+  const snapshotRoutingScrollPositions = () => {
+    const positions = new Map<string, number>();
+    surfaceByModuleId.forEach((surface, moduleId) => {
+      const routingBody = surface.querySelector<HTMLElement>(".routingTabScrollBody[data-routing-scroll-id]");
+      if (!routingBody) return;
+      positions.set(moduleId, routingBody.scrollTop);
+    });
+    return positions;
+  };
+
+  const restoreRoutingScrollPositions = (positions: Map<string, number>) => {
+    if (!positions.size) return;
+    surfaceByModuleId.forEach((surface, moduleId) => {
+      const scrollTop = positions.get(moduleId);
+      if (typeof scrollTop !== "number") return;
+      const routingBody = surface.querySelector<HTMLElement>(".routingTabScrollBody[data-routing-scroll-id]");
+      if (!routingBody) return;
+      routingBody.scrollTop = scrollTop;
+    });
+  };
+
   const rerenderStable = () => {
     const scrollSnapshot = snapshotScrollPosition();
+    const routingScrollSnapshot = snapshotRoutingScrollPositions();
     rerender();
     restoreScrollPosition(scrollSnapshot);
+    restoreRoutingScrollPositions(routingScrollSnapshot);
   };
 
   const removeModule = (moduleId: string) => {
