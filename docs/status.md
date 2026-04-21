@@ -21,7 +21,7 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 
 - Shared fixed shell + tabbed module face system is stable.
 - Routing ownership is currently voice-owned (`triggerSource` on sound modules), with trigger-side routing UI acting as an editor/bridge.
-- CTRL routing now enforces single-owner modulation per parameter, blocks self-modulation, drives visible in-place movement on modulated controls (trigger density, drum pitch, synth cutoff), gates modulation activity by transport/audio-running state, and provides structured module/group/parameter selection in CTRL Routing while staying aligned with the global routing overview model.
+- CTRL routing now enforces single-owner modulation per parameter, blocks self-modulation, drives visible in-place movement on modulated controls (trigger density, drum pitch, synth cutoff), supports temporary user-override while editing, gates modulation activity by transport/audio-running state, and provides structured module/group/parameter selection in CTRL Routing while staying aligned with the global routing overview model.
 - Drum modules now support explicit channel assignment (`Auto`, `01`–`08`) with Auto fallback preserving differentiated behavior, while explicit channels behave as strict shared subscriptions.
 - Session presets (whole-patch state) and module presets (local module state) both exist and are active.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).

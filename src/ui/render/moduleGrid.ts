@@ -440,37 +440,38 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       });
     };
 
-    const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
-      params.onPatchChange(fn, opts);
-      rerender();
-    };
-    const sampleModulationValue = (controlId: string | null | undefined) =>
-      sampleControlValue01WhenActive(
-        params.patch(),
-        controlId,
-        performance.now() / 1000,
-        isModulationRuntimeActive({
-          transportRunning: params.sched.running,
-          audioState: params.engine.ctx.state,
-        }),
-      );
+ const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
+  params.onPatchChange(fn, opts);
+  rerender();
+};
 
-    const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
-      surface.tabIndex = 0;
-      surface.classList.add("draggableModule");
-      surface.dataset.moduleId = moduleId;
-      surface.dataset.gridX = String(position.x);
-      surface.dataset.gridY = String(position.y);
-      surface.setAttribute("aria-label", `Module ${moduleId.slice(-4)} at ${position.x + 1}, ${position.y + 1}`);
-      surfaceByModuleId.set(moduleId, surface);
-      focusableByPosition.set(gridPositionKey(position), surface);
-      handleGridNavigation(surface, position);
+const sampleModulationValue = (controlId: string | null | undefined) =>
+  sampleControlValue01WhenActive(
+    params.patch(),
+    controlId,
+    performance.now() / 1000,
+    isModulationRuntimeActive({
+      transportRunning: params.sched.running,
+      audioState: params.engine.ctx.state,
+    }),
+  );
 
-      const inspect = () => {
-        inspectedModuleId = moduleId;
-        params.onInspectModule?.(moduleId);
-        applyRoutingHighlight();
-      };
+const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HTMLElement, position: GridPosition) => {
+  surface.tabIndex = 0;
+  surface.classList.add("draggableModule");
+  surface.dataset.moduleId = moduleId;
+  surface.dataset.gridX = String(position.x);
+  surface.dataset.gridY = String(position.y);
+  surface.setAttribute("aria-label", `Module ${moduleId.slice(-4)} at ${position.x + 1}, ${position.y + 1}`);
+  surfaceByModuleId.set(moduleId, surface);
+  focusableByPosition.set(gridPositionKey(position), surface);
+  handleGridNavigation(surface, position);
+
+  const inspect = () => {
+    inspectedModuleId = moduleId;
+    params.onInspectModule?.(moduleId);
+    applyRoutingHighlight();
+  };
 
       const dragHandle = surface.querySelector<HTMLElement>(".surfaceBadge");
       if (!dragHandle) {
