@@ -304,7 +304,8 @@ function createFaceTabs(
   routing: RoutingSnapshot,
   onRoutingChange: SurfaceParams["onRoutingChange"],
 ) {
-  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--voiceRouting");
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--voiceRouting routingTabScrollBody");
+  panelRouting.dataset.routingScrollId = v.id;
 
   const incoming = routing.voiceIncoming.get(v.id);
 
@@ -368,6 +369,9 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
 export function renderDrumModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, sampleModulationValue, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const d = v as DrumModule;
+  const incomingModSourceByParameter = new Map(
+    (routing.voiceIncoming.get(v.id)?.modulations ?? []).map((modulation) => [modulation.parameter, modulation.source.id]),
+  );
   const DRUM_PITCH_MIN = 24;
   const DRUM_PITCH_MAX = 84;
   const DRUM_PITCH_SPAN = DRUM_PITCH_MAX - DRUM_PITCH_MIN;
@@ -904,7 +908,7 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
       triggerSource: d.triggerSource,
       drumChannel: normalizeDrumChannelMode(d.drumChannel),
     });
-    const pitchSource = d.modulations?.basePitch;
+    const pitchSource = incomingModSourceByParameter.get("basePitch") ?? d.modulations?.basePitch;
     const pitchSample = sampleModulationValue(pitchSource);
     const isPitchModulated = Boolean(pitchSource && pitchSample != null);
     pitchCtl.classList.toggle("ctlModulated", isPitchModulated);
@@ -919,6 +923,9 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
 export function renderSynthModuleSurface(params: SurfaceParams) {
   const { root, v, routing, onPatchChange, onRoutingChange, sampleModulationValue, getLedState, triggerOptions, controlOptions, ui, onRemove } = params;
   const t = v as TonalModule;
+  const incomingModSourceByParameter = new Map(
+    (routing.voiceIncoming.get(v.id)?.modulations ?? []).map((modulation) => [modulation.parameter, modulation.source.id]),
+  );
   const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
   const reactiveState: Pick<TonalModule, "waveform" | "cutoff" | "resonance" | "attack" | "decay" | "amp" | "modDepth" | "glide" | "fineTune" | "modRate" | "coarseTune" | "pan" | "sustain" | "release" | "triggerSource" | "reception"> = {
     waveform: t.waveform,
@@ -1358,7 +1365,7 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
       triggerSource: t.triggerSource,
       reception: t.reception,
     });
-    const cutoffSource = t.modulations?.cutoff;
+    const cutoffSource = incomingModSourceByParameter.get("cutoff") ?? t.modulations?.cutoff;
     const cutoffSample = sampleModulationValue(cutoffSource);
     const isCutoffModulated = Boolean(cutoffSource && cutoffSample != null);
     cutoffCtl.classList.toggle("ctlModulated", isCutoffModulated);

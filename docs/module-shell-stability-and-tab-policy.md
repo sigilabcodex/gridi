@@ -4,9 +4,17 @@
 
 All module families now render inside a fixed workspace cell (`--module-cell-w`, `--module-cell-h`) and each module surface fills that cell height. Tabs only swap panel visibility; they no longer change card dimensions. This keeps the grid rhythm stable when switching tabs or mixing module families.
 
-## No internal scrollbar rule
+## No full-module scrollbar rule
 
-Instrument modules no longer rely on generic internal scrolling regions. The surface face and tab panels are clipped (`overflow: hidden`) and content was curated to fit the shell. Overflow is handled by reducing/control-splitting content instead of introducing mini scroll panes.
+Instrument modules still do not use full-module scrolling. The shell remains fixed, with header/identity/tabs anchored in place.
+
+Exception for dense routing workflows: Routing tab bodies for **Control / Trigger / Drum / Synth** may use a contained vertical scroll region. This keeps patching controls reachable without breaking fixed-shell rhythm.
+
+Constraints of the exception:
+- vertical only,
+- contained inside Routing panel body,
+- no horizontal scroll,
+- Main and Settings/Advanced faces remain non-scrolling within the shell.
 
 ## Per-family tab policy
 

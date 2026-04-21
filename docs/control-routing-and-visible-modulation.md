@@ -30,6 +30,7 @@ Routing is now intentionally editable from both directions:
    - Re-selecting a source on a parameter replaces the prior owner for that parameter key.
 
 Because both UIs write to the same ownership map, source-side and target-side edits stay consistent with each other.
+Visible modulation rendering now resolves live ownership from the compiled routing snapshot (with legacy-map fallback), so either assignment direction produces the same animated target-control motion.
 
 ## Routing-context preservation
 
@@ -37,9 +38,25 @@ Routing edits now preserve the current editing context:
 
 - routing updates use stable rerender behavior (scroll snapshot/restore),
 - module tab state for **CTRL** and **GEN** modules is preserved across routing mutations,
-- existing DRUM/SYNTH tab persistence remains intact.
+- existing DRUM/SYNTH tab persistence remains intact,
+- Routing-tab internal scroll position is restored per-module across routing mutations.
 
 This prevents accidental jumps back to Main while patching in Routing tabs.
+
+## Routing-tab contained scroll exception
+
+To keep fixed shell sizing intact while supporting denser patching flows, Routing tabs now allow a **contained vertical scroll body** for:
+- **CTRL**
+- **GEN**
+- **DRUM**
+- **SYNTH**
+
+This is intentionally scoped:
+- module shell remains fixed,
+- tabs/header/identity remain visible,
+- no horizontal scrolling,
+- no Main-tab scrolling,
+- no full-module scrolling.
 
 ## Visible modulation behavior
 

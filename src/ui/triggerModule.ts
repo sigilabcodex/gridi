@@ -1236,7 +1236,8 @@ export function renderTriggerSurface(
   const outgoingVoices = routing.triggerTargets.get(t.id) ?? [];
   const incomingMods = routing.triggerIncoming.get(t.id) ?? [];
 
-  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting");
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--triggerRouting routingTabScrollBody");
+  panelRouting.dataset.routingScrollId = t.id;
 
   const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
   const targetsList = document.createElement("div");
@@ -1379,7 +1380,7 @@ export function renderTriggerSurface(
     }
     syncModeControlValues();
     const densityControl = renderedModeControls.find((control) => control.spec.key === "density")?.el;
-    const densitySourceId = t.modulations?.density;
+    const densitySourceId = incomingMods.find((modulation) => modulation.parameter === "density")?.source.id ?? t.modulations?.density;
     const densitySample = sampleModulationValue(densitySourceId);
     const densityModulated = densitySourceId ? densitySample != null : false;
     if (densityControl) {

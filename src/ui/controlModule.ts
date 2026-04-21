@@ -168,7 +168,8 @@ export function renderControlSurface(
     mainKnobGrid,
   );
 
-  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--controlRouting");
+  const panelRouting = createFaceplateStackPanel("utilityPanel utilityPanel--controlRouting routingTabScrollBody");
+  panelRouting.dataset.routingScrollId = mod.id;
   const controllableFamilies = new Set(getControllableFamilies());
   const targetModules = [...routing.modules.values()]
     .filter((moduleRef) => moduleRef.id !== mod.id && controllableFamilies.has(moduleRef.family))
