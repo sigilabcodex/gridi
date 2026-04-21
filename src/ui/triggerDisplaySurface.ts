@@ -591,6 +591,7 @@ function createSonarView(): DisplayView {
 
 function createStepSequencerView(module: TriggerModule, params: TriggerDisplayParams, state: StepGridState): DisplayView {
   const root = document.createElement("div");
+  root.className = "triggerDisplayStepView";
   const grid = renderInteractiveStepGrid(module, state, params);
   root.appendChild(grid);
 
@@ -1265,35 +1266,18 @@ function writeCurrentPattern(state: StepGridState, index: number, next: 0 | 1) {
 
 function resolveStepGridLayout(length: number, subdiv: number) {
   const clampedLength = clamp(Math.round(length), 1, 128);
-  const maxRows = 5;
-  const targetRows = clampedLength <= 16
-    ? 1
-    : clampedLength <= 32
-      ? 2
-      : clampedLength <= 64 ? 3 : 4;
-  const columnCandidates = [8, 12, 16, 24, 32];
   const snappedSubdiv = clamp(Math.round(subdiv), 1, 8);
+  const cols = 16;
+  let rows = 1;
+  if (clampedLength <= 16) rows = 1;
+  else if (clampedLength <= 32) rows = 2;
+  else if (clampedLength <= 48) rows = 3;
+  else if (clampedLength <= 64) rows = 4;
+  else if (clampedLength <= 96) rows = 6;
+  else rows = 8;
 
-  let bestRows = clamp(Math.ceil(clampedLength / 16), 1, maxRows);
-  let bestCols = 16;
-  let bestScore = Number.POSITIVE_INFINITY;
-  for (const baseCols of columnCandidates) {
-    const cols = clamp(baseCols, 1, 32);
-    const rows = clamp(Math.ceil(clampedLength / cols), 1, maxRows);
-    if (rows > maxRows) continue;
-    const used = cols * rows;
-    const spare = used - clampedLength;
-    const rowBias = Math.abs(rows - targetRows);
-    const colBias = Math.abs(cols - 16) / 10;
-    const phraseBias = cols % (snappedSubdiv >= 4 ? 8 : 4) === 0 ? 0 : 0.55;
-    const score = spare * 0.85 + rowBias * 1.2 + colBias + phraseBias;
-    if (score < bestScore) {
-      bestScore = score;
-      bestRows = rows;
-      bestCols = cols;
-    }
-  }
-  return { cols: bestCols, rows: bestRows };
+  if (snappedSubdiv <= 2 && clampedLength > 96) rows = 7;
+  return { cols, rows };
 }
 
 function resolvePhraseSpan(cols: number, subdiv: number) {
