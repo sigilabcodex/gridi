@@ -1,5 +1,9 @@
-import { sampleControl01 } from "../engine/control";
-import type { ControlModule, Patch } from "../patch";
+import { sampleControl01 } from "../engine/control.ts";
+import type { ControlModule, Patch } from "../patch.ts";
+
+export function isModulationRuntimeActive(opts: { transportRunning: boolean; audioState?: string | null }) {
+  return opts.transportRunning && opts.audioState === "running";
+}
 
 export function resolveControlModule(patch: Patch, controlId: string | null | undefined): ControlModule | null {
   if (!controlId) return null;
@@ -9,6 +13,16 @@ export function resolveControlModule(patch: Patch, controlId: string | null | un
 }
 
 export function sampleControlValue01(patch: Patch, controlId: string | null | undefined, nowSec: number): number | null {
+  return sampleControlValue01WhenActive(patch, controlId, nowSec, true);
+}
+
+export function sampleControlValue01WhenActive(
+  patch: Patch,
+  controlId: string | null | undefined,
+  nowSec: number,
+  modulationActive: boolean,
+): number | null {
+  if (!modulationActive) return null;
   const control = resolveControlModule(patch, controlId);
   if (!control) return null;
   return sampleControl01(control, nowSec);

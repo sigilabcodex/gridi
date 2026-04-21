@@ -53,6 +53,8 @@ export function createScheduler(engine: Engine): Scheduler {
 
 
   function modulateTrigger(trigger: TriggerModule, activePatch: Patch, nowSec: number): TriggerModule {
+    const ctxRunning = typeof engine.ctx.state === "string" ? engine.ctx.state === "running" : true;
+    if (!running || !ctxRunning) return trigger;
     const controlId = trigger.modulations?.density;
     if (!controlId) return trigger;
     const control = activePatch.modules.find((m): m is ControlModule => m.id === controlId && isControl(m));
@@ -165,6 +167,7 @@ export function createScheduler(engine: Engine): Scheduler {
   function start() {
     if (running) return;
     running = true;
+    engine.setTransportRunning?.(true);
     for (const st of sequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     transportStartTimeSec = engine.ctx.currentTime;
     transportStartBeatAbs = 0;
@@ -174,6 +177,7 @@ export function createScheduler(engine: Engine): Scheduler {
   function stop() {
     if (!running) return;
     running = false;
+    engine.setTransportRunning?.(false);
     if (timer !== null) window.clearInterval(timer);
     timer = null;
     for (const st of sequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;

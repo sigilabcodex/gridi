@@ -2060,6 +2060,13 @@ button.danger.armed {
   min-width: 0;
 }
 
+.routingCheckboxInput {
+  inline-size: 14px;
+  block-size: 14px;
+  margin: 0;
+  accent-color: rgba(120, 205, 255, 0.95);
+}
+
 .routingSelectors {
   margin-top: 4px;
 }
