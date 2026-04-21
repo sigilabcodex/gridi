@@ -15,6 +15,7 @@ import {
   createRoutingChip,
   type RoutingSnapshot,
 } from "./routingVisibility";
+import { createTargetModulationAssignPanel } from "./targetModulationAssign";
 
 export type VoiceTab = "MAIN" | "ROUTING" | "SETTINGS";
 
@@ -349,53 +350,19 @@ function createFaceTabs(
   });
 }
 
-function modulationSelect(
-  labelText: string,
-  options: ControlOption[],
-  selected: string | undefined,
-  onChange: (value: string | null) => void,
-) {
-  return createCompactSelectField({
-    label: labelText,
-    options: options.map((opt) => ({ value: opt.id, label: opt.label })),
-    selected,
-    emptyLabel: "None",
-    className: "routingInlineCard",
-    onChange,
-  }).wrap;
-}
-
 function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOption[], onRoutingChange: SurfaceParams["onRoutingChange"]) {
-  const selectors = document.createElement("div");
-  selectors.className = "routingSelectors";
-
-  if (v.type === "drum") {
-    selectors.appendChild(
-      modulationSelect("Pitch mod", controlOptions, v.modulations?.basePitch, (source) => onRoutingChange((p) => {
-        const m = p.modules.find((z) => z.id === v.id);
-        if (m?.type === "drum") {
-          m.modulations = m.modulations ?? {};
-          if (source) m.modulations.basePitch = source;
-          else delete m.modulations.basePitch;
-        }
-      }, { regen: false })),
-    );
-  }
-
-  if (v.type === "tonal") {
-    selectors.appendChild(
-      modulationSelect("Cut mod", controlOptions, v.modulations?.cutoff, (source) => onRoutingChange((p) => {
-        const m = p.modules.find((z) => z.id === v.id);
-        if (m?.type === "tonal") {
-          m.modulations = m.modulations ?? {};
-          if (source) m.modulations.cutoff = source;
-          else delete m.modulations.cutoff;
-        }
-      }, { regen: false })),
-    );
-  }
-
-  return selectors;
+  return createTargetModulationAssignPanel({
+    moduleType: v.type,
+    modulations: v.modulations as Record<string, string | undefined> | undefined,
+    controlOptions,
+    onAssign: (parameter, source) => onRoutingChange((p) => {
+      const m = p.modules.find((z) => z.id === v.id);
+      if (m?.type !== v.type) return;
+      m.modulations = m.modulations ?? {};
+      if (source) m.modulations[parameter] = source;
+      else delete m.modulations[parameter];
+    }, { regen: false }),
+  });
 }
 
 export function renderDrumModuleSurface(params: SurfaceParams) {

@@ -8,7 +8,6 @@ import { createModuleTabShell } from "./moduleShell";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import {
-  createCompactSelectField,
   createModuleRefChip,
   createRoutingCard,
   createRoutingChip,
@@ -19,6 +18,7 @@ import { createTriggerDisplaySurface } from "./triggerDisplaySurface";
 import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import type { TooltipBinder } from "./tooltip";
 import { applyCenteredModulation } from "./modulationView";
+import { createTargetModulationAssignPanel } from "./targetModulationAssign";
 
 const GENERATOR_MODES: Array<{ value: Mode; label: string }> = GEN_MODES
   .map((value) => ({ value, label: getGenModeMeta(value).fullLabel }));
@@ -752,6 +752,10 @@ export function renderTriggerSurface(
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   sampleModulationValue: (controlId: string | null | undefined) => number | null,
   controlOptions: ControlOption[],
+  ui: { tab: "MAIN" | "ROUTING" | "SETTINGS"; setTab: (tab: "MAIN" | "ROUTING" | "SETTINGS") => void } = {
+    tab: "MAIN",
+    setTab: () => {},
+  },
   attachTooltip?: TooltipBinder,
   modulePresetRecords: ModulePresetRecord[] = [],
   onLoadModulePreset?: (moduleId: string, presetId: string) => void,
@@ -1247,20 +1251,17 @@ export function renderTriggerSurface(
   targetsCard.appendChild(targetsList);
   panelRouting.appendChild(targetsCard);
 
-  const modulationCard = createRoutingCard("Density mod", incomingMods.length ? `${incomingMods.length} source${incomingMods.length === 1 ? "" : "s"}` : "No source");
-  const modField = createCompactSelectField({
-    label: "Source",
-    options: controlOptions.map((opt) => ({ value: opt.id, label: opt.label })),
-    selected: t.modulations?.density,
-    emptyLabel: "None",
-    tooltip: "Choose a control source that modulates density.",
-    attachTooltip,
-    onChange: (value) => onRoutingChange((p) => {
+  const modulationCard = createRoutingCard("Mod in", incomingMods.length ? `${incomingMods.length} source${incomingMods.length === 1 ? "" : "s"}` : "No source");
+  const modSelectors = createTargetModulationAssignPanel({
+    moduleType: "trigger",
+    modulations: t.modulations as Record<string, string | undefined> | undefined,
+    controlOptions,
+    onAssign: (parameter, value) => onRoutingChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
       if (m?.type !== "trigger") return;
       m.modulations = m.modulations ?? {};
-      if (value) m.modulations.density = value;
-      else delete m.modulations.density;
+      if (value) m.modulations[parameter] = value;
+      else delete m.modulations[parameter];
     }, { regen: false }),
   });
   const modList = document.createElement("div");
@@ -1272,7 +1273,7 @@ export function renderTriggerSurface(
       modList.appendChild(createRoutingChip(`+${incomingMods.length - visibleMods.length} more`, "muted"));
     }
   } else modList.appendChild(createRoutingChip("No mod", "muted"));
-  modulationCard.append(modField.wrap, modList);
+  modulationCard.append(modSelectors, modList);
   panelRouting.appendChild(modulationCard);
 
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
@@ -1359,7 +1360,8 @@ export function renderTriggerSurface(
       { id: "ROUTING", label: "Routing", panel: panelRouting },
       { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
-    activeTab: "MAIN",
+    activeTab: ui.tab,
+    onTabChange: (tab) => ui.setTab(tab),
   });
 
   surface.append(header, shell.face, shell.tabs, infoBar);

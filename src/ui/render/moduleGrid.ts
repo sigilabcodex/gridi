@@ -229,6 +229,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   let latestPatch: Patch | null = null;
   let latestRouting = buildRoutingSnapshot(params.patch());
   let surfaceByModuleId = new Map<string, HTMLElement>();
+  const triggerTabs = new Map<string, "MAIN" | "ROUTING" | "SETTINGS">();
+  const controlTabs = new Map<string, "MAIN" | "ROUTING">();
 
   const applyRoutingHighlight = () => {
     const patch = latestPatch;
@@ -440,9 +442,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       });
     };
 
- const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
+const onRoutingChange = (fn: (patch: Patch) => void, opts?: { regen?: boolean }) => {
   params.onPatchChange(fn, opts);
-  rerender();
+  rerenderStable();
 };
 
 const sampleModulationValue = (controlId: string | null | undefined) =>
@@ -549,6 +551,10 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
             onRoutingChange,
             sampleModulationValue,
             controlOptions,
+            {
+              tab: triggerTabs.get(module.id) ?? "MAIN",
+              setTab: (tab) => triggerTabs.set(module.id, tab),
+            },
             params.attachTooltip,
             params.modulePresetRecords,
             params.onLoadModulePreset,
@@ -624,6 +630,10 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
             params.onLoadModulePreset,
             params.onSaveModulePreset,
             params.attachTooltip,
+            {
+              tab: controlTabs.get(module.id) ?? "MAIN",
+              setTab: (tab) => controlTabs.set(module.id, tab),
+            },
             () => removeModule(module.id),
           );
           const surface = resolveRenderedSurface(surfaceRoot, "control", module.id);

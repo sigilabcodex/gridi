@@ -41,6 +41,10 @@ export function renderControlSurface(
   onLoadModulePreset?: (moduleId: string, presetId: string) => void,
   onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   attachTooltip?: TooltipBinder,
+  ui: { tab: "MAIN" | "ROUTING"; setTab: (tab: "MAIN" | "ROUTING") => void } = {
+    tab: "MAIN",
+    setTab: () => {},
+  },
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -290,7 +294,8 @@ export function renderControlSurface(
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
     ],
-    activeTab: "MAIN",
+    activeTab: ui.tab,
+    onTabChange: (tab) => ui.setTab(tab),
   });
 
   const infoBar = createFaceplateSection("bottom", "drumInfoBar controlInfoBar");

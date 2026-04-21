@@ -1,6 +1,20 @@
 # CTRL target selection
 
-This document describes the CTRL Routing tab target-selection flow and constraints.
+This document describes control-modulation assignment flows and constraints.
+
+## Two assignment entry points
+
+GRIDI supports both routing directions:
+
+1. **Source-side (CTRL Routing tab)**
+   - Best for "this CTRL should modulate multiple things."
+   - Uses the target module → parameter group → parameter checklist flow.
+
+2. **Target-side (GEN/DRUM/SYNTH Routing tabs)**
+   - Best for "this parameter needs a CTRL source."
+   - Uses grouped **Mod in** sections with per-parameter source dropdowns.
+
+Both entry points modify the same target module `modulations` map, so they remain coherent.
 
 ## Selection flow
 
@@ -33,6 +47,10 @@ This grouping is designed to stay compact, readable, and expandable without intr
 - **One CTRL -> many parameters**: supported.
 - **One parameter -> one CTRL**: assignment replaces prior owner on that specific target parameter key.
 - **No self-modulation**: target selector excludes the current CTRL module, and routing validation/compiler also rejects self-modulation routes.
+
+## Routing edit context behavior
+
+Routing updates are applied with stable rerender behavior and persisted module tab state, so users remain on the active Routing tab while assigning or replacing routes.
 
 ## Transport-aware behavior
 
