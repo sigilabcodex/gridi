@@ -16,12 +16,39 @@ This phase makes CTRL routing behavior explicit and playable while keeping GRIDI
    - Typed route validation blocks `control -> same-control` modulation routes.
    - Runtime compilation also rejects self-modulation and records a warning.
 
+## Bidirectional assignment model
+
+Routing is now intentionally editable from both directions:
+
+1. **Source-side (CTRL module Routing tab)**
+   - Pick target module → group → parameter checklist.
+   - A single CTRL can claim many parameters across modules.
+
+2. **Target-side (GEN / DRUM / SYNTH Routing tabs)**
+   - Use grouped **Mod in** rows per parameter (`None` / `CTRL n`).
+   - Assignment writes into the same per-module `modulations` ownership map used by source-side editing.
+   - Re-selecting a source on a parameter replaces the prior owner for that parameter key.
+
+Because both UIs write to the same ownership map, source-side and target-side edits stay consistent with each other.
+
+## Routing-context preservation
+
+Routing edits now preserve the current editing context:
+
+- routing updates use stable rerender behavior (scroll snapshot/restore),
+- module tab state for **CTRL** and **GEN** modules is preserved across routing mutations,
+- existing DRUM/SYNTH tab persistence remains intact.
+
+This prevents accidental jumps back to Main while patching in Routing tabs.
+
 ## Visible modulation behavior
 
-For currently modulatable parameters in this phase:
+For currently visibly-modulated controls in this phase:
 - Trigger `density`
 - Drum `basePitch`
 - Synth `cutoff`
+
+Target-side assignment supports the broader grouped parameter catalog, while visible animated control motion remains scoped to the parameters listed above.
 
 The **real parameter control visibly moves** to the live modulated value during runtime updates.
 
