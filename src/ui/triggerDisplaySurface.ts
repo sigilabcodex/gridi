@@ -20,9 +20,11 @@ type StepGridState = {
   pointerActive: boolean;
   pointerMode: "paint" | "erase" | "toggle";
   lastSeed: number;
+  activeLength: number;
   stepCount: number;
   cols: number;
   rows: number;
+  phraseSpan: number;
   cells: HTMLElement[];
   lastPlayhead: number;
 };
@@ -71,9 +73,11 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
     pointerActive: false,
     pointerMode: "toggle",
     lastSeed: params.module.seed,
+    activeLength: 0,
     stepCount: 0,
     cols: 16,
     rows: 2,
+    phraseSpan: 4,
     cells: [],
     lastPlayhead: -1,
   };
@@ -608,9 +612,11 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
 
       state.lastSeed = nextModule.seed;
       state.basePattern = basePattern;
+      state.activeLength = clamp(Math.round(nextModule.length), 1, 128);
       state.stepCount = stepCount;
       state.cols = layout.cols;
       state.rows = layout.rows;
+      state.phraseSpan = resolvePhraseSpan(layout.cols, nextModule.subdiv);
 
       const needsRebuild = state.cells.length !== stepCount
         || grid.style.getPropertyValue("--trigger-display-cols") !== String(layout.cols)
@@ -623,8 +629,8 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
       }
     },
     tick: (timeMs, liveModule) => {
-      if (!state.cells.length || !state.stepCount) return;
-      const stepIndex = resolveAnimatedStepIndex(timeMs, liveModule, state.stepCount);
+      if (!state.cells.length || !state.activeLength) return;
+      const stepIndex = resolveAnimatedStepIndex(timeMs, liveModule, state.activeLength);
       if (stepIndex === state.lastPlayhead) return;
       if (state.lastPlayhead >= 0) state.cells[state.lastPlayhead]?.classList.remove("is-playhead");
       state.cells[stepIndex]?.classList.add("is-playhead");
@@ -845,7 +851,8 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
       stepGrid.replaceChildren(preview);
       ringView.sync(nextModule, params, {
         basePattern: new Uint8Array(0), currentPattern: new Uint8Array(0),
-        pointerActive: false, pointerMode: "toggle", lastSeed: nextModule.seed, stepCount: 0, cols: 0, rows: 0, cells: [], lastPlayhead: -1,
+        pointerActive: false, pointerMode: "toggle", lastSeed: nextModule.seed, activeLength: 0,
+        stepCount: 0, cols: 0, rows: 0, phraseSpan: 4, cells: [], lastPlayhead: -1,
       });
       const blend = clamp(nextModule.determinism * 0.6 + nextModule.gravity * 0.4, 0, 1);
       meterFill.style.setProperty("--hybrid-blend", blend.toFixed(3));
@@ -1143,15 +1150,25 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, 
   grid.setAttribute("aria-label", `${module.name} step overlay editor`);
   grid.style.setProperty("--trigger-display-cols", String(state.cols));
   grid.style.setProperty("--trigger-display-rows", String(state.rows));
+  grid.style.setProperty("--trigger-step-phrase", String(state.phraseSpan));
   state.cells = [];
 
   for (let i = 0; i < state.stepCount; i++) {
+    const col = i % Math.max(1, state.cols);
+    const isOverflow = i >= state.activeLength;
+    const isMeasureStart = col % state.phraseSpan === 0;
+    const isSubdivisionStart = state.phraseSpan >= 4 && col % Math.max(1, state.phraseSpan / 2) === 0;
     const cell = document.createElement("span");
     cell.className = "triggerDisplayCell";
     cell.dataset.index = String(i);
     cell.setAttribute("role", "gridcell");
+    if (isOverflow) cell.setAttribute("aria-disabled", "true");
+    cell.classList.toggle("is-overflow", isOverflow);
+    cell.classList.toggle("is-measure-start", isMeasureStart);
+    cell.classList.toggle("is-subdivision-start", !isMeasureStart && isSubdivisionStart);
     paintCell(cell, state, i);
     cell.addEventListener("pointerdown", (event) => {
+      if (isOverflow) return;
       event.preventDefault();
       const erase = event.button === 2 || (event.shiftKey && event.button === 0);
       state.pointerActive = true;
@@ -1162,6 +1179,7 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, 
       params.onCommitLivePattern?.(state.currentPattern, "step-sequencer");
     });
     cell.addEventListener("pointerenter", (event) => {
+      if (isOverflow) return;
       if (!state.pointerActive) return;
       if (!(event.buttons & 1) && !(event.buttons & 2)) {
         state.pointerActive = false;
@@ -1205,6 +1223,10 @@ function renderStepPreviewGrid(module: TriggerModule, patternPreview: string) {
 }
 
 function paintCell(cell: HTMLElement, state: StepGridState, stepIndex: number) {
+  if (stepIndex >= state.activeLength) {
+    cell.classList.remove("base-on", "on", "overlay-on", "overlay-off");
+    return;
+  }
   const baseOn = state.basePattern[stepIndex] === 1;
   const currentOn = state.currentPattern[stepIndex] === 1;
   cell.classList.toggle("base-on", baseOn);
@@ -1243,28 +1265,28 @@ function writeCurrentPattern(state: StepGridState, index: number, next: 0 | 1) {
 
 function resolveStepGridLayout(length: number, subdiv: number) {
   const clampedLength = clamp(Math.round(length), 1, 128);
-  const maxRows = 6;
-  const desiredRows = clampedLength <= 16
+  const maxRows = 5;
+  const targetRows = clampedLength <= 16
     ? 1
     : clampedLength <= 32
       ? 2
-      : clampedLength <= 48
-        ? 3
-        : clampedLength <= 64
-          ? 4
-          : clampedLength <= 96 ? 5 : 6;
+      : clampedLength <= 64 ? 3 : 4;
+  const columnCandidates = [8, 12, 16, 24, 32];
+  const snappedSubdiv = clamp(Math.round(subdiv), 1, 8);
 
-  let bestRows = 1;
-  let bestCols = clampedLength;
+  let bestRows = clamp(Math.ceil(clampedLength / 16), 1, maxRows);
+  let bestCols = 16;
   let bestScore = Number.POSITIVE_INFINITY;
-  for (let rows = 1; rows <= maxRows; rows += 1) {
-    const cols = clamp(Math.ceil(clampedLength / rows), 1, 32);
+  for (const baseCols of columnCandidates) {
+    const cols = clamp(baseCols, 1, 32);
+    const rows = clamp(Math.ceil(clampedLength / cols), 1, maxRows);
+    if (rows > maxRows) continue;
     const used = cols * rows;
     const spare = used - clampedLength;
-    const rowBias = Math.abs(rows - desiredRows);
-    const colBias = Math.abs(cols - 16) / 16;
-    const subdivBias = Math.abs(rows - clamp(Math.round(subdiv), 1, maxRows)) * 0.1;
-    const score = spare * 0.6 + rowBias * 1.2 + colBias + subdivBias;
+    const rowBias = Math.abs(rows - targetRows);
+    const colBias = Math.abs(cols - 16) / 10;
+    const phraseBias = cols % (snappedSubdiv >= 4 ? 8 : 4) === 0 ? 0 : 0.55;
+    const score = spare * 0.85 + rowBias * 1.2 + colBias + phraseBias;
     if (score < bestScore) {
       bestScore = score;
       bestRows = rows;
@@ -1272,6 +1294,13 @@ function resolveStepGridLayout(length: number, subdiv: number) {
     }
   }
   return { cols: bestCols, rows: bestRows };
+}
+
+function resolvePhraseSpan(cols: number, subdiv: number) {
+  if (cols >= 24) return 8;
+  if (cols <= 8) return 2;
+  if (subdiv >= 4) return 8;
+  return 4;
 }
 
 function resolveAnimatedStepIndex(timeMs: number, module: TriggerModule, steps: number) {
