@@ -1367,7 +1367,7 @@ export function renderTriggerSurface(
   syncTriggerFace();
 
   function patternPreviewText() {
-    return getPatternPreview(t, `${t.id}:preview`, 64);
+    return getPatternPreview(t, `${t.id}:preview`, 128);
   }
 
   function syncTriggerFace() {
