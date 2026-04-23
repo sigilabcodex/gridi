@@ -35,6 +35,7 @@ export type UIRoutingOverview = {
   eventRoutes: UIRoutingOverviewRoute[];
   modulationRoutes: UIRoutingOverviewRoute[];
   audioRoutes: UIRoutingOverviewRoute[];
+  midiRoutes: UIRoutingOverviewRoute[];
   byModule: Map<string, { incoming: UIRoutingOverviewRoute[]; outgoing: UIRoutingOverviewRoute[] }>;
 };
 
@@ -68,8 +69,9 @@ function endpointLabel(endpoint: RouteEndpoint, modules: Map<string, RouteRef>) 
   if (endpoint.kind === "module") return modules.get(endpoint.moduleId)?.name ?? endpoint.moduleId;
   if (endpoint.kind === "bus") return `Bus ${endpoint.busId}`;
   if (endpoint.kind === "master") return "Master";
+  if (endpoint.portId) return `MIDI IN ${endpoint.portId}`;
   const channel = endpoint.channel ? ` ch${endpoint.channel}` : "";
-  return `MIDI${channel}`;
+  return `MIDI IN${channel}`;
 }
 
 function includeByModule(map: UIRoutingOverview["byModule"], moduleId: string, route: UIRoutingOverviewRoute, direction: "incoming" | "outgoing") {
@@ -86,6 +88,7 @@ export function buildUIRoutingOverview(compiled: CompiledRouting, modules: Map<s
   const eventRoutes: UIRoutingOverviewRoute[] = [];
   const modulationRoutes: UIRoutingOverviewRoute[] = [];
   const audioRoutes: UIRoutingOverviewRoute[] = [];
+  const midiRoutes: UIRoutingOverviewRoute[] = [];
   const byModule = new Map<string, { incoming: UIRoutingOverviewRoute[]; outgoing: UIRoutingOverviewRoute[] }>();
 
   const include = (routeRecord: PatchRoute) => {
@@ -107,13 +110,14 @@ export function buildUIRoutingOverview(compiled: CompiledRouting, modules: Map<s
     if (route.domain === "event") eventRoutes.push(route);
     else if (route.domain === "modulation") modulationRoutes.push(route);
     else if (route.domain === "audio") audioRoutes.push(route);
+    else if (route.domain === "midi") midiRoutes.push(route);
 
     if (source) includeByModule(byModule, source.id, route, "outgoing");
     if (target) includeByModule(byModule, target.id, route, "incoming");
   };
 
   for (const route of compiled.routes) {
-    if (route.domain === "event" || route.domain === "modulation" || route.domain === "audio") include(route);
+    if (route.domain === "event" || route.domain === "modulation" || route.domain === "audio" || route.domain === "midi") include(route);
   }
 
   const sortRoutes = (items: UIRoutingOverviewRoute[]) => {
@@ -129,8 +133,9 @@ export function buildUIRoutingOverview(compiled: CompiledRouting, modules: Map<s
   sortRoutes(eventRoutes);
   sortRoutes(modulationRoutes);
   sortRoutes(audioRoutes);
+  sortRoutes(midiRoutes);
 
-  return { eventRoutes, modulationRoutes, audioRoutes, byModule };
+  return { eventRoutes, modulationRoutes, audioRoutes, midiRoutes, byModule };
 }
 
 export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {

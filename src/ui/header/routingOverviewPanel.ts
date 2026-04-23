@@ -1,16 +1,21 @@
 import type { Patch } from "../../patch";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
+import type { MidiInputStatus } from "../midiInput";
 
 type RoutingOverviewPanelParams = {
   patch: () => Patch;
   attachTo: HTMLButtonElement;
   onInspectModule?: (moduleId: string | null) => void;
+  midiStatus: () => MidiInputStatus;
+  onSelectMidiInput: (inputId: string | null) => void;
+  onSetMidiTargetModule: (moduleId: string | null) => void;
 };
 
 function routeDomainLabel(route: UIRoutingOverviewRoute) {
   if (route.domain === "event") return "Event";
   if (route.domain === "modulation") return route.parameterLabel ?? "Mod";
+  if (route.domain === "midi") return "MIDI";
   return "Audio";
 }
 
@@ -84,6 +89,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     { value: "event", label: "Event" },
     { value: "modulation", label: "Modulation" },
     { value: "audio", label: "Audio" },
+    { value: "midi", label: "MIDI" },
   ].forEach((entry) => {
     const option = document.createElement("option");
     option.value = entry.value;
@@ -123,7 +129,30 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   audioList.className = "routingOverviewList";
   audioBlock.append(audioHead, audioList);
 
-  panel.append(title, controls, eventBlock, modBlock, audioBlock);
+  const midiEditBlock = document.createElement("section");
+  midiEditBlock.className = "routingOverviewSection";
+  const midiEditHead = document.createElement("div");
+  midiEditHead.className = "small transportUtilitySectionLabel";
+  midiEditHead.textContent = "MIDI input routing";
+  const midiEditBody = document.createElement("div");
+  midiEditBody.className = "transportUtilitySection";
+  const midiInputSelect = document.createElement("select");
+  midiInputSelect.className = "transportSessionFilter routingOverviewSelect";
+  const midiTargetSelect = document.createElement("select");
+  midiTargetSelect.className = "transportSessionFilter routingOverviewSelect";
+  midiEditBody.append(midiInputSelect, midiTargetSelect);
+  midiEditBlock.append(midiEditHead, midiEditBody);
+
+  const midiRoutesBlock = document.createElement("section");
+  midiRoutesBlock.className = "routingOverviewSection";
+  const midiRoutesHead = document.createElement("div");
+  midiRoutesHead.className = "small transportUtilitySectionLabel";
+  midiRoutesHead.textContent = "MIDI";
+  const midiRoutesList = document.createElement("div");
+  midiRoutesList.className = "routingOverviewList";
+  midiRoutesBlock.append(midiRoutesHead, midiRoutesList);
+
+  panel.append(title, controls, midiEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
 
   let cleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let latestSnapshot: RoutingSnapshot | null = null;
@@ -155,6 +184,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     const snapshot = buildRoutingSnapshot(patch);
     latestSnapshot = snapshot;
     syncModuleOptions(patch);
+    const midiStatus = params.midiStatus();
 
     const selectedModuleId = moduleFilter.value;
     const domain = domainFilter.value;
@@ -162,18 +192,76 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     const eventRoutes = filterRoutesByModule(snapshot.overview.eventRoutes, selectedModuleId);
     const modulationRoutes = filterRoutesByModule(snapshot.overview.modulationRoutes, selectedModuleId);
     const audioRoutes = filterRoutesByModule(snapshot.overview.audioRoutes, selectedModuleId);
+    const midiRoutes = filterRoutesByModule(snapshot.overview.midiRoutes, selectedModuleId);
 
     eventList.replaceChildren(...createRouteRows(eventRoutes, selectedModuleId, params.onInspectModule));
     modList.replaceChildren(...createRouteRows(modulationRoutes, selectedModuleId, params.onInspectModule));
     audioList.replaceChildren(...createRouteRows(audioRoutes, selectedModuleId, params.onInspectModule));
+    midiRoutesList.replaceChildren(...createRouteRows(midiRoutes, selectedModuleId, params.onInspectModule));
+
+    const activeMidiPatchRoute = (patch.routes ?? []).find((route) => (
+      route.enabled &&
+      route.domain === "midi" &&
+      route.source.kind === "external" &&
+      route.source.externalType === "midi" &&
+      route.target.kind === "module"
+    )) ?? null;
+    const activeMidiInputId = activeMidiPatchRoute?.source.kind === "external" ? activeMidiPatchRoute.source.portId ?? null : null;
+    const activeMidiTargetModuleId = activeMidiPatchRoute?.target.kind === "module" ? activeMidiPatchRoute.target.moduleId : null;
+
+    midiInputSelect.replaceChildren();
+    const autoOption = document.createElement("option");
+    autoOption.value = "";
+    autoOption.textContent = "Input: Auto (prefer hardware)";
+    midiInputSelect.appendChild(autoOption);
+    const availableInputs = midiStatus.kind === "connected" || midiStatus.kind === "idle" ? midiStatus.inputs : [];
+    for (const input of availableInputs) {
+      const option = document.createElement("option");
+      option.value = input.id;
+      option.textContent = `Input: ${input.name}${input.likelyVirtual ? " (virtual)" : ""}`;
+      midiInputSelect.appendChild(option);
+    }
+    midiInputSelect.value = activeMidiInputId ?? "";
+
+    midiTargetSelect.replaceChildren();
+    const noneTarget = document.createElement("option");
+    noneTarget.value = "";
+    noneTarget.textContent = "Target: None";
+    midiTargetSelect.appendChild(noneTarget);
+    patch.modules
+      .filter((module) => module.type === "tonal")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((module) => {
+        const option = document.createElement("option");
+        option.value = module.id;
+        option.textContent = `Target: ${module.name}`;
+        midiTargetSelect.appendChild(option);
+      });
+    midiTargetSelect.value = activeMidiTargetModuleId ?? "";
+    midiInputSelect.disabled = midiTargetSelect.value === "";
+    midiEditBody.classList.toggle("isMuted", patch.modules.every((module) => module.type !== "tonal"));
 
     eventBlock.hidden = !(domain === "all" || domain === "event");
     modBlock.hidden = !(domain === "all" || domain === "modulation");
     audioBlock.hidden = !(domain === "all" || domain === "audio");
+    midiRoutesBlock.hidden = !(domain === "all" || domain === "midi");
+    midiEditBlock.hidden = !(domain === "all" || domain === "midi");
   };
 
   domainFilter.onchange = render;
   moduleFilter.onchange = render;
+  midiInputSelect.onchange = () => {
+    const targetModuleId = midiTargetSelect.value || null;
+    params.onSelectMidiInput(midiInputSelect.value || null);
+    if (!targetModuleId) return;
+    params.onSetMidiTargetModule(targetModuleId);
+    render();
+  };
+  midiTargetSelect.onchange = () => {
+    const targetModuleId = midiTargetSelect.value || null;
+    params.onSetMidiTargetModule(targetModuleId);
+    render();
+  };
 
   const close = () => {
     if (panel.classList.contains("hidden")) return;

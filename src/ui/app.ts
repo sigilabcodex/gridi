@@ -174,6 +174,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   let savedSnapshot = JSON.stringify(patch);
   let midiTargetModuleId: string | null = patch.modules.find((module) => module.type === "tonal")?.id ?? null;
   let midiStatus: MidiInputStatus = { kind: "pending" };
+  let preferredMidiInputId: string | null = null;
 
   const hasUnsavedChanges = () => JSON.stringify(patch) !== savedSnapshot;
 
@@ -522,7 +523,58 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   const noteToFreqHz = (note: number) => 440 * Math.pow(2, (note - 69) / 12);
   const freqToMidiFloat = (freq: number) => 69 + 12 * Math.log2(freq / 440);
+  const getMidiInputRoute = () => {
+    const routes = patch.routes ?? [];
+    for (const route of routes) {
+      if (!route.enabled || route.domain !== "midi") continue;
+      if (route.source.kind !== "external" || route.source.externalType !== "midi") continue;
+      if (route.target.kind !== "module") continue;
+      const targetModuleId = route.target.moduleId;
+      if (!patch.modules.some((module) => module.id === targetModuleId && module.type === "tonal")) continue;
+      return route;
+    }
+    return null;
+  };
+  const getMidiRouteTargetModuleId = () => {
+    const route = getMidiInputRoute();
+    if (!route || route.target.kind !== "module") return null;
+    return route.target.moduleId;
+  };
+  const getMidiRouteInputId = () => {
+    const route = getMidiInputRoute();
+    if (!route || route.source.kind !== "external") return null;
+    return route.source.portId ?? null;
+  };
+  const setMidiInputRoute = (targetModuleId: string | null, inputId: string | null) => {
+    onPatchChange((draft) => {
+      const keptRoutes = (draft.routes ?? []).filter((route) => !(
+        route.domain === "midi" &&
+        route.source.kind === "external" &&
+        route.source.externalType === "midi"
+      ));
+      if (targetModuleId) {
+        keptRoutes.push({
+          id: `midi-in:${inputId ?? "auto"}:${targetModuleId}`,
+          domain: "midi",
+          source: { kind: "external", externalType: "midi", portId: inputId ?? undefined },
+          target: { kind: "module", moduleId: targetModuleId, port: "midi-in" },
+          enabled: true,
+          metadata: { createdFrom: "ui", lane: "midi-in" },
+        });
+      }
+      draft.routes = keptRoutes;
+    }, { regen: false });
+  };
   const resolveMidiTarget = () => {
+    const midiRoute = getMidiInputRoute();
+    if (midiRoute && midiRoute.target.kind === "module") {
+      const explicitTargetId = midiRoute.target.moduleId;
+      const explicit = patch.modules.find((module) => module.id === explicitTargetId && module.type === "tonal" && module.enabled);
+      if (explicit) {
+        midiTargetModuleId = explicit.id;
+        return explicit;
+      }
+    }
     if (midiTargetModuleId) {
       const current = patch.modules.find((module) => module.id === midiTargetModuleId && module.type === "tonal");
       if (current?.enabled) return current;
@@ -619,6 +671,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     onInspectModule: (moduleId) => {
       const module = patch.modules.find((item) => item.id === moduleId);
       if (!module || module.type !== "tonal") return;
+      if (getMidiInputRoute()) return;
       if (midiTargetModuleId === module.id) return;
       if (midiTargetModuleId) engine.stopAllMidiVoices(midiTargetModuleId);
       midiTargetModuleId = module.id;
@@ -765,12 +818,26 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     attachTooltip: tooltips.attachTooltip,
     midiStatus: () => midiStatus,
     midiTargetLabel: () => {
-      const target = patch.modules.find((module) => module.id === midiTargetModuleId && module.type === "tonal");
+      const routeTargetId = getMidiRouteTargetModuleId();
+      const fallbackTargetId = routeTargetId ?? midiTargetModuleId;
+      const target = patch.modules.find((module) => module.id === fallbackTargetId && module.type === "tonal");
       return target ? target.name : null;
     },
     onSelectMidiInput: (inputId) => {
+      preferredMidiInputId = inputId;
       midiInput.setPreferredInput(inputId);
+      const targetId = getMidiRouteTargetModuleId();
+      if (targetId) setMidiInputRoute(targetId, inputId);
       header.updateMidiUI();
+      header.updateRoutingOverview();
+    },
+    onSetMidiTargetModule: (moduleId) => {
+      const existingInputId = getMidiRouteInputId() ?? preferredMidiInputId;
+      if (!moduleId && midiTargetModuleId) engine.stopAllMidiVoices(midiTargetModuleId);
+      if (moduleId) midiTargetModuleId = moduleId;
+      setMidiInputRoute(moduleId, existingInputId ?? null);
+      header.updateMidiUI();
+      header.updateRoutingOverview();
     },
   });
 
@@ -827,7 +894,12 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   header.updateMidiUI();
 
   void midiInput.init().then(() => {
+    const existing = getMidiInputRoute();
+    const routeInputId = existing?.source.kind === "external" ? existing.source.portId ?? null : null;
+    preferredMidiInputId = routeInputId;
+    midiInput.setPreferredInput(routeInputId);
     header.updateMidiUI();
+    header.updateRoutingOverview();
   });
 
   maybeShowWelcomeModal({

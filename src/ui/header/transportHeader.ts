@@ -37,6 +37,7 @@ type HeaderParams = {
   midiStatus: () => MidiInputStatus;
   midiTargetLabel: () => string | null;
   onSelectMidiInput: (inputId: string | null) => void;
+  onSetMidiTargetModule: (moduleId: string | null) => void;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -620,6 +621,9 @@ export function createTransportHeader(params: HeaderParams) {
     patch: params.patch,
     attachTo: routingSummary,
     onInspectModule: params.onInspectRoutingModule,
+    midiStatus: params.midiStatus,
+    onSelectMidiInput: params.onSelectMidiInput,
+    onSetMidiTargetModule: params.onSetMidiTargetModule,
   });
 
   const closeSessionMenu = () => {
