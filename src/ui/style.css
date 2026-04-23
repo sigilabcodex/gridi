@@ -2990,12 +2990,61 @@ button:focus-visible,
     padding: 12px;
   }
 
+  .ctlEditorMobile {
+    width: min(220px, calc(100vw - 20px));
+    gap: 6px;
+    padding: 8px;
+    background: rgba(9, 14, 20, 0.92);
+    border-color: rgba(207, 214, 221, 0.16);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+  }
+
+  .ctlEditorMobile::before {
+    opacity: 0.82;
+  }
+
+  .ctlEditorMobile .ctlEditorHint {
+    display: none;
+  }
+
+  .ctlEditorMobile .ctlEditorNumber {
+    min-height: 46px;
+    font-size: 18px;
+    font-weight: 620;
+    text-align: center;
+  }
+
+  .ctlEditorAdjustField {
+    gap: 5px;
+  }
+
+  .ctlEditorAdjustRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .ctlEditorAdjustBtn {
+    min-height: 42px;
+    border-radius: 10px;
+    font-size: 22px;
+    line-height: 1;
+    font-weight: 620;
+  }
+
   .ctlEditorSlider {
     min-height: 36px;
   }
 
-  .ctlEditorSliderField {
+  .ctlEditorMobile .ctlEditorSliderField {
+    gap: 4px;
     justify-items: center;
+  }
+
+  .ctlEditorMobile .ctlEditorSlider {
+    width: 100%;
+    min-height: 32px;
+    margin: 0;
   }
 
   .transportHeader {
@@ -3094,20 +3143,6 @@ button:focus-visible,
   .settingsEditor {
     min-width: 0;
     width: 100%;
-  }
-}
-
-@media (max-width: 760px) and (orientation: portrait) {
-  .ctlEditorSliderField {
-    justify-items: center;
-  }
-
-  .ctlEditorSlider {
-    inline-size: 34px;
-    block-size: min(44vh, 210px);
-    writing-mode: vertical-lr;
-    direction: rtl;
-    touch-action: none;
   }
 }
 
@@ -3642,7 +3677,7 @@ button:focus-visible,
 
 .transportCompactLauncher {
   position: fixed;
-  right: 12px;
+  left: max(10px, env(safe-area-inset-left, 0px) + 10px);
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 265;
   min-height: 40px;
@@ -6675,6 +6710,18 @@ button:focus-visible,
 
 .globalControlsDrawerSettings {
   grid-column: 1 / -1;
+}
+
+.globalControlsDrawerAudioBtn {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  gap: 10px;
+  padding-inline: 14px;
+}
+
+.globalControlsDrawerAudioText {
+  font-size: 13px;
+  letter-spacing: 0.03em;
 }
 
 .globalControlsChipEditor {
