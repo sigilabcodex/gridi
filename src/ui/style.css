@@ -3680,14 +3680,29 @@ button:focus-visible,
   left: max(10px, env(safe-area-inset-left, 0px) + 10px);
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 265;
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border-color: rgba(74, 163, 255, 0.5);
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 14px;
+  border-color: rgba(101, 171, 255, 0.62);
   background: linear-gradient(180deg, rgba(16, 24, 35, 0.94), rgba(9, 14, 21, 0.94));
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4);
-  font-size: 11px;
-  letter-spacing: 0.25px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, border-radius 180ms ease;
+}
+
+.transportCompactLauncher .transportIconGlyph {
+  width: 20px;
+  height: 20px;
+}
+
+.transportCompactLauncher.isLinked {
+  transform: translateX(6px) scale(1.02);
+  border-radius: 12px 12px 12px 6px;
+  border-color: rgba(121, 185, 255, 0.85);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(121, 185, 255, 0.28);
 }
 
 .routingOverviewPanel {
@@ -6623,12 +6638,25 @@ button:focus-visible,
   padding: 16px 12px calc(18px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   background: linear-gradient(180deg, rgba(10, 15, 22, 0.97), rgba(8, 12, 18, 0.97));
   border-right: 1px solid rgba(73, 96, 120, 0.48);
-  transform: translateX(-102%);
-  transition: transform 0.22s ease;
+  transform-origin: 0 var(--launcher-y, 90%);
+  transform: translateX(-102%) scale(0.985);
+  transition: transform 0.24s ease;
   overflow-y: auto;
+}
+
+.globalControlsDrawerPanel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: clamp(22px, calc(var(--launcher-y, 84vh) - 80px), calc(100% - 120px));
+  width: 3px;
+  height: 72px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(121, 185, 255, 0.24), rgba(121, 185, 255, 0.7), rgba(121, 185, 255, 0.2));
+  box-shadow: 0 0 28px rgba(121, 185, 255, 0.22);
 }
 
 .globalControlsDrawer.isOpen {
@@ -6640,7 +6668,53 @@ button:focus-visible,
 }
 
 .globalControlsDrawer.isOpen .globalControlsDrawerPanel {
-  transform: translateX(0);
+  transform: translateX(0) scale(1);
+}
+
+.globalControlsDrawerGroup {
+  display: grid;
+  gap: 12px;
+}
+
+.globalControlsDrawerGroupMiddle {
+  margin-block: 8px;
+}
+
+.globalControlsDrawerGroupBottom {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(123, 147, 180, 0.16);
+}
+
+.globalControlsDrawerMainView,
+.globalControlsDrawerUtilityView {
+  display: grid;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.globalControlsDrawerNav {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.globalControlsDrawerBackBtn {
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(128, 157, 192, 0.4);
+  background: rgba(20, 30, 42, 0.72);
+  color: rgba(236, 242, 255, 0.94);
+  font-size: 12px;
+}
+
+.globalControlsDrawerNavTitle {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(214, 226, 255, 0.88);
 }
 
 .globalControlsDrawerSection {
@@ -6650,7 +6724,7 @@ button:focus-visible,
 }
 
 .globalControlsDrawerCoreBtn,
-.globalControlsDrawerIconBtn,
+.globalControlsDrawerNavBtn,
 .globalControlsDrawerChip,
 .globalControlsChipEditorStep {
   min-height: 52px;
@@ -6658,14 +6732,14 @@ button:focus-visible,
 }
 
 .globalControlsDrawerCoreBtn,
-.globalControlsDrawerIconBtn {
+.globalControlsDrawerNavBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .globalControlsDrawerCoreBtn .transportIconGlyph,
-.globalControlsDrawerIconBtn .transportIconGlyph,
+.globalControlsDrawerNavBtn .transportIconGlyph,
 .globalControlsDrawerSettings .transportIconGlyph {
   width: 22px;
   height: 22px;
@@ -6677,7 +6751,30 @@ button:focus-visible,
 }
 
 .globalControlsDrawerAccess {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr;
+}
+
+.globalControlsDrawerNavBtn {
+  justify-content: flex-start;
+  gap: 10px;
+  padding-inline: 10px;
+}
+
+.globalControlsDrawerNavIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(112, 156, 220, 0.18);
+  border: 1px solid rgba(126, 170, 224, 0.36);
+}
+
+.globalControlsDrawerNavText {
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: rgba(238, 242, 255, 0.94);
 }
 
 .globalControlsDrawerStatus {
@@ -6722,6 +6819,31 @@ button:focus-visible,
 .globalControlsDrawerAudioText {
   font-size: 13px;
   letter-spacing: 0.03em;
+}
+
+.globalControlsDrawerUtilitySection {
+  display: grid;
+  gap: 8px;
+}
+
+.globalControlsDrawerActionBtn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.globalControlsDrawerSessionList {
+  max-height: min(40vh, 260px);
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.globalControlsDrawerStub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .globalControlsChipEditor {
