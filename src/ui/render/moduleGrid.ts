@@ -68,12 +68,17 @@ function fitsCleanColumns(
   return availableWidth >= requiredWidth;
 }
 
-function createModuleCell(surface: HTMLElement, opts: { occupied: boolean; index: number; position: GridPosition }) {
+function createModuleCell(
+  surface: HTMLElement,
+  opts: { occupied: boolean; index: number; position: GridPosition; targetPosition?: GridPosition },
+) {
   const cell = document.createElement("div");
   cell.className = `moduleCell ${opts.occupied ? "occupied" : "empty"}`;
   cell.dataset.slotIndex = String(opts.index);
   cell.dataset.gridX = String(opts.position.x);
   cell.dataset.gridY = String(opts.position.y);
+  cell.dataset.targetX = String((opts.targetPosition ?? opts.position).x);
+  cell.dataset.targetY = String((opts.targetPosition ?? opts.position).y);
 
   const substrate = document.createElement("div");
   substrate.className = "moduleCellSubstrate";
@@ -229,6 +234,8 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   let latestPatch: Patch | null = null;
   let latestRouting = buildRoutingSnapshot(params.patch());
   let surfaceByModuleId = new Map<string, HTMLElement>();
+  let activeMoveOverlayModuleId: string | null = null;
+  let overlayDismissListener: ((event: PointerEvent) => void) | null = null;
   const triggerTabs = new Map<string, "MAIN" | "ROUTING" | "SETTINGS">();
   const controlTabs = new Map<string, "MAIN" | "ROUTING">();
 
@@ -343,6 +350,16 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerenderStable();
   };
 
+  const closeMoveOverlay = () => {
+    const openOverlay = params.main.querySelector<HTMLElement>(".moduleMoveOverlay");
+    openOverlay?.remove();
+    if (overlayDismissListener) {
+      document.removeEventListener("pointerdown", overlayDismissListener, true);
+      overlayDismissListener = null;
+    }
+    activeMoveOverlayModuleId = null;
+  };
+
   const swapModulesById = (sourceModuleId: string, targetModuleId: string) => {
     if (sourceModuleId === targetModuleId) return;
 
@@ -404,9 +421,46 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerenderStable();
   };
 
+  const moveModuleByDirection = (moduleId: string, direction: "up" | "down" | "left" | "right") => {
+    const surface = surfaceByModuleId.get(moduleId);
+    if (!surface) return;
+    const sourceX = Number.parseInt(surface.dataset.gridX ?? "", 10);
+    const sourceY = Number.parseInt(surface.dataset.gridY ?? "", 10);
+    if (!Number.isInteger(sourceX) || !Number.isInteger(sourceY)) return;
+
+    const delta = direction === "up"
+      ? { x: 0, y: -1 }
+      : direction === "down"
+        ? { x: 0, y: 1 }
+        : direction === "left"
+          ? { x: -1, y: 0 }
+          : { x: 1, y: 0 };
+    const targetX = sourceX + delta.x;
+    const targetY = sourceY + delta.y;
+    if (targetX < 0 || targetY < 0) return;
+
+    const targetCell = params.main.querySelector<HTMLElement>(`.moduleCell[data-grid-x="${targetX}"][data-grid-y="${targetY}"]`);
+    if (!targetCell) return;
+
+    const targetModuleId = targetCell.querySelector<HTMLElement>(".moduleSurface[data-module-id]")?.dataset.moduleId;
+    if (targetModuleId && targetModuleId !== moduleId) {
+      swapModulesById(moduleId, targetModuleId);
+      return;
+    }
+
+    const destinationX = Number.parseInt(targetCell.dataset.targetX ?? "", 10);
+    const destinationY = Number.parseInt(targetCell.dataset.targetY ?? "", 10);
+    if (!Number.isInteger(destinationX) || !Number.isInteger(destinationY)) return;
+    moveModuleToCell(moduleId, { x: destinationX, y: destinationY });
+  };
+
   const rerender = () => {
     failedUpdaterIndices.clear();
     visibleColumns = readVisibleColumnCount(params.main);
+    if (overlayDismissListener) {
+      document.removeEventListener("pointerdown", overlayDismissListener, true);
+      overlayDismissListener = null;
+    }
 
     const patch = params.patch();
     const routing = buildRoutingSnapshot(patch);
@@ -521,6 +575,76 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
           params.main.querySelectorAll(".moduleCell.dragSwapReady, .moduleCell.dragMoveReady").forEach((cell) => {
             cell.classList.remove("dragSwapReady", "dragMoveReady");
           });
+        });
+        dragHandle.addEventListener("click", (event) => {
+          if (dragHandle.draggable && !(window.matchMedia?.("(pointer: coarse)").matches ?? false)) return;
+          event.preventDefault();
+          event.stopPropagation();
+
+          if (activeMoveOverlayModuleId === moduleId) {
+            closeMoveOverlay();
+            return;
+          }
+          closeMoveOverlay();
+
+          const overlay = document.createElement("div");
+          overlay.className = "moduleMoveOverlay";
+          overlay.setAttribute("role", "group");
+          overlay.setAttribute("aria-label", `Move module ${moduleId.slice(-4)}`);
+
+          const sourceX = Number.parseInt(surface.dataset.gridX ?? "", 10);
+          const sourceY = Number.parseInt(surface.dataset.gridY ?? "", 10);
+          const sourceCell = Number.isInteger(sourceX) && Number.isInteger(sourceY)
+            ? params.main.querySelector<HTMLElement>(`.moduleCell[data-grid-x="${sourceX}"][data-grid-y="${sourceY}"]`)
+            : null;
+          const sourceSlot = Number.parseInt(sourceCell?.dataset.slotIndex ?? "", 10);
+          const totalSlots = params.main.querySelectorAll(".moduleCell").length;
+          const canMoveLeft = Number.isInteger(sourceX) && sourceX > 0;
+          const canMoveRight = Number.isInteger(sourceX) && sourceX < renderedColumns - 1;
+          const canMoveUp = Number.isInteger(sourceSlot) && sourceSlot - renderedColumns >= 0;
+          const canMoveDown = Number.isInteger(sourceSlot) && sourceSlot + renderedColumns < totalSlots;
+          const showHorizontal = renderedColumns > 1;
+
+          const createDirectionButton = (label: string, direction: "up" | "down" | "left" | "right", aria: string) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "moduleMoveOverlayBtn";
+            button.textContent = label;
+            button.setAttribute("aria-label", aria);
+            button.addEventListener("click", (clickEvent) => {
+              clickEvent.preventDefault();
+              clickEvent.stopPropagation();
+              moveModuleByDirection(moduleId, direction);
+            });
+            return button;
+          };
+
+          if (canMoveUp) overlay.appendChild(createDirectionButton("↑", "up", "Move module up"));
+          if (showHorizontal && canMoveLeft) overlay.appendChild(createDirectionButton("←", "left", "Move module left"));
+          if (showHorizontal && canMoveRight) overlay.appendChild(createDirectionButton("→", "right", "Move module right"));
+          if (canMoveDown) overlay.appendChild(createDirectionButton("↓", "down", "Move module down"));
+
+          const closeButton = document.createElement("button");
+          closeButton.type = "button";
+          closeButton.className = "moduleMoveOverlayBtn moduleMoveOverlayClose";
+          closeButton.setAttribute("aria-label", "Close module move controls");
+          closeButton.textContent = "✕";
+          closeButton.addEventListener("click", (clickEvent) => {
+            clickEvent.preventDefault();
+            clickEvent.stopPropagation();
+            closeMoveOverlay();
+          });
+          overlay.appendChild(closeButton);
+
+          surface.appendChild(overlay);
+          activeMoveOverlayModuleId = moduleId;
+          overlayDismissListener = (pointerEvent: PointerEvent) => {
+            const target = pointerEvent.target;
+            if (!(target instanceof Node)) return;
+            if (overlay.contains(target) || dragHandle.contains(target)) return;
+            closeMoveOverlay();
+          };
+          document.addEventListener("pointerdown", overlayDismissListener, true);
         });
       }
       surface.addEventListener("pointerdown", inspect);
@@ -748,7 +872,9 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
         inspectedModuleId = null;
         applyRoutingHighlight();
       });
-      workspaceGrid.appendChild(createModuleCell(slot, { occupied: false, index: slotIndex, position: displayPosition }));
+      workspaceGrid.appendChild(
+        createModuleCell(slot, { occupied: false, index: slotIndex, position: displayPosition, targetPosition }),
+      );
     };
 
     if (constrainedViewport) {
@@ -777,6 +903,7 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
             occupied: true,
             index: displaySlot,
             position: displayPosition,
+            targetPosition: entry.sourcePosition,
           }),
         );
       });
@@ -812,6 +939,14 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
 
     applyRoutingHighlight();
     movedModuleIds.clear();
+    if (activeMoveOverlayModuleId) {
+      const moduleId = activeMoveOverlayModuleId;
+      activeMoveOverlayModuleId = null;
+      const handle = surfaceByModuleId.get(moduleId)?.querySelector<HTMLElement>(".surfaceBadge.module-drag-handle");
+      if (handle) {
+        handle.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      }
+    }
   };
 
   const resizeObserver = typeof ResizeObserver === "undefined"
