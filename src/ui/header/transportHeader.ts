@@ -54,6 +54,7 @@ export function createTransportHeader(params: HeaderParams) {
       | "save"
       | "generator"
       | "routing"
+      | "globalControls"
   ) => {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("viewBox", "0 0 24 24");
@@ -139,6 +140,17 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M16 14h-8");
       stroke("M16 10l2 2-2 2");
       stroke("M8 14l-2-2 2-2");
+    }
+    if (name === "globalControls") {
+      stroke("M5 7h14");
+      stroke("M5 12h14");
+      stroke("M5 17h14");
+      stroke("M9 7v0.01");
+      stroke("M15 12v0.01");
+      stroke("M11 17v0.01");
+      stroke("M9 5v4");
+      stroke("M15 10v4");
+      stroke("M11 15v4");
     }
     return icon;
   };
@@ -571,7 +583,7 @@ export function createTransportHeader(params: HeaderParams) {
   const compactLauncher = document.createElement("button");
   compactLauncher.className = "transportCompactLauncher";
   compactLauncher.type = "button";
-  compactLauncher.textContent = "Global";
+  compactLauncher.append(makeIcon("globalControls"));
   compactLauncher.hidden = true;
   compactLauncher.setAttribute("aria-controls", main.id);
 
@@ -596,7 +608,6 @@ export function createTransportHeader(params: HeaderParams) {
     header.classList.toggle("mobileCollapsed", compactActive);
     mobileToggle.setAttribute("aria-expanded", "false");
     compactLauncher.setAttribute("aria-expanded", "false");
-    compactLauncher.textContent = "Global";
     mobileToggle.hidden = true;
     compactLauncher.hidden = !compactActive;
   };
@@ -921,6 +932,7 @@ export function createTransportHeader(params: HeaderParams) {
     btnSaveSession.classList.toggle("primary", pending);
     btnSaveSession.classList.toggle("hasPending", pending);
     btnSaveSession.textContent = pending ? "Save session*" : "Save session";
+    if (drawerView === "session") refreshDrawerSessionList();
   };
 
   const updateBpmUI = () => {
@@ -980,12 +992,42 @@ export function createTransportHeader(params: HeaderParams) {
   const makeDrawerIconButton = (name: "generator" | "routing" | "session", label: string, onClick: () => void) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "globalControlsDrawerIconBtn";
+    btn.className = "globalControlsDrawerNavBtn";
     btn.setAttribute("aria-label", label);
-    btn.append(makeIcon(name));
+    const glyph = document.createElement("span");
+    glyph.className = "globalControlsDrawerNavIcon";
+    glyph.append(makeIcon(name));
+    const text = document.createElement("span");
+    text.className = "globalControlsDrawerNavText";
+    text.textContent = label;
+    btn.append(glyph, text);
     btn.onclick = onClick;
     return btn;
   };
+
+  const makeDrawerActionBtn = (label: string, onClick: () => void) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "transportGhostBtn transportUtilityBtn globalControlsDrawerActionBtn";
+    btn.textContent = label;
+    btn.onclick = onClick;
+    return btn;
+  };
+
+  const drawerNav = document.createElement("div");
+  drawerNav.className = "globalControlsDrawerNav hidden";
+  const drawerBackBtn = document.createElement("button");
+  drawerBackBtn.type = "button";
+  drawerBackBtn.className = "globalControlsDrawerBackBtn";
+  drawerBackBtn.textContent = "Back";
+  const drawerNavTitle = document.createElement("div");
+  drawerNavTitle.className = "globalControlsDrawerNavTitle";
+  drawerNav.append(drawerBackBtn, drawerNavTitle);
+
+  const drawerMainView = document.createElement("div");
+  drawerMainView.className = "globalControlsDrawerMainView";
+  const drawerUtilityView = document.createElement("div");
+  drawerUtilityView.className = "globalControlsDrawerUtilityView hidden";
 
   const drawerCore = document.createElement("section");
   drawerCore.className = "globalControlsDrawerSection";
@@ -1027,18 +1069,9 @@ export function createTransportHeader(params: HeaderParams) {
 
   const drawerAccess = document.createElement("section");
   drawerAccess.className = "globalControlsDrawerSection globalControlsDrawerAccess";
-  const regenBtn = makeDrawerIconButton("generator", "Regeneration tools", () => {
-    openGeneratorMenu();
-    closeGlobalDrawer();
-  });
-  const routingBtn = makeDrawerIconButton("routing", "Routing overview", () => {
-    routingOverview.toggle();
-    closeGlobalDrawer();
-  });
-  const sessionBtn = makeDrawerIconButton("session", "Session actions", () => {
-    openSessionMenu();
-    closeGlobalDrawer();
-  });
+  const regenBtn = makeDrawerIconButton("generator", "Generator", () => openDrawerUtilityView("generator"));
+  const routingBtn = makeDrawerIconButton("routing", "Routing", () => openDrawerUtilityView("routing"));
+  const sessionBtn = makeDrawerIconButton("session", "Session", () => openDrawerUtilityView("session"));
   drawerAccess.append(regenBtn, routingBtn, sessionBtn);
 
   const drawerStatus = document.createElement("section");
@@ -1064,7 +1097,18 @@ export function createTransportHeader(params: HeaderParams) {
   };
   drawerSettingsSection.append(drawerSettings);
 
-  drawerPanel.append(drawerCore, drawerAudioSection, drawerTempo, drawerAccess, drawerStatus, drawerSettingsSection);
+  const drawerTop = document.createElement("div");
+  drawerTop.className = "globalControlsDrawerGroup globalControlsDrawerGroupTop";
+  drawerTop.append(drawerCore);
+  const drawerMiddle = document.createElement("div");
+  drawerMiddle.className = "globalControlsDrawerGroup globalControlsDrawerGroupMiddle";
+  drawerMiddle.append(drawerTempo, drawerAccess);
+  const drawerBottom = document.createElement("div");
+  drawerBottom.className = "globalControlsDrawerGroup globalControlsDrawerGroupBottom";
+  drawerBottom.append(drawerAudioSection, drawerStatus, drawerSettingsSection);
+
+  drawerMainView.append(drawerTop, drawerMiddle, drawerBottom);
+  drawerPanel.append(drawerNav, drawerMainView, drawerUtilityView);
   drawer.append(drawerBackdrop, drawerPanel);
   document.body.appendChild(drawer);
 
@@ -1074,6 +1118,7 @@ export function createTransportHeader(params: HeaderParams) {
     : null;
 
   let drawerOpen = false;
+  let drawerView: "main" | "generator" | "routing" | "session" = "main";
   let drawerPointerId: number | null = null;
   let drawerStartX = 0;
   let drawerSwipeMode: "open" | "close" | null = null;
@@ -1096,16 +1141,125 @@ export function createTransportHeader(params: HeaderParams) {
     else if (document.body.dataset.interactionOwner === "edge-nav") delete document.body.dataset.interactionOwner;
   };
 
+  const syncDrawerAnchor = () => {
+    const rect = compactLauncher.getBoundingClientRect();
+    drawer.style.setProperty("--launcher-y", `${Math.round(rect.top + rect.height / 2)}px`);
+  };
+
+  const drawerSessionList = document.createElement("div");
+  drawerSessionList.className = "globalControlsDrawerSessionList";
+  const drawerSessionFilter = document.createElement("input");
+  drawerSessionFilter.type = "search";
+  drawerSessionFilter.className = "transportSessionFilter";
+  drawerSessionFilter.placeholder = "Search sessions";
+  drawerSessionFilter.maxLength = 72;
+  drawerSessionFilter.spellcheck = false;
+
+  const refreshDrawerSessionList = () => {
+    const selectedId = params.selectedPresetId();
+    const filter = drawerSessionFilter.value.trim().toLowerCase();
+    drawerSessionList.replaceChildren();
+    const presets = params.presetNames().filter((preset) => !filter || preset.name.toLowerCase().includes(filter));
+    for (const preset of presets) {
+      const presetBtn = document.createElement("button");
+      presetBtn.type = "button";
+      presetBtn.className = "transportGhostBtn transportUtilityBtn transportSessionOption globalControlsDrawerActionBtn";
+      presetBtn.textContent = preset.name;
+      const isSelected = preset.id === selectedId;
+      presetBtn.classList.toggle("isSelected", isSelected);
+      presetBtn.onclick = () => params.onSelectPreset(preset.id);
+      drawerSessionList.append(presetBtn);
+    }
+    if (!presets.length) {
+      const emptyState = document.createElement("div");
+      emptyState.className = "small transportSessionEmpty";
+      emptyState.textContent = "No sessions match this filter.";
+      drawerSessionList.append(emptyState);
+    }
+  };
+  drawerSessionFilter.addEventListener("input", refreshDrawerSessionList);
+
+  const renderDrawerUtilityView = () => {
+    drawerUtilityView.replaceChildren();
+    if (drawerView === "main") return;
+    if (drawerView === "generator") {
+      drawerNavTitle.textContent = "Generator tools";
+      const section = document.createElement("div");
+      section.className = "globalControlsDrawerUtilitySection";
+      section.append(
+        makeDrawerActionBtn("Regen generators", params.onRegen),
+        makeDrawerActionBtn("Reseed generators", params.onReseed),
+        makeDrawerActionBtn("Randomize patch", params.onRandomize),
+      );
+      drawerUtilityView.append(section);
+      return;
+    }
+    if (drawerView === "session") {
+      drawerNavTitle.textContent = "Session actions";
+      refreshDrawerSessionList();
+      const actions = document.createElement("div");
+      actions.className = "globalControlsDrawerUtilitySection";
+      actions.append(
+        makeDrawerActionBtn("New session", params.onNewSession),
+        makeDrawerActionBtn("Save session", params.onSavePreset),
+        makeDrawerActionBtn("Save As…", params.onSaveAsPreset),
+        makeDrawerActionBtn("Session manager…", params.onOpenPresetManager),
+        makeDrawerActionBtn("Reset session patch", params.onReset),
+      );
+      const sessions = document.createElement("div");
+      sessions.className = "globalControlsDrawerUtilitySection";
+      const heading = document.createElement("div");
+      heading.className = "small transportUtilitySectionLabel";
+      heading.textContent = "Load session";
+      sessions.append(heading, drawerSessionFilter, drawerSessionList);
+      drawerUtilityView.append(actions, sessions);
+      return;
+    }
+    drawerNavTitle.textContent = "Routing";
+    const routingStub = document.createElement("div");
+    routingStub.className = "globalControlsDrawerUtilitySection";
+    const stubTitle = document.createElement("div");
+    stubTitle.className = "small transportUtilitySectionLabel";
+    stubTitle.textContent = "Routing overview";
+    const stubText = document.createElement("p");
+    stubText.className = "globalControlsDrawerStub";
+    stubText.textContent = "Routing controls are being consolidated here. Use module routing tabs for detailed edits in this pass.";
+    routingStub.append(stubTitle, stubText);
+    drawerUtilityView.append(routingStub);
+  };
+
+  function openDrawerUtilityView(view: "generator" | "routing" | "session") {
+    drawerView = view;
+    drawerMainView.classList.add("hidden");
+    drawerUtilityView.classList.remove("hidden");
+    drawerNav.classList.remove("hidden");
+    renderDrawerUtilityView();
+  }
+
+  function closeDrawerUtilityView() {
+    drawerView = "main";
+    drawerMainView.classList.remove("hidden");
+    drawerUtilityView.classList.add("hidden");
+    drawerNav.classList.add("hidden");
+    drawerNavTitle.textContent = "";
+  }
+
+  drawerBackBtn.onclick = () => closeDrawerUtilityView();
+
   function closeGlobalDrawer() {
     drawerOpen = false;
     drawer.classList.remove("isOpen");
+    compactLauncher.classList.remove("isLinked");
     setDrawerInteractionOwner(false);
     closeChipEditor();
+    closeDrawerUtilityView();
   }
 
   function openGlobalDrawer() {
     drawerOpen = true;
+    syncDrawerAnchor();
     drawer.classList.add("isOpen");
+    compactLauncher.classList.add("isLinked");
     setDrawerInteractionOwner(true);
   }
 
@@ -1237,6 +1391,9 @@ export function createTransportHeader(params: HeaderParams) {
   document.addEventListener("pointermove", onDrawerPointerMove, true);
   document.addEventListener("pointerup", onDrawerPointerEnd, true);
   document.addEventListener("pointercancel", onDrawerPointerEnd, true);
+  window.addEventListener("resize", () => {
+    if (drawerOpen) syncDrawerAnchor();
+  });
 
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
