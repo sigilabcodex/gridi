@@ -25,6 +25,7 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 - Drum modules now support explicit channel assignment (`Auto`, `01`–`08`) with Auto fallback preserving differentiated behavior, while explicit channels behave as strict shared subscriptions.
 - Session presets (whole-patch state) and module presets (local module state) both exist and are active.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
+- MIDI now appears as a first-class routing domain in the global Routing UI: users can assign `MIDI IN` input source + synth target explicitly, and MIDI routes are listed alongside event/modulation/audio routes.
 
 ## Near-term next steps (active priority)
 
