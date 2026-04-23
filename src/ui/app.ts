@@ -294,6 +294,13 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     const prev = clonePatch(patch);
     fn(patch);
     if (!activeHistoryGesture) history.pushHistory(prev);
+    for (const prevModule of prev.modules) {
+      if (prevModule.type !== "tonal") continue;
+      const nextModule = patch.modules.find((module) => module.id === prevModule.id);
+      const removedOrDisabled = !nextModule || nextModule.type !== "tonal" || !nextModule.enabled;
+      const receptionChanged = nextModule?.type === "tonal" && nextModule.reception !== prevModule.reception;
+      if (removedOrDisabled || receptionChanged) engine.stopAllMidiVoices(prevModule.id);
+    }
 
     sched.setPatch(patch, { regen: opts?.regen ?? false });
     if (opts?.regen) sched.regenAll();
@@ -832,9 +839,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateRoutingOverview();
     },
     onSetMidiTargetModule: (moduleId) => {
+      if (midiTargetModuleId && midiTargetModuleId !== moduleId) engine.stopAllMidiVoices(midiTargetModuleId);
       const existingInputId = getMidiRouteInputId() ?? preferredMidiInputId;
-      if (!moduleId && midiTargetModuleId) engine.stopAllMidiVoices(midiTargetModuleId);
-      if (moduleId) midiTargetModuleId = moduleId;
+      midiTargetModuleId = moduleId;
       setMidiInputRoute(moduleId, existingInputId ?? null);
       header.updateMidiUI();
       header.updateRoutingOverview();
