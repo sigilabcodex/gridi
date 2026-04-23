@@ -15,11 +15,8 @@ type TriggerDisplayApi = {
 };
 
 type StepGridState = {
-  basePattern: Uint8Array;
-  currentPattern: Uint8Array;
-  pointerActive: boolean;
-  pointerMode: "paint" | "erase" | "toggle";
-  lastSeed: number;
+  pattern: Uint8Array;
+  intensity: Float32Array;
   activeLength: number;
   stepCount: number;
   cols: number;
@@ -68,11 +65,8 @@ export function createTriggerDisplaySurface(params: TriggerDisplayParams): Trigg
   wrap.append(canvas);
 
   const stepGridState: StepGridState = {
-    basePattern: new Uint8Array(0),
-    currentPattern: new Uint8Array(0),
-    pointerActive: false,
-    pointerMode: "toggle",
-    lastSeed: params.module.seed,
+    pattern: new Uint8Array(0),
+    intensity: new Float32Array(0),
     activeLength: 0,
     stepCount: 0,
     cols: 16,
@@ -592,7 +586,7 @@ function createSonarView(): DisplayView {
 function createStepSequencerView(module: TriggerModule, params: TriggerDisplayParams, state: StepGridState): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayStepView";
-  const grid = renderInteractiveStepGrid(module, state, params);
+  let grid = renderReadOnlyStepGrid(module, state);
   root.appendChild(grid);
 
   return {
@@ -600,19 +594,8 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
     sync: (nextModule) => {
       const layout = resolveStepGridLayout(nextModule.length, nextModule.subdiv);
       const stepCount = layout.cols * layout.rows;
-      const basePattern = parsePatternPreview(params.getStepPattern(), stepCount);
-      const seededLive = decodeLivePattern(nextModule, stepCount);
-      const isFreshSeed = state.lastSeed !== nextModule.seed || state.stepCount !== stepCount;
-      if (isFreshSeed) state.currentPattern = seededLive ?? basePattern.slice();
-      else if (seededLive) state.currentPattern = seededLive;
-      else if (state.currentPattern.length !== stepCount) {
-        const resized = new Uint8Array(stepCount);
-        resized.set(state.currentPattern.subarray(0, Math.min(stepCount, state.currentPattern.length)));
-        state.currentPattern = resized;
-      }
-
-      state.lastSeed = nextModule.seed;
-      state.basePattern = basePattern;
+      state.pattern = decodeLivePattern(nextModule, stepCount) ?? parsePatternPreview(params.getStepPattern(), stepCount);
+      state.intensity = computeStepIntensities(state.pattern, nextModule, layout.cols);
       state.activeLength = clamp(Math.round(nextModule.length), 1, 128);
       state.stepCount = stepCount;
       state.cols = layout.cols;
@@ -623,11 +606,14 @@ function createStepSequencerView(module: TriggerModule, params: TriggerDisplayPa
         || grid.style.getPropertyValue("--trigger-display-cols") !== String(layout.cols)
         || grid.style.getPropertyValue("--trigger-display-rows") !== String(layout.rows);
       if (needsRebuild) {
-        const nextGrid = renderInteractiveStepGrid(nextModule, state, params);
+        const nextGrid = renderReadOnlyStepGrid(nextModule, state);
         root.replaceChildren(nextGrid);
+        grid = nextGrid;
       } else {
         state.cells.forEach((cell, i) => paintCell(cell, state, i));
       }
+      root.style.setProperty("--trigger-step-density", ((countActiveSteps(state.pattern, state.activeLength) / Math.max(1, state.activeLength))).toFixed(3));
+      root.style.setProperty("--trigger-step-accent-depth", clamp(nextModule.accent, 0, 1).toFixed(3));
     },
     tick: (timeMs, liveModule) => {
       if (!state.cells.length || !state.activeLength) return;
@@ -851,8 +837,7 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
       const preview = renderStepPreviewGrid(nextModule, params.getStepPattern());
       stepGrid.replaceChildren(preview);
       ringView.sync(nextModule, params, {
-        basePattern: new Uint8Array(0), currentPattern: new Uint8Array(0),
-        pointerActive: false, pointerMode: "toggle", lastSeed: nextModule.seed, activeLength: 0,
+        pattern: new Uint8Array(0), intensity: new Float32Array(0), activeLength: 0,
         stepCount: 0, cols: 0, rows: 0, phraseSpan: 4, cells: [], lastPlayhead: -1,
       });
       const blend = clamp(nextModule.determinism * 0.6 + nextModule.gravity * 0.4, 0, 1);
@@ -1144,11 +1129,12 @@ function renderModePlaceholder(mode: Mode) {
   return placeholder;
 }
 
-function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, params: TriggerDisplayParams) {
+function renderReadOnlyStepGrid(module: TriggerModule, state: StepGridState) {
   const grid = document.createElement("div");
   grid.className = "triggerDisplayStepGrid";
   grid.setAttribute("role", "grid");
-  grid.setAttribute("aria-label", `${module.name} step overlay editor`);
+  grid.setAttribute("aria-label", `${module.name} sequencer readout`);
+  grid.setAttribute("aria-readonly", "true");
   grid.style.setProperty("--trigger-display-cols", String(state.cols));
   grid.style.setProperty("--trigger-display-rows", String(state.rows));
   grid.style.setProperty("--trigger-step-phrase", String(state.phraseSpan));
@@ -1168,40 +1154,9 @@ function renderInteractiveStepGrid(module: TriggerModule, state: StepGridState, 
     cell.classList.toggle("is-measure-start", isMeasureStart);
     cell.classList.toggle("is-subdivision-start", !isMeasureStart && isSubdivisionStart);
     paintCell(cell, state, i);
-    cell.addEventListener("pointerdown", (event) => {
-      if (isOverflow) return;
-      event.preventDefault();
-      const erase = event.button === 2 || (event.shiftKey && event.button === 0);
-      state.pointerActive = true;
-      state.pointerMode = erase ? "erase" : "toggle";
-      if (erase) writeCurrentPattern(state, i, 0);
-      else toggleCurrentPattern(state, i);
-      paintCell(cell, state, i);
-      params.onCommitLivePattern?.(state.currentPattern, "step-sequencer");
-    });
-    cell.addEventListener("pointerenter", (event) => {
-      if (isOverflow) return;
-      if (!state.pointerActive) return;
-      if (!(event.buttons & 1) && !(event.buttons & 2)) {
-        state.pointerActive = false;
-        return;
-      }
-      writeCurrentPattern(state, i, state.pointerMode === "erase" ? 0 : 1);
-      paintCell(cell, state, i);
-      params.onCommitLivePattern?.(state.currentPattern, "step-sequencer");
-    });
     grid.appendChild(cell);
     state.cells.push(cell);
   }
-
-  grid.addEventListener("contextmenu", (event) => event.preventDefault());
-  const endPointer = () => {
-    state.pointerActive = false;
-  };
-  grid.addEventListener("pointerup", endPointer);
-  grid.addEventListener("pointerleave", (event) => {
-    if (!(event.buttons & 1) && !(event.buttons & 2)) endPointer();
-  });
 
   return grid;
 }
@@ -1225,15 +1180,17 @@ function renderStepPreviewGrid(module: TriggerModule, patternPreview: string) {
 
 function paintCell(cell: HTMLElement, state: StepGridState, stepIndex: number) {
   if (stepIndex >= state.activeLength) {
-    cell.classList.remove("base-on", "on", "overlay-on", "overlay-off");
+    cell.classList.remove("on", "off", "is-ghost", "is-strong", "is-soft");
     return;
   }
-  const baseOn = state.basePattern[stepIndex] === 1;
-  const currentOn = state.currentPattern[stepIndex] === 1;
-  cell.classList.toggle("base-on", baseOn);
-  cell.classList.toggle("on", currentOn);
-  cell.classList.toggle("overlay-on", !baseOn && currentOn);
-  cell.classList.toggle("overlay-off", baseOn && !currentOn);
+  const active = state.pattern[stepIndex] === 1;
+  const intensity = clamp(state.intensity[stepIndex] ?? 0.5, 0, 1);
+  cell.classList.toggle("on", active);
+  cell.classList.toggle("off", !active);
+  cell.classList.toggle("is-ghost", !active && intensity > 0.45);
+  cell.classList.toggle("is-strong", active && intensity >= 0.72);
+  cell.classList.toggle("is-soft", active && intensity < 0.5);
+  cell.style.setProperty("--trigger-step-intensity", intensity.toFixed(3));
 }
 
 function parsePatternPreview(patternPreview: string, steps: number) {
@@ -1255,13 +1212,25 @@ function decodeLivePattern(module: TriggerModule, steps: number) {
   return out;
 }
 
-function toggleCurrentPattern(state: StepGridState, index: number) {
-  const next = state.currentPattern[index] === 1 ? 0 : 1;
-  writeCurrentPattern(state, index, next);
+function computeStepIntensities(pattern: Uint8Array, module: TriggerModule, cols: number) {
+  const intensity = new Float32Array(pattern.length);
+  const accentDepth = clamp(module.accent, 0, 1);
+  const phraseSpan = resolvePhraseSpan(cols, module.subdiv);
+  for (let i = 0; i < pattern.length; i++) {
+    const col = i % Math.max(1, cols);
+    const progress = pattern.length <= 1 ? 0.5 : i / (pattern.length - 1);
+    const phraseWeight = col % phraseSpan === 0 ? 0.22 : col % Math.max(1, phraseSpan / 2) === 0 ? 0.12 : 0;
+    const contour = 0.36 + progress * (0.28 + accentDepth * 0.2) + phraseWeight;
+    intensity[i] = clamp(contour, 0, 1);
+  }
+  return intensity;
 }
 
-function writeCurrentPattern(state: StepGridState, index: number, next: 0 | 1) {
-  state.currentPattern[index] = next;
+function countActiveSteps(pattern: Uint8Array, usableLength: number) {
+  let active = 0;
+  const end = Math.min(pattern.length, Math.max(0, usableLength));
+  for (let i = 0; i < end; i++) active += pattern[i] === 1 ? 1 : 0;
+  return active;
 }
 
 function resolveStepGridLayout(length: number, subdiv: number) {

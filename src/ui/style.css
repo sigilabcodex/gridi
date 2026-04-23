@@ -5087,6 +5087,8 @@ button:focus-visible,
   height: 100%;
   min-height: 0;
   display: flex;
+  --trigger-step-density: 0.5;
+  --trigger-step-accent-depth: 0.5;
 }
 
 .triggerDisplayStepGrid {
@@ -5095,52 +5097,61 @@ button:focus-visible,
   user-select: none;
   position: relative;
   background:
-    linear-gradient(to right, rgba(233, 203, 255, 0.03), rgba(233, 203, 255, 0.03)) left top / 100% 100% no-repeat,
+    linear-gradient(to bottom, rgba(197, 216, 236, 0.06), rgba(117, 150, 181, 0.02)) left top / 100% 100% no-repeat,
     repeating-linear-gradient(
       to right,
       transparent 0,
       transparent calc((100% / var(--trigger-display-cols, 16)) * var(--trigger-step-phrase, 4) - 1px),
-      rgba(236, 210, 255, 0.16) calc((100% / var(--trigger-display-cols, 16)) * var(--trigger-step-phrase, 4) - 1px),
-      rgba(236, 210, 255, 0.16) calc((100% / var(--trigger-display-cols, 16)) * var(--trigger-step-phrase, 4))
+      rgba(150, 186, 220, 0.18) calc((100% / var(--trigger-display-cols, 16)) * var(--trigger-step-phrase, 4) - 1px),
+      rgba(150, 186, 220, 0.18) calc((100% / var(--trigger-display-cols, 16)) * var(--trigger-step-phrase, 4))
     );
+  border-radius: 6px;
+  pointer-events: none;
 }
 
 .triggerDisplayCell {
   min-height: 0;
-  border-radius: 4px;
-  background: rgba(198, 127, 255, 0.13);
-  border: 1px solid rgba(205, 168, 236, 0.15);
-  cursor: crosshair;
-  transition: background-color 80ms linear, border-color 80ms linear, box-shadow 80ms linear, opacity 80ms linear;
+  border-radius: 3px;
+  background: rgba(107, 135, 160, 0.11);
+  border: 1px solid rgba(129, 157, 181, 0.18);
+  transition: background-color 70ms linear, border-color 70ms linear, box-shadow 70ms linear, opacity 70ms linear;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .triggerDisplayCell.on {
-  background: rgba(224, 186, 252, 0.9);
-  box-shadow: 0 0 8px rgba(198, 127, 255, 0.28);
+  background: rgba(172, 202, 228, calc(0.26 + var(--trigger-step-intensity, 0.5) * 0.46));
+  border-color: rgba(168, 211, 246, calc(0.34 + var(--trigger-step-intensity, 0.5) * 0.48));
+  box-shadow: inset 0 0 0 1px rgba(211, 233, 252, calc(0.14 + var(--trigger-step-intensity, 0.5) * 0.32));
+}
+
+.triggerDisplayCell.off {
+  background: rgba(89, 113, 136, 0.08);
+}
+
+.triggerDisplayCell.is-ghost {
+  background: rgba(114, 145, 172, 0.16);
+  border-color: rgba(135, 171, 200, 0.23);
+}
+
+.triggerDisplayCell.is-strong {
+  box-shadow:
+    inset 0 0 0 1px rgba(225, 245, 255, 0.48),
+    0 0 0 1px rgba(148, 188, 224, 0.32);
+}
+
+.triggerDisplayCell.is-soft {
+  opacity: 0.86;
 }
 .triggerDisplayCell.is-playhead {
-  box-shadow: 0 0 0 1px rgba(237, 227, 255, 0.95), 0 0 16px rgba(214, 174, 252, 0.86);
-  border-color: rgba(240, 230, 255, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(248, 253, 255, 0.88),
+    0 0 0 1px rgba(196, 223, 246, 0.85);
+  border-color: rgba(225, 243, 255, 0.92);
+  background: rgba(199, 230, 253, calc(0.4 + var(--trigger-step-intensity, 0.5) * 0.54));
 }
 
 .triggerDisplayCell.is-secondary {
-  box-shadow: 0 0 8px rgba(196, 153, 227, 0.36);
-}
-
-.triggerDisplayCell.base-on {
-  background: rgba(196, 153, 227, 0.48);
-}
-
-.triggerDisplayCell.overlay-on {
-  border-color: rgba(157, 251, 210, 0.9);
-  background: rgba(128, 252, 199, 0.82);
-  box-shadow: 0 0 10px rgba(128, 252, 199, 0.52);
-}
-
-.triggerDisplayCell.overlay-off {
-  border-color: rgba(255, 170, 231, 0.9);
-  background: rgba(255, 170, 231, 0.2);
-  box-shadow: inset 0 0 0 1px rgba(255, 170, 231, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(170, 196, 216, 0.32);
 }
 
 .triggerDisplayStepGrid .triggerDisplayCell.is-measure-start {
@@ -5152,10 +5163,9 @@ button:focus-visible,
 }
 
 .triggerDisplayStepGrid .triggerDisplayCell.is-overflow {
-  opacity: 0.2;
-  background: rgba(106, 85, 126, 0.2);
-  border-color: rgba(175, 140, 206, 0.1);
-  cursor: default;
+  opacity: 0.3;
+  background: rgba(74, 86, 102, 0.16);
+  border-color: rgba(110, 128, 146, 0.14);
   box-shadow: none;
 }
 
