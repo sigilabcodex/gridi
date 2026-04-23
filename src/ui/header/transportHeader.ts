@@ -866,6 +866,11 @@ export function createTransportHeader(params: HeaderParams) {
     btnAudio.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
     btnAudio.classList.toggle("isOn", running);
     btnAudio.setAttribute("aria-pressed", running ? "true" : "false");
+    drawerAudioBtn.replaceChildren(makeIcon(running ? "audioOn" : "audioOff"));
+    drawerAudioBtn.classList.toggle("isOn", running);
+    drawerAudioBtn.setAttribute("aria-pressed", running ? "true" : "false");
+    drawerAudioBtn.setAttribute("aria-label", running ? "Suspend audio engine" : "Start audio engine");
+    drawerAudioText.textContent = running ? "Suspend audio" : "Start audio";
     audioDot.classList.toggle("isOn", running);
     audioLabel.textContent = running ? "Audio ready" : "Audio suspended";
   };
@@ -999,6 +1004,17 @@ export function createTransportHeader(params: HeaderParams) {
   drawerStopBtn.onclick = params.onStop;
   drawerCore.append(drawerPlayBtn, drawerStopBtn);
 
+  const drawerAudioSection = document.createElement("section");
+  drawerAudioSection.className = "globalControlsDrawerSection";
+  const drawerAudioBtn = document.createElement("button");
+  drawerAudioBtn.type = "button";
+  drawerAudioBtn.className = "globalControlsDrawerCoreBtn globalControlsDrawerAudioBtn";
+  drawerAudioBtn.onclick = params.onToggleAudio;
+  const drawerAudioText = document.createElement("span");
+  drawerAudioText.className = "globalControlsDrawerAudioText";
+  drawerAudioBtn.append(makeIcon("audioOff"), drawerAudioText);
+  drawerAudioSection.append(drawerAudioBtn);
+
   const drawerTempo = document.createElement("section");
   drawerTempo.className = "globalControlsDrawerSection";
   const bpmChip = document.createElement("button");
@@ -1048,7 +1064,7 @@ export function createTransportHeader(params: HeaderParams) {
   };
   drawerSettingsSection.append(drawerSettings);
 
-  drawerPanel.append(drawerCore, drawerTempo, drawerAccess, drawerStatus, drawerSettingsSection);
+  drawerPanel.append(drawerCore, drawerAudioSection, drawerTempo, drawerAccess, drawerStatus, drawerSettingsSection);
   drawer.append(drawerBackdrop, drawerPanel);
   document.body.appendChild(drawer);
 
