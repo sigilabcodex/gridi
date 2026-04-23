@@ -97,3 +97,11 @@ Deferred for later phases:
 - Full multi-target MIDI routing matrix
 - CC mapping / aftertouch / MPE
 - Advanced device routing / filtering UI beyond the compact selector
+
+## Runtime note lifecycle hardening
+
+Live MIDI voice tracking and release semantics were hardened after runtime stuck-note testing under dense simultaneous input.
+
+See:
+
+- `docs/midi-note-lifecycle.md`

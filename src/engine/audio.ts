@@ -7,6 +7,7 @@ import { collectVoiceRoutes, validateConnections } from "./routing";
 import { sampleControl01 } from "./control";
 import { compileRoutingGraph } from "../routingGraph.ts";
 import { selectNotesForReception, type GridiTriggerEvent } from "./events.ts";
+import { createLiveMidiVoiceTracker } from "./liveMidiNotes.ts";
 
 export type Engine = {
   ctx: AudioContext;
@@ -122,9 +123,11 @@ export function createEngine(): Engine {
   // now that voices are “modular”, allow more than 8
   const voiceLastTrigMs = new Map<string, number>();
   type LiveMidiVoice = {
+    trackingId: number;
     midiNote: number;
     moduleId: string;
     ampPerNote: number;
+    releasing: boolean;
     voiceGain: GainNode;
     filter: BiquadFilterNode;
     lfo: OscillatorNode;
@@ -134,7 +137,7 @@ export function createEngine(): Engine {
     panNode: StereoPannerNode;
     sendGains: GainNode[];
   };
-  const liveMidiVoicesByModule = new Map<string, Map<number, LiveMidiVoice>>();
+  const liveMidiVoices = createLiveMidiVoiceTracker<LiveMidiVoice>();
 
   function setMasterMute(muted: boolean) {
     masterMuted = !!muted;
@@ -512,6 +515,8 @@ export function createEngine(): Engine {
 
     const freq = tonalBaseFreq(v, i, patch.macro);
     const releaseMidiVoice = (voice: LiveMidiVoice, releaseAt: number) => {
+      if (voice.releasing) return;
+      voice.releasing = true;
       const releaseFloor = Math.max(EPS, voice.ampPerNote * sustain);
       voice.voiceGain.gain.cancelScheduledValues(releaseAt);
       voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
@@ -530,24 +535,12 @@ export function createEngine(): Engine {
       voice.filter.disconnect();
       voice.panNode.disconnect();
       for (const send of voice.sendGains) send.disconnect();
-      const moduleVoices = liveMidiVoicesByModule.get(voice.moduleId);
-      if (!moduleVoices) return;
-      moduleVoices.delete(voice.midiNote);
-      if (!moduleVoices.size) liveMidiVoicesByModule.delete(voice.moduleId);
+      liveMidiVoices.remove({ id: voice.trackingId, moduleId: voice.moduleId, midiNote: voice.midiNote });
     };
     const stopMidiVoice = (targetModuleId: string, midiNote: number, releaseAt = ctx.currentTime) => {
-      const moduleVoices = liveMidiVoicesByModule.get(targetModuleId);
-      const voice = moduleVoices?.get(midiNote);
-      if (!voice) return;
-      releaseMidiVoice(voice, releaseAt);
-    };
-    const moduleVoicesFor = (targetModuleId: string) => {
-      let moduleVoices = liveMidiVoicesByModule.get(targetModuleId);
-      if (!moduleVoices) {
-        moduleVoices = new Map<number, LiveMidiVoice>();
-        liveMidiVoicesByModule.set(targetModuleId, moduleVoices);
-      }
-      return moduleVoices;
+      const tracked = liveMidiVoices.take(targetModuleId, midiNote);
+      if (!tracked) return;
+      releaseMidiVoice(tracked.voice, releaseAt);
     };
     const noteOff = event?.kind === "note" && event.source === "midi" && event.gate === "off";
     const noteOn = event?.kind === "note" && event.source === "midi" && event.gate !== "off";
@@ -618,14 +611,15 @@ export function createEngine(): Engine {
     if (!firstOsc) return;
 
     if (noteOn && eventMidiNote != null) {
-      const moduleVoices = moduleVoicesFor(moduleId);
       if (normalizeSynthReceptionMode(v.reception) === "mono") {
-        for (const voice of moduleVoices.values()) releaseMidiVoice(voice, now);
+        for (const tracked of liveMidiVoices.drainModule(moduleId)) releaseMidiVoice(tracked.voice, now);
       }
       const activeVoice: LiveMidiVoice = {
+        trackingId: 0,
         midiNote: eventMidiNote,
         moduleId,
         ampPerNote,
+        releasing: false,
         voiceGain,
         filter,
         lfo,
@@ -635,7 +629,8 @@ export function createEngine(): Engine {
         panNode,
         sendGains,
       };
-      moduleVoices.set(eventMidiNote, activeVoice);
+      const trackedVoice = liveMidiVoices.add(moduleId, eventMidiNote, activeVoice);
+      activeVoice.trackingId = trackedVoice.id;
       firstOsc.onended = () => cleanupMidiVoice(activeVoice);
       return;
     }
@@ -674,9 +669,11 @@ export function createEngine(): Engine {
     triggerVoice,
     stopMidiVoice: (moduleId, midiNote, when) => {
       const releaseAt = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
-      const moduleVoices = liveMidiVoicesByModule.get(moduleId);
-      const voice = moduleVoices?.get(midiNote);
-      if (!voice) return;
+      const tracked = liveMidiVoices.take(moduleId, midiNote);
+      if (!tracked) return;
+      const voice = tracked.voice;
+      if (voice.releasing) return;
+      voice.releasing = true;
       const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
       voice.voiceGain.gain.cancelScheduledValues(releaseAt);
       voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
@@ -688,32 +685,19 @@ export function createEngine(): Engine {
     },
     stopAllMidiVoices: (moduleId, when) => {
       const releaseAt = typeof when === "number" && Number.isFinite(when) ? when : ctx.currentTime;
-      if (moduleId) {
-        const moduleVoices = liveMidiVoicesByModule.get(moduleId);
-        if (!moduleVoices) return;
-        for (const voice of moduleVoices.values()) {
-          const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
-          voice.voiceGain.gain.cancelScheduledValues(releaseAt);
-          voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
-          voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
-          const stopAt = releaseAt + 0.18;
-          for (const osc of voice.oscAs) osc.stop(stopAt);
-          for (const osc of voice.oscBs) osc.stop(stopAt);
-          voice.lfo.stop(stopAt);
-        }
-        return;
-      }
-      for (const moduleVoices of liveMidiVoicesByModule.values()) {
-        for (const voice of moduleVoices.values()) {
-          const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
-          voice.voiceGain.gain.cancelScheduledValues(releaseAt);
-          voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
-          voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
-          const stopAt = releaseAt + 0.18;
-          for (const osc of voice.oscAs) osc.stop(stopAt);
-          for (const osc of voice.oscBs) osc.stop(stopAt);
-          voice.lfo.stop(stopAt);
-        }
+      const voicesToStop = moduleId ? liveMidiVoices.drainModule(moduleId) : liveMidiVoices.drainAll();
+      for (const tracked of voicesToStop) {
+        const voice = tracked.voice;
+        if (voice.releasing) continue;
+        voice.releasing = true;
+        const releaseFloor = Math.max(EPS, voice.ampPerNote * 0.3);
+        voice.voiceGain.gain.cancelScheduledValues(releaseAt);
+        voice.voiceGain.gain.setValueAtTime(Math.max(EPS, releaseFloor), releaseAt);
+        voice.voiceGain.gain.exponentialRampToValueAtTime(EPS, releaseAt + 0.12);
+        const stopAt = releaseAt + 0.18;
+        for (const osc of voice.oscAs) osc.stop(stopAt);
+        for (const osc of voice.oscBs) osc.stop(stopAt);
+        voice.lfo.stop(stopAt);
       }
     },
     getScopeData,
