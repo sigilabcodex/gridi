@@ -491,28 +491,25 @@ function genFractalPattern(trigger: TriggerModule, voiceId: string) {
 function genSonarPattern(trigger: TriggerModule, voiceId: string) {
   const n = patternLength(trigger);
   const density = clamp01(trigger.density);
-  const lock = clamp01(trigger.determinism);
-  const drift = clamp01(trigger.weird);
   const bias = clamp01(trigger.gravity);
   const out = new Uint8Array(n);
   const targetCount = Math.max(2, Math.min(12, 2 + Math.round(density * 9 + bias * 2)));
-
-  const anchors = new Float64Array(targetCount);
-  for (let i = 0; i < targetCount; i++) anchors[i] = stepRandom01(trigger.seed ^ 0x79e2 + i * 43, voiceId, i);
+  const targets = Array.from({ length: targetCount }, (_, i) => createSonarTargetState(trigger, voiceId, i, 1));
+  const threshold = clamp01(0.42 - density * 0.16);
+  const motionPerStep = 0.72 + clamp01(trigger.weird) * 0.66;
 
   for (let step = 0; step < n; step++) {
     const sweep = (((step + (trigger.euclidRot | 0)) % n) + n) % n;
     const sweepPhase = sweep / n;
+    const sweepAngle = sweepPhase * Math.PI * 2 - Math.PI / 2;
     let strongest = 0;
-    for (let i = 0; i < targetCount; i++) {
-      const wander = (stepRandom01(trigger.seed ^ 0x7ff1 + i * 29, voiceId, step) - 0.5) * drift * 0.3;
-      const target = (anchors[i] + wander + 1) % 1;
-      const dist = Math.abs(sweepPhase - target);
-      const wrapped = Math.min(dist, 1 - dist);
-      const response = Math.max(0, 1 - wrapped * (4.8 + lock * 2.2));
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
+      if (!target) continue;
+      stepSonarTarget(target, motionPerStep, 1);
+      const response = sonarDetectionStrength(target.x, target.y, trigger, sweepAngle, 1);
       if (response > strongest) strongest = response;
     }
-    const threshold = clamp01(0.74 - density * 0.56 - bias * 0.14);
     let bit = strongest > threshold ? 1 : 0;
     if (bit && stepRandom01(trigger.seed ^ 0x7ac5, voiceId, step) < trigger.drop * 0.42) bit = 0;
     out[step] = bit;
@@ -600,7 +597,7 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     if (modeId === "cellular-automata") return localDensity(idx);
     if (modeId === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
     if (modeId === "gear") return Math.max(0, Math.min(1, localDensity(idx) * 0.75 + pulseIndexNormalized(idx) * 0.25));
-    if (modeId === "sonar") return Math.max(0, Math.min(1, 0.5 + Math.cos((idx / steps) * Math.PI * 2) * 0.5));
+    if (modeId === "sonar") return sonarReturnStrengthAtStep(trigger, voiceId, idx, steps);
     if (modeId === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
     return stepNorm;
   }
@@ -653,6 +650,68 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
   }
 
   return { startBeat, endBeat, events };
+}
+
+type SonarTargetState = { x: number; y: number; vx: number; vy: number };
+
+function createSonarTargetState(trigger: TriggerModule, voiceId: string, index: number, fieldRadius: number): SonarTargetState {
+  const anchor = stepRandom01(trigger.seed ^ 0x79e2, voiceId, index);
+  const angle = anchor * Math.PI * 2 - Math.PI / 2;
+  const bias = clamp01(trigger.gravity);
+  const radialRand = stepRandom01(trigger.seed ^ 0x56a3, voiceId, 500 + index);
+  const radiusNorm = Math.max(0.04, Math.min(1, Math.pow(radialRand, 0.55 + bias * 1.2)));
+  const speedMin = 0.045 + clamp01(trigger.weird) * 0.05;
+  const speed = speedMin + stepRandom01(trigger.seed ^ 0x1f2a, voiceId, 700 + index) * 0.16;
+  const heading = stepRandom01(trigger.seed ^ 0x8bc7, voiceId, 900 + index) * Math.PI * 2;
+  const radius = radiusNorm * fieldRadius;
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+    vx: Math.cos(heading) * speed,
+    vy: Math.sin(heading) * speed,
+  };
+}
+
+function stepSonarTarget(target: SonarTargetState, speedScale: number, fieldRadius: number) {
+  target.x += target.vx * speedScale;
+  target.y += target.vy * speedScale;
+  if (target.x > fieldRadius) target.x = -fieldRadius;
+  else if (target.x < -fieldRadius) target.x = fieldRadius;
+  if (target.y > fieldRadius) target.y = -fieldRadius;
+  else if (target.y < -fieldRadius) target.y = fieldRadius;
+}
+
+function sonarDetectionStrength(x: number, y: number, trigger: TriggerModule, sweepAngle: number, fieldRadius: number) {
+  const lock = clamp01(trigger.determinism);
+  const bias = clamp01(trigger.gravity);
+  const rangeNorm = Math.max(0, Math.min(1, Math.hypot(x, y) / Math.max(1e-6, fieldRadius * (0.34 + Math.max(0.08, Math.min(1, trigger.length / 128)) * 0.66))));
+  const targetAngle = Math.atan2(y, x);
+  const delta = Math.abs(Math.atan2(Math.sin(targetAngle - sweepAngle), Math.cos(targetAngle - sweepAngle)));
+  const beamHalfWidth = 0.58 - lock * 0.44;
+  const alignment = Math.max(0, Math.min(1, 1 - delta / Math.max(0.04, beamHalfWidth)));
+  const proximity = Math.pow(1 - rangeNorm, 0.75);
+  const biasFocus = Math.max(0.6, Math.min(1, 1 - Math.abs(rangeNorm - (1 - bias)) * 1.25));
+  return alignment * proximity * biasFocus;
+}
+
+function sonarReturnStrengthAtStep(trigger: TriggerModule, voiceId: string, stepIndex: number, steps: number) {
+  const targetCount = Math.max(2, Math.min(12, 2 + Math.round(clamp01(trigger.density) * 9 + clamp01(trigger.gravity) * 2)));
+  const targets = Array.from({ length: targetCount }, (_, i) => createSonarTargetState(trigger, voiceId, i, 1));
+  const motionPerStep = 0.72 + clamp01(trigger.weird) * 0.66;
+  const stepsSafe = Math.max(1, steps | 0);
+  let strongest = 0;
+  for (let step = 0; step <= stepIndex; step++) {
+    const phase = (((step + (trigger.euclidRot | 0)) % stepsSafe) + stepsSafe) % stepsSafe / stepsSafe;
+    const sweepAngle = phase * Math.PI * 2 - Math.PI / 2;
+    for (let i = 0; i < targets.length; i++) {
+      const target = targets[i];
+      if (!target) continue;
+      stepSonarTarget(target, motionPerStep, 1);
+      if (step !== stepIndex) continue;
+      strongest = Math.max(strongest, sonarDetectionStrength(target.x, target.y, trigger, sweepAngle, 1));
+    }
+  }
+  return strongest;
 }
 
 export function createPatternModuleForTrigger(trigger: TriggerModule): PatternModule {

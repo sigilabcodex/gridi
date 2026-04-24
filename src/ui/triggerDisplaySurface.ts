@@ -370,15 +370,17 @@ function createSonarView(): DisplayView {
   root.append(stage);
 
   type SonarBlipModel = {
-    anchor: number;
-    angle: number;
-    radius: number;
-    laneBias: number;
-    phaseOffset: number;
     x: number;
     y: number;
+    vx: number;
+    vy: number;
+    radiusNorm: number;
     hitGlow: number;
     eventGlow: number;
+    trailHead: number;
+    trailX: Float32Array;
+    trailY: Float32Array;
+    trails: HTMLElement[];
   };
 
   const blips: HTMLElement[] = [];
@@ -387,29 +389,34 @@ function createSonarView(): DisplayView {
   let pattern = new Uint8Array(0);
   let pulseGlow = 0;
   let sweepGlow = 0;
-  let sweepStep = 0;
+  let lastTickMs: number | null = null;
   const FIELD_RADIUS = 62;
+  const TRAIL_POINTS = 4;
 
   return {
     root,
     sync: (nextModule) => {
       pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildSonarPattern(nextModule, Math.max(8, nextModule.length));
-      stage.querySelectorAll(".triggerDisplaySonarBlip").forEach((el) => el.remove());
+      stage.querySelectorAll(".triggerDisplaySonarBlip, .triggerDisplaySonarTrail").forEach((el) => el.remove());
       blips.length = 0;
       blipModels.length = 0;
       const count = clamp(2 + Math.round(nextModule.density * 9 + nextModule.gravity * 2), 2, 12);
       for (let i = 0; i < count; i++) {
         const blip = document.createElement("span");
         blip.className = "triggerDisplaySonarBlip";
-        const anchor = sonarStepRandom(nextModule.seed ^ 0x79e2, `target:${i}`, i);
-        const angle = anchor * Math.PI * 2 - Math.PI / 2;
-        const laneBias = hash01(nextModule.seed * 0.089 + i * 1.91) - 0.5;
-        const phaseOffset = hash01(nextModule.seed * 0.031 + i * 3.37);
-        const baseRadius = 10 + hash01(nextModule.seed * 0.37 + i * 19.3) * 48;
-        const radiusScale = 0.76 + nextModule.gravity * 0.56;
-        const radius = clamp(baseRadius * radiusScale, 8, FIELD_RADIUS);
-        const x = Math.cos(angle) * radius;
-        const y = Math.sin(angle) * radius;
+        const target = createSonarTargetState(nextModule, i, FIELD_RADIUS);
+        const x = target.x;
+        const y = target.y;
+        const trails: HTMLElement[] = [];
+        for (let trail = 0; trail < TRAIL_POINTS; trail++) {
+          const trailDot = document.createElement("span");
+          trailDot.className = "triggerDisplaySonarTrail";
+          trailDot.style.setProperty("--sonar-trail-index", String(trail + 1));
+          trailDot.style.setProperty("--sonar-trail-x", `${x.toFixed(2)}px`);
+          trailDot.style.setProperty("--sonar-trail-y", `${y.toFixed(2)}px`);
+          stage.appendChild(trailDot);
+          trails.push(trailDot);
+        }
         blip.style.setProperty("--sonar-x", `${x.toFixed(2)}px`);
         blip.style.setProperty("--sonar-y", `${y.toFixed(2)}px`);
         blip.style.setProperty("--sonar-hit", "0");
@@ -417,35 +424,35 @@ function createSonarView(): DisplayView {
         stage.appendChild(blip);
         blips.push(blip);
         blipModels.push({
-          anchor,
-          angle,
-          radius,
-          laneBias,
-          phaseOffset,
-          x,
-          y,
+          ...target,
           hitGlow: 0,
           eventGlow: 0,
+          trailHead: 0,
+          trailX: Float32Array.from({ length: TRAIL_POINTS }, () => x),
+          trailY: Float32Array.from({ length: TRAIL_POINTS }, () => y),
+          trails,
         });
       }
       lastPlayhead = -1;
       pulseGlow = 0;
       sweepGlow = 0;
-      sweepStep = 0;
+      lastTickMs = null;
     },
     tick: (timeMs, liveModule) => {
       const steps = Math.max(1, pattern.length || liveModule.length || 16);
-      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, steps);
-      const sweepPhase = playhead / steps;
+      const sweepPhase = resolveAnimatedSweepPhase(timeMs, liveModule);
+      const playhead = clamp(Math.floor(sweepPhase * steps), 0, Math.max(0, steps - 1));
       const sweepAngle = (sweepPhase * 360) - 90;
       sweep.style.setProperty("--sonar-angle", `${sweepAngle.toFixed(3)}deg`);
-      const lock = clamp(liveModule.determinism, 0, 1);
-      const drift = clamp(liveModule.weird, 0, 1);
-      const bias = clamp(liveModule.gravity, 0, 1);
+      const sweepAngleRad = sweepPhase * Math.PI * 2 - Math.PI / 2;
       const density = clamp(liveModule.density, 0, 1);
-      const threshold = clamp(0.74 - density * 0.56 - bias * 0.14, 0, 1);
+      const threshold = clamp(0.42 - density * 0.16, 0.12, 0.62);
+      const dtMs = lastTickMs == null ? 16 : clamp(timeMs - lastTickMs, 0, 34);
+      const dt = dtMs / 1000;
+      lastTickMs = timeMs;
+      const drift = clamp(liveModule.weird, 0, 1);
+      const speedScale = dt * (16 + drift * 38);
       if (playhead !== lastPlayhead) {
-        sweepStep = playhead;
         const generatedHit = pattern[playhead % Math.max(1, pattern.length)] === 1;
         if (generatedHit) {
           pulseGlow = 1;
@@ -461,22 +468,15 @@ function createSonarView(): DisplayView {
         const blip = blips[index];
         const model = blipModels[index];
         if (!model) continue;
-        const wander = (sonarStepRandom(liveModule.seed ^ 0x7ff1 + index * 29, `target:${index}`, sweepStep) - 0.5) * drift * 0.3;
-        const target = (model.anchor + wander + 1) % 1;
-        const dist = Math.abs(sweepPhase - target);
-        const wrapped = Math.min(dist, 1 - dist);
-        const response = Math.max(0, 1 - wrapped * (4.8 + lock * 2.2));
-        const laneWeight = clamp(1 - Math.abs(model.laneBias) * bias, 0.72, 1);
-        const detected = response * laneWeight > threshold;
+        stepSonarTarget(model, speedScale, FIELD_RADIUS);
+        const response = sonarDetectionStrength(model.x, model.y, liveModule, sweepAngleRad, FIELD_RADIUS);
+        const detected = response > threshold;
         if (detected && pattern[playhead % Math.max(1, pattern.length)] === 1) model.eventGlow = 1;
         model.hitGlow = Math.max(model.hitGlow * 0.85, response);
         model.eventGlow = Math.max(0, model.eventGlow - 0.08);
-
-        const angle = target * Math.PI * 2 - Math.PI / 2;
-        const radialJitter = (hash01((sweepStep + 1) * 0.71 + model.phaseOffset * 9.7 + liveModule.seed * 0.002) - 0.5) * drift * 8;
-        const radius = clamp(model.radius + radialJitter, 8, FIELD_RADIUS);
-        model.x = Math.cos(angle) * radius;
-        model.y = Math.sin(angle) * radius;
+        model.trailX[model.trailHead] = model.x;
+        model.trailY[model.trailHead] = model.y;
+        model.trailHead = (model.trailHead + 1) % TRAIL_POINTS;
 
         const hitStrength = clamp(model.hitGlow * (0.66 + model.eventGlow * 0.34), 0, 1);
         blip.style.setProperty("--sonar-x", `${model.x.toFixed(2)}px`);
@@ -484,6 +484,13 @@ function createSonarView(): DisplayView {
         blip.style.setProperty("--sonar-hit", hitStrength.toFixed(3));
         blip.style.setProperty("--sonar-event", model.eventGlow.toFixed(3));
         blip.classList.toggle("is-hot", detected);
+        for (let trail = 0; trail < TRAIL_POINTS; trail++) {
+          const slot = (model.trailHead - 1 - trail + TRAIL_POINTS) % TRAIL_POINTS;
+          const trailEl = model.trails[trail];
+          trailEl?.style.setProperty("--sonar-trail-x", `${model.trailX[slot]?.toFixed(2) ?? "0"}px`);
+          trailEl?.style.setProperty("--sonar-trail-y", `${model.trailY[slot]?.toFixed(2) ?? "0"}px`);
+          trailEl?.style.setProperty("--sonar-trail-hit", hitStrength.toFixed(3));
+        }
       }
     },
   };
@@ -1163,11 +1170,15 @@ function resolvePhraseSpan(cols: number, subdiv: number) {
 }
 
 function resolveAnimatedStepIndex(timeMs: number, module: TriggerModule, steps: number) {
+  const phase = resolveAnimatedSweepPhase(timeMs, module);
+  return clamp(Math.floor(phase * steps), 0, Math.max(0, steps - 1));
+}
+
+function resolveAnimatedSweepPhase(timeMs: number, module: TriggerModule) {
   const speedBase = 0.45 + (module.subdiv - 1) * 0.15;
   const speedShape = module.weird * 0.25 + module.gravity * 0.18;
   const cycleSeconds = clamp(2.2 - speedBase - speedShape, 0.45, 3.2);
-  const phase = ((timeMs / 1000) / cycleSeconds + module.seed * 0.00021 + module.euclidRot * 0.007) % 1;
-  return clamp(Math.floor(phase * steps), 0, Math.max(0, steps - 1));
+  return ((timeMs / 1000) / cycleSeconds + module.seed * 0.00021 + module.euclidRot * 0.007) % 1;
 }
 
 function generateEuclideanPattern(module: TriggerModule, steps: number) {
@@ -1188,23 +1199,65 @@ function generateEuclideanPattern(module: TriggerModule, steps: number) {
 function buildSonarPattern(module: TriggerModule, steps: number) {
   const out = new Uint8Array(steps);
   const targetCount = clamp(2 + Math.round(module.density * 9 + module.gravity * 2), 2, 12);
-  const lock = clamp(module.determinism, 0, 1);
-  const drift = clamp(module.weird, 0, 1);
-  const bias = clamp(module.gravity, 0, 1);
+  const threshold = clamp(0.42 - module.density * 0.16, 0.12, 0.62);
+  const fieldRadius = 62;
+  const targets = Array.from({ length: targetCount }, (_, index) => createSonarTargetState(module, index, fieldRadius));
+  const motionPerStep = 0.72 + clamp(module.weird, 0, 1) * 0.66;
   for (let i = 0; i < steps; i++) {
     const phase = i / steps;
+    const sweepAngle = phase * Math.PI * 2 - Math.PI / 2;
     let strongest = 0;
     for (let target = 0; target < targetCount; target++) {
-      const anchor = sonarStepRandom(module.seed ^ 0x79e2, `target:${target}`, target);
-      const drifted = (anchor + (sonarStepRandom(module.seed ^ 0x7ff1 + target * 29, `target:${target}`, i) - 0.5) * drift * 0.3 + 1) % 1;
-      const distance = Math.abs(phase - drifted);
-      const wrapped = Math.min(distance, 1 - distance);
-      strongest = Math.max(strongest, Math.max(0, 1 - wrapped * (4.8 + lock * 2.2)));
+      const model = targets[target];
+      if (!model) continue;
+      stepSonarTarget(model, motionPerStep, fieldRadius);
+      strongest = Math.max(strongest, sonarDetectionStrength(model.x, model.y, module, sweepAngle, fieldRadius));
     }
-    out[i] = strongest > clamp(0.74 - module.density * 0.56 - bias * 0.14, 0, 1) ? 1 : 0;
+    out[i] = strongest > threshold ? 1 : 0;
     if (out[i] === 1 && sonarStepRandom(module.seed ^ 0x7ac5, "drop", i) < module.drop * 0.42) out[i] = 0;
   }
   return out;
+}
+
+function createSonarTargetState(module: TriggerModule, index: number, fieldRadius: number) {
+  const anchor = sonarStepRandom(module.seed ^ 0x79e2, `target:${index}`, index);
+  const angle = anchor * Math.PI * 2 - Math.PI / 2;
+  const bias = clamp(module.gravity, 0, 1);
+  const radialRand = sonarStepRandom(module.seed ^ 0x56a3, `radius:${index}`, index);
+  const radiusNorm = clamp(Math.pow(radialRand, 0.55 + bias * 1.2), 0.04, 1);
+  const radius = radiusNorm * fieldRadius;
+  const speedMin = 0.045 + clamp(module.weird, 0, 1) * 0.05;
+  const speed = speedMin + sonarStepRandom(module.seed ^ 0x1f2a, `speed:${index}`, index) * 0.16;
+  const heading = sonarStepRandom(module.seed ^ 0x8bc7, `heading:${index}`, index) * Math.PI * 2;
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+    vx: Math.cos(heading) * speed,
+    vy: Math.sin(heading) * speed,
+    radiusNorm,
+  };
+}
+
+function stepSonarTarget(target: { x: number; y: number; vx: number; vy: number }, speedScale: number, fieldRadius: number) {
+  target.x += target.vx * speedScale;
+  target.y += target.vy * speedScale;
+  if (target.x > fieldRadius) target.x = -fieldRadius;
+  else if (target.x < -fieldRadius) target.x = fieldRadius;
+  if (target.y > fieldRadius) target.y = -fieldRadius;
+  else if (target.y < -fieldRadius) target.y = fieldRadius;
+}
+
+function sonarDetectionStrength(x: number, y: number, module: TriggerModule, sweepAngle: number, fieldRadius: number) {
+  const lock = clamp(module.determinism, 0, 1);
+  const bias = clamp(module.gravity, 0, 1);
+  const rangeNorm = clamp(Math.hypot(x, y) / Math.max(1, fieldRadius * (0.34 + clamp(module.length / 128, 0.08, 1) * 0.66)), 0, 1);
+  const targetAngle = Math.atan2(y, x);
+  const delta = Math.abs(Math.atan2(Math.sin(targetAngle - sweepAngle), Math.cos(targetAngle - sweepAngle)));
+  const beamHalfWidth = 0.58 - lock * 0.44;
+  const alignment = clamp(1 - delta / Math.max(0.04, beamHalfWidth), 0, 1);
+  const proximity = Math.pow(1 - rangeNorm, 0.75);
+  const biasFocus = clamp(1 - Math.abs(rangeNorm - (1 - bias)) * 1.25, 0.6, 1);
+  return alignment * proximity * biasFocus;
 }
 
 function hashString(s: string) {
