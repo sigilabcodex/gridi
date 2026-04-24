@@ -15,7 +15,7 @@ export type Mode =
   | "genetic-algorithms"
   | "one-over-f-noise"
   | "gear"
-  | "sonar";
+  | "radar";
 export type ModuleEngine = "trigger" | "drum" | "synth" | "visual" | "control";
 
 export const clamp = (x: number, a: number, b: number) =>
@@ -441,6 +441,7 @@ const LEGACY_MODE_ALIASES: Record<string, Mode> = {
   step: "step-sequencer",
   euclid: "euclidean",
   ca: "cellular-automata",
+  sonar: "radar",
 };
 
 const SUPPORTED_MODES = new Set<Mode>([
@@ -456,7 +457,7 @@ const SUPPORTED_MODES = new Set<Mode>([
   "genetic-algorithms",
   "one-over-f-noise",
   "gear",
-  "sonar",
+  "radar",
 ]);
 
 function normalizeMode(raw: unknown, fallback: Mode): Mode {

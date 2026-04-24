@@ -689,7 +689,7 @@ const MODE_CONTROL_REGISTRY: Record<Mode, TriggerModeControlSpec[]> = {
       tooltip: "Introduce slow phase drift between ring playheads.",
     },
   ],
-  sonar: [
+  radar: [
     {
       label: "Targets",
       key: "density",
@@ -705,7 +705,7 @@ const MODE_CONTROL_REGISTRY: Record<Mode, TriggerModeControlSpec[]> = {
       max: 128,
       step: 1,
       integer: true,
-      tooltip: "Set sonar cycle length in steps.",
+      tooltip: "Set radar cycle length in steps.",
     },
     {
       label: "Sweep",

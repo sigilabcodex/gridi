@@ -40,11 +40,25 @@
 - Misleading/decorative risk: medium-low (appearance implies richer tooth physics than used).
 - Parameters: `length`, `subdiv`, `density`, `gravity`, `determinism`, `weird`, `euclidRot`.
 
-### sonar — **visually interesting but semantically misleading** (before this pass)
-- Current display (before fix): continuous sweep + drifting particles + trails.
-- Represents: only loosely related scan field.
-- Misleading/decorative risk: high (sweep/particles were not tightly coupled to pattern hit logic).
-- Parameters that should visibly affect display: `density` target count, `length` scan range, `subdiv` sweep speed, `weird` drift instability, `determinism` lock width, `gravity` range bias.
+### RADAR — **truthful / strong**
+- Current display: rotating sweep + moving targets + return pulses.
+- Represents: discrete step-aligned scan, range weighting, and generated hit detections.
+- Misleading/decorative risk: low.
+- Parameters that visibly affect display: `density` target count, `length` scan range, `subdiv` sweep speed, `weird` drift instability, `determinism` lock width, `gravity` range bias.
+- Note: this mode was previously named `SONAR`; naming is now corrected to `RADAR` for semantic accuracy.
+
+### SONAR — **not implemented (planned)**
+- Planned system: pulse-based propagation field (no rotational sweep).
+- Emits periodic radial waves from an origin point.
+- Targets respond to pulse traversal based on distance, density, and terrain/field interaction.
+- Detection is based on wave intersection and echo/resonance return behavior.
+- Planned parameter concepts:
+  - pulse rate (frequency),
+  - propagation speed,
+  - attenuation,
+  - terrain deformation,
+  - reflection/absorption.
+- Constraint: SONAR is a distinct future mode and must not reuse RADAR sweep logic.
 
 ### fractal — **mostly truthful but visually weak**
 - Current display: layered recursive paths + cursor.
@@ -90,13 +104,13 @@
 
 ## Focused correction implemented in this pass
 
-Target: **SONAR**.
+Target: **RADAR**.
 
 ### What was corrected
-- Sweep angle is now tied to the actual discrete sonar scan step (`resolveAnimatedStepIndex`) rather than an unrelated continuous oscillator.
+- Sweep angle is now tied to the actual discrete radar scan step (`resolveAnimatedStepIndex`) rather than an unrelated continuous oscillator.
 - Display target count now follows the same target-count model as pattern generation (`density` + `gravity`).
-- Target drift/wander now follows the same per-step seeded wander model used by sonar pattern generation.
-- Detection brightness is derived from the same response/threshold relationship as sonar generation (`lock` controls detection width, `gravity` contributes bias).
+- Target drift/wander now follows the same per-step seeded wander model used by radar pattern generation.
+- Detection brightness is derived from the same response/threshold relationship as radar generation (`lock` controls detection width, `gravity` contributes bias).
 - Hit pulse/glow is now tied to actual generated hits at the current scan step.
 - Decorative target-behavior categories and visual trails were removed to keep display semantics honest.
 

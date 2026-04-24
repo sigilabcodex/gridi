@@ -36,9 +36,9 @@ Why: generation kernels are meaningful and parameterized in `src/engine/pattern/
 
 ### 3) Visually interesting but musically weaker / still “feel tuning” heavy
 
-- `sonar`
+- `radar`
 
-Why: SONAR has one of the richest animated displays (moving target models, trails, sweep reaction), while musical credibility still depends on threshold/target tuning and lock/drift balancing in `genSonarPattern` and event-value/lane mapping.
+Why: RADAR has one of the richest animated displays (moving target models, trails, sweep reaction), while musical credibility still depends on threshold/target tuning and lock/drift balancing in `genRadarPattern` and event-value/lane mapping.
 
 ### 4) Structurally present but still prototype-grade
 
@@ -66,16 +66,16 @@ Why: explicitly roadmap/staging-level directions in docs with guardrails/spec la
 - Expected areas: Trigger mode metadata shared by UI/pattern/display; docs alignment.
 - Risk: low.
 
-### Step 2 — SONAR musical semantics pass (stabilization)
+### Step 2 — RADAR musical semantics pass (stabilization)
 
-- Why now: SONAR is visibly strong but still not consistently convincing as a musical generator.
-- Why after step 1: mode-family metadata gives clearer placement and avoids another SONAR-only local patch.
-- Expected areas: `genSonarPattern`, velocity/lane mapping for SONAR in event conversion, and SONAR-specific display semantic cues.
+- Why now: RADAR is visibly strong but still not consistently convincing as a musical generator.
+- Why after step 1: mode-family metadata gives clearer placement and avoids another RADAR-only local patch.
+- Expected areas: `genRadarPattern`, velocity/lane mapping for RADAR in event conversion, and RADAR-specific display semantic cues.
 - Risk: medium (timing feel regressions if thresholds over-shift).
 
 ### Step 3 — prototype-grade conceptual-mode uplift to one demo-grade target (expansion)
 
-- Why now: keeps GEN progress broader than SONAR/GEAR and advances v0.5 groundwork.
+- Why now: keeps GEN progress broader than RADAR/GEAR and advances v0.5 groundwork.
 - Why after step 2: first recover confidence in existing weak mode feel; then elevate one conceptual mode (recommended: `markov-chains` or `l-systems`) into clear demo personality.
 - Expected areas: mode kernel, display semantics for state visibility, curated preset examples.
 - Risk: medium.
@@ -97,7 +97,14 @@ Why this improvement now:
 
 - It directly follows architecture staging guidance,
 - keeps patch compatibility untouched (flat mode IDs unchanged),
-- reduces duplication and creates a clean anchor for upcoming SONAR/GEAR and v0.5 family work.
+- reduces duplication and creates a clean anchor for upcoming RADAR/GEAR and v0.5 family work.
+
+## E) Upcoming GEN mode direction — SONAR (planned, not implemented)
+
+- SONAR is reserved as a distinct future mode and should not reuse RADAR sweep logic.
+- Core concept: pulse-based terrain interaction system (radial wave propagation, not directional rotation).
+- Role in GEN roadmap: complements RADAR with distance-based event logic and echo/resonance-style detection.
+- Exploration vector: terrain/field simulation hooks (attenuation, reflection, absorption, deformation) tied to musical event generation.
 
 ## D) Velocity editing staging note (added in stabilization follow-up)
 

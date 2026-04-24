@@ -134,7 +134,7 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "genetic-algorithms") return createGeneticView();
   if (mode === "one-over-f-noise") return createOneOverFView(params);
   if (mode === "gear") return createGearView();
-  if (mode === "sonar") return createSonarView();
+  if (mode === "radar") return createRadarView();
 
   const placeholder = renderModePlaceholder(mode);
   return {
@@ -357,19 +357,19 @@ function createDisplaySyncSignature(module: TriggerModule) {
   ].join("|");
 }
 
-function createSonarView(): DisplayView {
+function createRadarView(): DisplayView {
   const root = document.createElement("div");
-  root.className = "triggerDisplaySonar";
+  root.className = "triggerDisplayRadar";
   const stage = document.createElement("div");
-  stage.className = "triggerDisplaySonarStage";
+  stage.className = "triggerDisplayRadarStage";
   const sweep = document.createElement("span");
-  sweep.className = "triggerDisplaySonarSweep";
+  sweep.className = "triggerDisplayRadarSweep";
   const rangeRing = document.createElement("span");
-  rangeRing.className = "triggerDisplaySonarRange";
+  rangeRing.className = "triggerDisplayRadarRange";
   stage.append(sweep, rangeRing);
   root.append(stage);
 
-  type SonarBlipModel = {
+  type RadarBlipModel = {
     x: number;
     y: number;
     vx: number;
@@ -385,7 +385,7 @@ function createSonarView(): DisplayView {
   };
 
   const blips: HTMLElement[] = [];
-  const blipModels: SonarBlipModel[] = [];
+  const blipModels: RadarBlipModel[] = [];
   let lastPlayhead = -1;
   let pattern = new Uint8Array(0);
   let sweepGlow = 0;
@@ -396,40 +396,40 @@ function createSonarView(): DisplayView {
   return {
     root,
     sync: (nextModule) => {
-      pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildSonarPattern(nextModule, Math.max(8, nextModule.length));
-      stage.querySelectorAll(".triggerDisplaySonarBlip, .triggerDisplaySonarTrail, .triggerDisplaySonarReturn").forEach((el) => el.remove());
+      pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildRadarPattern(nextModule, Math.max(8, nextModule.length));
+      stage.querySelectorAll(".triggerDisplayRadarBlip, .triggerDisplayRadarTrail, .triggerDisplayRadarReturn").forEach((el) => el.remove());
       blips.length = 0;
       blipModels.length = 0;
       const count = clamp(2 + Math.round(nextModule.density * 9 + nextModule.gravity * 2), 2, 12);
-      const rangeNorm = sonarRangeNorm(nextModule);
+      const rangeNorm = radarRangeNorm(nextModule);
       const ringGap = 10 + (1 - rangeNorm) * 10;
-      stage.style.setProperty("--sonar-range-reach", (0.28 + rangeNorm * 0.72).toFixed(3));
-      stage.style.setProperty("--sonar-ring-gap", `${ringGap.toFixed(2)}px`);
-      stage.style.setProperty("--sonar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
+      stage.style.setProperty("--radar-range-reach", (0.28 + rangeNorm * 0.72).toFixed(3));
+      stage.style.setProperty("--radar-ring-gap", `${ringGap.toFixed(2)}px`);
+      stage.style.setProperty("--radar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
       for (let i = 0; i < count; i++) {
         const blip = document.createElement("span");
-        blip.className = "triggerDisplaySonarBlip";
-        const target = createSonarTargetState(nextModule, i, FIELD_RADIUS);
+        blip.className = "triggerDisplayRadarBlip";
+        const target = createRadarTargetState(nextModule, i, FIELD_RADIUS);
         const x = target.x;
         const y = target.y;
         const trails: HTMLElement[] = [];
         for (let trail = 0; trail < TRAIL_POINTS; trail++) {
           const trailDot = document.createElement("span");
-          trailDot.className = "triggerDisplaySonarTrail";
-          trailDot.style.setProperty("--sonar-trail-index", String(trail + 1));
-          trailDot.style.setProperty("--sonar-trail-x", `${x.toFixed(2)}px`);
-          trailDot.style.setProperty("--sonar-trail-y", `${y.toFixed(2)}px`);
+          trailDot.className = "triggerDisplayRadarTrail";
+          trailDot.style.setProperty("--radar-trail-index", String(trail + 1));
+          trailDot.style.setProperty("--radar-trail-x", `${x.toFixed(2)}px`);
+          trailDot.style.setProperty("--radar-trail-y", `${y.toFixed(2)}px`);
           stage.appendChild(trailDot);
           trails.push(trailDot);
         }
         const returnEl = document.createElement("span");
-        returnEl.className = "triggerDisplaySonarReturn";
+        returnEl.className = "triggerDisplayRadarReturn";
         stage.appendChild(returnEl);
-        blip.style.setProperty("--sonar-x", `${x.toFixed(2)}px`);
-        blip.style.setProperty("--sonar-y", `${y.toFixed(2)}px`);
-        blip.style.setProperty("--sonar-hit", "0");
-        blip.style.setProperty("--sonar-range-dim", "0.22");
-        blip.style.setProperty("--sonar-return", "0");
+        blip.style.setProperty("--radar-x", `${x.toFixed(2)}px`);
+        blip.style.setProperty("--radar-y", `${y.toFixed(2)}px`);
+        blip.style.setProperty("--radar-hit", "0");
+        blip.style.setProperty("--radar-range-dim", "0.22");
+        blip.style.setProperty("--radar-return", "0");
         stage.appendChild(blip);
         blips.push(blip);
         blipModels.push({
@@ -452,7 +452,7 @@ function createSonarView(): DisplayView {
       const sweepPhase = resolveAnimatedSweepPhase(timeMs, liveModule);
       const playhead = clamp(Math.floor(sweepPhase * steps), 0, Math.max(0, steps - 1));
       const sweepAngle = (sweepPhase * 360) - 90;
-      sweep.style.setProperty("--sonar-angle", `${sweepAngle.toFixed(3)}deg`);
+      sweep.style.setProperty("--radar-angle", `${sweepAngle.toFixed(3)}deg`);
       const sweepAngleRad = sweepPhase * Math.PI * 2 - Math.PI / 2;
       const density = clamp(liveModule.density, 0, 1);
       const threshold = clamp(0.42 - density * 0.16, 0.12, 0.62);
@@ -461,25 +461,25 @@ function createSonarView(): DisplayView {
       lastTickMs = timeMs;
       const drift = clamp(liveModule.weird, 0, 1);
       const speedScale = dt * (16 + drift * 38);
-      const rangeNorm = sonarRangeNorm(liveModule);
+      const rangeNorm = radarRangeNorm(liveModule);
       const reachNorm = 0.28 + rangeNorm * 0.72;
       const rangeRadius = FIELD_RADIUS * reachNorm;
-      stage.style.setProperty("--sonar-range-reach", reachNorm.toFixed(3));
-      stage.style.setProperty("--sonar-ring-gap", `${(10 + (1 - rangeNorm) * 10).toFixed(2)}px`);
-      stage.style.setProperty("--sonar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
+      stage.style.setProperty("--radar-range-reach", reachNorm.toFixed(3));
+      stage.style.setProperty("--radar-ring-gap", `${(10 + (1 - rangeNorm) * 10).toFixed(2)}px`);
+      stage.style.setProperty("--radar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
       if (playhead !== lastPlayhead) {
         const generatedHit = pattern[playhead % Math.max(1, pattern.length)] === 1;
         if (generatedHit) sweepGlow = 1;
         lastPlayhead = playhead;
       }
       sweepGlow = Math.max(0, sweepGlow - 0.12);
-      sweep.style.setProperty("--sonar-sweep-glow", sweepGlow.toFixed(3));
+      sweep.style.setProperty("--radar-sweep-glow", sweepGlow.toFixed(3));
       for (let index = 0; index < blips.length; index++) {
         const blip = blips[index];
         const model = blipModels[index];
         if (!model) continue;
-        stepSonarTarget(model, speedScale, FIELD_RADIUS);
-        const response = sonarDetectionStrength(model.x, model.y, liveModule, sweepAngleRad, FIELD_RADIUS);
+        stepRadarTarget(model, speedScale, FIELD_RADIUS);
+        const response = radarDetectionStrength(model.x, model.y, liveModule, sweepAngleRad, FIELD_RADIUS);
         const distance = Math.hypot(model.x, model.y);
         const inRange = distance <= rangeRadius;
         const responseGain = inRange ? 1 : 0;
@@ -494,22 +494,22 @@ function createSonarView(): DisplayView {
 
         const rangeFade = inRange ? 1 : clamp(1 - (distance - rangeRadius) / Math.max(6, FIELD_RADIUS - rangeRadius), 0.06, 0.35);
         const hitStrength = clamp(model.hitGlow * (0.76 + model.eventGlow * 0.24), 0, 1);
-        blip.style.setProperty("--sonar-x", `${model.x.toFixed(2)}px`);
-        blip.style.setProperty("--sonar-y", `${model.y.toFixed(2)}px`);
-        blip.style.setProperty("--sonar-hit", hitStrength.toFixed(3));
-        blip.style.setProperty("--sonar-range-dim", rangeFade.toFixed(3));
-        blip.style.setProperty("--sonar-return", detected ? "1" : "0");
+        blip.style.setProperty("--radar-x", `${model.x.toFixed(2)}px`);
+        blip.style.setProperty("--radar-y", `${model.y.toFixed(2)}px`);
+        blip.style.setProperty("--radar-hit", hitStrength.toFixed(3));
+        blip.style.setProperty("--radar-range-dim", rangeFade.toFixed(3));
+        blip.style.setProperty("--radar-return", detected ? "1" : "0");
         blip.classList.toggle("is-hot", detected && inRange);
-        model.returnEl.style.setProperty("--sonar-return-x", `${model.x.toFixed(2)}px`);
-        model.returnEl.style.setProperty("--sonar-return-y", `${model.y.toFixed(2)}px`);
-        model.returnEl.style.setProperty("--sonar-return-hit", (hitStrength * rangeFade).toFixed(3));
-        model.returnEl.style.setProperty("--sonar-return-visible", detected && inRange ? "1" : "0");
+        model.returnEl.style.setProperty("--radar-return-x", `${model.x.toFixed(2)}px`);
+        model.returnEl.style.setProperty("--radar-return-y", `${model.y.toFixed(2)}px`);
+        model.returnEl.style.setProperty("--radar-return-hit", (hitStrength * rangeFade).toFixed(3));
+        model.returnEl.style.setProperty("--radar-return-visible", detected && inRange ? "1" : "0");
         for (let trail = 0; trail < TRAIL_POINTS; trail++) {
           const slot = (model.trailHead - 1 - trail + TRAIL_POINTS) % TRAIL_POINTS;
           const trailEl = model.trails[trail];
-          trailEl?.style.setProperty("--sonar-trail-x", `${model.trailX[slot]?.toFixed(2) ?? "0"}px`);
-          trailEl?.style.setProperty("--sonar-trail-y", `${model.trailY[slot]?.toFixed(2) ?? "0"}px`);
-          trailEl?.style.setProperty("--sonar-trail-hit", (hitStrength * rangeFade).toFixed(3));
+          trailEl?.style.setProperty("--radar-trail-x", `${model.trailX[slot]?.toFixed(2) ?? "0"}px`);
+          trailEl?.style.setProperty("--radar-trail-y", `${model.trailY[slot]?.toFixed(2) ?? "0"}px`);
+          trailEl?.style.setProperty("--radar-trail-hit", (hitStrength * rangeFade).toFixed(3));
         }
       }
     },
@@ -1216,13 +1216,13 @@ function generateEuclideanPattern(module: TriggerModule, steps: number) {
   return out;
 }
 
-function buildSonarPattern(module: TriggerModule, steps: number) {
+function buildRadarPattern(module: TriggerModule, steps: number) {
   const out = new Uint8Array(steps);
   const targetCount = clamp(2 + Math.round(module.density * 9 + module.gravity * 2), 2, 12);
   const threshold = clamp(0.42 - module.density * 0.16, 0.12, 0.62);
   const fieldRadius = 62;
-  const rangeRadius = fieldRadius * (0.28 + sonarRangeNorm(module) * 0.72);
-  const targets = Array.from({ length: targetCount }, (_, index) => createSonarTargetState(module, index, fieldRadius));
+  const rangeRadius = fieldRadius * (0.28 + radarRangeNorm(module) * 0.72);
+  const targets = Array.from({ length: targetCount }, (_, index) => createRadarTargetState(module, index, fieldRadius));
   const motionPerStep = 0.72 + clamp(module.weird, 0, 1) * 0.66;
   for (let i = 0; i < steps; i++) {
     const phase = i / steps;
@@ -1231,30 +1231,30 @@ function buildSonarPattern(module: TriggerModule, steps: number) {
     for (let target = 0; target < targetCount; target++) {
       const model = targets[target];
       if (!model) continue;
-      stepSonarTarget(model, motionPerStep, fieldRadius);
+      stepRadarTarget(model, motionPerStep, fieldRadius);
       if (Math.hypot(model.x, model.y) > rangeRadius) continue;
-      strongest = Math.max(strongest, sonarDetectionStrength(model.x, model.y, module, sweepAngle, fieldRadius));
+      strongest = Math.max(strongest, radarDetectionStrength(model.x, model.y, module, sweepAngle, fieldRadius));
     }
     out[i] = strongest > threshold ? 1 : 0;
-    if (out[i] === 1 && sonarStepRandom(module.seed ^ 0x7ac5, "drop", i) < module.drop * 0.42) out[i] = 0;
+    if (out[i] === 1 && radarStepRandom(module.seed ^ 0x7ac5, "drop", i) < module.drop * 0.42) out[i] = 0;
   }
   return out;
 }
 
-function sonarRangeNorm(module: TriggerModule) {
+function radarRangeNorm(module: TriggerModule) {
   return clamp((module.length - 4) / (128 - 4), 0, 1);
 }
 
-function createSonarTargetState(module: TriggerModule, index: number, fieldRadius: number) {
-  const anchor = sonarStepRandom(module.seed ^ 0x79e2, `target:${index}`, index);
+function createRadarTargetState(module: TriggerModule, index: number, fieldRadius: number) {
+  const anchor = radarStepRandom(module.seed ^ 0x79e2, `target:${index}`, index);
   const angle = anchor * Math.PI * 2 - Math.PI / 2;
   const bias = clamp(module.gravity, 0, 1);
-  const radialRand = sonarStepRandom(module.seed ^ 0x56a3, `radius:${index}`, index);
+  const radialRand = radarStepRandom(module.seed ^ 0x56a3, `radius:${index}`, index);
   const radiusNorm = clamp(Math.pow(radialRand, 0.55 + bias * 1.2), 0.04, 1);
   const radius = radiusNorm * fieldRadius;
   const speedMin = 0.045 + clamp(module.weird, 0, 1) * 0.05;
-  const speed = speedMin + sonarStepRandom(module.seed ^ 0x1f2a, `speed:${index}`, index) * 0.16;
-  const heading = sonarStepRandom(module.seed ^ 0x8bc7, `heading:${index}`, index) * Math.PI * 2;
+  const speed = speedMin + radarStepRandom(module.seed ^ 0x1f2a, `speed:${index}`, index) * 0.16;
+  const heading = radarStepRandom(module.seed ^ 0x8bc7, `heading:${index}`, index) * Math.PI * 2;
   return {
     x: Math.cos(angle) * radius,
     y: Math.sin(angle) * radius,
@@ -1264,7 +1264,7 @@ function createSonarTargetState(module: TriggerModule, index: number, fieldRadiu
   };
 }
 
-function stepSonarTarget(target: { x: number; y: number; vx: number; vy: number }, speedScale: number, fieldRadius: number) {
+function stepRadarTarget(target: { x: number; y: number; vx: number; vy: number }, speedScale: number, fieldRadius: number) {
   target.x += target.vx * speedScale;
   target.y += target.vy * speedScale;
   if (target.x > fieldRadius) target.x = -fieldRadius;
@@ -1273,7 +1273,7 @@ function stepSonarTarget(target: { x: number; y: number; vx: number; vy: number 
   else if (target.y < -fieldRadius) target.y = fieldRadius;
 }
 
-function sonarDetectionStrength(x: number, y: number, module: TriggerModule, sweepAngle: number, fieldRadius: number) {
+function radarDetectionStrength(x: number, y: number, module: TriggerModule, sweepAngle: number, fieldRadius: number) {
   const lock = clamp(module.determinism, 0, 1);
   const bias = clamp(module.gravity, 0, 1);
   const rangeNorm = clamp(Math.hypot(x, y) / Math.max(1, fieldRadius * (0.34 + clamp(module.length / 128, 0.08, 1) * 0.66)), 0, 1);
@@ -1292,7 +1292,7 @@ function hashString(s: string) {
   return h | 0;
 }
 
-function sonarStepRandom(seed: number, id: string, stepIndex: number) {
+function radarStepRandom(seed: number, id: string, stepIndex: number) {
   let x = (seed | 0) ^ hashString(id) ^ Math.imul(stepIndex | 0, 0x9e3779b1);
   x ^= x << 13;
   x ^= x >>> 17;
