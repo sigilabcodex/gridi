@@ -5775,7 +5775,7 @@ button:focus-visible,
   transform-origin: 50% 100%;
   transform: translate(-50%, -100%) rotate(var(--sonar-angle, 0deg));
   background: linear-gradient(180deg, rgba(157, 229, 255, 0.94), rgba(157, 229, 255, 0.06));
-  box-shadow: 0 0 10px rgba(150, 218, 255, 0.34);
+  box-shadow: 0 0 calc(6px + var(--sonar-sweep-glow, 0) * 14px) rgba(150, 218, 255, calc(0.26 + var(--sonar-sweep-glow, 0) * 0.5));
 }
 
 .triggerDisplaySonarPulse {
@@ -5802,53 +5802,14 @@ button:focus-visible,
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px))) scale(calc(0.92 + var(--sonar-hit, 0) * 0.32));
-  background: rgba(173, 222, 255, calc(0.18 + var(--sonar-hit, 0.1) * 0.68 + var(--sonar-shimmer, 0) * 0.28));
-  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 10px) rgba(160, 223, 255, 0.52);
+  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px))) scale(calc(0.84 + var(--sonar-hit, 0) * 0.38 + var(--sonar-event, 0) * 0.16));
+  background: rgba(173, 222, 255, calc(0.2 + var(--sonar-hit, 0.1) * 0.58 + var(--sonar-event, 0) * 0.3));
+  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 8px + var(--sonar-event, 0) * 10px) rgba(160, 223, 255, 0.48);
   transform-origin: center;
 }
 
-.triggerDisplaySonarBlip[data-behavior="still"] {
-  width: 4px;
-  height: 4px;
-}
-
-.triggerDisplaySonarBlip[data-behavior="travelling"] {
-  width: 5px;
-  height: 5px;
-}
-
-.triggerDisplaySonarBlip[data-behavior="oscillating"] {
-  width: 5px;
-  height: 5px;
-}
-
-.triggerDisplaySonarTrail {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px)));
-  background: rgba(165, 216, 251, 0.24);
-  pointer-events: none;
-}
-
-.triggerDisplaySonarTrail--1 {
-  opacity: 0.26;
-}
-
-.triggerDisplaySonarTrail--2 {
-  opacity: 0.16;
-}
-
-.triggerDisplaySonarTrail--3 {
-  opacity: 0.09;
-}
-
 .triggerDisplaySonarBlip.is-hot {
-  background: rgba(176, 255, 211, 0.95);
+  background: rgba(176, 255, 211, 0.92);
 }
 
 .synthHeaderSelect {

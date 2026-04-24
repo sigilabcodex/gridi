@@ -102,6 +102,12 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
 - Displays should communicate module-specific runtime behavior and parameter impact.
 - GEN and DRUM establish the baseline: algorithm-state visualization and behavior-coupled drum synthesis visualization.
 - VISUAL-family analyzer growth (including time-sensitive spectrogram direction) must remain module-scoped and performance-legible, not DAW-style detached analysis tooling.
+- GEN display contract:
+  - Displays are behavior surfaces, not decorations.
+  - Every moving element must be tied to pattern phase, scheduler time, generated events, or mode state.
+  - Every major control should have a visible consequence when practical.
+  - If a mode cannot yet display its real algorithm truthfully, prefer a simple honest readout over fake complexity.
+  - Visual beauty is welcome, but it should emerge from structural truth.
 
 Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 
