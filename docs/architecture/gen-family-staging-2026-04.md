@@ -6,7 +6,7 @@ This note captures a **staging architecture** for future GEN families without im
 
 Near-term in code remains:
 - GEAR stabilization,
-- SONAR behavioral refinement (including moving targets),
+- RADAR behavioral refinement (including moving targets),
 - GEN event/energy safety hardening.
 
 ## Recommended mode-family structure
@@ -65,7 +65,7 @@ Reasoning:
 - `contrast` (0..1): transfer curve shaping.
 - `tileResolution` (enum): reduced internal grid (e.g. 16, 24, 32).
 
-### 5) SONAR moving-target refinement
+### 5) RADAR moving-target refinement
 - `targetCount` (mapped from density).
 - `sweepRate` (mapped from subdiv).
 - `targetDrift` (mapped from weird).
@@ -83,13 +83,13 @@ Reasoning:
 
 ## Module-family placement guidance
 
-- Keep **SONAR, GEAR, quantum, calendar** in Trigger/GEN first.
+- Keep **RADAR, GEAR, quantum, calendar** in Trigger/GEN first.
 - Treat **image-driven** as Trigger/GEN initially only if ingestion stays tightly bounded.
 - If image/data ingestion expands beyond lightweight in-module assets, branch that work into a neighboring module family to protect Trigger clarity.
 
 ## Staging order recommendation
 
-1. SONAR moving-target refinement (near-term)
+1. RADAR moving-target refinement (near-term)
 2. GEAR stabilization (now)
 3. Quantum family spec + contracts (now), implementation later
 4. Calendar spec + contracts (now), implementation later

@@ -5747,47 +5747,47 @@ button:focus-visible,
   opacity: 1;
 }
 
-.triggerDisplaySonar {
+.triggerDisplayRadar {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.triggerDisplaySonarStage {
+.triggerDisplayRadarStage {
   width: min(100%, 132px);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 1px solid rgba(173, 193, 227, 0.36);
-  --sonar-range-reach: 1;
-  --sonar-ring-gap: 16px;
-  --sonar-target-scale: 1;
+  --radar-range-reach: 1;
+  --radar-ring-gap: 16px;
+  --radar-target-scale: 1;
   background:
-    radial-gradient(circle at 50% 50%, rgba(25, 39, 59, 0) calc(var(--sonar-range-reach) * 100%), rgba(6, 10, 16, 0.62) calc(var(--sonar-range-reach) * 100% + 0.8%)),
-    repeating-radial-gradient(circle at 50% 50%, rgba(166, 214, 248, 0.07) 0 1px, transparent 1px var(--sonar-ring-gap, 16px)),
+    radial-gradient(circle at 50% 50%, rgba(25, 39, 59, 0) calc(var(--radar-range-reach) * 100%), rgba(6, 10, 16, 0.62) calc(var(--radar-range-reach) * 100% + 0.8%)),
+    repeating-radial-gradient(circle at 50% 50%, rgba(166, 214, 248, 0.07) 0 1px, transparent 1px var(--radar-ring-gap, 16px)),
     linear-gradient(180deg, rgba(17, 27, 41, 0.86), rgba(8, 12, 20, 0.9));
   position: relative;
   overflow: clip;
 }
 
-.triggerDisplaySonarSweep {
+.triggerDisplayRadarSweep {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 2px;
   height: 52%;
   transform-origin: 50% 100%;
-  transform: translate(-50%, -100%) rotate(var(--sonar-angle, 0deg));
+  transform: translate(-50%, -100%) rotate(var(--radar-angle, 0deg));
   background: linear-gradient(180deg, rgba(157, 229, 255, 0.94), rgba(157, 229, 255, 0.06));
-  box-shadow: 0 0 calc(6px + var(--sonar-sweep-glow, 0) * 14px) rgba(150, 218, 255, calc(0.26 + var(--sonar-sweep-glow, 0) * 0.5));
+  box-shadow: 0 0 calc(6px + var(--radar-sweep-glow, 0) * 14px) rgba(150, 218, 255, calc(0.26 + var(--radar-sweep-glow, 0) * 0.5));
 }
 
-.triggerDisplaySonarRange {
+.triggerDisplayRadarRange {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: calc(var(--sonar-range-reach) * 124px);
-  height: calc(var(--sonar-range-reach) * 124px);
+  width: calc(var(--radar-range-reach) * 124px);
+  height: calc(var(--radar-range-reach) * 124px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 1px solid rgba(152, 225, 255, 0.34);
@@ -5795,49 +5795,49 @@ button:focus-visible,
   pointer-events: none;
 }
 
-.triggerDisplaySonarBlip {
+.triggerDisplayRadarBlip {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  transform: translate(calc(-50% + var(--sonar-x, 0px)), calc(-50% + var(--sonar-y, 0px))) scale(calc(var(--sonar-target-scale, 1) * (0.78 + var(--sonar-hit, 0) * 0.54)));
-  background: rgba(173, 222, 255, calc((0.14 + var(--sonar-hit, 0.1) * 0.72) * var(--sonar-range-dim, 1)));
-  box-shadow: 0 0 calc(2px + var(--sonar-hit, 0) * 11px) rgba(160, 223, 255, calc(0.18 + var(--sonar-hit, 0) * 0.36));
+  transform: translate(calc(-50% + var(--radar-x, 0px)), calc(-50% + var(--radar-y, 0px))) scale(calc(var(--radar-target-scale, 1) * (0.78 + var(--radar-hit, 0) * 0.54)));
+  background: rgba(173, 222, 255, calc((0.14 + var(--radar-hit, 0.1) * 0.72) * var(--radar-range-dim, 1)));
+  box-shadow: 0 0 calc(2px + var(--radar-hit, 0) * 11px) rgba(160, 223, 255, calc(0.18 + var(--radar-hit, 0) * 0.36));
   transform-origin: center;
   transition: background 90ms linear, box-shadow 90ms linear;
 }
 
-.triggerDisplaySonarBlip.is-hot {
-  background: rgba(176, 255, 211, calc(0.48 + var(--sonar-hit, 0) * 0.46));
+.triggerDisplayRadarBlip.is-hot {
+  background: rgba(176, 255, 211, calc(0.48 + var(--radar-hit, 0) * 0.46));
 }
 
-.triggerDisplaySonarReturn {
+.triggerDisplayRadarReturn {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 8px;
   height: 2px;
   border-radius: 999px;
-  transform: translate(calc(-50% + var(--sonar-return-x, 0px)), calc(-50% + var(--sonar-return-y, 0px)));
-  background: rgba(182, 255, 223, calc(var(--sonar-return-hit, 0) * 0.8));
-  box-shadow: 0 0 calc(2px + var(--sonar-return-hit, 0) * 10px) rgba(175, 248, 218, 0.58);
-  opacity: var(--sonar-return-visible, 0);
+  transform: translate(calc(-50% + var(--radar-return-x, 0px)), calc(-50% + var(--radar-return-y, 0px)));
+  background: rgba(182, 255, 223, calc(var(--radar-return-hit, 0) * 0.8));
+  box-shadow: 0 0 calc(2px + var(--radar-return-hit, 0) * 10px) rgba(175, 248, 218, 0.58);
+  opacity: var(--radar-return-visible, 0);
   pointer-events: none;
 }
 
-.triggerDisplaySonarTrail {
+.triggerDisplayRadarTrail {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  transform: translate(calc(-50% + var(--sonar-trail-x, 0px)), calc(-50% + var(--sonar-trail-y, 0px)));
-  background: rgba(158, 209, 246, calc(0.03 + var(--sonar-trail-hit, 0) * 0.12));
+  transform: translate(calc(-50% + var(--radar-trail-x, 0px)), calc(-50% + var(--radar-trail-y, 0px)));
+  background: rgba(158, 209, 246, calc(0.03 + var(--radar-trail-hit, 0) * 0.12));
   box-shadow: 0 0 3px rgba(150, 216, 255, 0.16);
-  opacity: calc(0.42 - var(--sonar-trail-index, 1) * 0.08);
+  opacity: calc(0.42 - var(--radar-trail-index, 1) * 0.08);
   pointer-events: none;
 }
 

@@ -66,7 +66,7 @@ export function preferredLaneForDrumModule(module: DrumModule): DrumLaneRole | n
 export function tonalValueFromPatternEvent(event: PatternEvent, trigger: TriggerModule) {
   const laneIndex = ((event.targetLane ?? 0) % 4 + 4) % 4;
   const laneCenters = [0.18, 0.38, 0.62, 0.84];
-  const modeBias = trigger.mode === "fractal" || trigger.mode === "sonar" ? 0.62 : trigger.mode === "gear" ? 0.68 : 0.52;
+  const modeBias = trigger.mode === "fractal" || trigger.mode === "radar" ? 0.62 : trigger.mode === "gear" ? 0.68 : 0.52;
   return Math.max(0, Math.min(1, event.value * (1 - modeBias) + laneCenters[laneIndex] * modeBias));
 }
 

@@ -108,6 +108,9 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
   - Every major control should have a visible consequence when practical.
   - If a mode cannot yet display its real algorithm truthfully, prefer a simple honest readout over fake complexity.
   - Visual beauty is welcome, but it should emerge from structural truth.
+  - RADAR semantics: directional rotating scan with angle/time-based detection.
+  - SONAR semantics: radial pulse system with distance/time-based detection.
+  - Different metaphors must map to different behaviors (do not relabel one algorithm as another).
 
 Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 

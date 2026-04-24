@@ -17,7 +17,7 @@ export const GEN_MODE_REGISTRY: Record<Mode, GenModeMeta> = {
   "cellular-automata": { mode: "cellular-automata", fullLabel: "Cellular Automata", shortLabel: "CA", family: "structural", stage: "demo" },
   "hybrid": { mode: "hybrid", fullLabel: "Hybrid", shortLabel: "HYB", family: "structural", stage: "demo" },
   "gear": { mode: "gear", fullLabel: "GEAR", shortLabel: "GEAR", family: "structural", stage: "refine" },
-  "sonar": { mode: "sonar", fullLabel: "SONAR", shortLabel: "SONAR", family: "field", stage: "refine" },
+  "radar": { mode: "radar", fullLabel: "RADAR", shortLabel: "RADAR", family: "field", stage: "refine" },
   "fractal": { mode: "fractal", fullLabel: "Fractal", shortLabel: "FRACT", family: "conceptual", stage: "prototype" },
   "non-euclidean": { mode: "non-euclidean", fullLabel: "Non-Euclidean", shortLabel: "NEUC", family: "conceptual", stage: "prototype" },
   "markov-chains": { mode: "markov-chains", fullLabel: "Markov Chains", shortLabel: "MARKOV", family: "conceptual", stage: "prototype" },
