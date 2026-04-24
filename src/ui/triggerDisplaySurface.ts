@@ -364,9 +364,9 @@ function createSonarView(): DisplayView {
   stage.className = "triggerDisplaySonarStage";
   const sweep = document.createElement("span");
   sweep.className = "triggerDisplaySonarSweep";
-  const pulse = document.createElement("span");
-  pulse.className = "triggerDisplaySonarPulse";
-  stage.append(sweep, pulse);
+  const rangeRing = document.createElement("span");
+  rangeRing.className = "triggerDisplaySonarRange";
+  stage.append(sweep, rangeRing);
   root.append(stage);
 
   type SonarBlipModel = {
@@ -381,13 +381,13 @@ function createSonarView(): DisplayView {
     trailX: Float32Array;
     trailY: Float32Array;
     trails: HTMLElement[];
+    returnEl: HTMLElement;
   };
 
   const blips: HTMLElement[] = [];
   const blipModels: SonarBlipModel[] = [];
   let lastPlayhead = -1;
   let pattern = new Uint8Array(0);
-  let pulseGlow = 0;
   let sweepGlow = 0;
   let lastTickMs: number | null = null;
   const FIELD_RADIUS = 62;
@@ -397,10 +397,15 @@ function createSonarView(): DisplayView {
     root,
     sync: (nextModule) => {
       pattern = decodeLivePattern(nextModule, Math.max(8, nextModule.length)) ?? buildSonarPattern(nextModule, Math.max(8, nextModule.length));
-      stage.querySelectorAll(".triggerDisplaySonarBlip, .triggerDisplaySonarTrail").forEach((el) => el.remove());
+      stage.querySelectorAll(".triggerDisplaySonarBlip, .triggerDisplaySonarTrail, .triggerDisplaySonarReturn").forEach((el) => el.remove());
       blips.length = 0;
       blipModels.length = 0;
       const count = clamp(2 + Math.round(nextModule.density * 9 + nextModule.gravity * 2), 2, 12);
+      const rangeNorm = sonarRangeNorm(nextModule);
+      const ringGap = 10 + (1 - rangeNorm) * 10;
+      stage.style.setProperty("--sonar-range-reach", (0.28 + rangeNorm * 0.72).toFixed(3));
+      stage.style.setProperty("--sonar-ring-gap", `${ringGap.toFixed(2)}px`);
+      stage.style.setProperty("--sonar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
       for (let i = 0; i < count; i++) {
         const blip = document.createElement("span");
         blip.className = "triggerDisplaySonarBlip";
@@ -417,10 +422,14 @@ function createSonarView(): DisplayView {
           stage.appendChild(trailDot);
           trails.push(trailDot);
         }
+        const returnEl = document.createElement("span");
+        returnEl.className = "triggerDisplaySonarReturn";
+        stage.appendChild(returnEl);
         blip.style.setProperty("--sonar-x", `${x.toFixed(2)}px`);
         blip.style.setProperty("--sonar-y", `${y.toFixed(2)}px`);
         blip.style.setProperty("--sonar-hit", "0");
-        blip.style.setProperty("--sonar-event", "0");
+        blip.style.setProperty("--sonar-range-dim", "0.22");
+        blip.style.setProperty("--sonar-return", "0");
         stage.appendChild(blip);
         blips.push(blip);
         blipModels.push({
@@ -431,10 +440,10 @@ function createSonarView(): DisplayView {
           trailX: Float32Array.from({ length: TRAIL_POINTS }, () => x),
           trailY: Float32Array.from({ length: TRAIL_POINTS }, () => y),
           trails,
+          returnEl,
         });
       }
       lastPlayhead = -1;
-      pulseGlow = 0;
       sweepGlow = 0;
       lastTickMs = null;
     },
@@ -452,17 +461,18 @@ function createSonarView(): DisplayView {
       lastTickMs = timeMs;
       const drift = clamp(liveModule.weird, 0, 1);
       const speedScale = dt * (16 + drift * 38);
+      const rangeNorm = sonarRangeNorm(liveModule);
+      const reachNorm = 0.28 + rangeNorm * 0.72;
+      const rangeRadius = FIELD_RADIUS * reachNorm;
+      stage.style.setProperty("--sonar-range-reach", reachNorm.toFixed(3));
+      stage.style.setProperty("--sonar-ring-gap", `${(10 + (1 - rangeNorm) * 10).toFixed(2)}px`);
+      stage.style.setProperty("--sonar-target-scale", (1.06 - rangeNorm * 0.14).toFixed(3));
       if (playhead !== lastPlayhead) {
         const generatedHit = pattern[playhead % Math.max(1, pattern.length)] === 1;
-        if (generatedHit) {
-          pulseGlow = 1;
-          sweepGlow = 1;
-        }
+        if (generatedHit) sweepGlow = 1;
         lastPlayhead = playhead;
       }
-      pulseGlow = Math.max(0, pulseGlow - 0.08);
       sweepGlow = Math.max(0, sweepGlow - 0.12);
-      pulse.style.setProperty("--sonar-pulse", (0.12 + pulseGlow * 0.88).toFixed(3));
       sweep.style.setProperty("--sonar-sweep-glow", sweepGlow.toFixed(3));
       for (let index = 0; index < blips.length; index++) {
         const blip = blips[index];
@@ -470,26 +480,36 @@ function createSonarView(): DisplayView {
         if (!model) continue;
         stepSonarTarget(model, speedScale, FIELD_RADIUS);
         const response = sonarDetectionStrength(model.x, model.y, liveModule, sweepAngleRad, FIELD_RADIUS);
-        const detected = response > threshold;
+        const distance = Math.hypot(model.x, model.y);
+        const inRange = distance <= rangeRadius;
+        const responseGain = inRange ? 1 : 0;
+        const detected = response * responseGain > threshold;
         if (detected && pattern[playhead % Math.max(1, pattern.length)] === 1) model.eventGlow = 1;
-        model.hitGlow = Math.max(model.hitGlow * 0.85, response);
-        model.eventGlow = Math.max(0, model.eventGlow - 0.08);
+        const weightedResponse = response * responseGain;
+        model.hitGlow = Math.max(model.hitGlow * 0.82, weightedResponse);
+        model.eventGlow = Math.max(0, model.eventGlow - 0.14);
         model.trailX[model.trailHead] = model.x;
         model.trailY[model.trailHead] = model.y;
         model.trailHead = (model.trailHead + 1) % TRAIL_POINTS;
 
-        const hitStrength = clamp(model.hitGlow * (0.66 + model.eventGlow * 0.34), 0, 1);
+        const rangeFade = inRange ? 1 : clamp(1 - (distance - rangeRadius) / Math.max(6, FIELD_RADIUS - rangeRadius), 0.06, 0.35);
+        const hitStrength = clamp(model.hitGlow * (0.76 + model.eventGlow * 0.24), 0, 1);
         blip.style.setProperty("--sonar-x", `${model.x.toFixed(2)}px`);
         blip.style.setProperty("--sonar-y", `${model.y.toFixed(2)}px`);
         blip.style.setProperty("--sonar-hit", hitStrength.toFixed(3));
-        blip.style.setProperty("--sonar-event", model.eventGlow.toFixed(3));
-        blip.classList.toggle("is-hot", detected);
+        blip.style.setProperty("--sonar-range-dim", rangeFade.toFixed(3));
+        blip.style.setProperty("--sonar-return", detected ? "1" : "0");
+        blip.classList.toggle("is-hot", detected && inRange);
+        model.returnEl.style.setProperty("--sonar-return-x", `${model.x.toFixed(2)}px`);
+        model.returnEl.style.setProperty("--sonar-return-y", `${model.y.toFixed(2)}px`);
+        model.returnEl.style.setProperty("--sonar-return-hit", (hitStrength * rangeFade).toFixed(3));
+        model.returnEl.style.setProperty("--sonar-return-visible", detected && inRange ? "1" : "0");
         for (let trail = 0; trail < TRAIL_POINTS; trail++) {
           const slot = (model.trailHead - 1 - trail + TRAIL_POINTS) % TRAIL_POINTS;
           const trailEl = model.trails[trail];
           trailEl?.style.setProperty("--sonar-trail-x", `${model.trailX[slot]?.toFixed(2) ?? "0"}px`);
           trailEl?.style.setProperty("--sonar-trail-y", `${model.trailY[slot]?.toFixed(2) ?? "0"}px`);
-          trailEl?.style.setProperty("--sonar-trail-hit", hitStrength.toFixed(3));
+          trailEl?.style.setProperty("--sonar-trail-hit", (hitStrength * rangeFade).toFixed(3));
         }
       }
     },
@@ -1201,6 +1221,7 @@ function buildSonarPattern(module: TriggerModule, steps: number) {
   const targetCount = clamp(2 + Math.round(module.density * 9 + module.gravity * 2), 2, 12);
   const threshold = clamp(0.42 - module.density * 0.16, 0.12, 0.62);
   const fieldRadius = 62;
+  const rangeRadius = fieldRadius * (0.28 + sonarRangeNorm(module) * 0.72);
   const targets = Array.from({ length: targetCount }, (_, index) => createSonarTargetState(module, index, fieldRadius));
   const motionPerStep = 0.72 + clamp(module.weird, 0, 1) * 0.66;
   for (let i = 0; i < steps; i++) {
@@ -1211,12 +1232,17 @@ function buildSonarPattern(module: TriggerModule, steps: number) {
       const model = targets[target];
       if (!model) continue;
       stepSonarTarget(model, motionPerStep, fieldRadius);
+      if (Math.hypot(model.x, model.y) > rangeRadius) continue;
       strongest = Math.max(strongest, sonarDetectionStrength(model.x, model.y, module, sweepAngle, fieldRadius));
     }
     out[i] = strongest > threshold ? 1 : 0;
     if (out[i] === 1 && sonarStepRandom(module.seed ^ 0x7ac5, "drop", i) < module.drop * 0.42) out[i] = 0;
   }
   return out;
+}
+
+function sonarRangeNorm(module: TriggerModule) {
+  return clamp((module.length - 4) / (128 - 4), 0, 1);
 }
 
 function createSonarTargetState(module: TriggerModule, index: number, fieldRadius: number) {
