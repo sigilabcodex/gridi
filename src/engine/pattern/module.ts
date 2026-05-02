@@ -212,7 +212,26 @@ function genHybridPattern(trigger: TriggerModule, voiceId: string) {
   return out;
 }
 
-function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
+export type NonEuclideanSegmentModel = {
+  readonly index: number;
+  readonly start: number;
+  readonly end: number;
+  readonly span: number;
+  readonly localTarget: number;
+  readonly pulses: number;
+  readonly localRotation: number;
+  readonly localPulses: Uint8Array;
+};
+
+export type NonEuclideanPatternModel = {
+  readonly segmentCount: number;
+  readonly edges: Int32Array;
+  readonly segments: readonly NonEuclideanSegmentModel[];
+  readonly warpAmount: number;
+  readonly pattern: Uint8Array;
+};
+
+export function buildNonEuclideanPatternModel(trigger: TriggerModule, voiceId: string): NonEuclideanPatternModel {
   const n = patternLength(trigger);
   const density = clamp01(trigger.density);
   const weird = clamp01(trigger.weird);
@@ -232,6 +251,7 @@ function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
   edges[segmentCount] = n;
 
   const out = new Uint8Array(n);
+  const segments: NonEuclideanSegmentModel[] = [];
   for (let seg = 0; seg < segmentCount; seg++) {
     const start = edges[seg];
     const end = Math.max(start + 1, edges[seg + 1]);
@@ -242,6 +262,17 @@ function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
     const local = bjorklund(span, pulses);
     const localRot = Math.round((trigger.euclidRot | 0) * (seg % 2 === 0 ? 1 : -0.5) + weird * span * 0.35 * (stepRandom01(edgeSeed ^ 0x6123, voiceId, seg) - 0.5));
     const rotatedLocal = rotatePattern(local, localRot);
+
+    segments.push({
+      index: seg,
+      start,
+      end,
+      span,
+      localTarget,
+      pulses,
+      localRotation: localRot,
+      localPulses: rotatedLocal,
+    });
 
     for (let i = 0; i < span; i++) {
       let bit = rotatedLocal[i];
@@ -260,9 +291,18 @@ function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
     }
   }
 
-  return out;
+  return {
+    segmentCount,
+    edges,
+    segments,
+    warpAmount: weird,
+    pattern: out,
+  };
 }
 
+function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
+  return buildNonEuclideanPatternModel(trigger, voiceId).pattern;
+}
 function genMarkovPattern(trigger: TriggerModule, voiceId: string) {
   return buildMarkovPatternModel(trigger, voiceId).pattern;
 }

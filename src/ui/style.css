@@ -5379,25 +5379,68 @@ button:focus-visible,
 .triggerDisplayNonEuclidean {
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(14, minmax(0, 1fr));
-  align-items: end;
-  gap: 4px;
+  align-items: stretch;
 }
 
-.triggerDisplayNonEuclideanSegment {
-  border-radius: 5px 5px 3px 3px;
-  background: rgba(183, 127, 230, 0.2);
+.triggerDisplayNonEuclideanMap {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 2px;
   border: 1px solid rgba(201, 160, 233, 0.25);
-  min-height: 12%;
+  border-radius: 8px;
+  padding: 3px;
+  background: rgba(74, 46, 96, 0.12);
 }
 
-.triggerDisplayNonEuclideanSegment.on {
-  background: linear-gradient(180deg, rgba(224, 179, 255, 0.9), rgba(146, 101, 194, 0.8));
+.triggerDisplayNonEuclideanCell {
+  position: relative;
+  border-radius: 3px;
+  background: color-mix(in srgb, rgba(183, 127, 230, 0.16), rgba(130, 92, 175, 0.22) calc(var(--ne-edge-bias, 0) * 100%));
+  border: 1px solid rgba(201, 160, 233, 0.14);
+  min-height: 20px;
+  opacity: calc(0.4 + var(--ne-seg-density, 0.4) * 0.5);
+}
+
+.triggerDisplayNonEuclideanCell.is-local-pulse::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  background: rgba(182, 147, 223, 0.75);
+}
+
+.triggerDisplayNonEuclideanCell.is-hit {
+  background: linear-gradient(180deg, rgba(224, 179, 255, 0.95), rgba(146, 101, 194, 0.85));
   box-shadow: 0 0 8px rgba(196, 147, 237, 0.42);
 }
 
-.triggerDisplayNonEuclideanSegment.is-playhead {
-  outline: 1px solid rgba(239, 230, 252, 0.9);
+.triggerDisplayNonEuclideanCell.is-playhead {
+  outline: 1px solid rgba(239, 230, 252, 0.95);
+  box-shadow: 0 0 8px rgba(244, 234, 255, 0.6);
+}
+
+.triggerDisplayNonEuclideanCell.is-dropped::after {
+  content: "";
+  position: absolute;
+  inset: 4px 2px;
+  border-top: 1px dashed rgba(245, 227, 251, 0.65);
+}
+
+.triggerDisplayNonEuclideanEdge {
+  align-self: stretch;
+  justify-self: center;
+  width: 1px;
+  margin: 1px 0;
+  background: rgba(234, 207, 255, var(--ne-edge-strength, 0.5));
+  box-shadow: 0 0 6px rgba(224, 179, 255, 0.45);
+  z-index: 2;
 }
 
 .triggerDisplayMarkov {
