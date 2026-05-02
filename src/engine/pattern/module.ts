@@ -264,25 +264,57 @@ function genNonEuclideanPattern(trigger: TriggerModule, voiceId: string) {
 }
 
 function genMarkovPattern(trigger: TriggerModule, voiceId: string) {
+  return buildMarkovPatternModel(trigger, voiceId).pattern;
+}
+
+export type MarkovPatternModel = {
+  readonly pattern: Uint8Array;
+  readonly statePath: Uint8Array;
+  readonly p11: Float32Array;
+  readonly p01: Float32Array;
+};
+
+export function buildMarkovPatternModel(trigger: TriggerModule, voiceId: string): MarkovPatternModel {
   const n = patternLength(trigger);
   const density = clamp01(trigger.density);
   const weird = clamp01(trigger.weird);
   const det = clamp01(trigger.determinism);
   const gravity = clamp01(trigger.gravity);
   const out = new Uint8Array(n);
+  const statePath = new Uint8Array(n);
+  const p11 = new Float32Array(n);
+  const p01 = new Float32Array(n);
 
   let state = stepRandom01(trigger.seed ^ 0x1badf00d, voiceId, 0) < density ? 1 : 0;
   for (let i = 0; i < n; i++) {
     const anchor = i % Math.max(1, Math.round(8 / Math.max(1, trigger.subdiv | 0))) === 0 ? 1 : 0;
-    const p11 = clamp01(0.35 + det * 0.55 + gravity * 0.15 - weird * 0.2 + anchor * gravity * 0.15);
-    const p01 = clamp01(0.04 + density * 0.86 + weird * 0.28 - det * 0.35 + anchor * gravity * 0.2);
+    const stayHot = clamp01(0.35 + det * 0.55 + gravity * 0.15 - weird * 0.2 + anchor * gravity * 0.15);
+    const rise = clamp01(0.04 + density * 0.86 + weird * 0.28 - det * 0.35 + anchor * gravity * 0.2);
+    p11[i] = stayHot;
+    p01[i] = rise;
     const r = stepRandom01(trigger.seed ^ 0x31f0 + i * 17, voiceId, i);
-    state = state === 1 ? (r < p11 ? 1 : 0) : (r < p01 ? 1 : 0);
+    state = state === 1 ? (r < stayHot ? 1 : 0) : (r < rise ? 1 : 0);
     if (state === 1 && stepRandom01(trigger.seed ^ 0x8ac4 + i * 13, voiceId, i) < trigger.drop * 0.5) state = 0;
+    statePath[i] = state;
     out[i] = state;
   }
 
-  return rotatePattern(out, trigger.euclidRot | 0);
+  const rot = trigger.euclidRot | 0;
+  return {
+    pattern: rotatePattern(out, rot),
+    statePath: rotatePattern(statePath, rot),
+    p11: rotateFloatPattern(p11, rot),
+    p01: rotateFloatPattern(p01, rot),
+  };
+}
+
+function rotateFloatPattern(p: Float32Array, rot: number) {
+  const n = p.length;
+  if (n <= 1) return p;
+  const shift = ((rot | 0) % n + n) % n;
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = p[(i - shift + n) % n];
+  return out;
 }
 
 function genLSystemsPattern(trigger: TriggerModule, voiceId: string) {
