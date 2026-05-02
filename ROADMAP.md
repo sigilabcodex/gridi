@@ -68,6 +68,15 @@ Future expansion:
 - Additional pattern engines and module types.
 - External sync and interoperability exploration.
 - Extended test coverage for cross-module interactions.
+- GEN field-mode clarity:
+  - **RADAR** is implemented: rotating directional scan with discrete phase/playhead alignment and angular target detection.
+  - **SONAR** is planned as a distinct future mode: pulse-based radial propagation with echo/resonance logic (no rotating sweep reuse).
+- Planned SONAR parameter/workstream additions:
+  - pulse frequency,
+  - propagation speed,
+  - attenuation,
+  - terrain/field interaction,
+  - echo/resonance detection.
 - Exploration of advanced generation-mode families:
   - image-driven (image-to-sound) generation,
   - quantum/Schrödinger-inspired conceptual generation,

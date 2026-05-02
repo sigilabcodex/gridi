@@ -111,6 +111,7 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
   - RADAR semantics: directional rotating scan with angle/time-based detection.
   - SONAR semantics: radial pulse system with distance/time-based detection.
   - Different metaphors must map to different behaviors (do not relabel one algorithm as another).
+  - RADAR and SONAR are separate semantics: RADAR = rotating scan; SONAR = pulse/echo propagation.
 
 Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 

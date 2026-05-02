@@ -48,7 +48,7 @@
 - Note: this mode was previously named `SONAR`; naming is now corrected to `RADAR` for semantic accuracy.
 
 ### SONAR — **not implemented (planned)**
-- Planned system: pulse-based propagation field (no rotational sweep).
+- Planned system: pulse-based propagation field (no rotational sweep); this remains intentionally separate from implemented RADAR scan behavior.
 - Emits periodic radial waves from an origin point.
 - Targets respond to pulse traversal based on distance, density, and terrain/field interaction.
 - Detection is based on wave intersection and echo/resonance return behavior.

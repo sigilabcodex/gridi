@@ -103,8 +103,14 @@ Why this improvement now:
 
 - SONAR is reserved as a distinct future mode and should not reuse RADAR sweep logic.
 - Core concept: pulse-based terrain interaction system (radial wave propagation, not directional rotation).
-- Role in GEN roadmap: complements RADAR with distance-based event logic and echo/resonance-style detection.
+- Role in GEN roadmap: complements implemented RADAR with distance-based event logic and echo/resonance-style detection.
 - Exploration vector: terrain/field simulation hooks (attenuation, reflection, absorption, deformation) tied to musical event generation.
+- Suggested parameter surface for future SONAR mode:
+  - pulse frequency,
+  - propagation speed,
+  - attenuation,
+  - terrain/field interaction,
+  - echo/resonance detection.
 
 ## D) Velocity editing staging note (added in stabilization follow-up)
 
