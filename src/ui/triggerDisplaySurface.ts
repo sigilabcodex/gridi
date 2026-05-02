@@ -1,6 +1,6 @@
 import type { Mode, TriggerModule } from "../patch";
 import { createGearModel } from "../engine/pattern/gear";
-import { buildMarkovPatternModel } from "../engine/pattern/module";
+import { buildMarkovPatternModel, buildNonEuclideanPatternModel } from "../engine/pattern/module";
 import { getGenModeMeta } from "../engine/pattern/genModeRegistry";
 
 type TriggerDisplayParams = {
@@ -787,41 +787,63 @@ function createHybridView(params: TriggerDisplayParams): DisplayView {
 function createNonEuclideanView(): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayNonEuclidean";
-  const bars: HTMLElement[] = [];
-  let segments = 0;
+  const map = document.createElement("div");
+  map.className = "triggerDisplayNonEuclideanMap";
+  root.appendChild(map);
+
+  const cells: HTMLElement[] = [];
+  const edges: HTMLElement[] = [];
+  let pattern = new Uint8Array(0);
   let lastPlayhead = -1;
 
   return {
     root,
     sync: (nextModule) => {
-      segments = clamp(4 + Math.round(nextModule.weird * 10 + nextModule.gravity * 4), 4, 14);
-      if (bars.length !== segments) {
-        root.textContent = "";
-        bars.length = 0;
-        for (let i = 0; i < segments; i++) {
-          const bar = document.createElement("span");
-          bar.className = "triggerDisplayNonEuclideanSegment";
-          root.appendChild(bar);
-          bars.push(bar);
-        }
-      }
+      const model = buildNonEuclideanPatternModel(nextModule, "display-non-euclidean");
+      pattern = new Uint8Array(model.pattern);
+      map.textContent = "";
+      cells.length = 0;
+      edges.length = 0;
       lastPlayhead = -1;
-      for (let i = 0; i < segments; i++) {
-        const t = i / Math.max(1, segments - 1);
-        const warp = Math.pow(t, 0.65 + nextModule.weird * 1.6);
-        const height = 24 + warp * 70;
-        const active = hash01(nextModule.seed + i * 59) < clamp(nextModule.density * (0.65 + (i % 3) * 0.12), 0.04, 0.95);
-        bars[i].style.height = `${height.toFixed(2)}%`;
-        bars[i].classList.toggle("on", active);
-        bars[i].classList.remove("is-playhead");
+      root.style.setProperty("--ne-gravity", nextModule.gravity.toFixed(3));
+      root.style.setProperty("--ne-warp", nextModule.weird.toFixed(3));
+      for (let i = 0; i < pattern.length; i++) {
+        const cell = document.createElement("span");
+        cell.className = "triggerDisplayNonEuclideanCell";
+        cell.classList.toggle("is-hit", pattern[i] === 1);
+        map.appendChild(cell);
+        cells.push(cell);
+      }
+      for (let seg = 0; seg < model.segments.length; seg++) {
+        const segment = model.segments[seg];
+        for (let i = segment.start; i < segment.end; i++) {
+          const cell = cells[i];
+          if (!cell) continue;
+          const localIdx = i - segment.start;
+          const edgeBias = Math.abs(localIdx / Math.max(1, segment.span - 1) - 0.5);
+          cell.style.setProperty("--ne-seg-density", segment.localTarget.toFixed(3));
+          cell.style.setProperty("--ne-edge-bias", edgeBias.toFixed(3));
+          cell.style.setProperty("--ne-local-rot", (Math.abs(segment.localRotation) / Math.max(1, segment.span)).toFixed(3));
+          cell.classList.toggle("is-local-pulse", segment.localPulses[localIdx] === 1);
+        }
+        if (seg > 0) {
+          const edge = document.createElement("span");
+          edge.className = "triggerDisplayNonEuclideanEdge";
+          edge.style.gridColumn = `${segment.start + 1}`;
+          edge.style.setProperty("--ne-edge-strength", (0.35 + nextModule.weird * 0.5 + nextModule.gravity * 0.2).toFixed(3));
+          map.appendChild(edge);
+          edges.push(edge);
+        }
       }
     },
     tick: (timeMs, liveModule) => {
-      if (!segments) return;
-      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, segments);
+      if (!pattern.length) return;
+      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, pattern.length);
       if (playhead === lastPlayhead) return;
-      if (lastPlayhead >= 0) bars[lastPlayhead]?.classList.remove("is-playhead");
-      bars[playhead]?.classList.add("is-playhead");
+      if (lastPlayhead >= 0) cells[lastPlayhead]?.classList.remove("is-playhead");
+      const active = cells[playhead];
+      active?.classList.add("is-playhead");
+      active?.classList.toggle("is-dropped", pattern[playhead] === 0 && liveModule.drop > 0.001);
       lastPlayhead = playhead;
     },
   };
