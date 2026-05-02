@@ -1,5 +1,6 @@
 import type { Mode, TriggerModule } from "../patch";
 import { createGearModel } from "../engine/pattern/gear";
+import { buildMarkovPatternModel } from "../engine/pattern/module";
 import { getGenModeMeta } from "../engine/pattern/genModeRegistry";
 
 type TriggerDisplayParams = {
@@ -831,29 +832,26 @@ function createMarkovView(): DisplayView {
   root.className = "triggerDisplayMarkov";
   const nodeWrap = document.createElement("div");
   nodeWrap.className = "triggerDisplayMarkovNodes";
+  const pathStrip = document.createElement("div");
+  pathStrip.className = "triggerDisplayMarkovPath";
   const matrix = document.createElement("div");
   matrix.className = "triggerDisplayMarkovMatrix";
   const matrixCells: HTMLElement[] = [];
   const nodes: HTMLElement[] = [];
-  const transitions: HTMLElement[] = [];
-  root.append(nodeWrap, matrix);
-  let lastState = 0;
-
-  for (let i = 0; i < 4; i++) {
+  const pathCells: HTMLElement[] = [];
+  root.append(nodeWrap, matrix, pathStrip);
+  let lastPlayhead = -1;
+  let path: Uint8Array = new Uint8Array(0);
+  let p11Mean = 0.5;
+  let p01Mean = 0.5;
+  for (let i = 0; i < 2; i++) {
     const node = document.createElement("span");
     node.className = "triggerDisplayMarkovNode";
-    node.textContent = String(i + 1);
+    node.textContent = i === 0 ? "R" : "H";
     nodeWrap.appendChild(node);
     nodes.push(node);
   }
   for (let i = 0; i < 4; i++) {
-    const tr = document.createElement("span");
-    tr.className = "triggerDisplayMarkovTransition";
-    nodeWrap.appendChild(tr);
-    transitions.push(tr);
-  }
-
-  for (let i = 0; i < 16; i++) {
     const cell = document.createElement("span");
     cell.className = "triggerDisplayMarkovCell";
     matrix.appendChild(cell);
@@ -863,36 +861,42 @@ function createMarkovView(): DisplayView {
   return {
     root,
     sync: (nextModule) => {
-      const stay = clamp(0.32 + nextModule.determinism * 0.58 - nextModule.weird * 0.25, 0.05, 0.95);
-      const bias = clamp(nextModule.gravity, 0, 1);
-      const matrixData = [
-        [stay, 0.45 * (1 - stay) + bias * 0.2, 0.25 * (1 - stay), 0.3 * (1 - stay) - bias * 0.05],
-        [0.2 * (1 - stay), stay, 0.5 * (1 - stay) + nextModule.weird * 0.08, 0.3 * (1 - stay)],
-        [0.3 * (1 - stay), 0.22 * (1 - stay), stay, 0.48 * (1 - stay) + bias * 0.08],
-        [0.36 * (1 - stay), 0.24 * (1 - stay), 0.2 * (1 - stay), stay],
-      ];
-
-      for (let r = 0; r < 4; r++) {
-        const rowSum = matrixData[r].reduce((sum, value) => sum + value, 0) || 1;
-        for (let c = 0; c < 4; c++) {
-          const prob = matrixData[r][c] / rowSum;
-          const cell = matrixCells[r * 4 + c];
-          cell.style.opacity = (0.24 + prob * 0.9).toFixed(3);
-          cell.textContent = `${Math.round(prob * 100)}`;
-        }
+      const length = Math.max(8, nextModule.length | 0);
+      const model = buildMarkovPatternModel({ ...nextModule, length }, "display-markov");
+      path = model.statePath;
+      p11Mean = model.p11.reduce((sum, value) => sum + value, 0) / Math.max(1, model.p11.length);
+      p01Mean = model.p01.reduce((sum, value) => sum + value, 0) / Math.max(1, model.p01.length);
+      const matrixData = [1 - p01Mean, p01Mean, 1 - p11Mean, p11Mean];
+      matrixCells.forEach((cell, idx) => {
+        const prob = matrixData[idx];
+        cell.style.opacity = (0.18 + prob * 0.92).toFixed(3);
+        cell.textContent = `${Math.round(prob * 100)}`;
+      });
+      pathStrip.textContent = "";
+      pathCells.length = 0;
+      for (let i = 0; i < path.length; i++) {
+        const cell = document.createElement("span");
+        cell.className = "triggerDisplayMarkovPathCell";
+        cell.classList.toggle("is-hit", path[i] === 1);
+        pathStrip.appendChild(cell);
+        pathCells.push(cell);
       }
-
-      transitions.forEach((edge, i) => edge.classList.toggle("hot", i === (nextModule.seed % transitions.length)));
+      lastPlayhead = -1;
     },
     tick: (timeMs, liveModule) => {
-      const phase = resolveAnimatedStepIndex(timeMs, liveModule, 64);
-      const nextState = phase % 4;
-      if (nextState === lastState) return;
-      nodes[lastState]?.classList.remove("is-playhead");
-      const transitionIndex = (lastState * 3 + nextState) % transitions.length;
-      transitions.forEach((edge, i) => edge.classList.toggle("is-playhead", i === transitionIndex));
-      nodes[nextState]?.classList.add("is-playhead");
-      lastState = nextState;
+      if (!path.length) return;
+      const playhead = resolveAnimatedStepIndex(timeMs, liveModule, path.length);
+      if (playhead === lastPlayhead) return;
+      if (lastPlayhead >= 0) {
+        pathCells[lastPlayhead]?.classList.remove("is-playhead");
+      }
+      pathCells[playhead]?.classList.add("is-playhead");
+      nodes.forEach((node, idx) => node.classList.toggle("is-playhead", idx === path[playhead]));
+      const prev = playhead > 0 ? path[playhead - 1] : path[path.length - 1];
+      const isSwitch = prev !== path[playhead];
+      root.classList.toggle("is-switch", isSwitch);
+      root.style.setProperty("--markov-switch-strength", (isSwitch ? p01Mean : p11Mean).toFixed(3));
+      lastPlayhead = playhead;
     },
   };
 }

@@ -5403,7 +5403,8 @@ button:focus-visible,
 .triggerDisplayMarkov {
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  grid-template-rows: minmax(0, 1fr) 18px;
   gap: 8px;
 }
 
@@ -5415,55 +5416,67 @@ button:focus-visible,
 
 .triggerDisplayMarkovNode {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  font-size: 9px;
+  font-size: 8px;
   display: grid;
   place-items: center;
   background: rgba(168, 119, 208, 0.28);
   border: 1px solid rgba(203, 169, 230, 0.45);
 }
 
-.triggerDisplayMarkovNode:nth-child(1) { left: 14px; top: 12px; }
-.triggerDisplayMarkovNode:nth-child(2) { right: 14px; top: 12px; }
-.triggerDisplayMarkovNode:nth-child(3) { left: 14px; bottom: 12px; }
-.triggerDisplayMarkovNode:nth-child(4) { right: 14px; bottom: 12px; }
+.triggerDisplayMarkovNode:nth-child(1) { left: 14px; top: 50%; transform: translateY(-50%); }
+.triggerDisplayMarkovNode:nth-child(2) { right: 14px; top: 50%; transform: translateY(-50%); }
 
 .triggerDisplayMarkovNode.is-playhead {
   box-shadow: 0 0 0 1px rgba(245, 238, 255, 0.95), 0 0 9px rgba(233, 213, 255, 0.78);
 }
 
-.triggerDisplayMarkovTransition {
-  position: absolute;
-  background: rgba(188, 146, 226, 0.24);
-}
-
-.triggerDisplayMarkovTransition:nth-child(5) { left: 33px; right: 33px; top: 20px; height: 1px; }
-.triggerDisplayMarkovTransition:nth-child(6) { left: 33px; right: 33px; bottom: 20px; height: 1px; }
-.triggerDisplayMarkovTransition:nth-child(7) { top: 30px; bottom: 30px; left: 22px; width: 1px; }
-.triggerDisplayMarkovTransition:nth-child(8) { top: 30px; bottom: 30px; right: 22px; width: 1px; }
-
-.triggerDisplayMarkovTransition.hot,
-.triggerDisplayMarkovTransition.is-playhead {
-  background: rgba(226, 189, 255, 0.92);
-  box-shadow: 0 0 6px rgba(211, 168, 255, 0.7);
-}
-
 .triggerDisplayMarkovMatrix {
+  grid-row: 1;
+  grid-column: 2;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 3px;
 }
 
 .triggerDisplayMarkovCell {
-  height: 16px;
+  min-height: 16px;
   border-radius: 4px;
   background: rgba(177, 126, 216, 0.25);
   border: 1px solid rgba(205, 168, 231, 0.32);
   font-size: 8px;
   display: grid;
   place-items: center;
+}
+
+.triggerDisplayMarkovPath {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(2px, 1fr);
+  gap: 2px;
+}
+
+.triggerDisplayMarkovPathCell {
+  border-radius: 2px;
+  background: rgba(112, 83, 136, 0.35);
+  border: 1px solid rgba(181, 145, 209, 0.18);
+}
+
+.triggerDisplayMarkovPathCell.is-hit {
+  background: rgba(210, 174, 237, 0.85);
+}
+
+.triggerDisplayMarkovPathCell.is-playhead {
+  outline: 1px solid rgba(244, 235, 255, 0.95);
+}
+
+.triggerDisplayMarkov.is-switch .triggerDisplayMarkovNodes {
+  box-shadow: inset 0 0 0 1px rgba(232, 205, 255, calc(0.25 + var(--markov-switch-strength, 0.5) * 0.4));
 }
 
 .triggerDisplayLSystem,
