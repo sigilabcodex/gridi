@@ -21,7 +21,8 @@ type HeaderParams = {
   onSelectPreset: (presetId: string) => void;
   onSavePreset: () => void;
   onSaveAsPreset: () => void;
-  onNewSession: () => void;
+  onNewEmptySession: () => void;
+  onNewExampleSession: () => void;
   onToggleAudio: () => Promise<void>;
   onTogglePlay: () => Promise<void>;
   onStop: () => void;
@@ -469,11 +470,17 @@ export function createTransportHeader(params: HeaderParams) {
     "Reseed generators",
   );
 
-  const btnNewSession = makeUtilityBtn(
-    "New session",
-    params.onNewSession,
-    "Create and switch to a fresh session patch without changing module preset libraries.",
-    "New session",
+  const btnNewEmptySession = makeUtilityBtn(
+    "New empty session",
+    params.onNewEmptySession,
+    "Create and switch to a blank session patch without changing module preset libraries.",
+    "New empty session",
+  );
+  const btnNewExampleSession = makeUtilityBtn(
+    "New from starter",
+    params.onNewExampleSession,
+    "Create and switch to a starter/example session patch without changing module preset libraries.",
+    "New from starter",
   );
   const btnSaveAs = makeUtilityBtn(
     "Save As…",
@@ -552,7 +559,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   sessionPresetFilter.addEventListener("input", refreshSessionList);
   sessionPanel.append(sessionPresetSectionLabel, sessionPresetFilter, sessionPresetSection);
-  appendMenuSection(sessionPanel, "Session patch", [btnNewSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
+  appendMenuSection(sessionPanel, "Session patch", [btnNewEmptySession, btnNewExampleSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
   sessionMenu.append(sessionSummary);
   generatorMenu.append(generatorSummary);
@@ -1200,7 +1207,8 @@ export function createTransportHeader(params: HeaderParams) {
       const actions = document.createElement("div");
       actions.className = "globalControlsDrawerUtilitySection";
       actions.append(
-        makeDrawerActionBtn("New session", params.onNewSession),
+        makeDrawerActionBtn("New empty session", params.onNewEmptySession),
+        makeDrawerActionBtn("New from starter", params.onNewExampleSession),
         makeDrawerActionBtn("Save session", params.onSavePreset),
         makeDrawerActionBtn("Save As…", params.onSaveAsPreset),
         makeDrawerActionBtn("Session manager…", params.onOpenPresetManager),

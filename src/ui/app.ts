@@ -1,5 +1,5 @@
 import type { Module, Patch } from "../patch";
-import { clamp, defaultPatch, getSoundModules, getTriggers, isEffect } from "../patch";
+import { clamp, defaultPatch, emptyPatch, getSoundModules, getTriggers, isEffect } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
 import { loadSettings } from "../settings/store";
@@ -361,14 +361,15 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateStatus();
   };
 
-  const createSessionFromDefaultPatch = () => {
-    const proposed = prompt("New session name", `Session ${session.presets.length + 1}`);
+  const createSessionFromPatchTemplate = (template: "empty" | "example") => {
+    const label = template === "empty" ? "empty" : "starter";
+    const proposed = prompt(`New ${label} session name`, `Session ${session.presets.length + 1}`);
     if (proposed === null) return;
     const now = Date.now();
     const preset: PresetRecord = {
       id: `preset-${now}`,
       name: sanitizePresetName(proposed, `Session ${session.presets.length + 1}`),
-      patch: defaultPatch(),
+      patch: template === "empty" ? emptyPatch() : defaultPatch(),
       createdAt: now,
       updatedAt: now,
     };
@@ -385,6 +386,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateBpmUI();
     header.updateStatus();
   };
+  const createEmptySession = () => createSessionFromPatchTemplate("empty");
+  const createExampleSession = () => createSessionFromPatchTemplate("example");
 
   const saveCurrentAsNewSession = () => {
     const source = selectedPreset();
@@ -723,7 +726,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     onSelectPreset: loadPresetById,
     onSavePreset: saveCurrentPreset,
     onSaveAsPreset: saveCurrentAsNewSession,
-    onNewSession: createSessionFromDefaultPatch,
+    onNewEmptySession: createEmptySession,
+    onNewExampleSession: createExampleSession,
     onToggleAudio: async () => {
       if (engine.ctx.state === "running") await engine.ctx.suspend();
       else await engine.start();

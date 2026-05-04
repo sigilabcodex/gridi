@@ -436,6 +436,19 @@ export const defaultPatch = (): Patch => {
   };
 };
 
+export const emptyPatch = (): Patch => {
+  return {
+    version: "0.3",
+    bpm: 124,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [],
+    buses: [],
+    connections: [],
+  };
+};
+
 
 const LEGACY_MODE_ALIASES: Record<string, Mode> = {
   step: "step-sequencer",
