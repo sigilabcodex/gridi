@@ -16,6 +16,7 @@ import {
   type RoutingSnapshot,
 } from "./routingVisibility";
 import { createTargetModulationAssignPanel } from "./targetModulationAssign";
+import { resolveTriggerFollowerLabel } from "./routingLabels";
 
 export type VoiceTab = "MAIN" | "ROUTING" | "SETTINGS";
 
@@ -309,7 +310,8 @@ function createFaceTabs(
 
   const incoming = routing.voiceIncoming.get(v.id);
 
-  const sourceRow = createRoutingCard("Trig in", incoming?.trigger ? incoming.trigger.name : "No source");
+  const sourceLabel = resolveTriggerFollowerLabel(Array.from(routing.modules.values()).map((ref) => ({ id: ref.id, type: ref.family, name: ref.name } as any)), v);
+  const sourceRow = createRoutingCard("Trig in", sourceLabel === "None" ? "No source" : sourceLabel);
   const sourceField = createCompactSelectField({
     label: "Source",
     options: triggerOptions.map((opt) => ({ value: opt.id, label: opt.label })),
@@ -322,7 +324,7 @@ function createFaceTabs(
   });
   const routeMap = document.createElement("div");
   routeMap.className = "utilityRouteMap small";
-  routeMap.textContent = incoming?.trigger ? `← ${incoming.trigger.name}` : "No trig feed";
+  routeMap.textContent = sourceLabel === "None" ? "No trig feed" : `← ${sourceLabel}`;
   sourceRow.append(sourceField.wrap, routeMap);
   panelRouting.appendChild(sourceRow);
 

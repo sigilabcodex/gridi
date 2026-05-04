@@ -239,3 +239,5 @@ Polish pass (non-breaking):
 
 - None.
 - This PR intentionally adds only an audit document artifact.
+
+- PR-B follow-up (implemented): shared routing label resolver now drives both Voice SRC readouts and Trigger ROUTING follower chips, with compact ownership hint in Trigger ROUTING card.

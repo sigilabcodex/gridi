@@ -19,6 +19,7 @@ import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import type { TooltipBinder } from "./tooltip";
 import { applyCenteredModulation } from "./modulationView";
 import { createTargetModulationAssignPanel } from "./targetModulationAssign";
+import { resolveTriggerFollowerLabel } from "./routingLabels";
 
 const GENERATOR_MODES: Array<{ value: Mode; label: string }> = GEN_MODES
   .map((value) => ({ value, label: getGenModeMeta(value).fullLabel }));
@@ -1373,11 +1374,15 @@ export function renderTriggerSurface(
   panelRouting.dataset.routingScrollId = t.id;
 
   const targetsCard = createRoutingCard("Voice out", outgoingVoices.length ? `${outgoingVoices.length} sink${outgoingVoices.length === 1 ? "" : "s"}` : "No sinks");
+  targetsCard.appendChild(createRoutingChip("Writes to voice SRC", "muted"));
   const targetsList = document.createElement("div");
   targetsList.className = "routingChipList";
   if (outgoingVoices.length) {
     const visibleTargets = outgoingVoices.slice(0, 6);
-    visibleTargets.forEach((voice) => targetsList.appendChild(createModuleRefChip(voice)));
+    visibleTargets.forEach((voice) => {
+      const sourceLabel = resolveTriggerFollowerLabel(Array.from(routing.modules.values()).map((ref) => ({ id: ref.id, type: ref.family, name: ref.name } as any)), { triggerSource: voice.id === t.id ? t.id : (routing.voiceIncoming.get(voice.id)?.trigger?.id ?? null) } as any);
+      targetsList.appendChild(createModuleRefChip(voice, `SRC ${sourceLabel.toUpperCase()}`));
+    });
     if (outgoingVoices.length > visibleTargets.length) {
       targetsList.appendChild(createRoutingChip(`+${outgoingVoices.length - visibleTargets.length} more`, "muted"));
     }
