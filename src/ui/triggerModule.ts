@@ -53,6 +53,132 @@ type RenderedModeControl = {
   el: CtlFloatElement;
 };
 
+type AdvancedControlConfig = {
+  key: TriggerControlKey;
+  label: string;
+  tooltip: string;
+  min: number;
+  max: number;
+  step: number;
+  integer?: boolean;
+  format?: (value: number) => string;
+};
+
+type AdvancedSectionConfig = {
+  title: string;
+  controls: AdvancedControlConfig[];
+};
+
+const CA_INTERNAL_MODES: Mode[] = ["cellular-automata", "hybrid", "xronomorph"];
+
+function advancedSectionsForMode(mode: Mode): AdvancedSectionConfig[] {
+  const determinismByMode: Record<Mode, { label: string; tooltip: string }> = {
+    "step-sequencer": { label: "Det", tooltip: "Bias this lane toward repeatable step outcomes." },
+    "euclidean": { label: "Det", tooltip: "Bias pulse perturbation toward repeatable outcomes." },
+    "cellular-automata": { label: "Det", tooltip: "Bias CA sampling and mutation toward stable repeats." },
+    "hybrid": { label: "Det", tooltip: "Bias source blending toward repeatable outcomes." },
+    "gear": { label: "Mesh", tooltip: "Lock ring coincidences into tighter repeated coupling." },
+    "radar": { label: "Lock", tooltip: "Narrow scan acceptance for more stable target returns." },
+    "fractal": { label: "Sym", tooltip: "Lock recursive symmetry versus asymmetrical drift." },
+    "non-euclidean": { label: "Det", tooltip: "Bias warped segment choices toward repeatable outcomes." },
+    "markov-chains": { label: "Memory", tooltip: "Hold transition memory longer before state drift." },
+    "l-systems": { label: "Stable", tooltip: "Keep branch grammar growth stable across cycles." },
+    "xronomorph": { label: "Morph", tooltip: "Stabilize phase-morph blending across source lanes." },
+    "genetic-algorithms": { label: "Select", tooltip: "Increase selection pressure toward fitter motifs." },
+    "one-over-f-noise": { label: "Det", tooltip: "Stabilize thresholding against noise-driven variation." },
+  };
+  const gravityByMode: Record<Mode, { label: string; tooltip: string }> = {
+    "step-sequencer": { label: "Grav", tooltip: "Pull generated hits toward denser clusters." },
+    "euclidean": { label: "Anchor", tooltip: "Pull pulse emphasis toward strong-cycle anchors." },
+    "cellular-automata": { label: "Bias", tooltip: "Bias row sampling toward denser activity regions." },
+    "hybrid": { label: "Bias", tooltip: "Bias scaffold pull across the blended source field." },
+    "gear": { label: "Weight", tooltip: "Weight coincidence strength toward denser ring regions." },
+    "radar": { label: "Range", tooltip: "Weight hit bias across near/far scan range." },
+    "fractal": { label: "Branch", tooltip: "Bias branching toward clustered recursive structures." },
+    "non-euclidean": { label: "Skew", tooltip: "Skew warped pulse gravity toward anchor regions." },
+    "markov-chains": { label: "Bias", tooltip: "Bias transition preference toward denser motif states." },
+    "l-systems": { label: "Branch", tooltip: "Bias branch growth toward denser limb regions." },
+    "xronomorph": { label: "Pull", tooltip: "Pull merged phase toward dominant lane weight." },
+    "genetic-algorithms": { label: "Cull", tooltip: "Increase culling pull against weaker candidates." },
+    "one-over-f-noise": { label: "Skew", tooltip: "Skew threshold pull toward downbeat anchors." },
+  };
+
+  const sections: AdvancedSectionConfig[] = [
+    {
+      title: "Global shaping",
+      controls: [
+        {
+          key: "drop",
+          label: "Drop",
+          min: 0,
+          max: 1,
+          step: 0.001,
+          tooltip: "Thin the pattern by dropping hits after generation.",
+        },
+        {
+          key: "accent",
+          label: "Accent",
+          min: 0,
+          max: 1,
+          step: 0.001,
+          tooltip: "Scale GEN velocity accents from neutral (0) to mode-shaped (1). Fine-tune behavior stays mode-compatible.",
+        },
+      ],
+    },
+    {
+      title: "Stability / Bias",
+      controls: [
+        { key: "determinism", min: 0, max: 1, step: 0.001, ...determinismByMode[mode] },
+        { key: "gravity", min: 0, max: 1, step: 0.001, ...gravityByMode[mode] },
+      ],
+    },
+  ];
+
+  const showPhase = mode === "euclidean" || mode === "fractal" || mode === "non-euclidean" || mode === "gear" || mode === "xronomorph";
+  if (showPhase) {
+    sections.push({
+      title: "Phase / Topology",
+      controls: [
+        {
+          key: "euclidRot",
+          label: mode === "gear" || mode === "xronomorph" ? "Phase" : "Rotate",
+          min: -32,
+          max: 32,
+          step: 1,
+          integer: true,
+          tooltip: mode === "gear" ? "Shift ring phase alignment around the cycle." : "Rotate pattern phase around the loop.",
+        },
+      ],
+    });
+  }
+
+  if (CA_INTERNAL_MODES.includes(mode)) {
+    sections.push({
+      title: "CA internals",
+      controls: [
+        {
+          key: "caRule",
+          label: "Rule",
+          min: 0,
+          max: 255,
+          step: 1,
+          integer: true,
+          tooltip: "Select the cellular automata rule number used by CA-derived sources.",
+        },
+        {
+          key: "caInit",
+          label: "Seed Fill",
+          min: 0,
+          max: 1,
+          step: 0.001,
+          tooltip: "Set initial CA fill amount for CA-derived source rows.",
+        },
+      ],
+    });
+  }
+  return sections;
+}
+
 const BASE_STEP_CONTROLS: TriggerModeControlSpec[] = [
   {
     label: "Density",
@@ -1278,82 +1404,28 @@ export function renderTriggerSurface(
   panelRouting.appendChild(modulationCard);
 
   const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
-  const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2");
-  settingsGrid.append(
-    ctlFloat({
-      label: "Drop",
-      value: t.drop,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Thin the pattern by dropping hits after generation.",
-      attachTooltip,
-      onChange: (x) => setParam("drop", x),
-    }),
-    ctlFloat({
-      label: "Det",
-      value: t.determinism,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Bias the generator toward repeatable results.",
-      attachTooltip,
-      onChange: (x) => setParam("determinism", x),
-    }),
-    ctlFloat({
-      label: "Grav",
-      value: t.gravity,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Pull generated hits toward denser clusters.",
-      attachTooltip,
-      onChange: (x) => setParam("gravity", x),
-    }),
-    ctlFloat({
-      label: "Accent",
-      value: t.accent,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Scale GEN velocity accents from neutral (0) to mode-shaped (1). Lives in Advanced for now; likely Fine-tune later.",
-      attachTooltip,
-      onChange: (x) => setParam("accent", x),
-    }),
-    ctlFloat({
-      label: "Rotate",
-      value: t.euclidRot,
-      min: -32,
-      max: 32,
-      step: 1,
-      integer: true,
-      tooltip: "Rotate Euclidean hits around the loop.",
-      attachTooltip,
-      onChange: (x) => setParam("euclidRot", x),
-    }),
-    ctlFloat({
-      label: "CA rule",
-      value: t.caRule,
-      min: 0,
-      max: 255,
-      step: 1,
-      integer: true,
-      tooltip: "Select the cellular automata rule number.",
-      attachTooltip,
-      onChange: (x) => setParam("caRule", x),
-    }),
-    ctlFloat({
-      label: "CA init",
-      value: t.caInit,
-      min: 0,
-      max: 1,
-      step: 0.001,
-      tooltip: "Set the initial fill used by CA-based patterns.",
-      attachTooltip,
-      onChange: (x) => setParam("caInit", x),
-    }),
-  );
-  panelSettings.append(settingsGrid);
+  const advancedSections = advancedSectionsForMode(t.mode);
+  advancedSections.forEach((section) => {
+    const title = document.createElement("div");
+    title.className = "triggerAdvancedSectionTitle";
+    title.textContent = section.title;
+    const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2 triggerAdvancedGrid");
+    section.controls.forEach((control) => {
+      settingsGrid.append(ctlFloat({
+        label: control.label,
+        value: t[control.key],
+        min: control.min,
+        max: control.max,
+        step: control.step,
+        integer: control.integer,
+        tooltip: control.tooltip,
+        format: control.format,
+        attachTooltip,
+        onChange: (x) => setParam(control.key, x),
+      }));
+    });
+    panelSettings.append(title, settingsGrid);
+  });
 
   const shell = createModuleTabShell({
     specs: [
