@@ -67,6 +67,8 @@ type AdvancedControlConfig = {
 type AdvancedSectionConfig = {
   title: string;
   controls: AdvancedControlConfig[];
+  span?: 2 | 3 | 6;
+  compact?: boolean;
 };
 
 const CA_INTERNAL_MODES: Mode[] = ["cellular-automata", "hybrid", "xronomorph"];
@@ -106,6 +108,7 @@ function advancedSectionsForMode(mode: Mode): AdvancedSectionConfig[] {
   const sections: AdvancedSectionConfig[] = [
     {
       title: "Global shaping",
+      span: 3,
       controls: [
         {
           key: "drop",
@@ -127,6 +130,7 @@ function advancedSectionsForMode(mode: Mode): AdvancedSectionConfig[] {
     },
     {
       title: "Stability / Bias",
+      span: 3,
       controls: [
         { key: "determinism", min: 0, max: 1, step: 0.001, ...determinismByMode[mode] },
         { key: "gravity", min: 0, max: 1, step: 0.001, ...gravityByMode[mode] },
@@ -138,6 +142,8 @@ function advancedSectionsForMode(mode: Mode): AdvancedSectionConfig[] {
   if (showPhase) {
     sections.push({
       title: "Phase / Topology",
+      span: mode === "xronomorph" ? 3 : 3,
+      compact: true,
       controls: [
         {
           key: "euclidRot",
@@ -155,6 +161,7 @@ function advancedSectionsForMode(mode: Mode): AdvancedSectionConfig[] {
   if (CA_INTERNAL_MODES.includes(mode)) {
     sections.push({
       title: "CA internals",
+      span: 3,
       controls: [
         {
           key: "caRule",
@@ -1403,9 +1410,13 @@ export function renderTriggerSurface(
   modulationCard.append(modSelectors, modList);
   panelRouting.appendChild(modulationCard);
 
-  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel");
+  const panelSettings = createFaceplateStackPanel("surfaceSettingsPanel triggerSettingsPanel triggerFineTunePanel");
   const advancedSections = advancedSectionsForMode(t.mode);
   advancedSections.forEach((section) => {
+    const sectionWrap = createFaceplateSection(
+      "secondary",
+      `triggerFineTuneSection triggerFineTuneSection--span${section.span ?? 3}${section.compact ? " triggerFineTuneSection--compact" : ""}`,
+    );
     const title = document.createElement("div");
     title.className = "triggerAdvancedSectionTitle";
     title.textContent = section.title;
@@ -1424,7 +1435,8 @@ export function renderTriggerSurface(
         onChange: (x) => setParam(control.key, x),
       }));
     });
-    panelSettings.append(title, settingsGrid);
+    sectionWrap.append(title, settingsGrid);
+    panelSettings.appendChild(sectionWrap);
   });
 
   const shell = createModuleTabShell({
