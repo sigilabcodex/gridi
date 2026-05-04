@@ -18,6 +18,9 @@ Most urgent corrections:
 2. Advanced tab information architecture (grouping + mode-conditioned labels).
 3. Display strengthening for Genetic Algorithms, Fractal, L-Systems, and Hybrid.
 
+Follow-up note (implemented in a later pass):
+- Trigger GEN `Advanced` now supports mode-aware fine-tune grouping and relevance filtering while keeping existing patch keys stable (`drop`, `determinism`, `gravity`, `accent`, `euclidRot`, `caRule`, `caInit`).
+
 ---
 
 ## 2) Per-mode audit
