@@ -6020,34 +6020,61 @@ button:focus-visible,
   gap: var(--faceplate-gap-sm);
 }
 
+.triggerFineTunePanel {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  align-content: start;
+}
+
+.triggerFineTuneSection {
+  grid-column: span 3;
+  min-width: 0;
+  padding: 5px 7px 6px;
+  border: 1px solid rgba(50, 63, 76, 0.58);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(10, 14, 19, 0.7), rgba(8, 12, 17, 0.5));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.triggerFineTuneSection--span2 { grid-column: span 2; }
+.triggerFineTuneSection--span3 { grid-column: span 3; }
+.triggerFineTuneSection--span6 { grid-column: span 6; }
+
+.triggerFineTuneSection--compact {
+  padding-bottom: 5px;
+}
+
 .triggerAdvancedSectionTitle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  gap: 6px;
+  font-size: 8px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(214, 225, 234, 0.84);
+  color: rgba(214, 225, 234, 0.8);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-  padding: 2px 2px 0;
-  margin-top: 1px;
+  padding: 0;
+  margin: 0;
 }
 
 .triggerAdvancedSectionTitle::before {
   content: "";
-  flex: 0 0 10px;
+  flex: 0 0 8px;
   height: 1px;
   background: linear-gradient(90deg, rgba(74, 163, 255, 0.55), rgba(74, 163, 255, 0.12));
 }
 
 .triggerAdvancedGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
-  padding: 6px 8px 7px;
-  border: 1px solid rgba(50, 63, 76, 0.58);
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(10, 14, 19, 0.7), rgba(8, 12, 17, 0.5));
-  gap: 8px 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 6px 8px;
 }
 
 .triggerSettingsPanel > .triggerAdvancedGrid:not(:last-child) {
