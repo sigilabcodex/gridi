@@ -104,7 +104,7 @@ test('module identity separates instance name, engine, and preset', () => {
   const synth = makeSound('tonal', 1, trigger.id);
   const visual = makeVisual('scope', 0);
 
-  assert.equal(trigger.name, 'Trigger 2');
+  assert.equal(trigger.name, 'Generator 2');
   assert.equal(trigger.engine, 'trigger');
   assert.equal(trigger.presetName, 'Sparse Euclid');
 
@@ -123,7 +123,7 @@ test('module identity separates instance name, engine, and preset', () => {
 
 test('default patch uses readable module instance names', () => {
   const names = defaultPatch().modules.map((m) => m.name);
-  assert.deepEqual(names, ['Trigger 1', 'Drum 1', 'Trigger 2', 'Drum 2', 'Synth 1', 'Control 1', 'Scope 1']);
+  assert.deepEqual(names, ['Generator 1', 'Drum 1', 'Generator 2', 'Drum 2', 'Synth 1', 'Control 1', 'Scope 1']);
 });
 
 
