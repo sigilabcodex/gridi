@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { makeControl, makeSound, makeTrigger } from '../src/patch.ts';
+import { defaultPatch, emptyPatch, makeControl, makeSound, makeTrigger } from '../src/patch.ts';
 import {
   defaultPresetSession,
   makePresetExportPayload,
@@ -82,6 +82,22 @@ test('session export/import roundtrip preserves selected preset and patches', ()
   assert.equal(imported.selectedPresetId, 'preset-b');
   assert.equal(imported.presets.length, 2);
   assert.equal(imported.presets[1].patch.modules[1].triggerSource, imported.presets[1].patch.modules[0].id);
+});
+
+test('empty patch template produces zero modules with baseline patch metadata', () => {
+  const patch = emptyPatch();
+  assert.equal(patch.version, '0.3');
+  assert.equal(patch.modules.length, 0);
+  assert.equal(patch.bpm, 124);
+  assert.equal(patch.masterGain, 0.8);
+});
+
+test('default preset session remains starter/example seeded from defaultPatch', () => {
+  const session = defaultPresetSession();
+  assert.equal(session.presets.length, 1);
+  assert.equal(session.presets[0].name, 'Starter Session');
+  assert.equal(session.presets[0].patch.modules.length, defaultPatch().modules.length);
+  assert.notEqual(session.presets[0].patch.modules.length, 0);
 });
 
 test('invalid import payloads return null safely', () => {
