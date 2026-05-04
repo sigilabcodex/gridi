@@ -6021,15 +6021,36 @@ button:focus-visible,
 }
 
 .triggerAdvancedSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 9px;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.7;
-  padding: 0 2px;
+  color: rgba(214, 225, 234, 0.84);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  padding: 2px 2px 0;
+  margin-top: 1px;
+}
+
+.triggerAdvancedSectionTitle::before {
+  content: "";
+  flex: 0 0 10px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(74, 163, 255, 0.55), rgba(74, 163, 255, 0.12));
 }
 
 .triggerAdvancedGrid {
-  margin-bottom: 2px;
+  margin: 0;
+  padding: 6px 8px 7px;
+  border: 1px solid rgba(50, 63, 76, 0.58);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(10, 14, 19, 0.7), rgba(8, 12, 17, 0.5));
+  gap: 8px 10px;
+}
+
+.triggerSettingsPanel > .triggerAdvancedGrid:not(:last-child) {
+  margin-bottom: 4px;
 }
 
 .transportRowMain {
