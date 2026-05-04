@@ -406,31 +406,54 @@ function genLSystemsPattern(trigger: TriggerModule, voiceId: string) {
 }
 
 function genXronoMorphPattern(trigger: TriggerModule, voiceId: string) {
+  return buildXronoMorphPatternModel(trigger, voiceId).output;
+}
+
+export type XronoMorphPatternModel = {
+  readonly sourceEuclid: Uint8Array;
+  readonly sourceCA: Uint8Array;
+  readonly sourceStep: Uint8Array;
+  readonly output: Uint8Array;
+  readonly agreement: Uint8Array;
+  readonly chooser: Float32Array;
+  readonly phase: Float32Array;
+  readonly dominantSourceByStep: Uint8Array;
+};
+
+export function buildXronoMorphPatternModel(trigger: TriggerModule, voiceId: string): XronoMorphPatternModel {
   const n = patternLength(trigger);
   const morph = clamp01(trigger.weird);
   const det = clamp01(trigger.determinism);
   const gravity = clamp01(trigger.gravity);
 
-  const baseA = genEuclidPattern({ ...trigger, density: clamp01(trigger.density * 0.9 + gravity * 0.1) }, voiceId);
-  const baseB = genCAPattern({ ...trigger, caRule: (trigger.caRule + 73) & 255, caInit: clamp01(trigger.caInit * 0.75 + 0.1) }, voiceId);
-  const baseC = genStepPattern({ ...trigger, density: clamp01(trigger.density * 0.8 + morph * 0.15) });
+  const sourceEuclid = genEuclidPattern({ ...trigger, density: clamp01(trigger.density * 0.9 + gravity * 0.1) }, voiceId);
+  const sourceCA = genCAPattern({ ...trigger, caRule: (trigger.caRule + 73) & 255, caInit: clamp01(trigger.caInit * 0.75 + 0.1) }, voiceId);
+  const sourceStep = genStepPattern({ ...trigger, density: clamp01(trigger.density * 0.8 + morph * 0.15) });
 
-  const out = new Uint8Array(n);
+  const output = new Uint8Array(n);
+  const agreement = new Uint8Array(n);
+  const chooserTrack = new Float32Array(n);
+  const phaseTrack = new Float32Array(n);
+  const dominantSourceByStep = new Uint8Array(n);
   const phaseRate = 0.7 + (trigger.subdiv | 0) * 0.22 + morph * 0.5;
   for (let i = 0; i < n; i++) {
     const phase = ((i / Math.max(1, n - 1)) * phaseRate + trigger.seed * 0.00091 + (trigger.euclidRot | 0) * 0.013) % 1;
     const chooser = Math.sin(phase * Math.PI * 2) * 0.5 + 0.5;
-    const a = baseA[i];
-    const b = baseB[(i + Math.round(phase * 5)) % n];
-    const c = baseC[(i + Math.round((1 - phase) * 7)) % n];
+    const a = sourceEuclid[i];
+    const b = sourceCA[(i + Math.round(phase * 5)) % n];
+    const c = sourceStep[(i + Math.round((1 - phase) * 7)) % n];
     const blend = chooser < 0.33 ? a : chooser < 0.66 ? b : c;
     const fuse = det > 0.58 ? ((a && b) || (blend && c)) : (blend || (morph > 0.45 ? a ^ b : 0));
     let bit = fuse ? 1 : 0;
     if (bit && stepRandom01(trigger.seed ^ 0x4545 + i * 23, voiceId, i) < trigger.drop * (0.35 + morph * 0.3)) bit = 0;
     if (!bit && stepRandom01(trigger.seed ^ 0x4555 + i * 19, voiceId, i) < morph * (1 - det) * 0.18) bit = 1;
-    out[i] = bit;
+    output[i] = bit;
+    agreement[i] = a === b && b === c ? 1 : 0;
+    chooserTrack[i] = chooser;
+    phaseTrack[i] = phase;
+    dominantSourceByStep[i] = chooser < 0.33 ? 0 : chooser < 0.66 ? 1 : 2;
   }
-  return out;
+  return { sourceEuclid, sourceCA, sourceStep, output, agreement, chooser: chooserTrack, phase: phaseTrack, dominantSourceByStep };
 }
 
 function genGeneticPattern(trigger: TriggerModule, voiceId: string) {
