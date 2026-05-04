@@ -1,6 +1,6 @@
 import type { Mode, TriggerModule } from "../patch";
 import { createGearModel } from "../engine/pattern/gear";
-import { buildMarkovPatternModel, buildNonEuclideanPatternModel } from "../engine/pattern/module";
+import { buildMarkovPatternModel, buildNonEuclideanPatternModel, buildXronoMorphPatternModel } from "../engine/pattern/module";
 import { getGenModeMeta } from "../engine/pattern/genModeRegistry";
 
 type TriggerDisplayParams = {
@@ -131,7 +131,7 @@ function createViewForMode(mode: Mode, module: TriggerModule, params: TriggerDis
   if (mode === "hybrid") return createHybridView(params);
   if (mode === "markov-chains") return createMarkovView();
   if (mode === "l-systems") return createLSystemsView();
-  if (mode === "xronomorph") return createXronoMorphView(params);
+  if (mode === "xronomorph") return createXronoMorphView();
   if (mode === "genetic-algorithms") return createGeneticView();
   if (mode === "one-over-f-noise") return createOneOverFView(params);
   if (mode === "gear") return createGearView();
@@ -954,18 +954,24 @@ function createLSystemsView(): DisplayView {
   };
 }
 
-function createXronoMorphView(params: TriggerDisplayParams): DisplayView {
+function createXronoMorphView(): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayXronoMorph";
   const laneA = document.createElement("div");
-  laneA.className = "triggerDisplayXronoLane";
+  laneA.className = "triggerDisplayXronoLane triggerDisplayXronoLane--euclid";
   const laneB = document.createElement("div");
-  laneB.className = "triggerDisplayXronoLane triggerDisplayXronoLane--alt";
+  laneB.className = "triggerDisplayXronoLane triggerDisplayXronoLane--ca";
+  const laneC = document.createElement("div");
+  laneC.className = "triggerDisplayXronoLane triggerDisplayXronoLane--step";
+  const agreement = document.createElement("div");
+  agreement.className = "triggerDisplayXronoLane triggerDisplayXronoLane--agreement";
   const merge = document.createElement("div");
-  merge.className = "triggerDisplayXronoMerge";
-  root.append(laneA, laneB, merge);
+  merge.className = "triggerDisplayXronoMerge triggerDisplayXronoLane--output";
+  root.append(laneA, laneB, laneC, agreement, merge);
   let cellsA: HTMLElement[] = [];
   let cellsB: HTMLElement[] = [];
+  let cellsC: HTMLElement[] = [];
+  let cellsAgreement: HTMLElement[] = [];
   let cellsM: HTMLElement[] = [];
 
   return {
@@ -973,19 +979,23 @@ function createXronoMorphView(params: TriggerDisplayParams): DisplayView {
     sync: (nextModule) => {
       const layout = resolveStepGridLayout(nextModule.length, nextModule.subdiv);
       const steps = clamp(layout.cols * layout.rows, 12, 48);
-      const patternA = parsePatternPreview(params.getStepPattern(), steps);
-      const patternB = createMorphPattern(nextModule, steps);
-      const patternM = new Uint8Array(steps);
-      for (let i = 0; i < steps; i++) patternM[i] = (i % 2 === 0 ? patternA[i] : patternB[i]) || (nextModule.weird > 0.55 && (patternA[i] ^ patternB[i]) ? 1 : 0);
-      cellsA = renderLinearCells(laneA, cellsA, steps, patternA);
-      cellsB = renderLinearCells(laneB, cellsB, steps, patternB);
-      cellsM = renderLinearCells(merge, cellsM, steps, patternM);
+      const model = buildXronoMorphPatternModel({ ...nextModule, length: steps }, "display-xronomorph");
+      cellsA = renderLinearCells(laneA, cellsA, steps, model.sourceEuclid);
+      cellsB = renderLinearCells(laneB, cellsB, steps, model.sourceCA);
+      cellsC = renderLinearCells(laneC, cellsC, steps, model.sourceStep);
+      cellsAgreement = renderLinearCells(agreement, cellsAgreement, steps, model.agreement);
+      cellsM = renderLinearCells(merge, cellsM, steps, model.output);
+      const chooserMean = model.chooser.reduce((sum, value) => sum + value, 0) / Math.max(1, model.chooser.length);
+      root.style.setProperty("--xrono-chooser", chooserMean.toFixed(3));
+      root.style.setProperty("--xrono-phase-rate", (0.7 + (nextModule.subdiv | 0) * 0.22 + Math.max(0, Math.min(1, nextModule.weird)) * 0.5).toFixed(3));
     },
     tick: (timeMs, liveModule) => {
       if (!cellsM.length) return;
       const i = resolveAnimatedStepIndex(timeMs, liveModule, cellsM.length);
       paintPlayhead(cellsA, i);
-      paintPlayhead(cellsB, (i + 2) % cellsB.length);
+      paintPlayhead(cellsB, i);
+      paintPlayhead(cellsC, i);
+      paintPlayhead(cellsAgreement, i);
       paintPlayhead(cellsM, i);
     },
   };
@@ -1453,17 +1463,6 @@ function buildLSystemPoints(module: TriggerModule, count: number) {
     points.push({ x, y });
   }
   return points;
-}
-
-function createMorphPattern(module: TriggerModule, steps: number) {
-  const out = new Uint8Array(steps);
-  for (let i = 0; i < steps; i++) {
-    const phase = (i / Math.max(1, steps - 1)) + module.seed * 0.00083 + module.euclidRot * 0.01;
-    const wave = Math.sin(phase * Math.PI * (2.2 + module.weird * 3.6)) * 0.5 + 0.5;
-    const noise = hash01(module.seed + i * 17) * 0.35;
-    out[i] = wave + noise < module.density ? 1 : 0;
-  }
-  return out;
 }
 
 function renderLinearCells(host: HTMLElement, existing: HTMLElement[], steps: number, pattern: Uint8Array) {
