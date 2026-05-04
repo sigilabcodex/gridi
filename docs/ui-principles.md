@@ -82,15 +82,16 @@ Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.
 ## 9) Faceplate architecture authority (v1)
 
 - The canonical architecture contract for module faceplates is defined in [`docs/faceplate-architecture-v1.md`](faceplate-architecture-v1.md).
-- When there is ambiguity about module-zone composition, Main/Routing/Advanced responsibilities, or control density priorities, the v1 faceplate architecture document is authoritative.
+- When there is ambiguity about module-zone composition, Main/Fine-tune/Routing responsibilities, or control density priorities, the v1 faceplate architecture document is authoritative.
 - Current implementation naming may still use `Settings` in code paths; architecture guidance treats this as the Advanced-equivalent until code alignment is scheduled.
 
 
 ## 10) Control grid grammar authority
 
-- Canonical control grammar is 6-column based for Main and Advanced surfaces.
-- Main should expose up to 6 controls per row and no more than 2 rows.
-- Advanced should use a 6-column matrix up to 4 rows with inline headers and no boxed subgroup cards.
+- Canonical faceplate grammar is based on a 4-row × 6-column mental model where practical.
+- Main should expose up to 6 controls per row and remain performance-forward.
+- Fine-tune should use the same 6-column rhythm and generally fit inside the 4×6 base grammar without internal scrolling.
+- Prefer horizontal distribution/grouping over narrow vertical strips when shell width is available.
 
 Why: preserve visual consistency, hardware-like density, and cross-family predictability.
 
@@ -120,7 +121,7 @@ Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
 - Header `[type][preset][on/off]`
 - Dominant display surface
 - 6-column primary controls
-- Tabs `Main / Routing / Advanced`
+- Tabs `Main / Fine-tune / Routing`
 - Footer status tokens
 
 This is the active canonical layout contract for future modules.

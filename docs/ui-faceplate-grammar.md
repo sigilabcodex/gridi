@@ -9,7 +9,7 @@ This document captures the current, practical faceplate grammar emerging from Dr
 1. **Header**: `[type/kind] [preset] [on/off + actions]`
 2. **Main display/feature surface** (dominant when behaviorally meaningful)
 3. **Primary controls** (6-column grammar where applicable)
-4. **Tabs** (`Main / Routing / Settings` in code; architecture target is `Main / Routing / Advanced`)
+4. **Tabs** (`Main / Fine-tune / Routing` in UX; many modules still map Fine-tune to internal `SETTINGS` IDs for compatibility)
 5. **Bottom status strip** (compact state/readout role)
 
 ### Fixed-shell rule
@@ -22,7 +22,7 @@ This document captures the current, practical faceplate grammar emerging from Dr
 
 - Main controls are arranged with a six-column rhythm where applicable.
 - Main remains compact/performance-first (typically one or two rows max).
-- Deeper controls belong in the Settings/Advanced face.
+- Deeper controls belong in the Fine-tune face (often backed by existing `SETTINGS` tab IDs).
 
 ### Display surfaces are behavior surfaces
 
@@ -40,7 +40,7 @@ Current module rhythm is:
 - identity first,
 - behavior surface second,
 - playable controls third,
-- routing/setup split into dedicated tabs,
+- fine-tune/routing split into dedicated tabs,
 - compact bottom strip for persistent status.
 
 This rhythm is now the practical baseline for new module work.

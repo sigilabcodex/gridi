@@ -8,7 +8,7 @@ Overall findings:
 
 - The **architecture baseline is healthy**: mode registry/staging metadata exists, flat mode IDs are preserved, and all audited modes are implemented end-to-end with distinct generators in `module.ts` (or `gear.ts`).
 - **Main controls have improved significantly**, but several modes still expose generic/shared labels where mode-specific labels would better communicate actual behavior.
-- The current **Advanced tab is functionally useful but semantically overloaded**: it mixes mode-agnostic globals (`accent`) with mode-specific internals (`caRule`, `caInit`) without grouping.
+- The current **Fine-tune tab (internally `SETTINGS`) is functionally useful but semantically overloaded**: it mixes mode-agnostic globals (`accent`) with mode-specific internals (`caRule`, `caInit`) without grouping.
 - **Display truthfulness has materially improved** (especially RADAR / Markov / Non-Euclidean / XronoMorph relative to earlier audits), but quality still varies: some modes are clear and structural; others remain honest-but-weak or imply deeper simulation than currently generated.
 - **Velocity/accent semantics are now coherent at family level**, but many modes still share fallback shaping; future passes should make accent interpretation more mode-specific (without breaking compatibility).
 

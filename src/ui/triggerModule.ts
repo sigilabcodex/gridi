@@ -1409,7 +1409,7 @@ export function renderTriggerSurface(
     const title = document.createElement("div");
     title.className = "triggerAdvancedSectionTitle";
     title.textContent = section.title;
-    const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid moduleKnobGrid-2 triggerAdvancedGrid");
+    const settingsGrid = createFaceplateSection("controls", "moduleKnobGrid triggerAdvancedGrid");
     section.controls.forEach((control) => {
       settingsGrid.append(ctlFloat({
         label: control.label,
@@ -1430,8 +1430,8 @@ export function renderTriggerSurface(
   const shell = createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
-      { id: "ROUTING", label: "Routing", panel: panelRouting },
       { id: "SETTINGS", label: "Fine-tune", panel: panelSettings },
+      { id: "ROUTING", label: "Routing", panel: panelRouting },
     ],
     activeTab: ui.tab,
     onTabChange: (tab) => ui.setTab(tab),

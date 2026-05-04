@@ -343,8 +343,8 @@ function createFaceTabs(
   return createModuleTabShell({
     specs: [
       { id: "MAIN", label: "Main", panel: mainPanel },
+      { id: "SETTINGS", label: "Fine-tune", panel: panelSettings },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
     ],
     activeTab: ui.tab,
     onTabChange: (tab) => ui.setTab(tab),
