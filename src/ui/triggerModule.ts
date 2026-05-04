@@ -1431,7 +1431,7 @@ export function renderTriggerSurface(
     specs: [
       { id: "MAIN", label: "Main", panel: panelMain },
       { id: "ROUTING", label: "Routing", panel: panelRouting },
-      { id: "SETTINGS", label: "Advanced", panel: panelSettings },
+      { id: "SETTINGS", label: "Fine-tune", panel: panelSettings },
     ],
     activeTab: ui.tab,
     onTabChange: (tab) => ui.setTab(tab),
