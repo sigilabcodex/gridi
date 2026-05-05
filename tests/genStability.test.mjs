@@ -61,7 +61,7 @@ test('accent depth shapes velocity while preserving hit structure', () => {
 });
 
 test('gen event velocities remain inside safety headroom for dense scenarios', () => {
-  for (const mode of ['gear', 'sonar', 'hybrid', 'non-euclidean']) {
+  for (const mode of ['gear', 'sonar', 'hybrid', 'non-euclidean', 'fractal', 'l-systems']) {
     const trigger = makeTrigger({
       mode,
       seed: 2288,
@@ -77,4 +77,21 @@ test('gen event velocities remain inside safety headroom for dense scenarios', (
       assert.ok(ev.value >= 0.15 && ev.value <= 0.9, `${mode} produced out-of-range value ${ev.value}`);
     }
   }
+});
+
+
+test('fractal accent reshapes velocity contour without moving hits', () => {
+  const base = makeTrigger({ mode: 'fractal', seed: 3121, length: 32, density: 0.62, weird: 0.58, gravity: 0.64, determinism: 0.69, drop: 0 });
+  const soft = createPatternModuleForTrigger({ ...base, accent: 0 }).renderWindow({ trigger: { ...base, accent: 0 }, voiceId: 'voice-a', startBeat: 0, endBeat: 4 });
+  const hard = createPatternModuleForTrigger({ ...base, accent: 1 }).renderWindow({ trigger: { ...base, accent: 1 }, voiceId: 'voice-a', startBeat: 0, endBeat: 4 });
+  assert.deepEqual(soft.events.map((event) => event.beatOffset), hard.events.map((event) => event.beatOffset));
+  assert.ok(soft.events.some((event, index) => Math.abs(event.value - hard.events[index].value) > 0.02));
+});
+
+test('l-systems accent reshapes velocity contour without moving hits', () => {
+  const base = makeTrigger({ mode: 'l-systems', seed: 9137, length: 32, density: 0.58, weird: 0.52, gravity: 0.72, determinism: 0.63, drop: 0 });
+  const soft = createPatternModuleForTrigger({ ...base, accent: 0 }).renderWindow({ trigger: { ...base, accent: 0 }, voiceId: 'voice-a', startBeat: 0, endBeat: 4 });
+  const hard = createPatternModuleForTrigger({ ...base, accent: 1 }).renderWindow({ trigger: { ...base, accent: 1 }, voiceId: 'voice-a', startBeat: 0, endBeat: 4 });
+  assert.deepEqual(soft.events.map((event) => event.beatOffset), hard.events.map((event) => event.beatOffset));
+  assert.ok(soft.events.some((event, index) => Math.abs(event.value - hard.events[index].value) > 0.02));
 });
