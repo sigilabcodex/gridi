@@ -679,6 +679,77 @@ export function getPatternPreview(trigger: TriggerModule, voiceId = "preview", p
   return out;
 }
 
+
+function fractalVelocitySignal(pattern: Uint8Array, trigger: TriggerModule, voiceId: string, idx: number, steps: number) {
+  const det = clamp01(trigger.determinism);
+  const weird = clamp01(trigger.weird);
+  const gravity = clamp01(trigger.gravity);
+  const levels = Math.max(1, Math.floor(Math.log2(Math.max(2, highestPowerOfTwoAtMost(steps)))));
+  let anchorStrength = 0;
+  let gateStrength = 0;
+  let symmetryStrength = 0;
+  for (let level = 0; level < levels; level++) {
+    const span = 1 << level;
+    const block = Math.floor(idx / span);
+    const gate = stepRandom01(trigger.seed ^ (level * 0x45d9f3b), voiceId, block + (trigger.euclidRot | 0));
+    const levelWeight = 1 / (1 + level * 0.85);
+    gateStrength += gate * levelWeight;
+    const blockOffset = idx % span;
+    const centerDist = Math.abs((blockOffset + 0.5) / Math.max(1, span) - 0.5) * 2;
+    anchorStrength += (1 - centerDist) * levelWeight;
+    const partner = (idx ^ span) % steps;
+    const symmetryHit = pattern[((partner % steps) + steps) % steps] === pattern[idx] ? 1 : 0;
+    symmetryStrength += symmetryHit * levelWeight;
+  }
+  const norm = 1 / Math.max(1e-6, levels * 1.3);
+  const coarse = clamp01(anchorStrength * norm * (0.8 + det * 0.35));
+  const recursive = clamp01(gateStrength * norm * (0.85 + (1 - det) * 0.25));
+  const symmetry = clamp01(symmetryStrength * norm * (0.8 + gravity * 0.3));
+  const local = (() => {
+    let hit = 0;
+    for (let o=-2;o<=2;o++) hit += pattern[((idx+o)%steps+steps)%steps] ? 1 : 0;
+    return hit / 5;
+  })();
+  const oddBias = ((Math.floor(idx / Math.max(1, steps / 8)) & 1) === 1 ? weird * 0.12 : 0);
+  const gravityBias = (idx / Math.max(1, steps - 1)) * gravity * 0.12;
+  return clamp01(coarse * 0.34 + recursive * 0.29 + local * 0.2 + symmetry * 0.13 + oddBias + gravityBias);
+}
+
+function lSystemVelocitySignal(pattern: Uint8Array, trigger: TriggerModule, voiceId: string, idx: number, steps: number) {
+  const weird = clamp01(trigger.weird);
+  const det = clamp01(trigger.determinism);
+  const density = clamp01(trigger.density);
+  const branch = clamp01(trigger.gravity);
+  const generations = Math.max(2, Math.min(6, 2 + Math.round((steps / 128) * 3 + weird * 2)));
+  const maxDepth = Math.max(1, Math.round(2 + branch * 5 + weird * 2));
+  let depth = 0;
+  let maxSeen = 0;
+  let branchOps = 0;
+  let moveOps = 0;
+  for (let g = 0; g < generations; g++) {
+    const gMix = g + 1;
+    const branchOpen = stepRandom01(trigger.seed ^ (0x9900 + g * 47), voiceId, idx + gMix * 11) < (0.22 + branch * 0.36 + weird * 0.15);
+    const branchClose = stepRandom01(trigger.seed ^ (0xaa00 + g * 31), voiceId, idx + gMix * 7) < (0.16 + det * 0.28);
+    if (branchOpen) {
+      depth = Math.min(maxDepth, depth + 1);
+      branchOps += 1;
+    }
+    if (branchClose) depth = Math.max(0, depth - 1);
+    const move = stepRandom01(trigger.seed ^ (0xbb00 + g * 19), voiceId, idx + gMix * 13) < (0.45 + density * 0.35 - weird * 0.15);
+    if (move) moveOps += 1;
+    if (depth > maxSeen) maxSeen = depth;
+  }
+  const depthEnergy = maxDepth > 0 ? maxSeen / maxDepth : 0;
+  const branchDensity = branchOps / generations;
+  const moveDensity = moveOps / generations;
+  let localHits = 0;
+  for (let o=-3;o<=3;o++) localHits += pattern[((idx+o)%steps+steps)%steps] ? 1 : 0;
+  const phraseDensity = localHits / 7;
+  const stability = clamp01(det * 0.72 + (1 - weird) * 0.28);
+  const age = 1 - (idx / Math.max(1, steps - 1));
+  return clamp01(depthEnergy * 0.33 + branchDensity * 0.21 + moveDensity * 0.16 + phraseDensity * 0.18 + stability * 0.07 + age * 0.05);
+}
+
 function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId: string, startBeat: number, endBeat: number): PatternEventWindow {
   const modeId = (trigger.mode as string) === "step" ? "step-sequencer"
     : (trigger.mode as string) === "euclid" ? "euclidean"
@@ -720,9 +791,10 @@ function toStepWindowEvents(pattern: Uint8Array, trigger: TriggerModule, voiceId
     if (modeId === "euclidean") return pulseIndexNormalized(idx);
     if (modeId === "markov-chains") return Math.max(0, Math.min(1, localDensity(idx) * 0.6 + stepNorm * 0.4));
     if (modeId === "cellular-automata") return localDensity(idx);
-    if (modeId === "fractal") return Math.max(0, Math.min(1, 0.5 + (Math.sin((idx / steps) * Math.PI * 2) * 0.5)));
+    if (modeId === "fractal") return fractalVelocitySignal(pattern, trigger, voiceId, idx, steps);
     if (modeId === "gear") return Math.max(0, Math.min(1, localDensity(idx) * 0.75 + pulseIndexNormalized(idx) * 0.25));
     if (modeId === "radar") return radarReturnStrengthAtStep(trigger, voiceId, idx, steps);
+    if (modeId === "l-systems") return lSystemVelocitySignal(pattern, trigger, voiceId, idx, steps);
     if (modeId === "one-over-f-noise") return stepRandom01(trigger.seed ^ 0x5f3759df, voiceId, step);
     return stepNorm;
   }
