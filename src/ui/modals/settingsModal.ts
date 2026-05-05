@@ -42,11 +42,14 @@ export function openSettingsModal(params: SettingsModalParams) {
   const about = el("section", "settingsSection");
   const aboutHead = el("div", "settingsSectionHead");
   aboutHead.append(
-    el("div", "small settingsSectionTitle", "About"),
+    el("div", "small settingsSectionTitle", "About / Resources"),
     el("div", "small settingsSectionMeta", APP_NAME),
   );
   const aboutBody = el("div", "small settingsBuildInfo");
-  aboutBody.textContent = `GRIDI is a modular generative music instrument built around a grid-based workspace. ${APP_SUBTITLE}.`;
+  aboutBody.textContent = "GRIDI is a modular generative music instrument built around a grid-based workspace.";
+
+  const aboutAcronym = el("div", "small settingsBuildInfo");
+  aboutAcronym.textContent = `Long-form acronym: ${APP_SUBTITLE}.`;
 
   const aboutResources = el("div", "small settingsBuildInfo");
   aboutResources.innerHTML = `Resources: <a href="https://github.com/sigilabcodex/gridi" target="_blank" rel="noopener noreferrer">GitHub repository</a> · <a href="https://github.com/sigilabcodex/gridi/tree/main/docs" target="_blank" rel="noopener noreferrer">Documentation</a>.`;
@@ -54,7 +57,7 @@ export function openSettingsModal(params: SettingsModalParams) {
   const aboutVersion = el("div", "small settingsBuildInfo");
   aboutVersion.textContent = `Version ${versionDetails.version} • Build ${versionDetails.build} • Branch ${versionDetails.branch}`;
 
-  about.append(aboutHead, aboutBody, aboutResources, aboutVersion);
+  about.append(aboutHead, aboutBody, aboutAcronym, aboutResources, aboutVersion);
   body.appendChild(about);
 
   const grouped = new Map<string, typeof settingsSchema>();

@@ -7,7 +7,7 @@ export const SETTINGS_VERSION = 1
 export const settingsSchema: SettingDef[] = [
   {
     key: "ui.theme",
-    section: "General",
+    section: "Interaction",
     label: "Theme",
     type: "select",
     default: "dark",
@@ -18,7 +18,7 @@ export const settingsSchema: SettingDef[] = [
   },
   {
     key: "ui.controlStyle",
-    section: "General",
+    section: "Interaction",
     label: "Control style",
     type: "select",
     default: "auto",
@@ -30,35 +30,35 @@ export const settingsSchema: SettingDef[] = [
   },
   {
     key: "ui.customCss",
-    section: "General",
+    section: "Developer / Advanced",
     label: "Custom CSS",
     type: "textarea",
     default: ""
   },
   {
     key: "ui.reduceMotion",
-    section: "General",
+    section: "Interaction",
     label: "Reduce Motion",
     type: "boolean",
     default: false
   },
   {
     key: "ui.experimental",
-    section: "General",
+    section: "Experimental",
     label: "Experimental mode",
     type: "boolean",
     default: false
   },
   {
     key: "ui.hideWelcome",
-    section: "General",
+    section: "Global Behavior",
     label: "Hide welcome screen on load",
     type: "boolean",
     default: false
   },
   {
     key: "audio.masterGain",
-    section: "Audio",
+    section: "Audio / MIDI",
     label: "Master Gain",
     type: "number",
     default: 1,
@@ -68,21 +68,21 @@ export const settingsSchema: SettingDef[] = [
   },
   {
     key: "audio.limiterEnabled",
-    section: "Audio",
+    section: "Audio / MIDI",
     label: "Limiter",
     type: "boolean",
     default: false
   },
   {
     key: "data.autosave",
-    section: "Data",
+    section: "Global Behavior",
     label: "Autosave",
     type: "boolean",
     default: true
   },
   {
     key: "ux.tooltips",
-    section: "UX",
+    section: "Interaction",
     label: "Show tooltips",
     type: "boolean",
     default: true
