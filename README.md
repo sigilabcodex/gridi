@@ -133,6 +133,7 @@ npm test
 
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
 - Module families: [`docs/module-types.md`](docs/module-types.md)
+- GEN modes reference: [`docs/gen-modes.md`](docs/gen-modes.md)
 - UI principles: [`docs/ui-principles.md`](docs/ui-principles.md)
 - Status: [`docs/status.md`](docs/status.md)
 - Existing deep dives: [`docs/`](docs)
