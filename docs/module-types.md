@@ -2,7 +2,13 @@
 
 This document describes module families in terms of purpose and behavior.
 
-## Trigger
+## Trigger (GEN / Generator)
+
+**Naming / identity**
+- UI-facing label: **GEN** (Generator).
+- Engine family: `trigger`.
+- Mode IDs (for example `step-sequencer`, `radar`) are stable patch-level identifiers.
+- Reference: [`docs/gen-modes.md`](gen-modes.md).
 
 **Purpose**
 - Generate timed events that drive other modules.

@@ -108,6 +108,7 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
   - Every moving element must be tied to pattern phase, scheduler time, generated events, or mode state.
   - Every major control should have a visible consequence when practical.
   - If a mode cannot yet display its real algorithm truthfully, prefer a simple honest readout over fake complexity.
+  - GEN displays should map to real generator state, scheduler phase, event output, or honest minimal placeholders.
   - Visual beauty is welcome, but it should emerge from structural truth.
   - RADAR semantics: directional rotating scan with angle/time-based detection.
   - SONAR semantics: radial pulse system with distance/time-based detection.

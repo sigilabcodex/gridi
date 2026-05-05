@@ -12,12 +12,14 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 ### Module maturity snapshot
 
 - **Drum**: substantially refined and currently the most mature sound faceplate/reference for compact playable density.
-- **GEN (Trigger)**: substantially refined with mode-aware controls and a behavior-first display surface.
+- **GEN (Trigger)**: substantially refined with mode-aware Main + Advanced/Fine-tune organization and multiple behavior-truthful/model-driven displays, while some conceptual modes remain intentionally marked as acceptable/weak for follow-up.
 - **SYNTH (Tonal)**: now structurally viable and visually coherent within the shared shell and tab grammar.
 - **CONTROL**: functional and usable, but still pending major refinement in interaction depth and surface clarity.
 - **VISUAL**: functional for core monitoring (scope/spectrum), but still pending major expansion in mode breadth and interaction richness.
 
 ### Instrument-level status
+
+- GEN reference: [`docs/gen-modes.md`](gen-modes.md) (stable mode IDs, semantics, display-truthfulness status, RADAR vs planned SONAR distinction).
 
 - Shared fixed shell + tabbed module face system is stable.
 - Routing ownership is currently voice-owned (`triggerSource` on sound modules), with trigger-side routing UI acting as an editor/bridge.
