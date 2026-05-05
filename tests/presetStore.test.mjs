@@ -10,9 +10,28 @@ import {
 } from '../src/ui/persistence/presetStore.ts';
 import {
   applyModulePreset,
+  formatModulePresetDisplayName,
   listModulePresetsForModule,
+  loadModulePresetLibrary,
   saveModulePresetFromModule,
 } from '../src/ui/persistence/modulePresetStore.ts';
+
+function withMockStorage(run) {
+  const original = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+    clear: () => store.clear(),
+  };
+  try {
+    run();
+  } finally {
+    if (typeof original === 'undefined') delete globalThis.localStorage;
+    else globalThis.localStorage = original;
+  }
+}
 
 function makeLinkedPatch() {
   const trigger = makeTrigger(0, 'TRG_A');
@@ -167,4 +186,36 @@ test('saving and loading a module preset preserves module identity while updatin
   assert.equal(drum.presetName, 'Punch Kick');
   assert.equal(drum.basePitch, 0.73);
   assert.equal(drum.triggerSource, 'keep-this-routing');
+});
+
+test('formatModulePresetDisplayName uses code when present', () => {
+  assert.equal(formatModulePresetDisplayName({ code: 'GEN001', name: 'Sparse Euclid' }), 'GEN001 · Sparse Euclid');
+  assert.equal(formatModulePresetDisplayName({ name: 'User Kick' }), 'User Kick');
+});
+
+test('factory presets include stable codes', () => {
+  withMockStorage(() => {
+    const records = loadModulePresetLibrary();
+    const triggerFactory = records.find((record) => record.name === 'Sparse Euclid');
+    assert.ok(triggerFactory?.code?.startsWith('GEN'));
+    assert.ok(records.some((record) => record.code === 'DRUM001'));
+    assert.ok(records.some((record) => record.code === 'SYNTH001'));
+    assert.ok(records.some((record) => record.code === 'CTRL001'));
+    assert.ok(records.some((record) => record.code === 'VIS001'));
+  });
+});
+
+test('module preset normalization keeps optional code and tolerates missing code', () => {
+  const payload = [
+    { id: 'user-a', code: 'DRUM099', name: 'Coded User', family: 'drum', subtype: 'drum', state: { enabled: true, amp: 0.2, pan: 0, basePitch: 0.4, decay: 0.3, transient: 0.6, snap: 0.5, noise: 0.2, bodyTone: 0.3, pitchEnvAmt: 0.4, pitchEnvDecay: 0.2, tone: 0.3 }, createdAt: 1, updatedAt: 2 },
+    { id: 'user-b', name: 'Legacy User', family: 'drum', subtype: 'drum', state: { enabled: true, amp: 0.2, pan: 0, basePitch: 0.4, decay: 0.3, transient: 0.6, snap: 0.5, noise: 0.2, bodyTone: 0.3, pitchEnvAmt: 0.4, pitchEnvDecay: 0.2, tone: 0.3 }, createdAt: 1, updatedAt: 2 },
+  ];
+  withMockStorage(() => {
+    localStorage.setItem('gridi.module-presets.v1', JSON.stringify(payload));
+    const records = loadModulePresetLibrary();
+    const coded = records.find((record) => record.id === 'user-a');
+    const legacy = records.find((record) => record.id === 'user-b');
+    assert.equal(coded?.code, 'DRUM099');
+    assert.equal(legacy?.code, undefined);
+  });
 });

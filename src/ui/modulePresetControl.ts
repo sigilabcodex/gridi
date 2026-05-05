@@ -7,6 +7,7 @@ import {
   getModulePresetSubtype,
   getModulePresetSubtypeLabel,
   listModulePresetsForModule,
+  formatModulePresetDisplayName,
   sanitizeModulePresetName,
   type ModulePresetRecord,
 } from "./persistence/modulePresetStore";
@@ -122,7 +123,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
         ? "state modified"
         : "state local";
     linkedRow.textContent = provenance.matchedPreset
-      ? `Origin: ${provenance.matchedPreset.name}${provenance.source === "factory" ? " · factory" : " · user"} · ${stateLabel}`
+      ? `Origin: ${formatModulePresetDisplayName(provenance.matchedPreset)}${provenance.source === "factory" ? " · factory" : " · user"} · ${stateLabel}`
       : `Origin: none · ${stateLabel}`;
 
     const saveBlock = document.createElement("div");
@@ -206,7 +207,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
       meta.className = "modulePresetListMeta";
       const name = document.createElement("div");
       name.className = "modulePresetListName";
-      name.textContent = record.name;
+      name.textContent = formatModulePresetDisplayName(record);
 
       const info = document.createElement("div");
       info.className = "small modulePresetListInfo";
@@ -308,6 +309,7 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
         if (!filter) return true;
         const pool = [
           record.name,
+          record.code ?? "",
           getModulePresetSubtypeLabel(record),
           record.source === "factory" ? "factory" : "user",
         ].join(" ").toLowerCase();
