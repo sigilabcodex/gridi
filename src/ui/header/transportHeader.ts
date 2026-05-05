@@ -5,6 +5,7 @@ import { createRoutingOverviewPanel } from "./routingOverviewPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
 import type { MidiInputStatus } from "../midiInput";
+import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
 type HeaderParams = {
   root: HTMLElement;
@@ -163,7 +164,11 @@ export function createTransportHeader(params: HeaderParams) {
   titleWrap.className = "transportTitle";
 
   const h1 = document.createElement("h1");
-  h1.textContent = APP_NAME;
+  const wordmark = document.createElement("img");
+  wordmark.className = "transportWordmark";
+  wordmark.src = gridiWordmarkUrl;
+  wordmark.alt = APP_NAME;
+  h1.append(wordmark);
 
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
