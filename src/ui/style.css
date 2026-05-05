@@ -1310,6 +1310,13 @@ header {
   gap: 3px;
   padding: 2px 4px 0;
 }
+
+.transportWordmark {
+  display: block;
+  height: clamp(20px, 2.2vw, 26px);
+  width: auto;
+}
+
 .transportSubtitle {
   letter-spacing: 0.6px;
   opacity: 0.72;
@@ -6529,6 +6536,11 @@ button:focus-visible,
   letter-spacing: 0.55px;
 }
 
+
+.transportHeader.isCompactGlobal .transportWordmark {
+  height: clamp(15px, 2.4vw, 19px);
+}
+
 .transportHeader.isCompactGlobal .transportSubtitle {
   grid-column: 1;
   grid-row: 2;
@@ -6619,6 +6631,11 @@ button:focus-visible,
 .transportHeader.isShortHeightCompact .transportTitle h1 {
   font-size: clamp(13px, 2.2vw, 16px);
   line-height: 1;
+}
+
+
+.transportHeader.isShortHeightCompact .transportWordmark {
+  height: clamp(13px, 2.2vw, 16px);
 }
 
 .transportHeader.isShortHeightCompact .transportMain {
