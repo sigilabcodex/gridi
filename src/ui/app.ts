@@ -31,6 +31,7 @@ import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
+import { formatDocumentTitle } from "../version";
 
 function randInt(min: number, max: number) {
   return Math.floor(min + Math.random() * (max - min + 1));
@@ -168,6 +169,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         updatedAt: Date.now(),
       }
     );
+  };
+  const updateDocumentTitle = () => {
+    document.title = formatDocumentTitle(selectedPreset()?.name);
   };
 
   let patch: Patch = clonePatch(selectedPreset().patch);
@@ -339,6 +343,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateMasterGainUI();
     header.updateBpmUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
 
   const createPresetFromCurrent = () => {
@@ -359,6 +364,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     saveSession();
     header.updatePresetUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
 
   const createSessionFromPatchTemplate = (template: "empty" | "example") => {
@@ -385,6 +391,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateMasterGainUI();
     header.updateBpmUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
   const createEmptySession = () => createSessionFromPatchTemplate("empty");
   const createExampleSession = () => createSessionFromPatchTemplate("example");
@@ -413,6 +420,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateMasterGainUI();
     header.updateBpmUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
 
   const renamePreset = (presetId: string, proposedName: string) => {
@@ -422,6 +430,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     preset.updatedAt = Date.now();
     saveSession();
     header.updatePresetUI();
+    if (session.selectedPresetId === presetId) updateDocumentTitle();
   };
 
   const duplicatePreset = (presetId: string) => {
@@ -449,6 +458,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateMasterGainUI();
     header.updateBpmUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
 
   const deletePreset = (presetId: string) => {
@@ -477,6 +487,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     saveSession();
     header.updatePresetUI();
     header.updateStatus();
+    updateDocumentTitle();
   };
 
   const exportCurrentPreset = () => {
@@ -525,6 +536,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateMasterGainUI();
       header.updateBpmUI();
       header.updateStatus();
+      updateDocumentTitle();
     };
     input.click();
   };
@@ -772,6 +784,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateBpmUI();
       header.updateStatus();
       header.updatePresetUI();
+      updateDocumentTitle();
     },
     onReseed: () => {
       const prev = clonePatch(patch);
@@ -903,6 +916,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   header.updatePlayBtn();
   header.updateStatus();
   header.updateMidiUI();
+  updateDocumentTitle();
 
   void midiInput.init().then(() => {
     const existing = getMidiInputRoute();

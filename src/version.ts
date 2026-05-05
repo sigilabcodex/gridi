@@ -9,6 +9,12 @@ export const APP_DIRTY = __APP_DIRTY__;
 export const APP_DISPLAY_NAME = APP_NAME;
 export const APP_TITLE = `${APP_NAME} - modular generative music instrument`;
 
+export function formatDocumentTitle(sessionName?: string | null): string {
+  const cleaned = sessionName?.trim();
+  if (!cleaned) return APP_TITLE;
+  return `${APP_NAME} - ${cleaned}`;
+}
+
 export type AppVersionDetails = {
   version: string;
   build: string;

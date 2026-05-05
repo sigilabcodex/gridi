@@ -64,6 +64,19 @@ test('sanitizePresetName trims and normalizes whitespace', () => {
   assert.equal(sanitizePresetName('   ', 'Fallback'), 'Fallback');
 });
 
+test('formatDocumentTitle formats session and fallback titles', async () => {
+  globalThis.__APP_VERSION__ = 'test-version';
+  globalThis.__APP_BUILD__ = 'test-build';
+  globalThis.__APP_BRANCH__ = 'test-branch';
+  globalThis.__APP_DIRTY__ = false;
+  const { APP_TITLE, formatDocumentTitle } = await import('../src/version.ts');
+  assert.equal(formatDocumentTitle('TESTING'), 'GRIDI - TESTING');
+  assert.equal(formatDocumentTitle('  Session 16  '), 'GRIDI - Session 16');
+  assert.equal(formatDocumentTitle(''), APP_TITLE);
+  assert.equal(formatDocumentTitle('   '), APP_TITLE);
+  assert.equal(formatDocumentTitle(null), APP_TITLE);
+});
+
 test('single preset export/import roundtrip preserves module relationships', () => {
   const patch = makeLinkedPatch();
   const preset = {
