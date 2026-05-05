@@ -2,7 +2,7 @@
 
 This roadmap tracks architecture-first milestones. It intentionally avoids feature churn and prioritizes timing correctness, modularity, and maintainability.
 
-## Current phase: `v0.32.x` stabilization
+## Current phase: `v0.33` GEN/UI stabilization baseline
 
 ### Objectives in progress
 
@@ -25,7 +25,7 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - Routing foundations and validation.
 - Ongoing cleanup of coupling between UI and engine concerns.
 
-### `v0.32.x` — Sequencing separation (current)
+### `v0.33` — GEN/UI stabilization release baseline (current)
 
 - UI tab separation (`MAIN` / `SEQ` / `MIDI`).
 - Stable look-ahead scheduler behavior with overlap dedupe tests.
