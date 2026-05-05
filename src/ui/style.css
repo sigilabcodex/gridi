@@ -1315,6 +1315,8 @@ header {
   display: block;
   height: clamp(20px, 2.2vw, 26px);
   width: auto;
+  filter: brightness(0) invert(1) saturate(0.08) brightness(1.18);
+  opacity: 0.94;
 }
 
 .transportSubtitle {
