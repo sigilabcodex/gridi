@@ -2,6 +2,8 @@
 
 GRIDI is **a modular generative music instrument built around a grid-based workspace**.
 
+Long-form acronym (secondary identity): **Generative Relational & Interactive Digital Instrument**.
+
 It runs in the browser (Vite + TypeScript + WebAudio) and focuses on deterministic timing with controlled indeterminism in pattern generation.
 
 Current app version: `0.32.4`.
