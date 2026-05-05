@@ -18,7 +18,7 @@ For production usage (`gridi-symbol.svg` and `gridi-wordmark.svg`):
 
 ## Integration status
 
-- `gridi-symbol.svg` is now used as the source for a dedicated browser favicon at `public/favicon.svg` (fixed dark fill for consistent tab rendering).
-- `gridi-wordmark.svg` is now used in the transport header title area.
+- `gridi-symbol.svg` is now used as the source for a dedicated browser favicon at `public/favicon.svg`.
+- `gridi-wordmark.svg` is used in the transport header title area with a dark-theme visibility filter on the rendered image.
 
-The app keeps the production logo assets on `currentColor`; the favicon file intentionally uses fixed fill because browser tab icons do not reliably inherit document color.
+The production logo assets remain `currentColor` for in-app use, while `public/favicon.svg` uses fixed colors (dark tile + light symbol) because browser tab/favicon rendering does not reliably inherit document `currentColor`.
