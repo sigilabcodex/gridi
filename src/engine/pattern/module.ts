@@ -420,6 +420,18 @@ export type XronoMorphPatternModel = {
   readonly dominantSourceByStep: Uint8Array;
 };
 
+export type GeneticPatternModel = {
+  readonly population: readonly Uint8Array[];
+  readonly fitnessScores: Float32Array;
+  readonly eliteIndexes: Uint8Array;
+  readonly selectedIndex: number;
+  readonly mutationRate: number;
+  readonly selectionPressure: number;
+  readonly cullPressure: number;
+  readonly generations: number;
+  readonly outputPattern: Uint8Array;
+};
+
 export function buildXronoMorphPatternModel(trigger: TriggerModule, voiceId: string): XronoMorphPatternModel {
   const n = patternLength(trigger);
   const morph = clamp01(trigger.weird);
@@ -456,7 +468,7 @@ export function buildXronoMorphPatternModel(trigger: TriggerModule, voiceId: str
   return { sourceEuclid, sourceCA, sourceStep, output, agreement, chooser: chooserTrack, phase: phaseTrack, dominantSourceByStep };
 }
 
-function genGeneticPattern(trigger: TriggerModule, voiceId: string) {
+export function createGeneticPatternModel(trigger: TriggerModule, voiceId: string): GeneticPatternModel {
   const n = patternLength(trigger);
   const popSize = 6;
   const generations = Math.max(3, Math.min(9, 3 + Math.round(trigger.weird * 6)));
@@ -508,11 +520,29 @@ function genGeneticPattern(trigger: TriggerModule, voiceId: string) {
   }
 
   population.sort((a, b) => score(b) - score(a));
+  const fitnessScores = new Float32Array(popSize);
+  for (let i = 0; i < popSize; i++) fitnessScores[i] = score(population[i]);
+  const eliteCount = Math.max(2, Math.round(2 + selectPressure * 2));
+  const eliteIndexes = Uint8Array.from({ length: eliteCount }, (_, index) => index);
   const out = population[0].slice();
   for (let i = 0; i < n; i++) {
     if (out[i] && stepRandom01(trigger.seed ^ 0x58aa + i * 41, voiceId, i) < trigger.drop * 0.55) out[i] = 0;
   }
-  return rotatePattern(out, trigger.euclidRot | 0);
+  return {
+    population,
+    fitnessScores,
+    eliteIndexes,
+    selectedIndex: 0,
+    mutationRate,
+    selectionPressure: selectPressure,
+    cullPressure: clamp01(trigger.drop),
+    generations,
+    outputPattern: rotatePattern(out, trigger.euclidRot | 0),
+  };
+}
+
+function genGeneticPattern(trigger: TriggerModule, voiceId: string) {
+  return createGeneticPatternModel(trigger, voiceId).outputPattern;
 }
 
 function genOneOverFPattern(trigger: TriggerModule, voiceId: string) {

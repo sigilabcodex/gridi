@@ -5595,8 +5595,14 @@ button:focus-visible,
 .triggerDisplayGenetic {
   height: 100%;
   display: grid;
-  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 4px;
+}
+
+.triggerDisplayGeneticPopulation {
+  display: grid;
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  gap: 3px;
 }
 
 .triggerDisplayGeneticRow {
@@ -5604,10 +5610,34 @@ button:focus-visible,
   border-radius: 6px;
   border: 1px solid rgba(188, 145, 224, 0.24);
   background: rgba(117, 83, 153, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, calc(var(--genetic-fit, 0) * 0.1));
+  opacity: calc(0.52 + var(--genetic-fit, 0) * (0.42 + var(--genetic-cull, 0) * 0.06));
+}
+
+.triggerDisplayGeneticRow.is-elite {
+  border-color: rgba(168, 245, 184, calc(0.26 + var(--genetic-selection, 0) * 0.36));
+}
+
+.triggerDisplayGeneticRow.is-selected {
+  box-shadow:
+    0 0 0 1px rgba(210, 248, 221, 0.72),
+    inset 0 0 0 1px rgba(255, 255, 255, calc(var(--genetic-fit, 0) * 0.18));
 }
 
 .triggerDisplayGeneticRow .triggerDisplayLinearCell.elite.on {
   background: rgba(180, 255, 189, 0.9);
+}
+
+.triggerDisplayGeneticOutput {
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid rgba(134, 219, 242, 0.5);
+  background: linear-gradient(180deg, rgba(52, 109, 132, 0.26), rgba(23, 56, 73, 0.2));
+}
+
+.triggerDisplayGeneticOutput .triggerDisplayLinearCell.on {
+  background: rgba(163, 236, 255, 0.95);
+  box-shadow: 0 0 calc(3px + var(--genetic-mutation, 0) * 6px) rgba(154, 230, 255, 0.5);
 }
 
 .triggerDisplayOneOverF {
