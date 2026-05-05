@@ -167,7 +167,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   const subtitle = document.createElement("div");
   subtitle.className = "small transportSubtitle";
-  subtitle.textContent = "Generative Rhythmically Indeterministic\nDigital Instrument";
+  subtitle.textContent = "Generative Relational & Interactive\nDigital Instrument";
 
   titleWrap.tabIndex = 0;
   params.attachTooltip(titleWrap, {
