@@ -241,3 +241,25 @@ Polish pass (non-breaking):
 - This PR intentionally adds only an audit document artifact.
 
 - PR-B follow-up (implemented): shared routing label resolver now drives both Voice SRC readouts and Trigger ROUTING follower chips, with compact ownership hint in Trigger ROUTING card.
+
+---
+
+## 8) Selection scaffold status (2026-05-05)
+
+Selection scaffold is now implemented as UI/session interaction state only:
+
+- canonical selected-module ID list,
+- selection anchor tracking,
+- selection mode tracking (`replace` / `add` / `range`),
+- visual selected-state affordance on module surfaces,
+- safe clearing/pruning during empty-slot interaction and module removal.
+
+No batch commands are wired yet in this phase.
+
+Deferred follow-up actions remain:
+
+- copy/paste compatible parameter subsets,
+- duplicate selected modules,
+- delete selected groups,
+- generator operations applied only to selected modules,
+- full shift-range semantics once canonical ordering rules are finalized.
