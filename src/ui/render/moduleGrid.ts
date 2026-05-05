@@ -21,6 +21,14 @@ import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibilit
 import type { TooltipBinder } from "../tooltip";
 import type { ModulePresetRecord } from "../persistence/modulePresetStore";
 import { isModulationRuntimeActive, sampleControlValue01WhenActive } from "../modulationView";
+import {
+  clearModuleSelection,
+  createModuleSelectionState,
+  pruneModuleSelection,
+  replaceModuleSelection,
+  toggleModuleSelection,
+  type ModuleSelectionState,
+} from "../state/moduleSelection";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -238,6 +246,16 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   let overlayDismissListener: ((event: PointerEvent) => void) | null = null;
   const triggerTabs = new Map<string, "MAIN" | "ROUTING" | "SETTINGS">();
   const controlTabs = new Map<string, "MAIN" | "ROUTING">();
+  let selectionState: ModuleSelectionState = createModuleSelectionState();
+
+  const applySelectionStyles = () => {
+    const selected = new Set(selectionState.selectedModuleIds);
+    for (const [moduleId, surface] of surfaceByModuleId.entries()) {
+      const isSelected = selected.has(moduleId);
+      surface.classList.toggle("moduleSelected", isSelected);
+      surface.setAttribute("aria-selected", isSelected ? "true" : "false");
+    }
+  };
 
   const applyRoutingHighlight = () => {
     const patch = latestPatch;
@@ -250,6 +268,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.classList.toggle("routingLinked", related.has(moduleId));
       surface.classList.toggle("midiTargetModule", params.isMidiTargetModule?.(moduleId) ?? false);
     }
+    applySelectionStyles();
   };
 
   type ScrollSnapshot = {
@@ -324,6 +343,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       }
     }
     if (inspectedModuleId === moduleId) inspectedModuleId = null;
+    selectionState = pruneModuleSelection(selectionState, nextPatch.modules.map((m) => m.id));
     params.pushHistory(prev);
     params.sched.setPatch(nextPatch, { regen: true });
     params.sched.regenAll();
@@ -455,6 +475,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   };
 
   const rerender = () => {
+    selectionState = pruneModuleSelection(selectionState, params.patch().modules.map((module) => module.id));
     failedUpdaterIndices.clear();
     visibleColumns = readVisibleColumnCount(params.main);
     if (overlayDismissListener) {
@@ -476,6 +497,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
 
     const workspaceGrid = document.createElement("div");
     workspaceGrid.className = "grid workspaceGrid";
+    workspaceGrid.setAttribute("aria-multiselectable", "true");
 
     workspaceViewport.appendChild(workspaceViewportInner);
     workspaceViewportInner.appendChild(workspaceGrid);
@@ -647,7 +669,21 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
           document.addEventListener("pointerdown", overlayDismissListener, true);
         });
       }
-      surface.addEventListener("pointerdown", inspect);
+      surface.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        const target = event.target;
+        if (target instanceof HTMLElement && target.closest(".surfaceBadge.module-drag-handle, .moduleMoveOverlay")) return;
+        const keyboardEvent = event as PointerEvent & { shiftKey?: boolean; metaKey?: boolean; ctrlKey?: boolean };
+        if (keyboardEvent.shiftKey) {
+          // TODO(selection-range): implement shift range selection once canonical visible ordering semantics are finalized.
+          selectionState = { ...replaceModuleSelection(selectionState, moduleId), selectionMode: "range" };
+        } else if (keyboardEvent.metaKey || keyboardEvent.ctrlKey) {
+          selectionState = toggleModuleSelection(selectionState, moduleId);
+        } else {
+          selectionState = replaceModuleSelection(selectionState, moduleId);
+        }
+        inspect();
+      });
       surface.addEventListener("focusin", inspect);
       surface.addEventListener("dragenter", (e) => {
         e.preventDefault();
@@ -870,6 +906,7 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
       });
       slot.addEventListener("pointerdown", () => {
         inspectedModuleId = null;
+        selectionState = clearModuleSelection();
         applyRoutingHighlight();
       });
       workspaceGrid.appendChild(
