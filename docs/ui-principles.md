@@ -77,7 +77,7 @@ Why: shell constraints are part of runtime usability, not only visual styling.
 
 Why: preserve a compact instrument surface while keeping editing precise, reachable, and playable.
 
-Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md), [`docs/status.md`](status.md).
+Cross-reference: [`docs/architecture.md`](architecture.md), [`docs/module-types.md`](module-types.md), [`docs/status.md`](status.md), [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md).
 
 ## 9) Faceplate architecture authority (v1)
 
@@ -115,7 +115,7 @@ Reference: [`docs/control-grid-spec.md`](control-grid-spec.md), [`docs/module-la
   - Different metaphors must map to different behaviors (do not relabel one algorithm as another).
   - RADAR and SONAR are separate semantics: RADAR = rotating scan; SONAR = pulse/echo propagation.
 
-Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md).
+Reference: [`docs/ui-faceplate-grammar.md`](ui-faceplate-grammar.md), [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md).
 
 ## 12) Canonical module faceplate rule (current)
 

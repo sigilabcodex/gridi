@@ -68,6 +68,7 @@ Future expansion:
 - Additional pattern engines and module types.
 - External sync and interoperability exploration.
 - Extended test coverage for cross-module interactions.
+- GEN design principles are centralized in [`docs/gen-mode-design-principles.md`](docs/gen-mode-design-principles.md) to keep future mode additions behavior-first and display-truthful.
 - GEN field-mode clarity:
   - **RADAR** is implemented: rotating directional scan with discrete phase/playhead alignment and angular target detection.
   - **SONAR** is planned as a distinct future mode: pulse-based radial propagation with echo/resonance logic (no rotating sweep reuse).
