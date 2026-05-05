@@ -12,10 +12,55 @@ GRIDI is now transitioning from prototype behavior into a playable modular instr
 ### Module maturity snapshot
 
 - **Drum**: substantially refined and currently the most mature sound faceplate/reference for compact playable density.
-- **GEN (Trigger)**: substantially refined with mode-aware Main + Advanced/Fine-tune organization and multiple behavior-truthful/model-driven displays, while some conceptual modes remain intentionally marked as acceptable/weak for follow-up.
+- **GEN (Trigger)**: substantially refined with mode-aware Main + Fine-tune organization and multiple behavior-truthful/model-driven displays, while some conceptual modes remain intentionally marked as acceptable/weak for follow-up.
 - **SYNTH (Tonal)**: now structurally viable and visually coherent within the shared shell and tab grammar.
 - **CONTROL**: functional and usable, but still pending major refinement in interaction depth and surface clarity.
 - **VISUAL**: functional for core monitoring (scope/spectrum), but still pending major expansion in mode breadth and interaction richness.
+
+
+### GEN status (current milestone)
+
+Implemented GEN modes (13):
+- step-sequencer
+- euclidean
+- cellular-automata
+- hybrid
+- gear
+- radar
+- fractal
+- non-euclidean
+- markov-chains
+- l-systems
+- xronomorph
+- genetic-algorithms
+- one-over-f-noise
+
+Current strengths:
+- Mode registry/staging metadata and convergence audit are in place.
+- GEN display truthfulness contract is active and now reflected in mode implementation/docs.
+- Mode-aware Main/Fine-tune organization is established, with global tab order now standardized as `Main | Fine-tune | Routing`.
+- `Advanced` naming has been replaced by `Fine-tune` at the UX level.
+- Velocity/accent semantics are now coherent at family level, including fractal + l-systems alignment where merged.
+
+Recently completed stabilization/display/control work:
+- RADAR rename and semantic correction are complete; implemented rotating scan mode is **RADAR**.
+- **SONAR** is intentionally reserved for a future pulse/echo/terrain mode and is not implemented yet.
+- RADAR display correction landed (discrete scan-step alignment, truthful hit pulses, control-meaning alignment).
+- Markov, Non-Euclidean, and XronoMorph display corrections landed to reduce decorative/misleading behavior.
+- Step Sequencer display/readout refinements landed.
+
+Remaining known weak spots:
+- Some conceptual modes still have weaker visual truthfulness/readability than reference-quality modes (notably GA/Fractal/L-Systems/Hybrid).
+- A subset of modes still rely on generic/shared control labels where mode-specific labels would better communicate behavior.
+- Fine-tune clarity can still improve in mode-specific grouping density and wording consistency.
+
+Recommended next GEN follow-ups:
+1. Strengthen weakest mode displays with direct runtime-state mappings (especially GA, Fractal, L-Systems, Hybrid).
+2. Continue semantic label refinement on Main/Fine-tune while preserving stable patch keys.
+3. Start interactive display editing from Step Sequencer and Hybrid before broad rollout to all GEN modes.
+4. Keep RADAR and future SONAR semantics separate (rotating scan vs pulse/echo propagation).
+
+Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md), [`docs/gen-modes.md`](gen-modes.md).
 
 ### Instrument-level status
 
