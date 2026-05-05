@@ -6,7 +6,7 @@ Long-form acronym (secondary identity): **Generative Relational & Interactive Di
 
 It runs in the browser (Vite + TypeScript + WebAudio) and focuses on deterministic timing with controlled indeterminism in pattern generation.
 
-Current app version: `0.32.4`.
+Current app version: `0.33.0`.
 
 ## 1) Project description
 

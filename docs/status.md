@@ -2,7 +2,7 @@
 
 ## Current version
 
-- App version: `0.32.4` (`src/version.ts`)
+- App version: `0.33.0` (`src/version.ts`)
 - Patch model: `0.3`
 
 ## Current state (implemented reality)
