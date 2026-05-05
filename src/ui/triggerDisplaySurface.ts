@@ -1,6 +1,6 @@
 import type { Mode, TriggerModule } from "../patch";
 import { createGearModel } from "../engine/pattern/gear";
-import { buildMarkovPatternModel, buildNonEuclideanPatternModel, buildXronoMorphPatternModel } from "../engine/pattern/module";
+import { buildMarkovPatternModel, buildNonEuclideanPatternModel, buildXronoMorphPatternModel, createGeneticPatternModel } from "../engine/pattern/module";
 import { getGenModeMeta } from "../engine/pattern/genModeRegistry";
 
 type TriggerDisplayParams = {
@@ -1004,14 +1004,20 @@ function createXronoMorphView(): DisplayView {
 function createGeneticView(): DisplayView {
   const root = document.createElement("div");
   root.className = "triggerDisplayGenetic";
+  const populationLane = document.createElement("div");
+  populationLane.className = "triggerDisplayGeneticPopulation";
+  const outputLane = document.createElement("div");
+  outputLane.className = "triggerDisplayGeneticOutput";
+  root.append(populationLane, outputLane);
   const rows: HTMLElement[] = [];
-  const rowCount = 4;
+  const rowCount = 6;
   let cols = 16;
+  let outputCells: HTMLElement[] = [];
 
   for (let r = 0; r < rowCount; r++) {
     const row = document.createElement("div");
     row.className = "triggerDisplayGeneticRow";
-    root.appendChild(row);
+    populationLane.appendChild(row);
     rows.push(row);
   }
 
@@ -1019,21 +1025,30 @@ function createGeneticView(): DisplayView {
     root,
     sync: (nextModule) => {
       cols = clamp(Math.round(nextModule.length), 12, 32);
+      const model = createGeneticPatternModel({ ...nextModule, length: cols }, "display-genetic");
+      root.style.setProperty("--genetic-mutation", model.mutationRate.toFixed(3));
+      root.style.setProperty("--genetic-selection", model.selectionPressure.toFixed(3));
+      root.style.setProperty("--genetic-cull", model.cullPressure.toFixed(3));
       rows.forEach((row, idx) => {
-        const pattern = createGeneticRow(nextModule, cols, idx);
+        const pattern = model.population[idx] ?? new Uint8Array(cols);
         const existing = Array.from(row.children) as HTMLElement[];
         const cells = renderLinearCells(row, existing, cols, pattern);
-        const fitness = evaluateFitness(pattern, nextModule);
+        const fitness = model.fitnessScores[idx] ?? 0;
         row.style.setProperty("--genetic-fit", fitness.toFixed(3));
-        cells.forEach((cell) => cell.classList.toggle("elite", idx === 0));
+        const isElite = idx < model.eliteIndexes.length;
+        row.classList.toggle("is-elite", isElite);
+        row.classList.toggle("is-selected", idx === model.selectedIndex);
+        cells.forEach((cell) => cell.classList.toggle("elite", isElite));
       });
+      outputCells = renderLinearCells(outputLane, outputCells, cols, model.outputPattern);
     },
     tick: (timeMs, liveModule) => {
       const i = resolveAnimatedStepIndex(timeMs, liveModule, cols);
-      rows.forEach((row, idx) => {
+      rows.forEach((row) => {
         const cells = Array.from(row.children) as HTMLElement[];
-        paintPlayhead(cells, (i + idx) % Math.max(1, cells.length));
+        paintPlayhead(cells, i);
       });
+      paintPlayhead(outputCells, i);
     },
   };
 }
@@ -1487,27 +1502,6 @@ function renderLinearCells(host: HTMLElement, existing: HTMLElement[], steps: nu
 
 function paintPlayhead(cells: HTMLElement[], playhead: number) {
   for (let i = 0; i < cells.length; i++) cells[i].classList.toggle("is-playhead", i === playhead);
-}
-
-function createGeneticRow(module: TriggerModule, cols: number, row: number) {
-  const out = new Uint8Array(cols);
-  const mutate = module.weird * (0.08 + row * 0.05);
-  for (let i = 0; i < cols; i++) {
-    let bit = hash01(module.seed + row * 101 + i * 13) < module.density ? 1 : 0;
-    if (hash01(module.seed + row * 71 + i * 19) < mutate) bit = bit ? 0 : 1;
-    if (bit && hash01(module.seed + row * 29 + i * 7) < module.drop * 0.45) bit = 0;
-    out[i] = bit;
-  }
-  return out;
-}
-
-function evaluateFitness(pattern: Uint8Array, module: TriggerModule) {
-  const hits = pattern.reduce((sum, bit) => sum + bit, 0);
-  const densityFit = 1 - Math.abs(hits / Math.max(1, pattern.length) - module.density);
-  let anchorHits = 0;
-  for (let i = 0; i < pattern.length; i++) if (pattern[i] && i % 4 === 0) anchorHits++;
-  const anchorFit = anchorHits / Math.max(1, Math.ceil(pattern.length / 4));
-  return clamp(densityFit * 0.75 + anchorFit * module.gravity * 0.25, 0, 1);
 }
 
 function buildOneOverFValues(module: TriggerModule, count: number) {
