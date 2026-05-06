@@ -181,10 +181,38 @@ export function firstFactoryExamplePatch(): Patch {
   return structuredClone(factoryExamplePatches()[0].patch);
 }
 
-function withMissingFactoryExamples(presets: PresetRecord[]): PresetRecord[] {
-  const existingIds = new Set(presets.map((preset) => preset.id));
+export function restoreMissingFactoryExamples(session: PresetSession): PresetSession {
+  const existingIds = new Set(session.presets.map((preset) => preset.id));
   const missing = factoryExamplePresets().filter((preset) => !existingIds.has(preset.id));
-  return missing.length ? [...presets, ...missing] : presets;
+  if (!missing.length) {
+    return {
+      ...session,
+      selectedPresetId: session.presets.some((preset) => preset.id === session.selectedPresetId)
+        ? session.selectedPresetId
+        : session.presets[0]?.id ?? factoryExamplePresets()[0].id,
+    };
+  }
+
+  const presets = [...session.presets, ...missing];
+  return {
+    ...session,
+    selectedPresetId: presets.some((preset) => preset.id === session.selectedPresetId)
+      ? session.selectedPresetId
+      : presets[0].id,
+    presets,
+  };
+}
+
+export function resetPresetSessionToFactoryExamples(): PresetSession {
+  return defaultPresetSession();
+}
+
+function withMissingFactoryExamples(presets: PresetRecord[]): PresetRecord[] {
+  return restoreMissingFactoryExamples({
+    version: PRESET_EXPORT_VERSION,
+    selectedPresetId: presets[0]?.id ?? factoryExamplePresets()[0].id,
+    presets,
+  }).presets;
 }
 
 export function defaultPresetSession(): PresetSession {

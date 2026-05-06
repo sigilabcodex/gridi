@@ -16,6 +16,8 @@ import {
   makePresetExportPayload,
   makeSinglePresetExportPayload,
   parsePresetImportPayload,
+  resetPresetSessionToFactoryExamples,
+  restoreMissingFactoryExamples,
   sanitizePresetName,
   savePresetSession,
   type PresetRecord,
@@ -496,6 +498,40 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     updateDocumentTitle();
   };
 
+
+  const loadSessionState = (nextSession: PresetSession) => {
+    session = nextSession;
+    const next = selectedPreset();
+    session.selectedPresetId = next.id;
+    patch = clonePatch(next.patch);
+    savedSnapshot = JSON.stringify(patch);
+    syncEngineFromPatch(patch, true);
+    saveSession();
+    gridRenderer.rerender();
+    header.updatePresetUI();
+    header.updateMuteBtn();
+    header.updateMasterGainUI();
+    header.updateBpmUI();
+    header.updateStatus();
+    updateDocumentTitle();
+  };
+
+  const restoreFactoryExamples = () => {
+    const before = session.presets.length;
+    const nextSession = restoreMissingFactoryExamples(session);
+    const added = nextSession.presets.length - before;
+    session = nextSession;
+    saveSession();
+    header.updatePresetUI();
+    header.updateStatus();
+    if (added > 0) alert(`Restored ${added} missing factory example${added === 1 ? "" : "s"}. Local user sessions were preserved.`);
+    else alert("Factory examples are already present. Local user sessions were preserved.");
+  };
+
+  const resetToFactoryExamples = () => {
+    loadSessionState(resetPresetSessionToFactoryExamples());
+  };
+
   const exportCurrentPreset = () => {
     const preset = selectedPreset();
     const payload = makeSinglePresetExportPayload({ ...preset, patch: clonePatch(preset.patch) });
@@ -736,6 +772,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         onRenamePreset: renamePreset,
         onDuplicatePreset: duplicatePreset,
         onDeletePreset: deletePreset,
+        onRestoreFactoryExamples: restoreFactoryExamples,
+        onResetToFactoryExamples: resetToFactoryExamples,
         onSaveCurrentPreset: saveCurrentPreset,
         onExportCurrentPreset: exportCurrentPreset,
         onExportSession: exportSession,

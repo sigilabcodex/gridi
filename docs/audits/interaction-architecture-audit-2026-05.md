@@ -292,3 +292,22 @@ Deferred follow-up actions remain:
 - delete selected groups,
 - generator operations applied only to selected modules,
 - full shift-range semantics once canonical ordering rules are finalized.
+
+---
+
+## 9) Session manager cleanup/reset status (2026-05-06)
+
+Factory example sessions are now treated as a recoverable local session baseline:
+
+- `Example 01 · Basic Pulse`
+- `Example 02 · Dual Generators`
+- `Example 03 · Experimental Field`
+
+Session Manager cleanup/reset behavior is intentionally explicit and data-safe:
+
+- **Restore missing factory examples** appends any missing curated factory examples without deleting, renaming, or replacing existing local user sessions.
+- **Reset to factory examples** restores exactly the curated factory example set and selects the first factory example, but only after this confirmation copy: “This will remove local saved sessions and restore the factory examples. Export anything you want to keep first.”
+- Existing local sessions continue to load normally; no cleanup path deletes saved sessions on app load.
+- Import/export payload shape remains unchanged so existing session and single-preset JSON files continue to round-trip through the same persistence helpers.
+
+Follow-up recommendation: consider adding a non-destructive “Export all before reset” shortcut near the reset confirmation once session archives or backup affordances are designed.
