@@ -10,6 +10,8 @@ type PresetManagerModalParams = {
   onRenamePreset: (presetId: string, name: string) => void;
   onDuplicatePreset: (presetId: string) => void;
   onDeletePreset: (presetId: string) => void;
+  onRestoreFactoryExamples: () => void;
+  onResetToFactoryExamples: () => void;
   onSaveCurrentPreset: () => void;
   onExportCurrentPreset: () => void;
   onExportSession: () => void;
@@ -51,6 +53,26 @@ export function openPresetManagerModal(params: PresetManagerModalParams) {
 
   actions.append(btnNew, btnSave, btnImport, btnExportPreset, btnExportSession);
   body.appendChild(actions);
+
+  const cleanupNote = el("div", "small settingsIntro");
+  cleanupNote.textContent = "Factory examples can be restored without touching local sessions. Full reset removes local saved sessions only after confirmation.";
+  const cleanupActions = el("div", "settingsBtnRow");
+  const btnRestoreFactory = el("button", "", "Restore missing factory examples");
+  const btnResetFactory = el("button", "danger", "Reset to factory examples");
+
+  btnRestoreFactory.onclick = () => {
+    params.onRestoreFactoryExamples();
+    m.destroy();
+  };
+
+  btnResetFactory.onclick = () => {
+    if (!confirm("This will remove local saved sessions and restore the factory examples. Export anything you want to keep first.")) return;
+    params.onResetToFactoryExamples();
+    m.destroy();
+  };
+
+  cleanupActions.append(btnRestoreFactory, btnResetFactory);
+  body.append(cleanupNote, cleanupActions);
 
   const filterWrap = el("div", "presetManagerFilterWrap");
   const filterLabel = el("label", "small presetManagerFilterLabel", "Find session");

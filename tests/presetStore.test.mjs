@@ -8,6 +8,8 @@ import {
   makePresetExportPayload,
   makeSinglePresetExportPayload,
   parsePresetImportPayload,
+  resetPresetSessionToFactoryExamples,
+  restoreMissingFactoryExamples,
   sanitizePresetName,
 } from '../src/ui/persistence/presetStore.ts';
 import {
@@ -190,6 +192,72 @@ test('loading existing local sessions preserves them and appends missing factory
     assert.ok(session.presets.some((preset) => preset.name === 'Example 01 · Basic Pulse' && preset.source === 'factory'));
     assert.equal(session.presets.length, 4);
   });
+});
+
+
+test('reset preset session returns only curated factory examples with valid selection', () => {
+  const session = resetPresetSessionToFactoryExamples();
+  const factory = factoryExamplePresets();
+
+  assert.deepEqual(session.presets.map((preset) => preset.id), factory.map((preset) => preset.id));
+  assert.deepEqual(session.presets.map((preset) => preset.name), factory.map((preset) => preset.name));
+  assert.equal(session.selectedPresetId, factory[0].id);
+  assert.ok(session.presets.some((preset) => preset.id === session.selectedPresetId));
+  assert.ok(session.presets.every((preset) => preset.source === 'factory'));
+});
+
+test('restore missing factory examples appends missing examples without duplicates', () => {
+  const [firstFactory, secondFactory] = factoryExamplePresets();
+  const userPreset = {
+    id: 'user-session',
+    name: 'User Session',
+    patch: makeLinkedPatch(),
+    createdAt: 10,
+    updatedAt: 11,
+    source: 'user',
+  };
+  const restored = restoreMissingFactoryExamples({
+    version: '0.33',
+    selectedPresetId: secondFactory.id,
+    presets: [userPreset, firstFactory, secondFactory],
+  });
+
+  assert.equal(restored.presets.filter((preset) => preset.id === firstFactory.id).length, 1);
+  assert.equal(restored.presets.filter((preset) => preset.id === secondFactory.id).length, 1);
+  assert.equal(restored.presets.filter((preset) => preset.source === 'factory').length, factoryExamplePresets().length);
+  assert.deepEqual(restored.presets.slice(0, 3).map((preset) => preset.id), ['user-session', firstFactory.id, secondFactory.id]);
+  assert.equal(restored.selectedPresetId, secondFactory.id);
+});
+
+test('restore missing factory examples preserves existing user sessions', () => {
+  const userPreset = {
+    id: 'local-user',
+    name: 'Local User',
+    patch: makeLinkedPatch(),
+    createdAt: 20,
+    updatedAt: 21,
+    source: 'user',
+  };
+  const restored = restoreMissingFactoryExamples({
+    version: '0.33',
+    selectedPresetId: userPreset.id,
+    presets: [userPreset],
+  });
+
+  assert.equal(restored.presets[0].id, userPreset.id);
+  assert.equal(restored.presets[0].name, userPreset.name);
+  assert.equal(restored.selectedPresetId, userPreset.id);
+  assert.equal(restored.presets.length, 1 + factoryExamplePresets().length);
+});
+
+test('factory reset session export/import round-trips without compatibility changes', () => {
+  const session = resetPresetSessionToFactoryExamples();
+  const imported = parsePresetImportPayload(JSON.stringify(makePresetExportPayload(session)));
+
+  assert.ok(imported);
+  assert.equal(imported.selectedPresetId, session.selectedPresetId);
+  assert.deepEqual(imported.presets.map((preset) => preset.id), session.presets.map((preset) => preset.id));
+  assert.deepEqual(imported.presets.map((preset) => preset.name), session.presets.map((preset) => preset.name));
 });
 
 test('invalid import payloads return null safely', () => {
