@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultPatch, emptyPatch, makeControl, makeSound, makeTrigger } from '../src/patch.ts';
+import { emptyPatch, getTriggers, isSound, makeControl, makeSound, makeTrigger, migratePatch } from '../src/patch.ts';
 import {
   defaultPresetSession,
+  factoryExamplePresets,
+  loadPresetSession,
   makePresetExportPayload,
   makeSinglePresetExportPayload,
   parsePresetImportPayload,
@@ -112,8 +114,10 @@ test('session export/import roundtrip preserves selected preset and patches', ()
 
   assert.ok(imported);
   assert.equal(imported.selectedPresetId, 'preset-b');
-  assert.equal(imported.presets.length, 2);
-  assert.equal(imported.presets[1].patch.modules[1].triggerSource, imported.presets[1].patch.modules[0].id);
+  assert.equal(imported.presets.length, 4);
+  const second = imported.presets.find((preset) => preset.id === 'preset-b');
+  assert.ok(second);
+  assert.equal(second.patch.modules[1].triggerSource, second.patch.modules[0].id);
 });
 
 test('empty patch template produces zero modules with baseline patch metadata', () => {
@@ -124,12 +128,68 @@ test('empty patch template produces zero modules with baseline patch metadata', 
   assert.equal(patch.masterGain, 0.8);
 });
 
-test('default preset session remains starter/example seeded from defaultPatch', () => {
+function assertValidPatchRouting(patch) {
+  const migrated = migratePatch(patch);
+  assert.equal(migrated.version, '0.3');
+  const moduleIds = new Set(migrated.modules.map((module) => module.id));
+  assert.equal(moduleIds.size, migrated.modules.length);
+  for (const module of migrated.modules) {
+    assert.equal(typeof module.id, 'string');
+    assert.equal(typeof module.name, 'string');
+    assert.equal(typeof module.x, 'number');
+    assert.equal(typeof module.y, 'number');
+    if (isSound(module) && module.triggerSource) {
+      assert.ok(moduleIds.has(module.triggerSource), `${module.name} routes to missing trigger ${module.triggerSource}`);
+    }
+  }
+}
+
+test('default preset session includes curated factory examples', () => {
   const session = defaultPresetSession();
-  assert.equal(session.presets.length, 1);
-  assert.equal(session.presets[0].name, 'Starter Session');
-  assert.equal(session.presets[0].patch.modules.length, defaultPatch().modules.length);
-  assert.notEqual(session.presets[0].patch.modules.length, 0);
+  assert.deepEqual(session.presets.map((preset) => preset.name), [
+    'Example 01 · Basic Pulse',
+    'Example 02 · Dual Generators',
+    'Example 03 · Experimental Field',
+  ]);
+  assert.equal(session.selectedPresetId, 'factory-example-01');
+  assert.ok(session.presets.every((preset) => preset.source === 'factory'));
+});
+
+test('factory examples have valid patch structure and clear routing', () => {
+  const presets = factoryExamplePresets();
+  const byName = new Map(presets.map((preset) => [preset.name, preset.patch]));
+
+  assert.equal(byName.get('Example 01 · Basic Pulse').modules.filter((module) => module.type === 'trigger').length, 1);
+  assert.equal(byName.get('Example 01 · Basic Pulse').modules.filter((module) => module.type === 'drum').length, 2);
+  assert.equal(byName.get('Example 01 · Basic Pulse').modules.filter((module) => module.type === 'tonal').length, 1);
+  assert.equal(byName.get('Example 01 · Basic Pulse').modules.find((module) => module.type === 'tonal').reception, 'mono');
+
+  assert.equal(byName.get('Example 02 · Dual Generators').modules.filter((module) => module.type === 'trigger').length, 2);
+  assert.equal(byName.get('Example 02 · Dual Generators').modules.filter((module) => module.type === 'drum').length, 5);
+
+  assert.ok(getTriggers(byName.get('Example 03 · Experimental Field')).some((trigger) => trigger.mode === 'radar'));
+  assert.ok(getTriggers(byName.get('Example 03 · Experimental Field')).some((trigger) => trigger.mode === 'gear'));
+  assert.ok(byName.get('Example 03 · Experimental Field').modules.some((module) => module.type === 'tonal'));
+
+  for (const preset of presets) assertValidPatchRouting(preset.patch);
+});
+
+test('loading existing local sessions preserves them and appends missing factory examples', () => {
+  withMockStorage(() => {
+    const userPatch = makeLinkedPatch();
+    localStorage.setItem('gridi.presets.v0_33', JSON.stringify({
+      version: '0.33',
+      selectedPresetId: 'legacy-user',
+      presets: [{ id: 'legacy-user', name: 'Session 13', patch: userPatch, createdAt: 1, updatedAt: 2 }],
+    }));
+
+    const session = loadPresetSession();
+    assert.equal(session.selectedPresetId, 'legacy-user');
+    assert.equal(session.presets[0].id, 'legacy-user');
+    assert.equal(session.presets[0].source, undefined);
+    assert.ok(session.presets.some((preset) => preset.name === 'Example 01 · Basic Pulse' && preset.source === 'factory'));
+    assert.equal(session.presets.length, 4);
+  });
 });
 
 test('invalid import payloads return null safely', () => {

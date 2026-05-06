@@ -71,6 +71,7 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 - CTRL routing now enforces single-owner modulation per parameter, blocks self-modulation, drives visible in-place movement on modulated controls (trigger density, drum pitch, synth cutoff), supports temporary user-override while editing, gates modulation activity by transport/audio-running state, and provides structured module/group/parameter selection in CTRL Routing while staying aligned with the global routing overview model.
 - Drum modules now support explicit channel assignment (`Auto`, `01`–`08`) with Auto fallback preserving differentiated behavior, while explicit channels behave as strict shared subscriptions.
 - Session presets (whole-patch state) and module presets (local module state) both exist and are active.
+- Session factory examples are now a small onboarding set (`Example 01 · Basic Pulse`, `Example 02 · Dual Generators`, `Example 03 · Experimental Field`) that demonstrates simple GEN-to-DRUM/SYNTH routing without replacing local/user-created sessions. User sessions remain browser-local and persistent; broader curated artist/composer/engineer banks are a future preset-bank direction, not part of the current starter set.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
 - MIDI now appears as a first-class routing domain in the global Routing UI: users can assign `MIDI IN` input source + synth target explicitly, and MIDI routes are listed alongside event/modulation/audio routes.
 
@@ -102,7 +103,8 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 - Live coding module exploration.
 - Sampling/looping/granular ideas.
 - Experimental/dangerous mode track.
-- Preset-bank curation as a first-class instrument experience.
+- Preset-bank curation as a first-class instrument experience, including future artist/composer/engineer banks layered beyond the starter factory examples.
+- A confirmed Session Manager cleanup action to clear local sessions and restore only factory examples, kept separate from automatic migration so user-created sessions are never wiped unexpectedly.
 - Future multichannel / installation-aware spatial workflows.
 
 ## Known limitations
