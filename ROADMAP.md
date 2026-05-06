@@ -41,6 +41,10 @@ This roadmap tracks architecture-first milestones. It intentionally avoids featu
 - First direct USB/Web MIDI keyboard input for synth performance (single-target live play) is now in place.
 - MIDI IN routing has started moving into the Routing domain/UI (compact input+target assignment + overview visibility); MIDI OUT and deeper editing remain future work.
 
+#### Deferred adjacent UI-system task: complete light theme
+
+This should remain separate from the first `v0.4` Routing architecture audit/planning pass. After that pass, revisit the placeholder light-theme setting as a UI-system task: audit tokens/CSS variables, confirm settings persistence/application, make dark/light mode consistent across module faceplates and transport/routing surfaces, test readability for GEN displays/chips/controls/routing indicators, avoid one-off overrides, and preserve GRIDI's instrument-like identity in both themes. See [`docs/audits/light-theme-system-follow-up-2026-05.md`](docs/audits/light-theme-system-follow-up-2026-05.md).
+
 ### `v0.41` — Visual analysis expansion (planned)
 
 - Expand the Visual family with performance-usable analyzer modes while preserving fixed-shell module ergonomics.
