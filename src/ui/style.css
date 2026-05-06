@@ -1562,6 +1562,35 @@ button.danger.armed {
   --workspace-grid-pad: 8px;
 }
 
+.moduleBatchActionBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: calc(100% - 16px);
+  margin: 0 auto 8px;
+  padding: 7px 9px;
+  border: 1px solid rgba(173, 226, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 16, 28, 0.78);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.moduleBatchActionBar[hidden] {
+  display: none;
+}
+
+.moduleBatchActionSummary {
+  padding: 0 4px;
+  white-space: nowrap;
+}
+
+.moduleBatchActionBar > button {
+  min-height: 32px;
+}
+
 .workspaceViewport {
   width: 100%;
   overflow-x: auto;

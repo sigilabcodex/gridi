@@ -172,16 +172,17 @@ selectionAnchorId: string | null
 selectionMode: "replace" | "add" | "range"
 ```
 
-No batch behavior implementation yet; just canonical selection ownership + keyboard semantics.
+Selection scaffold shipped first as canonical UI/session interaction state. Module-grid batch actions phase 1 now layers safe selected-module duplicate/delete commands on top of that state without changing persisted patch schema.
 
 ### Future actions enabled by this state
 
 - apply operation to selected generators,
 - copy/paste compatible parameter subsets,
-- duplicate selected modules,
-- delete/move selected groups.
+- duplicate selected modules (phase 1 implemented),
+- delete selected groups (phase 1 implemented),
+- move selected groups.
 
-Do not wire these actions in this PR; stage selection model first.
+Keep later phases focused: copy/paste parameter subsets, apply-to-selected-GEN operations, and group move remain deferred.
 
 ---
 
@@ -285,14 +286,18 @@ Selection scaffold is now implemented as UI/session interaction state only:
 - visual selected-state affordance on module surfaces,
 - safe clearing/pruning during empty-slot interaction and module removal.
 
-No batch commands are wired yet in this phase.
+Module-grid batch actions phase 1 is now implemented:
+
+- a compact selected-module toolbar appears when one or more module surfaces are selected,
+- **Duplicate selected** clones selected module parameter state into available nearby grid slots and selects the newly duplicated modules,
+- **Delete selected** removes selected modules, asks for confirmation when deleting more than one module, clears selection afterward, and prunes trigger/modulation/audio route references to deleted modules,
+- duplicated sound modules preserve `triggerSource`; when the referenced GEN is also duplicated in the same action, the duplicate sound points at the duplicate GEN.
 
 Deferred follow-up actions remain:
 
 - copy/paste compatible parameter subsets,
-- duplicate selected modules,
-- delete selected groups,
 - generator operations applied only to selected modules,
+- group move,
 - full shift-range semantics once canonical ordering rules are finalized.
 
 ---
@@ -333,3 +338,22 @@ Deferred follow-ups remain intentionally out of scope for this pass:
 - create session pack,
 - curator/bank metadata,
 - drag-reordering, folders, or tags.
+
+
+---
+
+## 11) Module-grid batch-actions phase 1 status (2026-05-06)
+
+Implemented the first safe module-grid batch action set on top of the existing selection scaffold:
+
+- **Duplicate selected** creates new module IDs, preserves module type and parameter state, assigns readable copy names, places duplicates into available nearby grid slots, and selects the newly duplicated modules.
+- **Delete selected** removes all selected modules, requires confirmation for multi-module deletes, clears selection afterward, and uses the same routing-integrity cleanup for trigger sources, modulations, typed routes, and audio connections.
+- Selected-internal event routing is remapped where it is explicit in module state (`triggerSource`) or typed routes, so a selected GEN + selected sound duplicates as a new internally routed pair.
+- The patch schema remains unchanged; batch selection remains UI-only interaction state.
+
+Deferred follow-ups remain intentionally out of scope for this pass:
+
+- parameter copy/paste,
+- applying generator operations to selected GEN modules,
+- group move,
+- routing model redesign or graphical patchbay.

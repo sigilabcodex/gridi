@@ -29,6 +29,7 @@ import {
   toggleModuleSelection,
   type ModuleSelectionState,
 } from "../state/moduleSelection";
+import { deleteSelectedModules, duplicateSelectedModules } from "../state/moduleBatchActions";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -248,6 +249,17 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   const controlTabs = new Map<string, "MAIN" | "ROUTING">();
   let selectionState: ModuleSelectionState = createModuleSelectionState();
 
+  const updateBatchActionToolbar = () => {
+    const toolbar = params.main.querySelector<HTMLElement>(".moduleBatchActionBar");
+    if (!toolbar) return;
+    const count = selectionState.selectedModuleIds.length;
+    toolbar.hidden = count === 0;
+    toolbar.querySelector<HTMLElement>(".moduleBatchActionSummary")!.textContent = `${count} module${count === 1 ? "" : "s"} selected`;
+    toolbar.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
+      button.disabled = count === 0;
+    });
+  };
+
   const applySelectionStyles = () => {
     const selected = new Set(selectionState.selectedModuleIds);
     for (const [moduleId, surface] of surfaceByModuleId.entries()) {
@@ -255,6 +267,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.classList.toggle("moduleSelected", isSelected);
       surface.setAttribute("aria-selected", isSelected ? "true" : "false");
     }
+    updateBatchActionToolbar();
   };
 
   const applyRoutingHighlight = () => {
@@ -329,27 +342,54 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     restoreRoutingScrollPositions(routingScrollSnapshot);
   };
 
-  const removeModule = (moduleId: string) => {
-    const prev = params.clonePatch(params.patch());
-    const nextPatch = params.patch();
-    nextPatch.modules = nextPatch.modules.filter((m) => m.id !== moduleId);
-    for (const m of nextPatch.modules) {
-      if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === moduleId) m.triggerSource = null;
-      if (m.type === "drum" || m.type === "tonal" || m.type === "trigger") {
-        const entries = Object.entries(m.modulations ?? {});
-        for (const [key, sourceId] of entries) {
-          if (sourceId === moduleId) delete (m.modulations as Record<string, string>)[key];
-        }
-      }
-    }
-    if (inspectedModuleId === moduleId) inspectedModuleId = null;
-    selectionState = pruneModuleSelection(selectionState, nextPatch.modules.map((m) => m.id));
+  const commitPatchMutation = (prev: Patch, nextPatch: Patch, opts: { regen: boolean }) => {
     params.pushHistory(prev);
-    params.sched.setPatch(nextPatch, { regen: true });
-    params.sched.regenAll();
+    params.sched.setPatch(nextPatch, { regen: opts.regen });
+    if (opts.regen) params.sched.regenAll();
     params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
     rerenderStable();
+  };
+
+  const removeModule = (moduleId: string) => {
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = deleteSelectedModules(nextPatch, [moduleId]);
+    if (!result.deletedCount) return;
+    if (inspectedModuleId === moduleId) inspectedModuleId = null;
+    selectionState = result.selection;
+    commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const deleteCurrentSelection = () => {
+    const selectedIds = selectionState.selectedModuleIds;
+    if (!selectedIds.length) return;
+    if (selectedIds.length > 1) {
+      const confirmed = window.confirm(`Delete ${selectedIds.length} selected modules? This cannot be undone except with Undo.`);
+      if (!confirmed) return;
+    }
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = deleteSelectedModules(nextPatch, selectedIds);
+    if (!result.deletedCount) return;
+    if (inspectedModuleId && result.deletedIds.includes(inspectedModuleId)) inspectedModuleId = null;
+    selectionState = result.selection;
+    commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const duplicateCurrentSelection = () => {
+    const selectedIds = selectionState.selectedModuleIds;
+    if (!selectedIds.length) return;
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = duplicateSelectedModules(nextPatch, selectedIds);
+    if (!result.duplicatedCount) return;
+    selectionState = result.selection;
+    inspectedModuleId = result.newIds[0] ?? inspectedModuleId;
+    if (result.skippedCount) window.alert(`${result.skippedCount} selected modules could not be duplicated because no grid slot was available.`);
+    commitPatchMutation(prev, nextPatch, { regen: true });
   };
 
   const moveModuleToCell = (moduleId: string, destination: GridPosition) => {
@@ -489,6 +529,38 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     latestRouting = routing;
     params.main.innerHTML = "";
 
+    const batchActionBar = document.createElement("div");
+    batchActionBar.className = "moduleBatchActionBar";
+    batchActionBar.hidden = selectionState.selectedModuleIds.length === 0;
+    batchActionBar.setAttribute("role", "toolbar");
+    batchActionBar.setAttribute("aria-label", "Selected module actions");
+
+    const batchSummary = document.createElement("span");
+    batchSummary.className = "small moduleBatchActionSummary";
+
+    const duplicateButton = document.createElement("button");
+    duplicateButton.type = "button";
+    duplicateButton.className = "primary";
+    duplicateButton.textContent = "Duplicate selected";
+    duplicateButton.addEventListener("click", duplicateCurrentSelection);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "danger";
+    deleteButton.textContent = "Delete selected";
+    deleteButton.addEventListener("click", deleteCurrentSelection);
+
+    const clearButton = document.createElement("button");
+    clearButton.type = "button";
+    clearButton.textContent = "Clear selection";
+    clearButton.addEventListener("click", () => {
+      selectionState = clearModuleSelection();
+      applyRoutingHighlight();
+    });
+
+    batchActionBar.append(batchSummary, duplicateButton, deleteButton, clearButton);
+    params.main.appendChild(batchActionBar);
+
     const workspaceViewport = document.createElement("div");
     workspaceViewport.className = "workspaceViewport";
 
@@ -502,6 +574,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     workspaceViewport.appendChild(workspaceViewportInner);
     workspaceViewportInner.appendChild(workspaceGrid);
     params.main.appendChild(workspaceViewport);
+    updateBatchActionToolbar();
     updaters = [];
 
     const triggers = getTriggers(patch);
