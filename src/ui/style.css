@@ -7093,3 +7093,62 @@ button:focus-visible,
     display: none;
   }
 }
+
+.addSlotMenuPhaseHint {
+  padding: 0 2px 5px;
+  color: rgba(226, 233, 239, 0.56);
+  line-height: 1.25;
+}
+
+.addSlotFamilyRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  align-items: stretch;
+}
+
+.addSlotFamilyRow.accent .addSlotFamilyMain {
+  border-color: rgba(74, 163, 255, 0.38);
+}
+
+.addSlotFamilyMain,
+.addSlotBackButton {
+  text-align: left;
+  width: 100%;
+  border-radius: 10px;
+  padding: 9px;
+  border: 1px solid rgba(207, 214, 221, 0.16);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.addSlotBackButton {
+  min-height: 38px;
+  border-color: rgba(207, 214, 221, 0.12);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.addSlotQuickAdd {
+  min-width: 58px;
+  min-height: 44px;
+  border-radius: 10px;
+  padding: 0 9px;
+  border: 1px solid rgba(125, 212, 255, 0.24);
+  background: rgba(125, 212, 255, 0.08);
+  color: rgba(226, 242, 255, 0.86);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+  white-space: nowrap;
+}
+
+.addSlotFamilyMain:hover,
+.addSlotBackButton:hover,
+.addSlotQuickAdd:hover,
+.addSlotMenuItem:hover,
+.addSlotFamilyMain:focus-visible,
+.addSlotBackButton:focus-visible,
+.addSlotQuickAdd:focus-visible,
+.addSlotMenuItem:focus-visible {
+  border-color: rgba(125, 212, 255, 0.5);
+  background: rgba(125, 212, 255, 0.1);
+}

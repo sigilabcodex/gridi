@@ -189,11 +189,11 @@ Do not wire these actions in this PR; stage selection model first.
 
 ### Current add-slot flow
 
-Current AddModuleSlot uses a single flat menu of mixed items (Generator/Drum/Synth/Control variants/Visual variants).
+PR-E implemented the phase-1 AddModuleSlot IA change: the add slot now opens a family-first browser with GEN / DRUM / SYNTH / CTRL / VIS rows before subtype selection. GEN, DRUM, and SYNTH keep one-action default creation; CTRL and VIS expose lightweight subtype rows while preserving quick-add defaults for common control and visual modules.
 
-Strength: fast and compact.
+Strength retained: common modules remain fast and compact.
 
-Constraint: scales poorly as module families and preset banks grow.
+Constraint addressed: the menu now has a family/subtype structure that can absorb larger subtype and preset banks without returning to one flat mixed list.
 
 ### Recommendation: family-first navigation
 
@@ -203,12 +203,13 @@ Move to progressive selection:
 2. Subtype/engine (where relevant)
 3. Preset
 
-### Include search + insertion direction
+### Deferred search, presets, and insertion direction
 
-- Add quick search across family/subtype/preset labels.
-- Add insertion direction policy (e.g., “insert right then wrap” vs “insert below”) as an explicit setting or contextual behavior for predictable grid growth.
+- Quick search across family/subtype/preset labels remains deferred to Add-module IA phase 2.
+- Full preset selection remains deferred; phase 1 only includes copy that makes the future preset-browser step explicit.
+- Insertion direction policy (e.g., “insert right then wrap” vs “insert below”) remains deferred as an explicit setting or contextual behavior for predictable grid growth.
 
-Keep this a UI-flow enhancement; avoid changing module runtime semantics.
+Keep these as UI-flow enhancements; avoid changing module runtime semantics.
 
 ---
 
@@ -264,10 +265,11 @@ Polish pass (non-breaking):
 
 ---
 
-## Any code/runtime changes made in this PR
+## Any code/runtime changes made in PR-E
 
-- None.
-- This PR intentionally adds only an audit document artifact.
+- Add-module IA phase 1 is implemented in `src/ui/AddModuleSlot.ts` as a family-first browser with lightweight CTRL/VIS subtype steps.
+- Module creation behavior, audio/generation/routing behavior, and patch schema remain unchanged.
+- Preset browsing, quick search, and insertion-direction policy remain deferred to Add-module IA phase 2.
 
 - PR-B follow-up (implemented): shared routing label resolver now drives both Voice SRC readouts and Trigger ROUTING follower chips, with compact ownership hint in Trigger ROUTING card.
 

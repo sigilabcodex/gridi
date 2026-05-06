@@ -1,49 +1,92 @@
-import type { VisualKind } from "../patch";
+import type { ControlKind, VisualKind } from "../patch";
 import type { GridPosition } from "../workspacePlacement.ts";
-import { bindFloatingPanelReposition, pointAnchor, placeFloatingPanel, type FloatingAnchor } from "./floatingPanel";
-import type { TooltipBinder } from "./tooltip";
+import { bindFloatingPanelReposition, pointAnchor, placeFloatingPanel, type FloatingAnchor } from "./floatingPanel.ts";
+import type { TooltipBinder } from "./tooltip.ts";
 
-type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
+export type AddModulePick = "drum" | "tonal" | "trigger" | `control-${ControlKind}` | VisualKind;
+export type AddModuleFamilyId = "gen" | "drum" | "synth" | "ctrl" | "vis";
 
 type AddSlotParams = {
   position: GridPosition;
-  onPick: (what: Pick) => void;
+  onPick: (what: AddModulePick) => void;
   onDropModule?: (moduleId: string) => void;
   attachTooltip?: TooltipBinder;
 };
 
-type MenuItem = { label: string; desc: string; value: Pick; accent?: boolean };
+export type AddModuleSubtypeItem = {
+  label: string;
+  shortLabel: string;
+  desc: string;
+  value: AddModulePick;
+};
 
-const MENU_ITEMS: MenuItem[] = [
-  { label: "Generator", desc: "Pattern generator", value: "trigger", accent: true },
-  { label: "Drum", desc: "Percussive voice", value: "drum", accent: true },
-  { label: "Synth", desc: "Tonal voice", value: "tonal" },
-  { label: "LFO", desc: "Control oscillator", value: "control-lfo" },
-  { label: "Drift", desc: "Smooth random control", value: "control-drift" },
-  { label: "Stepped", desc: "Sample/step control", value: "control-stepped" },
-  { label: "Scope", desc: "Wave monitor", value: "scope" },
-  { label: "Spectrum", desc: "Frequency monitor", value: "spectrum" },
+export type AddModuleFamily = {
+  id: AddModuleFamilyId;
+  code: string;
+  label: string;
+  desc: string;
+  defaultPick: AddModulePick;
+  accent?: boolean;
+  subtypes?: AddModuleSubtypeItem[];
+};
+
+const CONTROL_SUBTYPES: AddModuleSubtypeItem[] = [
+  { label: "LFO", shortLabel: "LFO", desc: "Cyclic control oscillator", value: "control-lfo" },
+  { label: "Drift", shortLabel: "Drift", desc: "Smooth random control", value: "control-drift" },
+  { label: "Stepped", shortLabel: "Step", desc: "Sample/step control", value: "control-stepped" },
 ];
 
-function createMenuButton(item: MenuItem, onClick: () => void) {
+const VISUAL_SUBTYPES: AddModuleSubtypeItem[] = [
+  { label: "Scope", shortLabel: "Scope", desc: "Wave monitor", value: "scope" },
+  { label: "Spectrum", shortLabel: "Spec", desc: "Frequency monitor", value: "spectrum" },
+  { label: "Vectorscope", shortLabel: "Vector", desc: "Stereo phase view", value: "vectorscope" },
+  { label: "Spectral Depth", shortLabel: "Depth", desc: "Layered spectral field", value: "spectral-depth" },
+  { label: "Flow", shortLabel: "Flow", desc: "Motion-reactive field", value: "flow" },
+  { label: "Ritual", shortLabel: "Ritual", desc: "Symbolic visual meter", value: "ritual" },
+  { label: "Glitch", shortLabel: "Glitch", desc: "Digital-reactive display", value: "glitch" },
+  { label: "Cymat", shortLabel: "Cymat", desc: "Cymatic pattern view", value: "cymat" },
+];
+
+export const ADD_MODULE_FAMILIES: AddModuleFamily[] = [
+  { id: "gen", code: "GEN", label: "Generator", desc: "Pattern source", defaultPick: "trigger", accent: true },
+  { id: "drum", code: "DRUM", label: "Drum", desc: "Percussive voice", defaultPick: "drum", accent: true },
+  { id: "synth", code: "SYNTH", label: "Synth", desc: "Tonal voice", defaultPick: "tonal" },
+  { id: "ctrl", code: "CTRL", label: "Control", desc: "Modulation sources", defaultPick: "control-lfo", subtypes: CONTROL_SUBTYPES },
+  { id: "vis", code: "VIS", label: "Visual", desc: "Signal displays", defaultPick: "scope", subtypes: VISUAL_SUBTYPES },
+];
+
+export function getAddModuleFamily(id: AddModuleFamilyId): AddModuleFamily {
+  const family = ADD_MODULE_FAMILIES.find((candidate) => candidate.id === id);
+  if (!family) throw new Error(`Unknown add-module family: ${id}`);
+  return family;
+}
+
+export function getAddModuleSubtypeItems(id: AddModuleFamilyId): AddModuleSubtypeItem[] {
+  return getAddModuleFamily(id).subtypes ?? [];
+}
+
+function createMenuButton(options: { className?: string; title: string; desc?: string; meta?: string; onClick: () => void }) {
   const btn = document.createElement("button");
-  btn.className = `addSlotMenuItem${item.accent ? " accent" : ""}`;
+  btn.className = options.className ?? "addSlotMenuItem";
   btn.type = "button";
   btn.setAttribute("role", "menuitem");
 
   const title = document.createElement("div");
   title.className = "addSlotMenuTitle";
-  title.textContent = item.label;
+  title.textContent = options.title;
+  btn.appendChild(title);
 
-  const desc = document.createElement("div");
-  desc.className = "small addSlotMenuDesc";
-  desc.textContent = item.desc;
+  if (options.desc || options.meta) {
+    const desc = document.createElement("div");
+    desc.className = "small addSlotMenuDesc";
+    desc.textContent = options.meta ? `${options.meta} · ${options.desc ?? ""}` : options.desc ?? "";
+    btn.appendChild(desc);
+  }
 
-  btn.append(title, desc);
   btn.onclick = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    onClick();
+    options.onClick();
   };
   return btn;
 }
@@ -89,20 +132,118 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   menu.className = "floatingPanel addSlotMenu hidden";
   menu.setAttribute("role", "menu");
 
-  const menuTitle = document.createElement("div");
-  menuTitle.className = "small addSlotMenuHint";
-  menuTitle.textContent = `Insert at (${params.position.x}, ${params.position.y})`;
-  menu.appendChild(menuTitle);
+  let activeFamily: AddModuleFamilyId | null = null;
+  let buttons: HTMLButtonElement[] = [];
 
-  const buttons: HTMLButtonElement[] = [];
-  for (const item of MENU_ITEMS) {
-    const btn = createMenuButton(item, () => {
-      closeMenu();
-      params.onPick(item.value);
+  const pickAndClose = (what: AddModulePick) => {
+    closeMenu();
+    params.onPick(what);
+  };
+
+  const renderRootMenu = () => {
+    activeFamily = null;
+    buttons = [];
+    menu.replaceChildren();
+
+    const menuTitle = document.createElement("div");
+    menuTitle.className = "small addSlotMenuHint";
+    menuTitle.textContent = `Insert at (${params.position.x}, ${params.position.y})`;
+    menu.appendChild(menuTitle);
+
+    const browserHint = document.createElement("div");
+    browserHint.className = "small addSlotMenuPhaseHint";
+    browserHint.textContent = "Choose a family. Presets/search arrive in phase 2.";
+    menu.appendChild(browserHint);
+
+    for (const family of ADD_MODULE_FAMILIES) {
+      const row = document.createElement("div");
+      row.className = `addSlotFamilyRow${family.accent ? " accent" : ""}`;
+
+      const familyButton = createMenuButton({
+        className: "addSlotFamilyMain",
+        title: `${family.code} · ${family.label}`,
+        desc: family.subtypes ? `${family.desc} · choose subtype` : family.desc,
+        onClick: () => {
+          if (family.subtypes?.length) {
+            renderSubtypeMenu(family.id);
+            queueMicrotask(() => focusButton(0));
+            return;
+          }
+          pickAndClose(family.defaultPick);
+        },
+      });
+      buttons.push(familyButton);
+      row.appendChild(familyButton);
+
+      if (family.subtypes?.length) {
+        const quickButton = document.createElement("button");
+        quickButton.type = "button";
+        quickButton.className = "addSlotQuickAdd";
+        quickButton.setAttribute("role", "menuitem");
+        quickButton.textContent = `+ ${family.subtypes[0].shortLabel}`;
+        quickButton.title = `Quick add ${family.subtypes[0].label}`;
+        quickButton.onclick = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          pickAndClose(family.defaultPick);
+        };
+        buttons.push(quickButton);
+        row.appendChild(quickButton);
+      }
+
+      menu.appendChild(row);
+    }
+  };
+
+  const renderSubtypeMenu = (familyId: AddModuleFamilyId) => {
+    activeFamily = familyId;
+    buttons = [];
+    menu.replaceChildren();
+    const family = getAddModuleFamily(familyId);
+
+    const back = createMenuButton({
+      className: "addSlotBackButton",
+      title: "← Families",
+      desc: `${family.code} · ${family.label}`,
+      onClick: () => {
+        renderRootMenu();
+        queueMicrotask(() => focusButton(0));
+      },
     });
-    buttons.push(btn);
-    menu.appendChild(btn);
-  }
+    buttons.push(back);
+    menu.appendChild(back);
+
+    const menuTitle = document.createElement("div");
+    menuTitle.className = "small addSlotMenuHint";
+    menuTitle.textContent = `${family.code} subtype`;
+    menu.appendChild(menuTitle);
+
+    const defaultItem = createMenuButton({
+      className: "addSlotMenuItem accent",
+      title: `Default ${family.label}`,
+      desc: "Fast add without browsing presets",
+      onClick: () => pickAndClose(family.defaultPick),
+    });
+    buttons.push(defaultItem);
+    menu.appendChild(defaultItem);
+
+    for (const item of family.subtypes ?? []) {
+      const btn = createMenuButton({
+        title: item.label,
+        desc: item.desc,
+        onClick: () => pickAndClose(item.value),
+      });
+      buttons.push(btn);
+      menu.appendChild(btn);
+    }
+
+    const presetHint = document.createElement("div");
+    presetHint.className = "small addSlotMenuPhaseHint";
+    presetHint.textContent = "Preset browser deferred to phase 2.";
+    menu.appendChild(presetHint);
+  };
+
+  renderRootMenu();
 
   let removeOutsideListener: (() => void) | null = null;
   let reposition: ReturnType<typeof bindFloatingPanelReposition> | null = null;
@@ -115,11 +256,12 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
   const focusButton = (index: number) => buttons[(index + buttons.length) % buttons.length]?.focus();
 
-  const closeMenu = (opts?: { restoreFocus?: boolean }) => {
+  function closeMenu(opts?: { restoreFocus?: boolean }) {
     menu.classList.add("hidden");
     menu.remove();
     slot.classList.remove("menuOpen");
     slot.setAttribute("aria-expanded", "false");
+    if (activeFamily) renderRootMenu();
     if (removeOutsideListener) {
       removeOutsideListener();
       removeOutsideListener = null;
@@ -128,7 +270,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     reposition = null;
     anchorState = {};
     if (opts?.restoreFocus) slot.focus();
-  };
+  }
 
   const openMenu = (anchor?: { x: number; y: number }, opts?: { focusFirst?: boolean }) => {
     if (!menu.classList.contains("hidden")) {
@@ -136,6 +278,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       return;
     }
 
+    renderRootMenu();
     anchorState = anchor ? { point: anchor } : {};
     menu.classList.remove("hidden");
     document.body.appendChild(menu);
@@ -145,15 +288,15 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       preferredSide: "bottom",
       align: anchor ? "start" : "center",
       offset: 10,
-      minWidth: 220,
-      maxWidth: 260,
+      minWidth: 260,
+      maxWidth: 320,
     });
     reposition = bindFloatingPanelReposition(menu, () => (slot.isConnected ? currentAnchor() : null), {
       preferredSide: "bottom",
       align: anchor ? "start" : "center",
       offset: 10,
-      minWidth: 220,
-      maxWidth: 260,
+      minWidth: 260,
+      maxWidth: 320,
     });
 
     const onDocPointerDown = (e: Event) => {
@@ -204,6 +347,17 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       focusButton(currentIndex < 0 ? buttons.length - 1 : currentIndex - 1);
+    } else if (e.key === "ArrowRight" && !activeFamily && currentIndex >= 0) {
+      const family = ADD_MODULE_FAMILIES.find((candidate) => candidate.subtypes?.length && buttons[currentIndex]?.textContent?.includes(candidate.code));
+      if (family) {
+        e.preventDefault();
+        renderSubtypeMenu(family.id);
+        queueMicrotask(() => focusButton(0));
+      }
+    } else if (e.key === "ArrowLeft" && activeFamily) {
+      e.preventDefault();
+      renderRootMenu();
+      queueMicrotask(() => focusButton(0));
     } else if (e.key === "Home") {
       e.preventDefault();
       focusButton(0);
@@ -242,7 +396,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       params.onDropModule(droppedModuleId);
       return;
     }
-    const dropped = e.dataTransfer?.getData("text/module-kind") as Pick | "";
+    const dropped = e.dataTransfer?.getData("text/module-kind") as AddModulePick | "";
     if (!dropped) return;
     params.onPick(dropped);
   });

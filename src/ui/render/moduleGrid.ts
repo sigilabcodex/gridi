@@ -1,6 +1,6 @@
 import type { Scheduler } from "../../engine/scheduler";
 import type { Engine } from "../../engine/audio";
-import type { Patch, VisualKind } from "../../patch";
+import type { Patch } from "../../patch";
 import { getControls, getTriggers, makeControl, makeSound, makeTrigger, makeVisual } from "../../patch";
 import {
   getModuleGridPosition,
@@ -16,7 +16,7 @@ import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModul
 import { renderTriggerSurface } from "../triggerModule";
 import { renderControlSurface } from "../controlModule";
 import { renderVisualSurface } from "../visualModule";
-import { renderAddModuleSlot } from "../AddModuleSlot";
+import { renderAddModuleSlot, type AddModulePick } from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
 import type { ModulePresetRecord } from "../persistence/modulePresetStore";
@@ -50,7 +50,7 @@ type ModuleGridParams = {
   isMidiTargetModule?: (moduleId: string) => boolean;
 };
 
-type Pick = "drum" | "tonal" | "trigger" | "control-lfo" | "control-drift" | "control-stepped" | VisualKind;
+type Pick = AddModulePick;
 
 const MIN_VISIBLE_COLUMNS = 1;
 const MOBILE_BREAKPOINT = 760;
