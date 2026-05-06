@@ -11,6 +11,7 @@ import { openPresetManagerModal } from "./modals/presetManagerModal";
 import { openSettingsModal } from "./modals/settingsModal";
 import { maybeShowWelcomeModal } from "./modals/welcomeModal";
 import {
+  firstFactoryExamplePatch,
   loadPresetSession,
   makePresetExportPayload,
   makeSinglePresetExportPayload,
@@ -355,6 +356,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       patch: clonePatch(patch),
       createdAt: now,
       updatedAt: now,
+      source: "user",
     };
 
     session.presets.push(preset);
@@ -368,16 +370,18 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   };
 
   const createSessionFromPatchTemplate = (template: "empty" | "example") => {
-    const label = template === "empty" ? "empty" : "starter";
-    const proposed = prompt(`New ${label} session name`, `Session ${session.presets.length + 1}`);
+    const label = template === "empty" ? "empty" : "example";
+    const fallbackName = template === "empty" ? `Session ${session.presets.length + 1}` : "Example 01 · Basic Pulse Copy";
+    const proposed = prompt(`New ${label} session name`, fallbackName);
     if (proposed === null) return;
     const now = Date.now();
     const preset: PresetRecord = {
       id: `preset-${now}`,
-      name: sanitizePresetName(proposed, `Session ${session.presets.length + 1}`),
-      patch: template === "empty" ? emptyPatch() : defaultPatch(),
+      name: sanitizePresetName(proposed, fallbackName),
+      patch: template === "empty" ? emptyPatch() : firstFactoryExamplePatch(),
       createdAt: now,
       updatedAt: now,
+      source: "user",
     };
     session.presets.push(preset);
     session.selectedPresetId = preset.id;
@@ -407,6 +411,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       patch: clonePatch(patch),
       createdAt: now,
       updatedAt: now,
+      source: "user",
     };
     session.presets.push(duplicate);
     session.selectedPresetId = duplicate.id;
@@ -444,6 +449,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       patch: clonePatch(source.patch),
       createdAt: now,
       updatedAt: now,
+      source: "user",
     };
 
     session.presets.push(duplicate);

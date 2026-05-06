@@ -79,7 +79,7 @@ This is valid for onboarding/demo flow, but semantics of “New Session” can m
 Split intent explicitly:
 
 - **New Empty Session** → deterministic empty patch template (`modules: []`, baseline master/transport defaults).
-- **New Example Session** (or “New from Starter”) → current `defaultPatch()` behavior.
+- **New Example Session** (formerly “New from Starter”) → curated factory example behavior, starting with `Example 01 · Basic Pulse`.
 
 Maintain both options so first-run friendliness is preserved while advanced users get predictable blank-state behavior.
 

@@ -482,10 +482,10 @@ export function createTransportHeader(params: HeaderParams) {
     "New empty session",
   );
   const btnNewExampleSession = makeUtilityBtn(
-    "New from starter",
+    "New example session",
     params.onNewExampleSession,
-    "Create and switch to a starter/example session patch without changing module preset libraries.",
-    "New from starter",
+    "Create and switch to the first curated factory example patch without changing module preset libraries.",
+    "New example session",
   );
   const btnSaveAs = makeUtilityBtn(
     "Save As…",
@@ -1213,7 +1213,7 @@ export function createTransportHeader(params: HeaderParams) {
       actions.className = "globalControlsDrawerUtilitySection";
       actions.append(
         makeDrawerActionBtn("New empty session", params.onNewEmptySession),
-        makeDrawerActionBtn("New from starter", params.onNewExampleSession),
+        makeDrawerActionBtn("New example session", params.onNewExampleSession),
         makeDrawerActionBtn("Save session", params.onSavePreset),
         makeDrawerActionBtn("Save As…", params.onSaveAsPreset),
         makeDrawerActionBtn("Session manager…", params.onOpenPresetManager),
