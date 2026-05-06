@@ -12,8 +12,11 @@ import { openSettingsModal } from "./modals/settingsModal";
 import { maybeShowWelcomeModal } from "./modals/welcomeModal";
 import {
   firstFactoryExamplePatch,
+  isFactoryPreset,
   loadPresetSession,
+  deleteSelectedUserPresets,
   makePresetExportPayload,
+  makeSelectedPresetExportPayload,
   makeSinglePresetExportPayload,
   parsePresetImportPayload,
   resetPresetSessionToFactoryExamples,
@@ -473,6 +476,11 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     const preset = session.presets.find((item) => item.id === presetId);
     if (!preset) return;
 
+    if (isFactoryPreset(preset)) {
+      alert("Factory examples are protected from deletion. Use reset or restore factory examples to manage the factory baseline.");
+      return;
+    }
+
     if (session.presets.length <= 1) {
       alert("At least one preset must exist.");
       return;
@@ -496,6 +504,39 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updatePresetUI();
     header.updateStatus();
     updateDocumentTitle();
+  };
+
+
+  const deleteSelectedPresets = (presetIds: string[]) => {
+    const previousSelectedPresetId = session.selectedPresetId;
+    const result = deleteSelectedUserPresets(session, presetIds);
+
+    if (!result.deletedCount) {
+      alert(result.protectedCount ? "Factory examples are protected from batch delete." : "No local sessions were selected for deletion.");
+      return;
+    }
+
+    session = result.session;
+    const next = selectedPreset();
+    session.selectedPresetId = next.id;
+
+    if (previousSelectedPresetId !== session.selectedPresetId) {
+      patch = clonePatch(next.patch);
+      savedSnapshot = JSON.stringify(patch);
+      syncEngineFromPatch(patch, true);
+      gridRenderer.rerender();
+      header.updateMuteBtn();
+      header.updateMasterGainUI();
+      header.updateBpmUI();
+    }
+
+    saveSession();
+    header.updatePresetUI();
+    header.updateStatus();
+    updateDocumentTitle();
+
+    const protectedCopy = result.protectedCount ? ` ${result.protectedCount} factory example${result.protectedCount === 1 ? " was" : "s were"} protected.` : "";
+    alert(`Deleted ${result.deletedCount} selected local session${result.deletedCount === 1 ? "" : "s"}.${protectedCopy}`);
   };
 
 
@@ -542,6 +583,15 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const exportSession = () => {
     const payload = makePresetExportPayload(session);
     downloadJSON("gridi-session.json", payload);
+  };
+
+  const exportSelectedPresets = (presetIds: string[]) => {
+    const payload = makeSelectedPresetExportPayload(session, presetIds);
+    if (!payload) {
+      alert("Select one or more local sessions to export.");
+      return;
+    }
+    downloadJSON("gridi-selected-sessions.json", payload);
   };
 
   const importFromFile = () => {
@@ -772,11 +822,13 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         onRenamePreset: renamePreset,
         onDuplicatePreset: duplicatePreset,
         onDeletePreset: deletePreset,
+        onDeleteSelectedPresets: deleteSelectedPresets,
         onRestoreFactoryExamples: restoreFactoryExamples,
         onResetToFactoryExamples: resetToFactoryExamples,
         onSaveCurrentPreset: saveCurrentPreset,
         onExportCurrentPreset: exportCurrentPreset,
         onExportSession: exportSession,
+        onExportSelectedPresets: exportSelectedPresets,
         onImportFile: importFromFile,
       }),
     onSelectPreset: loadPresetById,
