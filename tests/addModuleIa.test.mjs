@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ADD_MODULE_FAMILIES, getAddModuleFamily, getAddModuleSubtypeItems } from '../src/ui/AddModuleSlot.ts';
+import {
+  ADD_MODULE_FAMILIES,
+  getAddModuleFamily,
+  getAddModuleRootKeyboardMetadata,
+  getAddModuleSubtypeItems,
+} from '../src/ui/AddModuleSlot.ts';
 import { makeControl, makeSound, makeTrigger, makeVisual } from '../src/patch.ts';
 
 function createModuleForPick(pick, index = 0) {
@@ -75,4 +80,48 @@ test('add-module subtype lookup is empty for direct-add families', () => {
   assert.deepEqual(getAddModuleSubtypeItems('gen'), []);
   assert.deepEqual(getAddModuleSubtypeItems('drum'), []);
   assert.deepEqual(getAddModuleSubtypeItems('synth'), []);
+});
+
+test('add-module root keyboard metadata explicitly marks subtype-capable families', () => {
+  assert.deepEqual(getAddModuleRootKeyboardMetadata(), [
+    { familyId: 'gen', defaultPick: 'trigger', opensSubtypes: false },
+    { familyId: 'drum', defaultPick: 'drum', opensSubtypes: false },
+    { familyId: 'synth', defaultPick: 'tonal', opensSubtypes: false },
+    { familyId: 'ctrl', defaultPick: 'control-lfo', opensSubtypes: true },
+    { familyId: 'vis', defaultPick: 'scope', opensSubtypes: true },
+  ]);
+});
+
+test('add-module keyboard subtype intent is independent from visible family copy', () => {
+  const originalCopy = ADD_MODULE_FAMILIES.map((family) => ({
+    family,
+    code: family.code,
+    label: family.label,
+    desc: family.desc,
+  }));
+
+  try {
+    for (const { family } of originalCopy) {
+      family.code = `Copy ${family.id}`;
+      family.label = `Visible ${family.id}`;
+      family.desc = `Description ${family.id}`;
+    }
+
+    assert.deepEqual(
+      getAddModuleRootKeyboardMetadata().map(({ familyId, opensSubtypes }) => ({ familyId, opensSubtypes })),
+      [
+        { familyId: 'gen', opensSubtypes: false },
+        { familyId: 'drum', opensSubtypes: false },
+        { familyId: 'synth', opensSubtypes: false },
+        { familyId: 'ctrl', opensSubtypes: true },
+        { familyId: 'vis', opensSubtypes: true },
+      ]
+    );
+  } finally {
+    for (const { family, code, label, desc } of originalCopy) {
+      family.code = code;
+      family.label = label;
+      family.desc = desc;
+    }
+  }
 });

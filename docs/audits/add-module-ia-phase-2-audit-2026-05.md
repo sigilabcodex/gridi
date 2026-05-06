@@ -16,6 +16,8 @@ The main Phase 2 recommendation is conservative:
 
 The smallest useful Phase 2 scope should be an AddModuleSlot polish pass: replace fragile text-derived keyboard subtype detection with explicit button metadata, make phase-2 placeholder copy less prominent, add tests for the IA data model and keyboard-intent assumptions where practical, and document a future third-step preset path without exposing it yet.
 
+Pass 1 implementation note (2026-05-06): the AddModuleSlot polish pass now uses explicit root-button keyboard descriptors for subtype navigation, removes roadmap-facing phase/search/preset hints from the menu, and adds focused IA metadata tests. Search, preset browsing, insertion policy, routing, patch schema, factory presets, and examples remain unchanged.
+
 ## 2. Sources reviewed
 
 Required project and direction sources:

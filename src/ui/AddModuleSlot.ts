@@ -30,6 +30,16 @@ export type AddModuleFamily = {
   subtypes?: AddModuleSubtypeItem[];
 };
 
+export type AddModuleRootKeyboardMetadata = {
+  familyId: AddModuleFamilyId;
+  defaultPick: AddModulePick;
+  opensSubtypes: boolean;
+};
+
+type AddModuleButtonDescriptor = AddModuleRootKeyboardMetadata & {
+  element: HTMLButtonElement;
+};
+
 const CONTROL_SUBTYPES: AddModuleSubtypeItem[] = [
   { label: "LFO", shortLabel: "LFO", desc: "Cyclic control oscillator", value: "control-lfo" },
   { label: "Drift", shortLabel: "Drift", desc: "Smooth random control", value: "control-drift" },
@@ -63,6 +73,14 @@ export function getAddModuleFamily(id: AddModuleFamilyId): AddModuleFamily {
 
 export function getAddModuleSubtypeItems(id: AddModuleFamilyId): AddModuleSubtypeItem[] {
   return getAddModuleFamily(id).subtypes ?? [];
+}
+
+export function getAddModuleRootKeyboardMetadata(): AddModuleRootKeyboardMetadata[] {
+  return ADD_MODULE_FAMILIES.map((family) => ({
+    familyId: family.id,
+    defaultPick: family.defaultPick,
+    opensSubtypes: Boolean(family.subtypes?.length),
+  }));
 }
 
 function createMenuButton(options: { className?: string; title: string; desc?: string; meta?: string; onClick: () => void }) {
@@ -134,6 +152,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
   let activeFamily: AddModuleFamilyId | null = null;
   let buttons: HTMLButtonElement[] = [];
+  let rootButtonDescriptors: AddModuleButtonDescriptor[] = [];
 
   const pickAndClose = (what: AddModulePick) => {
     closeMenu();
@@ -143,6 +162,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   const renderRootMenu = () => {
     activeFamily = null;
     buttons = [];
+    rootButtonDescriptors = [];
     menu.replaceChildren();
 
     const menuTitle = document.createElement("div");
@@ -152,7 +172,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
 
     const browserHint = document.createElement("div");
     browserHint.className = "small addSlotMenuPhaseHint";
-    browserHint.textContent = "Choose a family. Presets/search arrive in phase 2.";
+    browserHint.textContent = "Choose a family.";
     menu.appendChild(browserHint);
 
     for (const family of ADD_MODULE_FAMILIES) {
@@ -173,6 +193,12 @@ export function renderAddModuleSlot(params: AddSlotParams) {
         },
       });
       buttons.push(familyButton);
+      rootButtonDescriptors.push({
+        element: familyButton,
+        familyId: family.id,
+        defaultPick: family.defaultPick,
+        opensSubtypes: Boolean(family.subtypes?.length),
+      });
       row.appendChild(familyButton);
 
       if (family.subtypes?.length) {
@@ -188,6 +214,12 @@ export function renderAddModuleSlot(params: AddSlotParams) {
           pickAndClose(family.defaultPick);
         };
         buttons.push(quickButton);
+        rootButtonDescriptors.push({
+          element: quickButton,
+          familyId: family.id,
+          defaultPick: family.defaultPick,
+          opensSubtypes: false,
+        });
         row.appendChild(quickButton);
       }
 
@@ -198,6 +230,7 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   const renderSubtypeMenu = (familyId: AddModuleFamilyId) => {
     activeFamily = familyId;
     buttons = [];
+    rootButtonDescriptors = [];
     menu.replaceChildren();
     const family = getAddModuleFamily(familyId);
 
@@ -236,11 +269,6 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       buttons.push(btn);
       menu.appendChild(btn);
     }
-
-    const presetHint = document.createElement("div");
-    presetHint.className = "small addSlotMenuPhaseHint";
-    presetHint.textContent = "Preset browser deferred to phase 2.";
-    menu.appendChild(presetHint);
   };
 
   renderRootMenu();
@@ -348,10 +376,10 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       e.preventDefault();
       focusButton(currentIndex < 0 ? buttons.length - 1 : currentIndex - 1);
     } else if (e.key === "ArrowRight" && !activeFamily && currentIndex >= 0) {
-      const family = ADD_MODULE_FAMILIES.find((candidate) => candidate.subtypes?.length && buttons[currentIndex]?.textContent?.includes(candidate.code));
-      if (family) {
+      const descriptor = rootButtonDescriptors.find((candidate) => candidate.element === buttons[currentIndex]);
+      if (descriptor?.opensSubtypes) {
         e.preventDefault();
-        renderSubtypeMenu(family.id);
+        renderSubtypeMenu(descriptor.familyId);
         queueMicrotask(() => focusButton(0));
       }
     } else if (e.key === "ArrowLeft" && activeFamily) {
