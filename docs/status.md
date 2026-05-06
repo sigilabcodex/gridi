@@ -95,6 +95,7 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 - CONTROL redesign and expansion.
 - VISUAL expansion with multiple dedicated visual modes.
 - Time-sensitive spectrogram visual mode for frequency/intensity-over-time analysis in performance and sound-design workflows.
+- Complete the placeholder light theme as a separate UI-system task after the initial `v0.4` routing audit/planning pass, including token/state audit, consistent module faceplate coverage, readability checks for GEN displays/chips/controls/routing/transport UI, and no one-off color overrides. See [`docs/audits/light-theme-system-follow-up-2026-05.md`](audits/light-theme-system-follow-up-2026-05.md).
 - Image-driven generation direction (image-to-sound scanning/mapping exploration).
 - Quantum/Schrödinger-inspired generation direction (conceptual indeterminacy/observation metaphors).
 - Dataset/spreadsheet-driven generation direction (tabular data as structured event source; data-driven and explicitly non-AI).
