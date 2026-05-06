@@ -278,6 +278,57 @@ test('factory presets include stable codes', () => {
   });
 });
 
+test('factory drum and synth expansions continue code numbering without replacing existing presets', () => {
+  withMockStorage(() => {
+    const records = loadModulePresetLibrary();
+    const drumCodes = records
+      .filter((record) => record.family === 'drum' && record.source === 'factory')
+      .map((record) => record.code);
+    const synthCodes = records
+      .filter((record) => record.family === 'tonal' && record.source === 'factory')
+      .map((record) => record.code);
+
+    assert.deepEqual(drumCodes, [
+      'DRUM001',
+      'DRUM002',
+      'DRUM003',
+      'DRUM004',
+      'DRUM005',
+      'DRUM006',
+      'DRUM007',
+      'DRUM008',
+      'DRUM009',
+      'DRUM010',
+      'DRUM011',
+      'DRUM012',
+      'DRUM013',
+      'DRUM014',
+      'DRUM015',
+      'DRUM016',
+    ]);
+    assert.deepEqual(synthCodes, [
+      'SYNTH001',
+      'SYNTH002',
+      'SYNTH003',
+      'SYNTH004',
+      'SYNTH005',
+      'SYNTH006',
+      'SYNTH007',
+      'SYNTH008',
+      'SYNTH009',
+      'SYNTH010',
+      'SYNTH011',
+      'SYNTH012',
+      'SYNTH013',
+      'SYNTH014',
+      'SYNTH015',
+      'SYNTH016',
+    ]);
+    assert.ok(records.some((record) => record.id === 'factory-drum-tight-snare' && record.name === 'Tight Snare'));
+    assert.ok(records.some((record) => record.id === 'factory-synth-noise-sweep' && record.name === 'Noise Sweep'));
+  });
+});
+
 test('module preset normalization keeps optional code and tolerates missing code', () => {
   const payload = [
     { id: 'user-a', code: 'DRUM099', name: 'Coded User', family: 'drum', subtype: 'drum', state: { enabled: true, amp: 0.2, pan: 0, basePitch: 0.4, decay: 0.3, transient: 0.6, snap: 0.5, noise: 0.2, bodyTone: 0.3, pitchEnvAmt: 0.4, pitchEnvDecay: 0.2, tone: 0.3 }, createdAt: 1, updatedAt: 2 },

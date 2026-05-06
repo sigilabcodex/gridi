@@ -125,6 +125,35 @@ Current implementation already has the right hooks:
 
 Follow-up should focus on naming and presentation, not on data model rewrite.
 
+
+### Module preset bank expansion audit (2026-05-06)
+
+This pass keeps the current flat factory list and stable code display intact while defining bank intent for future curation. Current DRUM and SYNTH factory presets are grouped as follows:
+
+| Family | Basic / foundational | Musical / production-ready | Experimental / sound-design |
+| --- | --- | --- | --- |
+| DRUM | `DRUM001 · Deep Kick`, `DRUM002 · Soft Kick`, `DRUM003 · Punch Kick`, `DRUM004 · Click Kick`, `DRUM005 · Sub Kick`, `DRUM013 · Tight Snare`, `DRUM014 · Closed Hat` | `DRUM007 · Tom Like`, `DRUM008 · Snare Like`, `DRUM009 · Hat Like`, `DRUM011 · Pop Perc`, `DRUM015 · Low Conga` | `DRUM006 · Noisy Kick`, `DRUM010 · Metallic Tick`, `DRUM012 · Distorted Perc`, `DRUM016 · Dust Rim` |
+| SYNTH | `SYNTH001 · Rubber Bass`, `SYNTH002 · Soft Bass`, `SYNTH003 · Bright Pluck`, `SYNTH004 · Muted Pluck`, `SYNTH005 · Lead`, `SYNTH013 · Sub Sine Bass`, `SYNTH014 · Square Lead` | `SYNTH006 · Hollow Lead`, `SYNTH008 · Airy Pad`, `SYNTH012 · Wide Stereo Tone`, `SYNTH015 · Warm Pad` | `SYNTH007 · Drone`, `SYNTH009 · Glass Tone`, `SYNTH010 · Noisy Tone`, `SYNTH011 · FM-like Tone`, `SYNTH016 · Noise Sweep` |
+
+Small additions made in this pass:
+
+- DRUM: `DRUM013 · Tight Snare`, `DRUM014 · Closed Hat`, `DRUM015 · Low Conga`, `DRUM016 · Dust Rim`.
+- SYNTH: `SYNTH013 · Sub Sine Bass`, `SYNTH014 · Square Lead`, `SYNTH015 · Warm Pad`, `SYNTH016 · Noise Sweep`.
+
+Remaining gaps before larger bank expansion:
+
+- DRUM: open hat, clap, rim/cross-stick alternatives, ride/cymbal-like noise, additional tuned tom/percussion notes, and more subtle acoustic/electro production variants.
+- SYNTH: acid/rez bass, mono stab, chord/key pad, bell/mallet, short noise burst, riser/fall FX, evolving texture variants, and clearer keyboard-range role coverage.
+- Cross-bank metadata: bank slug, bank title, curator/artist/composer/engineer credit, license/attribution, tags, role/category, compatibility/version, and optional notes/audio-preview metadata are not yet represented in the module preset record.
+
+Future bank model recommendation:
+
+1. Keep a compact **Core Factory** bank as the default, stable, beginner-safe palette with strict code continuity (`DRUM###`, `SYNTH###`, etc.).
+2. Split more extreme sounds into a first-party **Experimental / Sound Design** bank so adventurous material can grow without making the default list feel noisy.
+3. Add **Guest-Curated** banks as immutable curated collections with visible curator identity, description, and bank-level versioning.
+4. Support **artist/composer/engineer contributed banks** with contribution metadata, review status, source/license notes, and optional role tags such as `kick`, `snare`, `bass`, `lead`, `pad`, `texture`, or `fx`.
+5. Prefer adding optional bank metadata around `ModulePresetRecord` rather than changing audio-engine state snapshots; keep preset application compatibility family/subtype-based.
+
 ---
 
 ## 4) Multi-select / batch actions
