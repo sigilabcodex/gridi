@@ -313,3 +313,23 @@ Session Manager cleanup/reset behavior is intentionally explicit and data-safe:
 - Import/export payload shape remains unchanged so existing session and single-preset JSON files continue to round-trip through the same persistence helpers.
 
 Follow-up recommendation: consider adding a non-destructive “Export all before reset” shortcut near the reset confirmation once session archives or backup affordances are designed.
+
+---
+
+## 10) Session Manager batch-actions status (2026-05-06)
+
+Session Manager now has a modal-local multi-select model separate from module-grid selection. Selection is not written into patches or session payloads, and filtering the session list does not clear checked local sessions.
+
+Implemented safe first-pass batch actions:
+
+- **Export selected** writes a standard session export payload containing only selected local sessions, so the existing import path can round-trip it without schema changes.
+- **Delete selected** deletes only selected local/user sessions after explicit confirmation that includes the number of sessions being removed.
+- Factory example sessions are shown as protected in the batch UI and are not deleted by batch delete. They remain recoverable through the existing restore/reset actions.
+- If deleting selected local sessions removes the active session, the app selects a valid remaining session; if no replacement remains, factory examples are restored as the safe fallback baseline.
+
+Deferred follow-ups remain intentionally out of scope for this pass:
+
+- duplicate selected,
+- create session pack,
+- curator/bank metadata,
+- drag-reordering, folders, or tags.

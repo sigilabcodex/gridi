@@ -3,9 +3,11 @@ import test from 'node:test';
 import { emptyPatch, getTriggers, isSound, makeControl, makeSound, makeTrigger, migratePatch } from '../src/patch.ts';
 import {
   defaultPresetSession,
+  deleteSelectedUserPresets,
   factoryExamplePresets,
   loadPresetSession,
   makePresetExportPayload,
+  makeSelectedPresetExportPayload,
   makeSinglePresetExportPayload,
   parsePresetImportPayload,
   resetPresetSessionToFactoryExamples,
@@ -410,4 +412,130 @@ test('module preset normalization keeps optional code and tolerates missing code
     assert.equal(coded?.code, 'DRUM099');
     assert.equal(legacy?.code, undefined);
   });
+});
+
+test('delete selected user sessions preserves factory examples', () => {
+  const factory = factoryExamplePresets();
+  const userPreset = {
+    id: 'user-delete-a',
+    name: 'User Delete A',
+    patch: makeLinkedPatch(),
+    createdAt: 30,
+    updatedAt: 31,
+    source: 'user',
+  };
+  const result = deleteSelectedUserPresets({
+    version: '0.33',
+    selectedPresetId: userPreset.id,
+    presets: [userPreset, ...factory],
+  }, [userPreset.id, factory[0].id]);
+
+  assert.equal(result.deletedCount, 1);
+  assert.equal(result.protectedCount, 1);
+  assert.ok(!result.session.presets.some((preset) => preset.id === userPreset.id));
+  assert.deepEqual(
+    result.session.presets.filter((preset) => preset.source === 'factory').map((preset) => preset.id),
+    factory.map((preset) => preset.id)
+  );
+});
+
+test('delete selected user sessions restores factory fallback instead of deleting the last available session', () => {
+  const onlyUser = {
+    id: 'only-user-session',
+    name: 'Only User Session',
+    patch: makeLinkedPatch(),
+    createdAt: 40,
+    updatedAt: 41,
+    source: 'user',
+  };
+  const result = deleteSelectedUserPresets({
+    version: '0.33',
+    selectedPresetId: onlyUser.id,
+    presets: [onlyUser],
+  }, [onlyUser.id]);
+
+  assert.equal(result.deletedCount, 1);
+  assert.equal(result.session.presets.length, factoryExamplePresets().length);
+  assert.ok(result.session.presets.some((preset) => preset.id === result.session.selectedPresetId));
+  assert.ok(result.session.presets.every((preset) => preset.source === 'factory'));
+});
+
+test('deleting active selected user session selects a valid replacement', () => {
+  const keepUser = {
+    id: 'keep-user-session',
+    name: 'Keep User Session',
+    patch: makeLinkedPatch(),
+    createdAt: 50,
+    updatedAt: 51,
+    source: 'user',
+  };
+  const deleteUser = {
+    id: 'delete-active-session',
+    name: 'Delete Active Session',
+    patch: makeLinkedPatch(),
+    createdAt: 52,
+    updatedAt: 53,
+    source: 'user',
+  };
+  const result = deleteSelectedUserPresets({
+    version: '0.33',
+    selectedPresetId: deleteUser.id,
+    presets: [deleteUser, keepUser],
+  }, [deleteUser.id]);
+
+  assert.equal(result.deletedCount, 1);
+  assert.equal(result.session.selectedPresetId, keepUser.id);
+  assert.ok(result.session.presets.some((preset) => preset.id === result.session.selectedPresetId));
+});
+
+test('selected preset export produces compatible session payload', () => {
+  const session = defaultPresetSession();
+  const selectedA = {
+    id: 'selected-export-a',
+    name: 'Selected Export A',
+    patch: makeLinkedPatch(),
+    createdAt: 60,
+    updatedAt: 61,
+    source: 'user',
+  };
+  const selectedB = {
+    id: 'selected-export-b',
+    name: 'Selected Export B',
+    patch: makeLinkedPatch(),
+    createdAt: 62,
+    updatedAt: 63,
+    source: 'user',
+  };
+  session.presets.push(selectedA, selectedB);
+  session.selectedPresetId = selectedB.id;
+
+  const payload = makeSelectedPresetExportPayload(session, [selectedA.id, selectedB.id]);
+
+  assert.ok(payload);
+  assert.equal(payload.selectedPresetId, selectedB.id);
+  assert.deepEqual(payload.presets.map((preset) => preset.id), [selectedA.id, selectedB.id]);
+  assert.equal(parsePresetImportPayload(JSON.stringify(payload))?.presets.length, 2);
+});
+
+test('import of selected preset export round-trips selected sessions', () => {
+  const session = defaultPresetSession();
+  const exportedPreset = {
+    id: 'roundtrip-selected-export',
+    name: 'Roundtrip Selected Export',
+    patch: makeLinkedPatch(),
+    createdAt: 70,
+    updatedAt: 71,
+    source: 'user',
+  };
+  session.presets.push(exportedPreset);
+  session.selectedPresetId = exportedPreset.id;
+
+  const payload = makeSelectedPresetExportPayload(session, [exportedPreset.id]);
+  const imported = parsePresetImportPayload(JSON.stringify(payload));
+
+  assert.ok(imported);
+  assert.equal(imported.selectedPresetId, exportedPreset.id);
+  assert.equal(imported.presets.length, 1);
+  assert.equal(imported.presets[0].id, exportedPreset.id);
+  assert.equal(imported.presets[0].patch.modules[1].triggerSource, imported.presets[0].patch.modules[0].id);
 });

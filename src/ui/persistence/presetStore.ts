@@ -292,6 +292,62 @@ export function makePresetExportPayload(session: PresetSession): PresetExportPay
   };
 }
 
+export function isFactoryPreset(preset: PresetRecord): boolean {
+  return preset.source === "factory";
+}
+
+export function makeSelectedPresetExportPayload(session: PresetSession, presetIds: Iterable<string>): PresetExportPayload | null {
+  const selectedIds = new Set(presetIds);
+  const presets = session.presets.filter((preset) => selectedIds.has(preset.id));
+  if (!presets.length) return null;
+
+  return {
+    version: PRESET_EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    selectedPresetId: presets.some((preset) => preset.id === session.selectedPresetId) ? session.selectedPresetId : presets[0].id,
+    presets,
+  };
+}
+
+export type DeleteSelectedPresetsResult = {
+  session: PresetSession;
+  deletedCount: number;
+  protectedCount: number;
+};
+
+export function deleteSelectedUserPresets(session: PresetSession, presetIds: Iterable<string>): DeleteSelectedPresetsResult {
+  const selectedIds = new Set(presetIds);
+  if (!selectedIds.size) return { session, deletedCount: 0, protectedCount: 0 };
+
+  const deletedIds = new Set<string>();
+  let protectedCount = 0;
+  const remaining = session.presets.filter((preset) => {
+    if (!selectedIds.has(preset.id)) return true;
+    if (isFactoryPreset(preset)) {
+      protectedCount += 1;
+      return true;
+    }
+    deletedIds.add(preset.id);
+    return false;
+  });
+
+  if (!deletedIds.size) return { session, deletedCount: 0, protectedCount };
+
+  const restored = restoreMissingFactoryExamples({
+    ...session,
+    presets: remaining,
+    selectedPresetId: remaining.some((preset) => preset.id === session.selectedPresetId)
+      ? session.selectedPresetId
+      : remaining[0]?.id ?? factoryExamplePresets()[0].id,
+  });
+
+  return {
+    session: restored,
+    deletedCount: deletedIds.size,
+    protectedCount,
+  };
+}
+
 export function makeSinglePresetExportPayload(preset: PresetRecord): SinglePresetExportPayload {
   return {
     version: PRESET_EXPORT_VERSION,

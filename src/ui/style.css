@@ -7152,3 +7152,33 @@ button:focus-visible,
   border-color: rgba(125, 212, 255, 0.5);
   background: rgba(125, 212, 255, 0.1);
 }
+
+.presetManagerBatchNote {
+  margin-top: 10px;
+}
+
+.presetManagerBatchActions {
+  align-items: center;
+}
+
+.presetManagerSelectionSummary {
+  min-width: 150px;
+  opacity: 0.82;
+}
+
+.presetRow.selected {
+  border-color: rgba(0, 224, 150, 0.46);
+  background: rgba(0, 224, 150, 0.08);
+}
+
+.presetSelectToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  user-select: none;
+}
+
+.presetSelectToggle input:disabled + span {
+  opacity: 0.62;
+}
