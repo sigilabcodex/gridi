@@ -83,6 +83,7 @@ export function openPresetManagerModal(params: PresetManagerModalParams) {
   const batchNote = el("div", "small settingsIntro presetManagerBatchNote");
   batchNote.textContent = "Batch actions apply only to selected local sessions. Factory examples can be restored separately.";
   const batchActions = el("div", "settingsBtnRow presetManagerBatchActions");
+  batchActions.dataset.testid = "preset-manager-batch-actions";
   const selectionSummary = el("span", "small presetManagerSelectionSummary", "0 local selected");
   const btnExportSelected = el("button", "", "Export selected");
   const btnDeleteSelected = el("button", "danger", "Delete selected");
