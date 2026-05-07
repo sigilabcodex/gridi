@@ -1,9 +1,19 @@
 import type { ControlKind, VisualKind } from "../patch";
 import type { GridPosition } from "../workspacePlacement.ts";
-import { bindFloatingPanelReposition, pointAnchor, placeFloatingPanel, type FloatingAnchor } from "./floatingPanel.ts";
+import {
+  bindFloatingPanelReposition,
+  pointAnchor,
+  placeFloatingPanel,
+  type FloatingAnchor,
+} from "./floatingPanel.ts";
 import type { TooltipBinder } from "./tooltip.ts";
 
-export type AddModulePick = "drum" | "tonal" | "trigger" | `control-${ControlKind}` | VisualKind;
+export type AddModulePick =
+  | "drum"
+  | "tonal"
+  | "trigger"
+  | `control-${ControlKind}`
+  | VisualKind;
 export type AddModuleFamilyId = "gen" | "drum" | "synth" | "ctrl" | "vis";
 
 type AddSlotParams = {
@@ -41,28 +51,112 @@ type AddModuleButtonDescriptor = AddModuleRootKeyboardMetadata & {
 };
 
 const CONTROL_SUBTYPES: AddModuleSubtypeItem[] = [
-  { label: "LFO", shortLabel: "LFO", desc: "Cyclic control oscillator", value: "control-lfo" },
-  { label: "Drift", shortLabel: "Drift", desc: "Smooth random control", value: "control-drift" },
-  { label: "Stepped", shortLabel: "Step", desc: "Sample/step control", value: "control-stepped" },
+  {
+    label: "LFO",
+    shortLabel: "LFO",
+    desc: "Cyclic control oscillator",
+    value: "control-lfo",
+  },
+  {
+    label: "Drift",
+    shortLabel: "Drift",
+    desc: "Smooth random control",
+    value: "control-drift",
+  },
+  {
+    label: "Stepped",
+    shortLabel: "Step",
+    desc: "Sample/step control",
+    value: "control-stepped",
+  },
 ];
 
 const VISUAL_SUBTYPES: AddModuleSubtypeItem[] = [
   { label: "Scope", shortLabel: "Scope", desc: "Wave monitor", value: "scope" },
-  { label: "Spectrum", shortLabel: "Spec", desc: "Frequency monitor", value: "spectrum" },
-  { label: "Vectorscope", shortLabel: "Vector", desc: "Stereo phase view", value: "vectorscope" },
-  { label: "Spectral Depth", shortLabel: "Depth", desc: "Layered spectral field", value: "spectral-depth" },
-  { label: "Flow", shortLabel: "Flow", desc: "Motion-reactive field", value: "flow" },
-  { label: "Ritual", shortLabel: "Ritual", desc: "Symbolic visual meter", value: "ritual" },
-  { label: "Glitch", shortLabel: "Glitch", desc: "Digital-reactive display", value: "glitch" },
-  { label: "Cymat", shortLabel: "Cymat", desc: "Cymatic pattern view", value: "cymat" },
+  {
+    label: "Spectrum",
+    shortLabel: "Spec",
+    desc: "Frequency monitor",
+    value: "spectrum",
+  },
+  {
+    label: "Vectorscope",
+    shortLabel: "Vector",
+    desc: "Stereo phase view",
+    value: "vectorscope",
+  },
+  {
+    label: "Spectral Depth",
+    shortLabel: "Depth",
+    desc: "Layered spectral field",
+    value: "spectral-depth",
+  },
+  {
+    label: "Flow",
+    shortLabel: "Flow",
+    desc: "Motion-reactive field",
+    value: "flow",
+  },
+  {
+    label: "Ritual",
+    shortLabel: "Ritual",
+    desc: "Symbolic visual meter",
+    value: "ritual",
+  },
+  {
+    label: "Glitch",
+    shortLabel: "Glitch",
+    desc: "Digital-reactive display",
+    value: "glitch",
+  },
+  {
+    label: "Cymat",
+    shortLabel: "Cymat",
+    desc: "Cymatic pattern view",
+    value: "cymat",
+  },
 ];
 
 export const ADD_MODULE_FAMILIES: AddModuleFamily[] = [
-  { id: "gen", code: "GEN", label: "Generator", desc: "Pattern source", defaultPick: "trigger", accent: true },
-  { id: "drum", code: "DRUM", label: "Drum", desc: "Percussive voice", defaultPick: "drum", accent: true },
-  { id: "synth", code: "SYNTH", label: "Synth", desc: "Tonal voice", defaultPick: "tonal" },
-  { id: "ctrl", code: "CTRL", label: "Control", desc: "Modulation sources", defaultPick: "control-lfo", subtypes: CONTROL_SUBTYPES },
-  { id: "vis", code: "VIS", label: "Visual", desc: "Signal displays", defaultPick: "scope", subtypes: VISUAL_SUBTYPES },
+  {
+    id: "gen",
+    code: "GEN",
+    label: "Generator",
+    desc: "Pattern source",
+    defaultPick: "trigger",
+    accent: true,
+  },
+  {
+    id: "drum",
+    code: "DRUM",
+    label: "Drum",
+    desc: "Percussive voice",
+    defaultPick: "drum",
+    accent: true,
+  },
+  {
+    id: "synth",
+    code: "SYNTH",
+    label: "Synth",
+    desc: "Tonal voice",
+    defaultPick: "tonal",
+  },
+  {
+    id: "ctrl",
+    code: "CTRL",
+    label: "Control",
+    desc: "Modulation sources",
+    defaultPick: "control-lfo",
+    subtypes: CONTROL_SUBTYPES,
+  },
+  {
+    id: "vis",
+    code: "VIS",
+    label: "Visual",
+    desc: "Signal displays",
+    defaultPick: "scope",
+    subtypes: VISUAL_SUBTYPES,
+  },
 ];
 
 export function getAddModuleFamily(id: AddModuleFamilyId): AddModuleFamily {
@@ -71,7 +165,9 @@ export function getAddModuleFamily(id: AddModuleFamilyId): AddModuleFamily {
   return family;
 }
 
-export function getAddModuleSubtypeItems(id: AddModuleFamilyId): AddModuleSubtypeItem[] {
+export function getAddModuleSubtypeItems(
+  id: AddModuleFamilyId,
+): AddModuleSubtypeItem[] {
   return getAddModuleFamily(id).subtypes ?? [];
 }
 
@@ -83,7 +179,69 @@ export function getAddModuleRootKeyboardMetadata(): AddModuleRootKeyboardMetadat
   }));
 }
 
-function createMenuButton(options: { className?: string; title: string; desc?: string; meta?: string; onClick: () => void }) {
+export type AddModuleFamilySearchResult = {
+  family: AddModuleFamily;
+  familyMatches: boolean;
+  matchedSubtypes: AddModuleSubtypeItem[];
+};
+
+function normalizeAddModuleSearchTerm(value: string) {
+  return value.trim().toLocaleLowerCase();
+}
+
+function addModuleFamilyMatchesSearch(family: AddModuleFamily, term: string) {
+  const haystack = [
+    family.id,
+    family.code,
+    family.label,
+    family.desc,
+    family.defaultPick,
+  ]
+    .join(" ")
+    .toLocaleLowerCase();
+  return haystack.includes(term);
+}
+
+function addModuleSubtypeMatchesSearch(
+  item: AddModuleSubtypeItem,
+  term: string,
+) {
+  const haystack = [item.label, item.shortLabel, item.desc, item.value]
+    .join(" ")
+    .toLocaleLowerCase();
+  return haystack.includes(term);
+}
+
+export function getAddModuleSearchResults(
+  query: string,
+): AddModuleFamilySearchResult[] {
+  const term = normalizeAddModuleSearchTerm(query);
+  if (!term) {
+    return ADD_MODULE_FAMILIES.map((family) => ({
+      family,
+      familyMatches: true,
+      matchedSubtypes: family.subtypes ?? [],
+    }));
+  }
+
+  return ADD_MODULE_FAMILIES.map((family) => {
+    const familyMatches = addModuleFamilyMatchesSearch(family, term);
+    const matchedSubtypes = (family.subtypes ?? []).filter((item) =>
+      addModuleSubtypeMatchesSearch(item, term),
+    );
+    return { family, familyMatches, matchedSubtypes };
+  }).filter(
+    (result) => result.familyMatches || result.matchedSubtypes.length > 0,
+  );
+}
+
+function createMenuButton(options: {
+  className?: string;
+  title: string;
+  desc?: string;
+  meta?: string;
+  onClick: () => void;
+}) {
   const btn = document.createElement("button");
   btn.className = options.className ?? "addSlotMenuItem";
   btn.type = "button";
@@ -97,7 +255,9 @@ function createMenuButton(options: { className?: string; title: string; desc?: s
   if (options.desc || options.meta) {
     const desc = document.createElement("div");
     desc.className = "small addSlotMenuDesc";
-    desc.textContent = options.meta ? `${options.meta} · ${options.desc ?? ""}` : options.desc ?? "";
+    desc.textContent = options.meta
+      ? `${options.meta} · ${options.desc ?? ""}`
+      : (options.desc ?? "");
     btn.appendChild(desc);
   }
 
@@ -153,13 +313,14 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   let activeFamily: AddModuleFamilyId | null = null;
   let buttons: HTMLButtonElement[] = [];
   let rootButtonDescriptors: AddModuleButtonDescriptor[] = [];
+  let searchQuery = "";
 
   const pickAndClose = (what: AddModulePick) => {
     closeMenu();
     params.onPick(what);
   };
 
-  const renderRootMenu = () => {
+  const renderRootMenu = (opts?: { focusSearch?: boolean }) => {
     activeFamily = null;
     buttons = [];
     rootButtonDescriptors = [];
@@ -170,12 +331,60 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     menuTitle.textContent = `Insert at (${params.position.x}, ${params.position.y})`;
     menu.appendChild(menuTitle);
 
+    const searchWrap = document.createElement("label");
+    searchWrap.className = "addSlotSearchWrap";
+
+    const searchLabel = document.createElement("span");
+    searchLabel.className = "small addSlotSearchLabel";
+    searchLabel.textContent = "Find";
+    searchWrap.appendChild(searchLabel);
+
+    const searchInput = document.createElement("input");
+    searchInput.className = "addSlotSearchInput";
+    searchInput.type = "search";
+    searchInput.autocomplete = "off";
+    searchInput.spellcheck = false;
+    searchInput.placeholder = "GEN, LFO, Scope…";
+    searchInput.value = searchQuery;
+    searchInput.setAttribute(
+      "aria-label",
+      "Filter module families and subtypes",
+    );
+    searchInput.addEventListener("input", () => {
+      searchQuery = searchInput.value;
+      renderRootMenu({ focusSearch: true });
+    });
+    searchWrap.appendChild(searchInput);
+    menu.appendChild(searchWrap);
+
+    if (opts?.focusSearch) {
+      queueMicrotask(() => {
+        searchInput.focus();
+        searchInput.setSelectionRange(
+          searchInput.value.length,
+          searchInput.value.length,
+        );
+      });
+    }
+
     const browserHint = document.createElement("div");
     browserHint.className = "small addSlotMenuPhaseHint";
-    browserHint.textContent = "Choose a family.";
+    browserHint.textContent = searchQuery.trim()
+      ? "Filtered families and subtypes."
+      : "Choose a family.";
     menu.appendChild(browserHint);
 
-    for (const family of ADD_MODULE_FAMILIES) {
+    const searchResults = getAddModuleSearchResults(searchQuery);
+    if (!searchResults.length) {
+      const empty = document.createElement("div");
+      empty.className = "small addSlotMenuEmpty";
+      empty.textContent = "No matching family or subtype.";
+      menu.appendChild(empty);
+      return;
+    }
+
+    for (const result of searchResults) {
+      const family = result.family;
       const row = document.createElement("div");
       row.className = `addSlotFamilyRow${family.accent ? " accent" : ""}`;
 
@@ -224,7 +433,27 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       }
 
       menu.appendChild(row);
+
+      const shouldShowSubtypeMatches =
+        searchQuery.trim() && result.matchedSubtypes.length > 0;
+      if (shouldShowSubtypeMatches) {
+        const subtypeList = document.createElement("div");
+        subtypeList.className = "addSlotSearchSubtypeList";
+        for (const item of result.matchedSubtypes) {
+          const subtypeButton = createMenuButton({
+            className: "addSlotMenuItem addSlotSearchSubtype",
+            title: item.label,
+            desc: `${family.code} · ${item.desc}`,
+            onClick: () => pickAndClose(item.value),
+          });
+          buttons.push(subtypeButton);
+          subtypeList.appendChild(subtypeButton);
+        }
+        menu.appendChild(subtypeList);
+      }
     }
+
+    // TODO: Keep this search surface preset-ready, but do not include module preset records until preset insertion is designed.
   };
 
   const renderSubtypeMenu = (familyId: AddModuleFamilyId) => {
@@ -278,18 +507,23 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   let anchorState: { point?: { x: number; y: number } } = {};
 
   const currentAnchor = (): FloatingAnchor => {
-    if (anchorState.point) return pointAnchor(anchorState.point.x, anchorState.point.y);
+    if (anchorState.point)
+      return pointAnchor(anchorState.point.x, anchorState.point.y);
     return slot.getBoundingClientRect();
   };
 
-  const focusButton = (index: number) => buttons[(index + buttons.length) % buttons.length]?.focus();
+  const focusButton = (index: number) =>
+    buttons[(index + buttons.length) % buttons.length]?.focus();
 
   function closeMenu(opts?: { restoreFocus?: boolean }) {
     menu.classList.add("hidden");
     menu.remove();
     slot.classList.remove("menuOpen");
     slot.setAttribute("aria-expanded", "false");
-    if (activeFamily) renderRootMenu();
+    if (activeFamily || searchQuery) {
+      searchQuery = "";
+      renderRootMenu();
+    }
     if (removeOutsideListener) {
       removeOutsideListener();
       removeOutsideListener = null;
@@ -300,12 +534,16 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     if (opts?.restoreFocus) slot.focus();
   }
 
-  const openMenu = (anchor?: { x: number; y: number }, opts?: { focusFirst?: boolean }) => {
+  const openMenu = (
+    anchor?: { x: number; y: number },
+    opts?: { focusFirst?: boolean },
+  ) => {
     if (!menu.classList.contains("hidden")) {
       closeMenu();
       return;
     }
 
+    searchQuery = "";
     renderRootMenu();
     anchorState = anchor ? { point: anchor } : {};
     menu.classList.remove("hidden");
@@ -319,13 +557,17 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       minWidth: 260,
       maxWidth: 320,
     });
-    reposition = bindFloatingPanelReposition(menu, () => (slot.isConnected ? currentAnchor() : null), {
-      preferredSide: "bottom",
-      align: anchor ? "start" : "center",
-      offset: 10,
-      minWidth: 260,
-      maxWidth: 320,
-    });
+    reposition = bindFloatingPanelReposition(
+      menu,
+      () => (slot.isConnected ? currentAnchor() : null),
+      {
+        preferredSide: "bottom",
+        align: anchor ? "start" : "center",
+        offset: 10,
+        minWidth: 260,
+        maxWidth: 320,
+      },
+    );
 
     const onDocPointerDown = (e: Event) => {
       const target = e.target as Node;
@@ -337,7 +579,15 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     };
     const onDocKeyDown = (e: Event) => {
       const keyEvent = e as KeyboardEvent;
-      if (keyEvent.key === "Escape") closeMenu({ restoreFocus: true });
+      if (keyEvent.key !== "Escape") return;
+      if (searchQuery && menu.contains(keyEvent.target as Node)) {
+        keyEvent.preventDefault();
+        keyEvent.stopPropagation();
+        searchQuery = "";
+        renderRootMenu({ focusSearch: true });
+        return;
+      }
+      closeMenu({ restoreFocus: true });
     };
     document.addEventListener("pointerdown", onDocPointerDown, true);
     document.addEventListener("focusin", onDocFocusIn, true);
@@ -368,15 +618,31 @@ export function renderAddModuleSlot(params: AddSlotParams) {
   };
 
   menu.addEventListener("keydown", (e) => {
-    const currentIndex = buttons.indexOf(document.activeElement as HTMLButtonElement);
-    if (e.key === "ArrowDown") {
+    const currentIndex = buttons.indexOf(
+      document.activeElement as HTMLButtonElement,
+    );
+    const isSearchFocused =
+      document.activeElement instanceof HTMLInputElement &&
+      document.activeElement.classList.contains("addSlotSearchInput");
+    if (e.key === "Escape" && searchQuery) {
       e.preventDefault();
-      focusButton(currentIndex < 0 ? 0 : currentIndex + 1);
+      e.stopPropagation();
+      searchQuery = "";
+      renderRootMenu({ focusSearch: true });
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      focusButton(currentIndex < 0 || isSearchFocused ? 0 : currentIndex + 1);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      focusButton(currentIndex < 0 ? buttons.length - 1 : currentIndex - 1);
+      focusButton(
+        currentIndex < 0 || isSearchFocused
+          ? buttons.length - 1
+          : currentIndex - 1,
+      );
     } else if (e.key === "ArrowRight" && !activeFamily && currentIndex >= 0) {
-      const descriptor = rootButtonDescriptors.find((candidate) => candidate.element === buttons[currentIndex]);
+      const descriptor = rootButtonDescriptors.find(
+        (candidate) => candidate.element === buttons[currentIndex],
+      );
       if (descriptor?.opensSubtypes) {
         e.preventDefault();
         renderSubtypeMenu(descriptor.familyId);
@@ -392,7 +658,11 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     } else if (e.key === "End") {
       e.preventDefault();
       focusButton(buttons.length - 1);
-    } else if (e.key === "Tab" && !e.shiftKey && currentIndex === buttons.length - 1) {
+    } else if (
+      e.key === "Tab" &&
+      !e.shiftKey &&
+      currentIndex === buttons.length - 1
+    ) {
       closeMenu();
     } else if (e.key === "Tab" && e.shiftKey && currentIndex === 0) {
       closeMenu({ restoreFocus: true });
@@ -424,7 +694,9 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       params.onDropModule(droppedModuleId);
       return;
     }
-    const dropped = e.dataTransfer?.getData("text/module-kind") as AddModulePick | "";
+    const dropped = e.dataTransfer?.getData("text/module-kind") as
+      | AddModulePick
+      | "";
     if (!dropped) return;
     params.onPick(dropped);
   });
