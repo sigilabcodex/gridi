@@ -8,6 +8,8 @@ import type { MidiInputStatus } from "../midiInput";
 import type { MidiOutputStatus } from "../midiOutput";
 import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
+import { formatMidiIoChipLabel, midiOutputCompactStatusText } from "./midiIoPanel";
+
 type HeaderParams = {
   root: HTMLElement;
   patch: () => Patch;
@@ -373,7 +375,7 @@ export function createTransportHeader(params: HeaderParams) {
   const midiChip = document.createElement("button");
   midiChip.type = "button";
   midiChip.className = "transportMidiChip transportGhostBtn";
-  midiChip.setAttribute("aria-label", "Open MIDI input selector");
+  midiChip.setAttribute("aria-label", "Open MIDI input and output setup");
   midiChip.setAttribute("aria-haspopup", "menu");
   midiChip.setAttribute("aria-expanded", "false");
   const midiPanel = document.createElement("div");
@@ -772,56 +774,190 @@ export function createTransportHeader(params: HeaderParams) {
     midiPanelCleanup = null;
   };
 
+  const getMidiInputRoute = () => {
+    const patch = params.patch();
+    for (const route of patch.routes ?? []) {
+      if (!route.enabled || route.domain !== "midi") continue;
+      if (route.source.kind !== "external" || route.source.externalType !== "midi") continue;
+      if (route.target.kind !== "module") continue;
+      const targetModuleId = route.target.moduleId;
+      if (!patch.modules.some((module) => module.id === targetModuleId && module.type === "tonal")) continue;
+      return route;
+    }
+    return null;
+  };
+
+  const getMidiOutputRoute = () => {
+    const patch = params.patch();
+    for (const route of patch.routes ?? []) {
+      if (!route.enabled || route.domain !== "midi") continue;
+      if (route.source.kind !== "module") continue;
+      if (route.target.kind !== "external" || route.target.externalType !== "midi") continue;
+      const sourceModuleId = route.source.moduleId;
+      if (!patch.modules.some((module) => module.id === sourceModuleId && module.type === "trigger")) continue;
+      return route;
+    }
+    return null;
+  };
+
+  const getMidiOutSourceLabel = () => {
+    const route = getMidiOutputRoute();
+    if (!route || route.source.kind !== "module") return null;
+    const sourceModuleId = route.source.moduleId;
+    return params.patch().modules.find((module) => module.id === sourceModuleId)?.name ?? null;
+  };
+
+  const getMidiOutSourceId = () => {
+    const route = getMidiOutputRoute();
+    return route?.source.kind === "module" ? route.source.moduleId : null;
+  };
+
+  const getMidiRouteOutputId = () => {
+    const route = getMidiOutputRoute();
+    return route?.target.kind === "external" ? route.target.portId ?? null : null;
+  };
+
+  const getMidiRouteInputId = () => {
+    const route = getMidiInputRoute();
+    return route?.source.kind === "external" ? route.source.portId ?? null : null;
+  };
+
+  const getMidiTargetId = () => {
+    const route = getMidiInputRoute();
+    return route?.target.kind === "module" ? route.target.moduleId : null;
+  };
+
+  const appendSelectLabel = (section: HTMLElement, text: string, select: HTMLSelectElement) => {
+    const label = document.createElement("label");
+    label.className = "small transportUtilitySectionLabel";
+    label.textContent = text;
+    label.appendChild(select);
+    section.appendChild(label);
+  };
+
   const renderMidiPanel = () => {
     midiPanel.replaceChildren();
     const status = params.midiStatus();
-    const title = document.createElement("div");
-    title.className = "small transportUtilitySectionLabel";
-    title.textContent = "MIDI input";
-    midiPanel.appendChild(title);
+    const outStatus = params.midiOutStatus();
+    const patch = params.patch();
 
-    const section = document.createElement("div");
-    section.className = "transportUtilitySection";
-    const autoBtn = document.createElement("button");
-    autoBtn.type = "button";
-    autoBtn.className = "transportGhostBtn transportUtilityBtn";
-    autoBtn.setAttribute("role", "menuitemradio");
-    const selectedAuto = status.kind === "connected" ? status.selection !== "manual" : true;
-    autoBtn.setAttribute("aria-checked", selectedAuto ? "true" : "false");
-    autoBtn.classList.toggle("isSelected", selectedAuto);
-    autoBtn.textContent = "Auto (prefer hardware)";
-    autoBtn.onclick = () => {
-      params.onSelectMidiInput(null);
-      renderMidiPanel();
-    };
-    section.appendChild(autoBtn);
+    const intro = document.createElement("div");
+    intro.className = "small transportSessionEmpty";
+    intro.textContent = "Quick MIDI setup · Full routing shown in Routing.";
+    midiPanel.appendChild(intro);
 
+    const inputTitle = document.createElement("div");
+    inputTitle.className = "small transportUtilitySectionLabel";
+    inputTitle.textContent = "MIDI Input";
+    midiPanel.appendChild(inputTitle);
+
+    const inputSection = document.createElement("div");
+    inputSection.className = "transportUtilitySection";
+
+    const midiInputSelect = document.createElement("select");
+    midiInputSelect.className = "transportSessionFilter routingOverviewSelect";
+    const autoOption = document.createElement("option");
+    autoOption.value = "";
+    autoOption.textContent = "Auto input";
+    midiInputSelect.appendChild(autoOption);
     const inputs = status.kind === "connected" || status.kind === "idle" ? status.inputs : [];
     for (const input of inputs) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "transportGhostBtn transportUtilityBtn transportSessionOption";
-      button.setAttribute("role", "menuitemradio");
-      const selected = status.kind === "connected" && status.inputId === input.id;
-      button.classList.toggle("isSelected", selected);
-      button.setAttribute("aria-checked", selected ? "true" : "false");
-      const virtualTag = input.likelyVirtual ? " · virtual" : "";
-      button.textContent = `${input.name}${virtualTag}`;
-      button.onclick = () => {
-        params.onSelectMidiInput(input.id);
-        renderMidiPanel();
-      };
-      section.appendChild(button);
+      const option = document.createElement("option");
+      option.value = input.id;
+      option.textContent = `${input.name}${input.likelyVirtual ? " · virtual" : ""}`;
+      midiInputSelect.appendChild(option);
     }
+    midiInputSelect.value = getMidiRouteInputId() ?? (status.kind === "connected" && status.selection === "manual" ? status.inputId : "");
+    midiInputSelect.onchange = () => {
+      params.onSelectMidiInput(midiInputSelect.value || null);
+      renderMidiPanel();
+    };
 
+    const midiTargetSelect = document.createElement("select");
+    midiTargetSelect.className = "transportSessionFilter routingOverviewSelect";
+    const noneTarget = document.createElement("option");
+    noneTarget.value = "";
+    noneTarget.textContent = "Target: None";
+    midiTargetSelect.appendChild(noneTarget);
+    for (const module of patch.modules.filter((module) => module.type === "tonal")) {
+      const option = document.createElement("option");
+      option.value = module.id;
+      option.textContent = `Target: ${module.name}`;
+      midiTargetSelect.appendChild(option);
+    }
+    midiTargetSelect.value = getMidiTargetId() ?? "";
+    midiTargetSelect.onchange = () => {
+      params.onSetMidiTargetModule(midiTargetSelect.value || null);
+      renderMidiPanel();
+    };
+    appendSelectLabel(inputSection, "Input", midiInputSelect);
+    appendSelectLabel(inputSection, "Target module", midiTargetSelect);
     if (!inputs.length) {
       const empty = document.createElement("div");
       empty.className = "small transportSessionEmpty";
       empty.textContent = "No MIDI inputs available.";
-      section.appendChild(empty);
+      inputSection.appendChild(empty);
     }
+    midiPanel.appendChild(inputSection);
 
-    midiPanel.appendChild(section);
+    const outputTitle = document.createElement("div");
+    outputTitle.className = "small transportUtilitySectionLabel";
+    outputTitle.textContent = "MIDI Output";
+    midiPanel.appendChild(outputTitle);
+
+    const outputSection = document.createElement("div");
+    outputSection.className = "transportUtilitySection";
+    const midiOutputSelect = document.createElement("select");
+    midiOutputSelect.className = "transportSessionFilter routingOverviewSelect";
+    const offOutput = document.createElement("option");
+    offOutput.value = "";
+    offOutput.textContent = "Output: Off";
+    midiOutputSelect.appendChild(offOutput);
+    const outputs = outStatus.kind === "connected" || outStatus.kind === "sending" || outStatus.kind === "idle" ? outStatus.outputs : [];
+    for (const output of outputs) {
+      const option = document.createElement("option");
+      option.value = output.id;
+      option.textContent = `Output: ${output.name}`;
+      midiOutputSelect.appendChild(option);
+    }
+    midiOutputSelect.value = getMidiOutSourceId() ? getMidiRouteOutputId() ?? (outStatus.kind === "connected" || outStatus.kind === "sending" ? outStatus.outputId : "") : "";
+    midiOutputSelect.onchange = () => {
+      if (!midiOutputSelect.value) params.onSetMidiOutSourceModule(null);
+      params.onSelectMidiOutput(midiOutputSelect.value || null);
+      renderMidiPanel();
+    };
+
+    const midiSourceSelect = document.createElement("select");
+    midiSourceSelect.className = "transportSessionFilter routingOverviewSelect";
+    const offSource = document.createElement("option");
+    offSource.value = "";
+    offSource.textContent = "Source: Off";
+    midiSourceSelect.appendChild(offSource);
+    for (const module of patch.modules.filter((module) => module.type === "trigger")) {
+      const option = document.createElement("option");
+      option.value = module.id;
+      option.textContent = `Source: ${module.name}`;
+      midiSourceSelect.appendChild(option);
+    }
+    midiSourceSelect.value = getMidiOutSourceId() ?? "";
+    midiSourceSelect.onchange = () => {
+      params.onSetMidiOutSourceModule(midiSourceSelect.value || null);
+      renderMidiPanel();
+    };
+
+    const outStatusLine = document.createElement("div");
+    outStatusLine.className = "small transportSessionEmpty";
+    outStatusLine.textContent = midiOutputCompactStatusText(outStatus, getMidiOutSourceLabel());
+    appendSelectLabel(outputSection, "Output", midiOutputSelect);
+    appendSelectLabel(outputSection, "Source GEN", midiSourceSelect);
+    outputSection.appendChild(outStatusLine);
+    if (!outputs.length) {
+      const empty = document.createElement("div");
+      empty.className = "small transportSessionEmpty";
+      empty.textContent = "No MIDI outputs available.";
+      outputSection.appendChild(empty);
+    }
+    midiPanel.appendChild(outputSection);
   };
 
   const openMidiMenu = () => {
@@ -838,8 +974,8 @@ export function createTransportHeader(params: HeaderParams) {
       offset: 8,
       align: "end",
       preferredSide: "bottom",
-      minWidth: 220,
-      maxWidth: 280,
+      minWidth: 280,
+      maxWidth: 360,
     });
     midiPanelCleanup = bindFloatingPanelReposition(
       midiPanel,
@@ -848,8 +984,8 @@ export function createTransportHeader(params: HeaderParams) {
         offset: 8,
         align: "end",
         preferredSide: "bottom",
-        minWidth: 220,
-        maxWidth: 280,
+        minWidth: 280,
+        maxWidth: 360,
       }
     );
   };
@@ -1124,36 +1260,22 @@ export function createTransportHeader(params: HeaderParams) {
 
   const updateMidiUI = () => {
     const status = params.midiStatus();
+    const outStatus = params.midiOutStatus();
     const target = params.midiTargetLabel();
-    if (status.kind === "unsupported") {
-      midiChip.textContent = "MIDI: unsupported";
-      midiLabel.textContent = "MIDI unsupported";
-      return;
-    }
-    if (status.kind === "pending") {
-      midiChip.textContent = "MIDI: pending";
-      midiLabel.textContent = "MIDI pending";
-      return;
-    }
-    if (status.kind === "denied") {
-      midiChip.textContent = "MIDI: denied";
-      midiLabel.textContent = "MIDI denied";
-      return;
-    }
-    if (status.kind === "idle") {
-      midiChip.textContent = "MIDI: unavailable";
-      midiLabel.textContent = "MIDI unavailable";
-      return;
-    }
-    if (status.selectedLikelyVirtual) {
-      midiChip.textContent = `MIDI: ${status.name} (virtual)`;
-      midiLabel.textContent = `MIDI ${status.name}`;
-      return;
-    }
-    const targetLabel = target ? ` → ${target}` : "";
-    midiChip.textContent = `MIDI: ${status.name}${targetLabel}`;
-    midiLabel.textContent = status.warning ? "MIDI fallback active" : `MIDI ${status.name}`;
-    if (status.warning) midiChip.textContent = "MIDI: fallback active";
+    const outputSource = getMidiOutSourceLabel();
+    const label = formatMidiIoChipLabel({
+      inputStatus: status,
+      outputStatus: outStatus,
+      inputTargetLabel: target,
+      outputSourceLabel: outputSource,
+    });
+    midiChip.textContent = label;
+    const outputPart = outputSource ? "MIDI Out routed" : "MIDI Out off";
+    if (status.kind === "unsupported") midiLabel.textContent = `MIDI unsupported · ${outputPart}`;
+    else if (status.kind === "pending") midiLabel.textContent = `MIDI permission pending · ${outputPart}`;
+    else if (status.kind === "denied") midiLabel.textContent = `MIDI denied · ${outputPart}`;
+    else if (status.kind === "idle") midiLabel.textContent = `MIDI unavailable · ${outputPart}`;
+    else midiLabel.textContent = status.warning ? `MIDI fallback active · ${outputPart}` : `MIDI I/O · ${outputPart}`;
   };
 
 

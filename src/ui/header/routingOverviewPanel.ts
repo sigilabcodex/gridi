@@ -136,6 +136,9 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   const title = document.createElement("div");
   title.className = "small transportUtilitySectionLabel";
   title.textContent = "Global routing overview";
+  const quickHint = document.createElement("div");
+  quickHint.className = "routingOverviewEmpty";
+  quickHint.textContent = "Quick MIDI setup lives in the header MIDI I/O pill; this panel shows full routing health and diagnostics.";
 
   const controls = document.createElement("div");
   controls.className = "routingOverviewControls";
@@ -243,7 +246,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   midiRoutesList.className = "routingOverviewList";
   midiRoutesBlock.append(midiRoutesHead, midiRoutesList);
 
-  panel.append(title, controls, healthBlock, inspectorBlock, midiEditBlock, midiOutEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
+  panel.append(title, quickHint, controls, healthBlock, inspectorBlock, midiEditBlock, midiOutEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
 
   let cleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let latestSnapshot: RoutingSnapshot | null = null;
