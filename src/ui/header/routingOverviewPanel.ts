@@ -74,6 +74,21 @@ function filterRoutesByModule(routes: UIRoutingOverviewRoute[], moduleId: string
   return routes.filter((route) => route.source?.id === moduleId || route.target?.id === moduleId);
 }
 
+
+function midiOutputStatusText(status: MidiOutputStatus, sourceName: string | null, channel: number | null) {
+  const source = sourceName ? `Source: ${sourceName}` : "Source: Off";
+  const channelText = channel ? ` · Ch ${channel}` : "";
+  if (!sourceName) return `MIDI Out off · ${source}`;
+  if (status.kind === "unsupported") return `MIDI Out unavailable in this browser · ${source}`;
+  if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;
+  if (status.kind === "denied") return `MIDI Out denied: ${status.reason} · ${source}`;
+  if (status.kind === "idle") return `${status.message} · ${source}${channelText}`;
+  if (status.kind === "sending") return `Sending Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity} → ${status.name} · ${source}`;
+  const last = status.lastSent ? ` · Last Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity}` : "";
+  const warning = status.warning ? `${status.warning} · ` : "";
+  return `${warning}Connected → ${status.name} · ${source}${channelText}${last}`;
+}
+
 function createHealthCountChip(label: string, count: number) {
   const chip = document.createElement("span");
   chip.className = "routingOverviewHealthChip";
@@ -310,6 +325,10 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     )) ?? null;
     const activeMidiOutputId = activeMidiOutPatchRoute?.target.kind === "external" ? activeMidiOutPatchRoute.target.portId ?? null : null;
     const activeMidiOutSourceModuleId = activeMidiOutPatchRoute?.source.kind === "module" ? activeMidiOutPatchRoute.source.moduleId : null;
+    const activeMidiOutSourceName = activeMidiOutSourceModuleId
+      ? patch.modules.find((module) => module.id === activeMidiOutSourceModuleId)?.name ?? activeMidiOutSourceModuleId
+      : null;
+    const activeMidiOutChannel = activeMidiOutPatchRoute?.target.kind === "external" ? activeMidiOutPatchRoute.target.channel ?? 1 : null;
 
     midiInputSelect.replaceChildren();
     const autoOption = document.createElement("option");
@@ -374,17 +393,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     midiOutSourceSelect.value = activeMidiOutSourceModuleId ?? "";
     midiOutputSelect.disabled = midiOutSourceSelect.value === "";
     midiOutEditBody.classList.toggle("isMuted", midiOutSourceSelect.value === "");
-    midiOutStatusLine.textContent = midiOutStatus.kind === "unsupported"
-      ? "MIDI Out unavailable in this browser"
-      : midiOutStatus.kind === "pending"
-        ? "MIDI Out permission needed"
-        : midiOutStatus.kind === "denied"
-          ? `MIDI Out denied: ${midiOutStatus.reason}`
-          : midiOutStatus.kind === "sending"
-            ? `MIDI Out sending → ${midiOutStatus.name}`
-            : midiOutStatus.kind === "connected"
-              ? `MIDI Out selected: ${midiOutStatus.name}`
-              : midiOutStatus.message;
+    midiOutStatusLine.textContent = midiOutputStatusText(midiOutStatus, activeMidiOutSourceName, activeMidiOutChannel);
 
     inspectorBlock.hidden = !(domain === "all" || domain === "event");
     eventBlock.hidden = !(domain === "all" || domain === "event");

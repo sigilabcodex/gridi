@@ -24,7 +24,8 @@ Some areas are mature enough to play immediately. Other areas exist but are stil
 2. [`02-interface-overview.md`](02-interface-overview.md) — learn the main areas of the app.
 3. [`03-module-basics.md`](03-module-basics.md) — understand module families, modes, presets, and names.
 4. [`04-gen-modes.md`](04-gen-modes.md) — choose between current GEN behaviors.
-5. [`11-future-directions.md`](11-future-directions.md) — see where GRIDI may go next.
+5. [`06-midi-out-linux-quick-test.md`](06-midi-out-linux-quick-test.md) — verify MIDI Out on Linux/ALSA/JACK/PipeWire.
+6. [`11-future-directions.md`](11-future-directions.md) — see where GRIDI may go next.
 
 ## Manual chapters
 
@@ -32,4 +33,5 @@ Some areas are mature enough to play immediately. Other areas exist but are stil
 - [Interface Overview](02-interface-overview.md)
 - [Module Basics](03-module-basics.md)
 - [GEN Modes](04-gen-modes.md)
+- [MIDI Out Linux Quick Test](06-midi-out-linux-quick-test.md)
 - [Future Directions](11-future-directions.md)

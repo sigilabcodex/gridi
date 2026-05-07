@@ -1,4 +1,4 @@
-import { makeNoteOffMessage, makeNoteOnMessage, normalizeMidiChannel, type MidiOutMessage } from "../engine/midiOut.ts";
+import { makeMidiPanicMessages, makeNoteOffMessage, makeNoteOnMessage, normalizeMidiChannel, normalizeMidiVelocity, type MidiOutMessage } from "../engine/midiOut.ts";
 
 export type MidiOutputInfo = {
   id: string;
@@ -8,19 +8,22 @@ export type MidiOutputInfo = {
   connection?: string;
 };
 
+export type MidiOutputLastSent = { note: number; velocity: number; channel: number; outputName: string };
+
 export type MidiOutputStatus =
   | { kind: "unsupported" }
   | { kind: "pending" }
   | { kind: "denied"; reason: string }
   | { kind: "idle"; message: string; outputs: MidiOutputInfo[] }
-  | { kind: "connected"; outputId: string; name: string; outputCount: number; outputs: MidiOutputInfo[]; warning?: string }
-  | { kind: "sending"; outputId: string; name: string; outputCount: number; outputs: MidiOutputInfo[] };
+  | { kind: "connected"; outputId: string; name: string; outputCount: number; outputs: MidiOutputInfo[]; warning?: string; lastSent?: MidiOutputLastSent }
+  | { kind: "sending"; outputId: string; name: string; outputCount: number; outputs: MidiOutputInfo[]; lastSent: MidiOutputLastSent };
 
 export type MidiOutputManager = {
   init(): Promise<void>;
   dispose(): void;
   getStatus(): MidiOutputStatus;
   setPreferredOutput(outputId: string | null): void;
+  panic(params?: { channel?: number }): boolean;
   sendNote(params: { note: number; velocity: number; channel?: number; gateMs?: number; delayMs?: number }): boolean;
 };
 
@@ -56,6 +59,7 @@ export function createMidiOutputManager(params: {
   let hasManualSelection = false;
   let status: MidiOutputStatus = { kind: "pending" };
   let sendStatusTimer: number | null = null;
+  let lastSent: MidiOutputLastSent | undefined;
 
   const updateStatus = (next: MidiOutputStatus) => {
     status = next;
@@ -85,12 +89,12 @@ export function createMidiOutputManager(params: {
 
     if (exactPreferred) currentOutput = exactPreferred;
     else if (hasManualSelection && preferredOutputId) {
-      currentOutput = autoPreferred;
-      warning = "Selected MIDI output unavailable; using best available output.";
+      currentOutput = null;
+      warning = "Selected MIDI output unavailable.";
     } else currentOutput = autoPreferred;
 
     if (!currentOutput) {
-      updateStatus({ kind: "idle", message: "No usable MIDI output selected", outputs });
+      updateStatus({ kind: "idle", message: warning ?? "No usable MIDI output selected", outputs });
       return;
     }
 
@@ -103,6 +107,7 @@ export function createMidiOutputManager(params: {
       outputCount: rawOutputs.length,
       outputs,
       warning,
+      lastSent,
     });
   };
 
@@ -115,6 +120,13 @@ export function createMidiOutputManager(params: {
       updateStatus({ kind: "idle", message: error instanceof Error ? error.message : "MIDI output send failed", outputs: midiAccess ? Array.from(midiAccess.outputs.values()).map(toOutputInfo) : [] });
       return false;
     }
+  };
+
+  const sendPanic = (channel = 1) => {
+    if (!currentOutput) return false;
+    let sentAny = false;
+    for (const message of makeMidiPanicMessages({ channel })) sentAny = sendRaw(message) || sentAny;
+    return sentAny;
   };
 
   return {
@@ -131,10 +143,16 @@ export function createMidiOutputManager(params: {
         updateStatus({ kind: "denied", reason: error instanceof Error ? error.message : "MIDI access denied" });
         return;
       }
-      midiAccess.onstatechange = () => refreshOutputBinding();
+      midiAccess.onstatechange = () => {
+        const rawOutputs = Array.from(midiAccess?.outputs.values() ?? []);
+        const currentStillAvailable = currentOutput ? rawOutputs.some((output) => output.id === currentOutput?.id && output.state !== "disconnected") : true;
+        if (!currentStillAvailable) sendPanic();
+        refreshOutputBinding();
+      };
       refreshOutputBinding();
     },
     dispose() {
+      sendPanic();
       clearSendStatusTimer();
       if (midiAccess) midiAccess.onstatechange = null;
       midiAccess = null;
@@ -143,20 +161,26 @@ export function createMidiOutputManager(params: {
     },
     getStatus: () => status,
     setPreferredOutput(outputId) {
+      sendPanic();
       preferredOutputId = outputId;
       hasManualSelection = outputId !== null;
       refreshOutputBinding();
+    },
+    panic({ channel } = {}) {
+      return sendPanic(channel);
     },
     sendNote({ note, velocity, channel = 1, gateMs = 120, delayMs = 0 }) {
       if (!currentOutput) return false;
       const timestamp = typeof performance !== "undefined" ? performance.now() + Math.max(0, delayMs) : undefined;
       const midiChannel = normalizeMidiChannel(channel);
-      const sentOn = sendRaw(makeNoteOnMessage(note, velocity, midiChannel), timestamp);
+      const midiVelocity = normalizeMidiVelocity(velocity);
+      const sentOn = sendRaw(makeNoteOnMessage(note, midiVelocity, midiChannel), timestamp);
       if (!sentOn) return false;
       sendRaw(makeNoteOffMessage(note, midiChannel), timestamp === undefined ? undefined : timestamp + Math.max(1, gateMs));
 
       const outputs = midiAccess ? Array.from(midiAccess.outputs.values()).map(toOutputInfo) : [];
-      updateStatus({ kind: "sending", outputId: currentOutput.id, name: currentOutput.name || "Unnamed MIDI output", outputCount: outputs.length, outputs });
+      lastSent = { note, velocity: midiVelocity, channel: midiChannel, outputName: currentOutput.name || "Unnamed MIDI output" };
+      updateStatus({ kind: "sending", outputId: currentOutput.id, name: currentOutput.name || "Unnamed MIDI output", outputCount: outputs.length, outputs, lastSent });
       clearSendStatusTimer();
       sendStatusTimer = window.setTimeout(() => refreshOutputBinding(), 180);
       return true;

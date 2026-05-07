@@ -15,6 +15,11 @@ const DRUM_LANE_NOTES = {
 
 export type MidiOutMessage = [number, number, number];
 
+export type MidiOutPanicOptions = {
+  channel?: number;
+  includeAllNotesOff?: boolean;
+};
+
 export type MidiOutRouteConfig = {
   route: PatchRoute;
   sourceModuleId: string;
@@ -52,6 +57,18 @@ export function makeNoteOnMessage(note: number, velocity: number, channel = DEFA
 
 export function makeNoteOffMessage(note: number, channel = DEFAULT_MIDI_CHANNEL): MidiOutMessage {
   return [0x80 + normalizeMidiChannel(channel) - 1, clampMidiNoteNumber(note), 0];
+}
+
+export function makeAllNotesOffMessage(channel = DEFAULT_MIDI_CHANNEL): MidiOutMessage {
+  return [0xb0 + normalizeMidiChannel(channel) - 1, 123, 0];
+}
+
+export function makeMidiPanicMessages(options: MidiOutPanicOptions = {}): MidiOutMessage[] {
+  const channel = normalizeMidiChannel(options.channel);
+  const messages: MidiOutMessage[] = [];
+  for (let note = 0; note <= 127; note += 1) messages.push(makeNoteOffMessage(note, channel));
+  if (options.includeAllNotesOff !== false) messages.push(makeAllNotesOffMessage(channel));
+  return messages;
 }
 
 export function midiNoteFromGridiEvent(event: GridiTriggerEvent, baseNote = DEFAULT_MIDI_BASE_NOTE) {

@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   clampMidiNoteNumber,
+  makeAllNotesOffMessage,
+  makeMidiPanicMessages,
   makeNoteOffMessage,
   makeNoteOnMessage,
   midiNoteFromGridiEvent,
@@ -17,8 +19,18 @@ test('MIDI note-on message bytes use normalized channel, note, and velocity', ()
   assert.deepEqual(makeNoteOnMessage(61.4, 0.5, 16), [0x9f, 61, 64]);
 });
 
-test('MIDI note-off message bytes use note-off status and zero velocity', () => {
+test('MIDI note-off and all-notes-off message bytes use the selected channel', () => {
   assert.deepEqual(makeNoteOffMessage(64, 2), [0x81, 64, 0]);
+  assert.deepEqual(makeAllNotesOffMessage(4), [0xb3, 123, 0]);
+});
+
+test('MIDI panic helper sends a bounded note-off sweep and all-notes-off', () => {
+  const messages = makeMidiPanicMessages({ channel: 3 });
+  assert.equal(messages.length, 129);
+  assert.deepEqual(messages[0], [0x82, 0, 0]);
+  assert.deepEqual(messages[127], [0x82, 127, 0]);
+  assert.deepEqual(messages[128], [0xb2, 123, 0]);
+  assert.deepEqual(makeMidiPanicMessages({ channel: 3, includeAllNotesOff: false }).at(-1), [0x82, 127, 0]);
 });
 
 test('MIDI channel, note, velocity, and gate normalization clamp to safe ranges', () => {
