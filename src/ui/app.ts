@@ -687,6 +687,14 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     if (!route || route.source.kind !== "module") return null;
     return route.source.moduleId;
   };
+  const getMidiRouteChannel = () => {
+    const route = getMidiOutputRoute();
+    if (!route || route.target.kind !== "external") return 1;
+    return route.target.channel ?? 1;
+  };
+  const panicMidiOut = () => {
+    midiOutput.panic({ channel: getMidiRouteChannel() });
+  };
   const setMidiOutputRoute = (sourceModuleId: string | null, outputId: string | null, outputName?: string | null) => {
     onPatchChange((draft) => {
       const keptRoutes = (draft.routes ?? []).filter((route) => !(
@@ -926,6 +934,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         sched.start();
       } else {
         sched.stop();
+        panicMidiOut();
       }
       header.updatePlayBtn();
       header.updateStatus();
@@ -933,6 +942,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     onStop: () => {
       if (!sched.running) return;
       sched.stop();
+      panicMidiOut();
       header.updatePlayBtn();
       header.updateStatus();
     },
@@ -1038,6 +1048,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateRoutingOverview();
     },
     onSelectMidiOutput: (outputId) => {
+      panicMidiOut();
       preferredMidiOutputId = outputId;
       midiOutput.setPreferredOutput(outputId);
       const sourceId = getMidiRouteSourceModuleId();
@@ -1048,6 +1059,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       header.updateRoutingOverview();
     },
     onSetMidiOutSourceModule: (moduleId) => {
+      panicMidiOut();
       const existingOutputId = getMidiRouteOutputId() ?? preferredMidiOutputId;
       const selected = (midiOutStatus.kind === "connected" || midiOutStatus.kind === "sending" || midiOutStatus.kind === "idle")
         ? midiOutStatus.outputs.find((output) => output.id === existingOutputId)
