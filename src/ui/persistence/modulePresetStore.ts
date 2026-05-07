@@ -373,8 +373,24 @@ function starterModulePresets() {
     buildFactoryPreset("factory-synth-noise-sweep", "SYNTH016", makeSound("tonal", 0), "Noise Sweep", { amp: 0.1, waveform: 0.92, coarseTune: 0.74, fineTune: 0.6, attack: 0.18, decay: 0.7, sustain: 0.54, release: 0.74, cutoff: 0.86, resonance: 0.7, glide: 0.58, modDepth: 0.68, modRate: 0.64 }, factoryTimestamp),
   ];
 
+  const genFactory: Array<ModulePresetRecord | null> = [
+    buildFactoryPreset("factory-gen-euclid-pulse", "GEN001", makeTrigger(0), "Euclid Pulse", { mode: "euclidean", seed: 1201, determinism: 0.88, gravity: 0.54, density: 0.38, subdiv: 4, length: 16, drop: 0.04, weird: 0.22, euclidRot: 1, caRule: 90, caInit: 0.28 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-step-grid", "GEN002", makeTrigger(0), "Step Grid", { mode: "step-sequencer", seed: 1278, determinism: 0.92, gravity: 0.58, density: 0.4, subdiv: 4, length: 16, drop: 0.02, weird: 0.24, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-cellular-seed", "GEN003", makeTrigger(0), "Cellular Seed", { mode: "cellular-automata", seed: 1355, determinism: 0.82, gravity: 0.48, density: 0.46, subdiv: 4, length: 16, drop: 0.06, weird: 0.34, euclidRot: 0, caRule: 90, caInit: 0.34 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-hybrid-blend", "GEN004", makeTrigger(0), "Hybrid Blend", { mode: "hybrid", seed: 1432, determinism: 0.8, gravity: 0.56, density: 0.42, subdiv: 4, length: 16, drop: 0.06, weird: 0.42, euclidRot: 2, caRule: 110, caInit: 0.3 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-gear-phase", "GEN005", makeTrigger(0), "Gear Phase", { mode: "gear", seed: 1509, determinism: 0.84, gravity: 0.62, density: 0.36, subdiv: 4, length: 16, drop: 0.05, weird: 0.3, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-radar-scan", "GEN006", makeTrigger(0), "Radar Scan", { mode: "radar", seed: 1586, determinism: 0.86, gravity: 0.5, density: 0.4, subdiv: 4, length: 16, drop: 0.05, weird: 0.32, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-fractal-gate", "GEN007", makeTrigger(0), "Fractal Gate", { mode: "fractal", seed: 1663, determinism: 0.78, gravity: 0.6, density: 0.44, subdiv: 4, length: 32, drop: 0.07, weird: 0.38, euclidRot: 1, caRule: 90, caInit: 0.3 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-curved-space", "GEN008", makeTrigger(0), "Curved Space", { mode: "non-euclidean", seed: 1740, determinism: 0.8, gravity: 0.64, density: 0.4, subdiv: 4, length: 16, drop: 0.06, weird: 0.44, euclidRot: 3, caRule: 90, caInit: 0.26 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-markov-chain", "GEN009", makeTrigger(0), "Markov Chain", { mode: "markov-chains", seed: 1817, determinism: 0.74, gravity: 0.5, density: 0.42, subdiv: 4, length: 16, drop: 0.05, weird: 0.36, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-l-system-path", "GEN010", makeTrigger(0), "L-System Path", { mode: "l-systems", seed: 1894, determinism: 0.82, gravity: 0.58, density: 0.4, subdiv: 4, length: 16, drop: 0.06, weird: 0.34, euclidRot: 0, caRule: 90, caInit: 0.27 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-xrono-fusion", "GEN011", makeTrigger(0), "Xrono Fusion", { mode: "xronomorph", seed: 1971, determinism: 0.78, gravity: 0.52, density: 0.42, subdiv: 4, length: 16, drop: 0.06, weird: 0.46, euclidRot: 2, caRule: 110, caInit: 0.28 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-genetic-pool", "GEN012", makeTrigger(0), "Genetic Pool", { mode: "genetic-algorithms", seed: 2048, determinism: 0.8, gravity: 0.6, density: 0.38, subdiv: 4, length: 16, drop: 0.05, weird: 0.34, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+    buildFactoryPreset("factory-gen-pink-noise", "GEN013", makeTrigger(0), "Pink Noise", { mode: "one-over-f-noise", seed: 2125, determinism: 0.7, gravity: 0.46, density: 0.4, subdiv: 4, length: 16, drop: 0.08, weird: 0.4, euclidRot: 0, caRule: 90, caInit: 0.25 }, factoryTimestamp),
+  ];
+
   return [
-    buildCodedStarter("GEN001", makeTrigger(0), "Sparse Euclid"),
+    ...genFactory,
     buildCodedStarter("CTRL001", makeControl("lfo", 0), "Sine LFO"),
     buildCodedStarter("CTRL002", makeControl("drift", 0), "Warm Drift"),
     buildCodedStarter("CTRL003", makeControl("stepped", 0), "Stepped Motion"),
@@ -404,8 +420,14 @@ export function loadModulePresetLibrary() {
     .filter((record): record is ModulePresetRecord => Boolean(record));
 
   const existingIds = new Set(records.map((record) => record.id));
+  const existingFactoryCodes = new Set(
+    records
+      .filter((record) => record.source === "factory" && record.code)
+      .map((record) => record.code),
+  );
   for (const factory of factoryRecords) {
     if (existingIds.has(factory.id)) continue;
+    if (factory.code && existingFactoryCodes.has(factory.code)) continue;
     records.push(factory);
   }
 

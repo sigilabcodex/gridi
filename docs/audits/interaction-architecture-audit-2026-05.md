@@ -95,22 +95,22 @@ Factory module presets are well-structured technically:
 - Source metadata (`factory`/`user`) and linkage metadata are tracked.
 - Apply behavior preserves module identity context while updating preset identity.
 
-Naming is currently descriptive (e.g., “Sparse Euclid”, “Deep Kick”, “Rubber Bass”). This is musically friendly but can be semantically ambiguous when users interpret names as engine/role guarantees.
+Naming is currently descriptive (e.g., “Euclid Pulse”, “Deep Kick”, “Rubber Bass”). This is musically friendly but can be semantically ambiguous when users interpret names as engine/role guarantees.
 
 ### Current issue
 
-Names like “Sparse Euclid” read like strict algorithm contracts, while in practice they are curated parameter states over an engine+mode system.
+Legacy names like “Sparse Euclid” read like strict algorithm contracts, while in practice presets are curated parameter states over an engine+mode system.
 
 ### Recommendation
 
 Adopt dual-layer naming:
 
 - Primary stable code: `GEN001`, `DRUM001`, `SYNTH001`, etc.
-- Optional subtitle/metadata: “Sparse Euclid”, “Deep Kick”, etc.
+- Optional subtitle/metadata: “Euclid Pulse”, “Deep Kick”, etc.
 
 Display style example:
 
-- `GEN001 · Sparse Euclid`
+- `GEN001 · Euclid Pulse`
 - `DRUM004 · Deep Kick`
 
 This improves provenance, sorting, compatibility communication, and future bank curation/versioning.
@@ -125,6 +125,11 @@ Current implementation already has the right hooks:
 
 Follow-up should focus on naming and presentation, not on data model rewrite.
 
+### GEN factory bank refresh (2026-05-07)
+
+The GEN factory list has been refreshed from a single over-visible `Sparse Euclid` starter to a balanced `GEN001`–`GEN013` Core Factory bank. The bank intentionally includes one compact, deterministic starter for each implemented GEN mode: Euclid Pulse, Step Grid, Cellular Seed, Hybrid Blend, Gear Phase, Radar Scan, Fractal Gate, Curved Space, Markov Chain, L-System Path, Xrono Fusion, Genetic Pool, and Pink Noise.
+
+Continuity strategy: `GEN001` remains the Euclidean continuity slot, but the current factory display name is now `Euclid Pulse`. Existing local records that still contain `GEN001 · Sparse Euclid` are preserved and can continue to load; missing factory GEN codes are appended without deleting or migrating user/local records. Future artist/curator banks remain deferred until bank metadata is added.
 
 ### Module preset bank expansion audit (2026-05-06)
 

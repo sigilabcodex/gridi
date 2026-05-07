@@ -307,6 +307,29 @@ test("add-module quick search finds factory preset by descriptive name", () => {
   );
 });
 
+test("add-module quick search finds refreshed GEN factory presets by code and mode terms", () => {
+  const records = factoryRecords();
+
+  for (const [query, expected] of [
+    ["radar", { code: "GEN006", name: "Radar Scan" }],
+    ["markov", { code: "GEN009", name: "Markov Chain" }],
+    ["gear", { code: "GEN005", name: "Gear Phase" }],
+    ["fractal", { code: "GEN007", name: "Fractal Gate" }],
+    ["euclid", { code: "GEN001", name: "Euclid Pulse" }],
+    ["noise", { code: "GEN013", name: "Pink Noise" }],
+    ["GEN006", { code: "GEN006", name: "Radar Scan" }],
+  ]) {
+    const results = getAddModuleSearchResults(query, records);
+    const genResult = results.find((result) => result.family.id === "gen");
+
+    assert.ok(genResult, `expected GEN result for ${query}`);
+    assert.ok(
+      genResult.matchedFactoryPresets.some((record) => record.code === expected.code && record.name === expected.name),
+      `expected ${expected.code} · ${expected.name} for ${query}`,
+    );
+  }
+});
+
 test("factory preset insertion creates a compatible module with preset metadata", () => {
   const records = factoryRecords();
   const closedHat = records.find((record) => record.code === "DRUM014");

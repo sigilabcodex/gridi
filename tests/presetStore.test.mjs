@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { emptyPatch, getTriggers, isSound, makeControl, makeSound, makeTrigger, migratePatch } from '../src/patch.ts';
+import { GEN_MODES } from '../src/engine/pattern/genModeRegistry.ts';
 import {
   defaultPresetSession,
   deleteSelectedUserPresets,
@@ -339,12 +340,45 @@ test('formatModulePresetDisplayName uses code when present', () => {
 test('factory presets include stable codes', () => {
   withMockStorage(() => {
     const records = loadModulePresetLibrary();
-    const triggerFactory = records.find((record) => record.name === 'Sparse Euclid');
-    assert.ok(triggerFactory?.code?.startsWith('GEN'));
+    const genCodes = records
+      .filter((record) => record.family === 'trigger' && record.source === 'factory')
+      .map((record) => record.code);
+
+    assert.deepEqual(genCodes, [
+      'GEN001',
+      'GEN002',
+      'GEN003',
+      'GEN004',
+      'GEN005',
+      'GEN006',
+      'GEN007',
+      'GEN008',
+      'GEN009',
+      'GEN010',
+      'GEN011',
+      'GEN012',
+      'GEN013',
+    ]);
     assert.ok(records.some((record) => record.code === 'DRUM001'));
     assert.ok(records.some((record) => record.code === 'SYNTH001'));
     assert.ok(records.some((record) => record.code === 'CTRL001'));
     assert.ok(records.some((record) => record.code === 'VIS001'));
+  });
+});
+
+test('factory GEN presets represent every implemented mode exactly once', () => {
+  withMockStorage(() => {
+    const records = loadModulePresetLibrary();
+    const genFactory = records.filter((record) => record.family === 'trigger' && record.source === 'factory');
+    const modes = genFactory.map((record) => record.state.mode);
+
+    assert.equal(genFactory.length, GEN_MODES.length);
+    assert.deepEqual([...modes].sort(), [...GEN_MODES].sort());
+
+    for (const record of genFactory) {
+      assert.equal(record.family, 'trigger');
+      assert.ok(GEN_MODES.includes(record.state.mode));
+    }
   });
 });
 
@@ -411,6 +445,48 @@ test('module preset normalization keeps optional code and tolerates missing code
     const legacy = records.find((record) => record.id === 'user-b');
     assert.equal(coded?.code, 'DRUM099');
     assert.equal(legacy?.code, undefined);
+  });
+});
+
+test('legacy module preset libraries keep old GEN001 while appending missing GEN factory presets', () => {
+  const legacyGenState = {
+    enabled: true,
+    mode: 'hybrid',
+    seed: 1000,
+    determinism: 0.8,
+    gravity: 0.6,
+    density: 0.35,
+    subdiv: 4,
+    length: 16,
+    drop: 0.12,
+    weird: 0.5,
+    euclidRot: 0,
+    caRule: 90,
+    caInit: 0.25,
+  };
+  const payload = [
+    {
+      id: 'legacy-factory-gen001',
+      code: 'GEN001',
+      name: 'Sparse Euclid',
+      family: 'trigger',
+      subtype: 'trigger',
+      state: legacyGenState,
+      source: 'factory',
+      createdAt: 1,
+      updatedAt: 2,
+    },
+  ];
+
+  withMockStorage(() => {
+    localStorage.setItem('gridi.module-presets.v1', JSON.stringify(payload));
+    const records = loadModulePresetLibrary();
+    const genFactory = records.filter((record) => record.family === 'trigger' && record.source === 'factory');
+
+    assert.equal(genFactory.filter((record) => record.code === 'GEN001').length, 1);
+    assert.ok(genFactory.some((record) => record.id === 'legacy-factory-gen001' && record.name === 'Sparse Euclid'));
+    assert.ok(genFactory.some((record) => record.code === 'GEN013' && record.name === 'Pink Noise'));
+    assert.equal(genFactory.length, GEN_MODES.length);
   });
 });
 

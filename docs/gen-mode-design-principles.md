@@ -27,3 +27,9 @@ This document centralizes the active design contract for GEN modes.
 
 - Future interactive GEN editing should start with **Step Sequencer** and **Hybrid**, not every mode at once.
 - Expand rich interaction only where runtime semantics are already clear and testable.
+
+## Factory preset identity principle (2026-05 refresh)
+
+GEN factory presets should represent the implemented mode family without implying that GEN is a single Euclidean generator. The Core Factory bank now exposes one neutral starter preset for each current mode (`GEN001`–`GEN013`) with deterministic, beginner-safe parameter states.
+
+Preset names should remain compact and semantically modest: they should identify the mode or a plain pattern quality without promising simulation depth beyond the implemented generator semantics. Future artist, curator, or experimental banks remain deferred until bank-level metadata exists; the current refresh is factory-only and does not migrate or rewrite local/user presets.
