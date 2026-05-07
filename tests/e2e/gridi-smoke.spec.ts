@@ -144,6 +144,22 @@ describe("GRIDI browser smoke", () => {
     await p.key("Escape");
   });
 
+  it("inserts a factory module preset from Add Module search", async (t) => {
+    if (!page) return t.skip(missingBrowserMessage());
+    const p = activePage();
+    await p.waitForSelector(".addModuleSlot");
+    const initialCount = await moduleCount(p);
+
+    await p.click(".addModuleSlot");
+    await p.waitForSelector(".addSlotSearchInput");
+    await setAddModuleSearch(p, "DRUM014");
+    await p.waitForFunction(() => document.body.textContent?.includes("DRUM014 · Closed Hat") === true);
+    await p.click("button:text('DRUM014 · Closed Hat')");
+
+    await p.waitForFunction((count) => document.querySelectorAll('.moduleSurface[data-module-id]').length === Number(count), String(initialCount + 1));
+    assert.equal(await moduleCount(p), initialCount + 1);
+  });
+
   it("shows protected factory examples and guarded local-session batch deletion in Session Manager", async (t) => {
     if (!page) return t.skip(missingBrowserMessage());
     const p = activePage();

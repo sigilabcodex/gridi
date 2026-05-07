@@ -20,6 +20,8 @@ Pass 1 implementation note (2026-05-06): the AddModuleSlot polish pass now uses 
 
 Pass 2 implementation note (2026-05-07): AddModuleSlot now includes a compact local quick-search input for filtering family rows and matching subtype rows by family code, descriptive family label, subtype label, subtype description, and backing subtype value. Empty search still renders the default family-first list, GEN/DRUM/SYNTH defaults keep their one-action creation path, and CTRL/VIS quick-add defaults remain present. Preset insertion, insertion-policy changes, routing behavior, patch schema, and module creation semantics remain deferred and unchanged.
 
+Pass 3 implementation note (2026-05-07): AddModuleSlot now exposes compatible **factory** module presets as an optional creation path. Empty search intentionally does not dump the factory bank; preset rows appear under their compatible family when search matches a factory preset code/name/subtype/source, and CTRL/VIS subtype menus can show compatible factory presets after default/subtype choices. Selecting a factory preset creates a fresh module of the compatible family/subtype, applies the preset state through existing module preset helpers, and sets the same `presetName` / `presetMeta` linkage used by module-level preset loading. GEN/DRUM/SYNTH root rows still quick-add defaults, CTRL/VIS family-to-subtype flow remains intact, patch schema/routing/audio/generation behavior are unchanged, and user preset insertion remains deferred.
+
 ## 2. Sources reviewed
 
 Required project and direction sources:
@@ -225,7 +227,7 @@ Not urgently. With five families, three CTRL subtypes, and eight VIS subtypes, t
 
 The strongest argument for search is VIS growth: eight visual subtypes already form a long list. The strongest argument against search is that the root workflow remains small and fast.
 
-Pass 2 update: **lightweight local quick search is now implemented**, while full search remains deferred. The implementation stays local to the Add Module menu, uses simple substring filtering, and intentionally avoids module presets, global commands, routing actions, examples, settings, and session content.
+Pass 2 update: **lightweight local quick search is now implemented**, while full search remains deferred. The implementation stays local to the Add Module menu and uses simple substring filtering. Pass 3 extends that same local search to actionable factory module presets only; it still avoids user presets, global commands, routing actions, examples, settings, and session content.
 
 ### Implemented lightweight search scope
 
@@ -234,7 +236,8 @@ The implemented Pass 2 version is local to the Add Module menu:
 - simple substring matching, not fuzzy search,
 - matches family code and label (`GEN`, `Generator`, etc.),
 - matches subtype labels and descriptions,
-- does **not** match factory or user module presets yet,
+- matches compatible factory module preset code/name/family/subtype/source when records can be inserted,
+- does **not** match user module presets yet,
 - does not search global commands, transport actions, settings, sessions, examples, routing actions, or hidden engine internals,
 - keyboard-first, but not a global command palette,
 - appears as a compact local input inside the same floating menu so touch users have an obvious target without adding another activation step.
@@ -245,14 +248,14 @@ The implemented Pass 2 version is local to the Add Module menu:
 | --- | --- | --- |
 | Family names/codes | Implemented in Pass 2 | Cheap and useful without changing creation behavior. |
 | Subtypes | Implemented in Pass 2 | VIS length makes this useful. |
-| Factory module presets | Later, only when preset creation is exposed | Avoid searching records that cannot be acted on. |
-| User module presets | Later, only after preset browser model is clear | User records can become numerous and need source/provenance clarity. |
+| Factory module presets | Implemented in Pass 3 for actionable insertions | Search now surfaces compatible factory rows because selecting them creates modules immediately. |
+| User module presets | Deferred | User records can become numerous and need source/provenance clarity. |
 | Session presets/examples | No | That belongs to session management, not Add Module. |
 | Commands/settings/routing actions | No | Would become a command palette and blur instrument boundaries. |
 
 ### Trigger model
 
-Pass 2 uses a small persistent local input in the floating menu. This is a deliberate lightweight exception to the earlier audit preference because it keeps mobile/touch discovery straightforward, avoids a second filter button, and remains compact. Empty search preserves the family-first root list, so the first action for GEN/DRUM/SYNTH defaults is unchanged.
+Pass 2 uses a small persistent local input in the floating menu. This is a deliberate lightweight exception to the earlier audit preference because it keeps mobile/touch discovery straightforward, avoids a second filter button, and remains compact. Pass 3 keeps empty search family-first and only shows factory preset rows after a matching search or a family/subtype state, so the first action for GEN/DRUM/SYNTH defaults is unchanged.
 
 ## 7. Preset placeholder audit
 
@@ -282,7 +285,7 @@ User module presets use the same `ModulePresetRecord` shape with `source: "user"
 
 ### Should Add Module expose presets now?
 
-Not yet. Presets already exist inside module-level preset controls, but Add Module should not expose them until the IA can protect fast defaults. Adding a preset browser too soon would likely make DRUM/SYNTH creation slower and make the add menu feel like a product catalog.
+Pass 3 implements the conservative version: Add Module exposes compatible factory presets as optional insertion rows without becoming a full preset browser. Presets already exist inside module-level preset controls, and the Add Module surface now reuses the existing application behavior only for factory records. Fast defaults are protected: GEN/DRUM/SYNTH root rows still create defaults immediately, CTRL/VIS still use family-to-subtype flow, and empty search does not dump the factory bank. User preset insertion remains deferred because user records can be numerous and need clearer browsing/provenance rules.
 
 ### Future preset placement
 
@@ -296,13 +299,14 @@ Important constraint: the third step must be optional. A user choosing DRUM shou
 
 ### Preview-only, one-click create, or both?
 
-Eventually both may be useful, but not in Phase 2.
+Pass 3 implements the one-click create portion for factory presets only.
 
-A conservative future model:
+Current model:
 
 - Default row: creates the standard module immediately.
-- Recent/factory suggestions: one-click create with preset applied.
+- Factory suggestions/search matches: one-click create with preset applied.
 - Preview/details: deferred until there is an audio-safe preview policy and clear UI room.
+- User preset insertion: deferred until source/provenance and list-size rules are clearer.
 
 Do not add audio preview in Phase 2. Preview introduces transport/audio state questions, performance risks, and DAW-browser expectations.
 
@@ -512,7 +516,8 @@ Smallest useful Phase 2 implementation scope:
 
 3. **Lightweight local quick search**
    - Implemented in Pass 2 for family codes/labels/descriptions and subtype labels/descriptions/values.
-   - Keep it compact and local; do not expand it into preset insertion or a command palette.
+   - Expanded in Pass 3 to actionable factory preset code/name matching only.
+   - Keep it compact and local; do not expand it into user preset insertion or a command palette.
 
 4. **Preset-ready documentation and tests only**
    - Document optional family -> subtype -> preset path.
@@ -591,14 +596,14 @@ Do not do these in Add-module IA Phase 2:
 - **Risks:** Removing useful contributor context. Mitigate by keeping this audit as documentation.
 - **Do not touch:** search UI, preset browser, CSS layout, presets, patch schema.
 
-### Pass 3 — Minimal DOM interaction test harness for AddModuleSlot
+### Pass 3 — Factory preset insertion (implemented 2026-05-07)
 
-- **Goal:** Cover open/close and keyboard navigation behavior with a small DOM test approach if the repo's test environment can support it without dependencies.
-- **Files likely involved:** `tests/addModuleIa.test.mjs` or a new focused test file.
-- **Expected behavior change:** None.
-- **Tests to add/update:** Enter/Space open, Escape close, ArrowDown/ArrowUp move, ArrowRight enters CTRL/VIS subtype, ArrowLeft returns, quick-add default pick fires.
-- **Risks:** Node's built-in test environment has limited DOM support without a browser/JSDOM dependency. Do not add dependencies just for this pass.
-- **Do not touch:** runtime behavior, dependencies, Vite config unless a no-dependency route is already available.
+- **Goal:** Add optional factory preset creation without making presets the primary Add Module path.
+- **Files involved:** `src/ui/AddModuleSlot.ts`, `src/ui/render/moduleGrid.ts`, `src/ui/persistence/modulePresetStore.ts`, `src/ui/style.css`, `tests/addModuleIa.test.mjs`, `tests/e2e/gridi-smoke.spec.ts`, this audit.
+- **Expected behavior change:** Add Module search can find factory presets by code or descriptive name, and selecting one creates a fresh compatible module with the preset state and metadata applied. Empty search remains family-first and compact.
+- **Tests added/updated:** Factory preset search by code/name, no empty-search preset dump, compatible insertion metadata, incompatible subtype rejection, and a small browser smoke insertion check.
+- **Deferred:** User preset insertion, full preset browser, audio preview, patch schema changes, routing changes, and scene/template helpers.
+- **Do not touch later without a new design pass:** routing auto-wiring, patch schema, factory preset data expansion, global command-palette behavior.
 
 ### Pass 4 — Search readiness only (superseded by Pass 2 quick search)
 
@@ -609,12 +614,12 @@ Do not do these in Add-module IA Phase 2:
 - **Risks:** Premature abstraction. Keep helper tiny and do not wire UI.
 - **Do not touch:** Module preset store, preset data, routing, patch schema.
 
-### Pass 5 — Future preset entry design note after Routing v0.4
+### Pass 5 — Future user preset entry design note after Routing v0.4
 
-- **Goal:** Revisit whether Add Module should expose a few compatible preset suggestions after routing consolidation.
+- **Goal:** Revisit whether Add Module should expose user presets or richer preset browsing after routing consolidation.
 - **Files likely involved:** documentation first; later `src/ui/AddModuleSlot.ts`, `src/ui/persistence/modulePresetStore.ts`, module preset tests.
-- **Expected behavior change:** None in documentation pass. Later implementation might add opt-in preset suggestions.
-- **Tests to add/update:** Compatibility filtering by family/subtype/source; default creation remains one action.
+- **Expected behavior change:** None in documentation pass. Later implementation might add opt-in user preset suggestions with source/provenance controls.
+- **Tests to add/update:** User/factory source filtering, compatibility filtering by family/subtype/source, default creation remains one action.
 - **Risks:** Turning Add Module into a preset catalog.
 - **Do not touch:** routing auto-wiring, patch schema, factory preset data, scene templates.
 

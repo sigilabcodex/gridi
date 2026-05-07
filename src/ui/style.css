@@ -7251,6 +7251,28 @@ button:focus-visible,
   background: rgba(125, 212, 255, 0.045);
 }
 
+.addSlotMenuSectionLabel {
+  padding: 2px 2px 0;
+  color: rgba(226, 233, 239, 0.54);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.65px;
+  text-transform: uppercase;
+}
+
+.addSlotFactoryPresetList {
+  display: grid;
+  gap: 5px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(0, 224, 150, 0.16);
+}
+
+.addSlotFactoryPreset {
+  min-height: 38px;
+  padding: 8px;
+  background: rgba(0, 224, 150, 0.04);
+}
+
 .addSlotMenuEmpty {
   padding: 8px;
   border: 1px solid rgba(207, 214, 221, 0.1);

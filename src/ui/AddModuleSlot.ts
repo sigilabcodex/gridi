@@ -1,4 +1,9 @@
 import type { ControlKind, VisualKind } from "../patch";
+import {
+  formatModulePresetDisplayName,
+  getModulePresetSubtypeLabel,
+  type ModulePresetRecord,
+} from "./persistence/modulePresetStore.ts";
 import type { GridPosition } from "../workspacePlacement.ts";
 import {
   bindFloatingPanelReposition,
@@ -19,6 +24,8 @@ export type AddModuleFamilyId = "gen" | "drum" | "synth" | "ctrl" | "vis";
 type AddSlotParams = {
   position: GridPosition;
   onPick: (what: AddModulePick) => void;
+  onPresetPick?: (presetId: string) => void;
+  modulePresetRecords?: ModulePresetRecord[];
   onDropModule?: (moduleId: string) => void;
   attachTooltip?: TooltipBinder;
 };
@@ -183,10 +190,52 @@ export type AddModuleFamilySearchResult = {
   family: AddModuleFamily;
   familyMatches: boolean;
   matchedSubtypes: AddModuleSubtypeItem[];
+  matchedFactoryPresets: ModulePresetRecord[];
 };
 
 function normalizeAddModuleSearchTerm(value: string) {
   return value.trim().toLocaleLowerCase();
+}
+
+function modulePresetFamilyForAddModuleFamily(id: AddModuleFamilyId): ModulePresetRecord["family"] {
+  if (id === "gen") return "trigger";
+  if (id === "synth") return "tonal";
+  return id === "ctrl" ? "control" : id === "vis" ? "visual" : "drum";
+}
+
+export function getAddModuleFamilyForModulePreset(record: Pick<ModulePresetRecord, "family">): AddModuleFamilyId | null {
+  if (record.family === "trigger") return "gen";
+  if (record.family === "drum") return "drum";
+  if (record.family === "tonal") return "synth";
+  if (record.family === "control") return "ctrl";
+  if (record.family === "visual") return "vis";
+  return null;
+}
+
+function addModulePresetMatchesSearch(record: ModulePresetRecord, term: string) {
+  const haystack = [
+    record.id,
+    record.code,
+    record.name,
+    record.family,
+    record.subtype,
+    getModulePresetSubtypeLabel(record),
+    record.source === "factory" ? "factory" : "user",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase();
+  return haystack.includes(term);
+}
+
+function factoryPresetsForAddModuleFamily(
+  records: ModulePresetRecord[],
+  familyId: AddModuleFamilyId,
+) {
+  const presetFamily = modulePresetFamilyForAddModuleFamily(familyId);
+  return records.filter(
+    (record) => record.source === "factory" && record.family === presetFamily,
+  );
 }
 
 function addModuleFamilyMatchesSearch(family: AddModuleFamily, term: string) {
@@ -214,6 +263,7 @@ function addModuleSubtypeMatchesSearch(
 
 export function getAddModuleSearchResults(
   query: string,
+  records: ModulePresetRecord[] = [],
 ): AddModuleFamilySearchResult[] {
   const term = normalizeAddModuleSearchTerm(query);
   if (!term) {
@@ -221,6 +271,7 @@ export function getAddModuleSearchResults(
       family,
       familyMatches: true,
       matchedSubtypes: family.subtypes ?? [],
+      matchedFactoryPresets: [],
     }));
   }
 
@@ -229,9 +280,16 @@ export function getAddModuleSearchResults(
     const matchedSubtypes = (family.subtypes ?? []).filter((item) =>
       addModuleSubtypeMatchesSearch(item, term),
     );
-    return { family, familyMatches, matchedSubtypes };
+    const matchedFactoryPresets = factoryPresetsForAddModuleFamily(
+      records,
+      family.id,
+    ).filter((record) => addModulePresetMatchesSearch(record, term));
+    return { family, familyMatches, matchedSubtypes, matchedFactoryPresets };
   }).filter(
-    (result) => result.familyMatches || result.matchedSubtypes.length > 0,
+    (result) =>
+      result.familyMatches ||
+      result.matchedSubtypes.length > 0 ||
+      result.matchedFactoryPresets.length > 0,
   );
 }
 
@@ -320,6 +378,37 @@ export function renderAddModuleSlot(params: AddSlotParams) {
     params.onPick(what);
   };
 
+  const pickPresetAndClose = (presetId: string) => {
+    if (!params.onPresetPick) return;
+    closeMenu();
+    params.onPresetPick(presetId);
+  };
+
+  const appendFactoryPresetButtons = (records: ModulePresetRecord[]) => {
+    if (!params.onPresetPick || records.length === 0) return;
+
+    const label = document.createElement("div");
+    label.className = "small addSlotMenuSectionLabel";
+    label.textContent = "Factory presets";
+    menu.appendChild(label);
+
+    const list = document.createElement("div");
+    list.className = "addSlotFactoryPresetList";
+    for (const record of records) {
+      const presetButton = createMenuButton({
+        className: "addSlotMenuItem addSlotFactoryPreset",
+        title: formatModulePresetDisplayName(record),
+        desc: getModulePresetSubtypeLabel(record),
+        onClick: () => pickPresetAndClose(record.id),
+      });
+      presetButton.dataset.presetId = record.id;
+      presetButton.dataset.presetCode = record.code ?? "";
+      buttons.push(presetButton);
+      list.appendChild(presetButton);
+    }
+    menu.appendChild(list);
+  };
+
   const renderRootMenu = (opts?: { focusSearch?: boolean }) => {
     activeFamily = null;
     buttons = [];
@@ -374,11 +463,11 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       : "Choose a family.";
     menu.appendChild(browserHint);
 
-    const searchResults = getAddModuleSearchResults(searchQuery);
+    const searchResults = getAddModuleSearchResults(searchQuery, params.modulePresetRecords ?? []);
     if (!searchResults.length) {
       const empty = document.createElement("div");
       empty.className = "small addSlotMenuEmpty";
-      empty.textContent = "No matching family or subtype.";
+      empty.textContent = "No matching family, subtype, or preset.";
       menu.appendChild(empty);
       return;
     }
@@ -451,9 +540,11 @@ export function renderAddModuleSlot(params: AddSlotParams) {
         }
         menu.appendChild(subtypeList);
       }
-    }
 
-    // TODO: Keep this search surface preset-ready, but do not include module preset records until preset insertion is designed.
+      if (searchQuery.trim()) {
+        appendFactoryPresetButtons(result.matchedFactoryPresets);
+      }
+    }
   };
 
   const renderSubtypeMenu = (familyId: AddModuleFamilyId) => {
@@ -498,6 +589,10 @@ export function renderAddModuleSlot(params: AddSlotParams) {
       buttons.push(btn);
       menu.appendChild(btn);
     }
+
+    appendFactoryPresetButtons(
+      factoryPresetsForAddModuleFamily(params.modulePresetRecords ?? [], familyId),
+    );
   };
 
   renderRootMenu();

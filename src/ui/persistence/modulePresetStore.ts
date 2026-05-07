@@ -517,6 +517,34 @@ export function applyModulePreset(module: Module, preset: ModulePresetRecord) {
   return true;
 }
 
+function isControlKind(value: string): value is ControlModule["kind"] {
+  return value === "lfo" || value === "drift" || value === "stepped";
+}
+
+function isVisualKind(value: string): value is VisualModule["kind"] {
+  return value === "scope" || value === "spectrum" || value === "vectorscope" || value === "spectral-depth" || value === "flow" || value === "ritual" || value === "glitch" || value === "cymat";
+}
+
+export function createModuleFromModulePreset(record: ModulePresetRecord, index = 0): Module | null {
+  const module = (() => {
+    if (record.family === "trigger") return makeTrigger(index);
+    if (record.family === "drum") return makeSound("drum", index);
+    if (record.family === "tonal") return makeSound("tonal", index);
+    if (record.family === "control") {
+      const subtype = String(record.subtype || "");
+      return isControlKind(subtype) ? makeControl(subtype, index) : null;
+    }
+    if (record.family === "visual") {
+      const subtype = String(record.subtype || "");
+      return isVisualKind(subtype) ? makeVisual(subtype, index) : null;
+    }
+    return null;
+  })();
+
+  if (!module) return null;
+  return applyModulePreset(module, record) ? module : null;
+}
+
 export function saveModulePresetFromModule(records: ModulePresetRecord[], module: Module, params: { name: string; overwritePresetId?: string | null }) {
   const cleanName = sanitizeModulePresetName(params.name, module.presetName ?? `${getModulePresetFamilyLabel(module)} Preset`);
   const nextState = snapshotModulePresetState(module);
