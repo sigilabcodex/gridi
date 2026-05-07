@@ -67,7 +67,7 @@ test('typed route domains preserve hybrid precedence in routing snapshot', () =>
   assert.equal(snapshot.voiceIncoming.get(drum.id)?.trigger?.id, triggerB.id);
 });
 
-import { resolveTriggerFollowerLabel, resolveVoiceRoutingLabel } from '../src/ui/routingLabels.ts';
+import { resolveTriggerFollowerLabel, resolveTriggerSourceLabelState, resolveVoiceRoutingLabel } from '../src/ui/routingLabels.ts';
 
 test('voice and trigger routing surfaces resolve identical source labels', () => {
   const patch = seedPatch();
@@ -90,6 +90,11 @@ test('missing and null triggerSource share fallback labels across surfaces', () 
 
   assert.equal(resolveVoiceRoutingLabel(patch.modules, drum), resolveTriggerFollowerLabel(patch.modules, drum));
   assert.match(resolveVoiceRoutingLabel(patch.modules, drum), /^Missing /);
+  assert.deepEqual(resolveTriggerSourceLabelState(patch.modules, drum.triggerSource), {
+    label: 'Missing 1234',
+    status: 'missing',
+    missingId: 'missing_trigger_1234',
+  });
 
   drum.triggerSource = null;
   assert.equal(resolveVoiceRoutingLabel(patch.modules, drum), 'None');
