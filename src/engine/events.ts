@@ -10,6 +10,7 @@ export type DrumTriggerEvent = {
   timeSec: number;
   velocity: number;
   lane?: DrumLaneRole;
+  laneIndex?: number;
 };
 
 export type NoteTriggerEvent = {

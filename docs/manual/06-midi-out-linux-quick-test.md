@@ -4,7 +4,7 @@ GRIDI MIDI Out uses Web MIDI, so start with Chrome or Chromium. Other browsers m
 
 ## What the first test should prove
 
-The first MIDI Out test is only meant to prove that GRIDI emits note-on and note-off messages and that your Linux MIDI graph forwards them to a synth. It is not a MIDI clock, CC, MPE, drum-map, or DAW-sync test.
+The first MIDI Out test is only meant to prove that GRIDI emits note-on and note-off messages and that your Linux MIDI graph forwards them to a synth. It is not a MIDI clock, CC, MPE, custom drum-map editor, or DAW-sync test.
 
 Good first destinations are melodic or modular hosts that make MIDI input easy to see and arm:
 
@@ -12,7 +12,7 @@ Good first destinations are melodic or modular hosts that make MIDI input easy t
 - Cardinal
 - Ardour with a MIDI/instrument track armed and monitoring enabled
 
-Hydrogen is useful later, but it is not the best first generic melodic MIDI test. It usually expects GM drum notes such as 36 for kick, 38 for snare, 42 for closed hat, and 46 for open hat, so a normal melodic note stream around middle C may appear to do nothing unless a future drum map matches the kit.
+Hydrogen is useful for the drum-map test below. It usually expects GM drum notes such as 36 for kick, 38 for snare, 42 for closed hat, and 46 for open hat, so use **Mode: Drum map** instead of a normal melodic note stream around middle C.
 
 ## Quick header setup
 
@@ -21,8 +21,10 @@ Use the compact header **MIDI I/O** pill for Phase 1.x MIDI Out setup:
 1. Choose the **Output** destination. If you use ALSA/JACK/PipeWire routing, this is often the browser/Chromium MIDI output port that will be connected to the external synth in your patchbay.
 2. Choose the **Source GEN** module. Only this generator is mirrored to MIDI Out.
 3. Set the compact mapping controls:
-   - **Ch**: MIDI channel 1–16. The default is channel 1.
-   - **Base**: base note 0–127. The default is 60 (middle C). Tonal GEN note offsets are added to this base note.
+   - **Mode: Melodic**: current/base-note behavior. Tonal GEN note offsets are added to **Base**. Drum events without melodic note data fall back to **Base**.
+   - **Mode: Drum map**: maps available drum lane/index data to a small GM-style map: lane 0 → 36 kick, lane 1 → 38 snare, lane 2 → 42 closed hat, lane 3 → 46 open hat, then 49 crash, 45 low tom, 47 mid tom, and 50 high tom. The UI summarizes this as `GM basic: 36/38/42/46…`. If no lane/index is available, GRIDI falls back to **Base**.
+   - **Ch**: MIDI channel 1–16. The default is channel 1. Channel 10 is common for drum instruments, but some hosts/plugins use any armed/selected channel.
+   - **Base**: base note 0–127. The default is 60 (middle C). In Drum map mode it is only the fallback when no lane/index is available.
    - **Gate ms**: note length in milliseconds. The default is 120 ms.
    - **Vel**: velocity scale from 0–1. The default is 1.0.
 4. Press **Test note**. This sends a short note-on/note-off using the selected channel, base note, gate, and velocity scale. It works while transport is stopped and updates the last-sent diagnostics in the MIDI Output status line.
@@ -36,10 +38,26 @@ A simple AMSynth/Cardinal smoke test is:
 
 1. Open GRIDI in Chrome/Chromium.
 2. Open AMSynth or Cardinal and enable/monitor its MIDI input.
-3. In GRIDI, open **MIDI I/O**, select a MIDI Output, select a **Source GEN**, leave **Ch 1**, **Base 60**, **Gate 120**, and **Vel 1.0**.
+3. In GRIDI, open **MIDI I/O**, select a MIDI Output, select a **Source GEN**, use **Mode: Melodic**, leave **Ch 1**, **Base 60**, **Gate 120**, and **Vel 1.0**.
 4. Use `aconnect -l`, QMidiRoute, or your JACK/PipeWire patchbay to connect Chromium/GRIDI's MIDI source to AMSynth/Cardinal's MIDI input.
 5. Click **Test note**. You should hear or see one short note.
 6. Start GRIDI transport. The selected GEN should now play the external synth while GRIDI's normal WebAudio behavior remains unchanged.
+
+
+## Hydrogen drum-map quick test
+
+Use this test when you want GRIDI to drive a drum instrument instead of a melodic synth:
+
+1. Open Hydrogen and load a kit. Confirm the kit/instrument list responds to GM-style notes such as 36 (kick), 38 (snare), 42 (closed hat), and 46 (open hat), or adjust Hydrogen's instrument MIDI note assignments to match.
+2. Open GRIDI in Chrome/Chromium and open the **MIDI I/O** pill.
+3. Select a MIDI **Output** and a **Source GEN**.
+4. Set **Mode: Drum map**. The compact label should show `GM basic: 36/38/42/46…`.
+5. Set **Ch** to the channel your target listens to. Channel 10 is common for drum workflows, but Hydrogen/hosts may also respond to the selected/omni input depending on configuration.
+6. Use `aconnect -l` or your patchbay to connect the Chromium/GRIDI MIDI source (often visible through **MIDI Through**) to Hydrogen's MIDI input. For example, connect MIDI Through/Chromium's output to Hydrogen's input in ALSA, JACK, or PipeWire.
+7. Start GRIDI transport. Drum lanes should trigger the GM basic notes: 36 kick, 38 snare, 42 closed hat, and 46 open hat for the first four lanes.
+8. If Hydrogen stays silent, verify both sides: use `aseqdump` to confirm GRIDI emits the expected note numbers, and verify Hydrogen's instrument mapping/input channel/monitor settings.
+
+The same **Mode: Drum map** setup is the practical starting point for Ardour drum tracks, Cardinal drum patches, and hardware drum machines. In Ardour, arm and monitor the MIDI/instrument track; in Cardinal, patch the host MIDI input into the drum voices/modules; on hardware, match the channel and note map expected by the device.
 
 ## Verify messages before blaming the synth
 
@@ -55,7 +73,7 @@ aconnect <source> <destination>
 
 Typical workflow:
 
-1. Open GRIDI in Chrome/Chromium and use the compact header **MIDI I/O** pill for quick setup: choose the MIDI Output destination, choose the GEN source module, set channel/base/gate/velocity, and click **Test note**.
+1. Open GRIDI in Chrome/Chromium and use the compact header **MIDI I/O** pill for quick setup: choose the MIDI Output destination, choose the GEN source module, set mode/channel/base/gate/velocity, and click **Test note**.
 2. Open the **Routing** panel when you need the global inspector: it still shows routing health, event diagnostics, and the full MIDI input/output route rows.
 3. Run `aconnect -l` to list ALSA MIDI clients and ports.
 4. Use `aseqdump` or QMidiRoute to confirm incoming note-on/note-off messages from Chromium/GRIDI.
@@ -66,7 +84,7 @@ Typical workflow:
 
 QMidiRoute can prove that GRIDI is sending events, but it can also swallow them. If **Discard unmatched events** is enabled, QMidiRoute will not forward any event that does not match a configured rule. Either disable that option while testing or add rules that forward the channel and notes you see in its log.
 
-Observed GRIDI Phase 1.2 MIDI Out messages are usually channel 1 note-on/note-off events around base note 60 unless you change the **Ch** or **Base** mapping controls. If those appear in QMidiRoute or `aseqdump`, GRIDI has emitted MIDI and the remaining issue is likely ALSA/JACK/PipeWire bridge routing, QMidiRoute forwarding rules, destination app input configuration, or channel/note mapping.
+Observed GRIDI MIDI Out messages in Melodic mode are usually channel 1 note-on/note-off events around base note 60 unless you change the **Ch** or **Base** mapping controls. In Drum map mode, expect the GM basic drum notes 36/38/42/46… when lane/index data is present. If those appear in QMidiRoute or `aseqdump`, GRIDI has emitted MIDI and the remaining issue is likely ALSA/JACK/PipeWire bridge routing, QMidiRoute forwarding rules, destination app input configuration, or channel/note mapping.
 
 ## Stuck-note safety
 

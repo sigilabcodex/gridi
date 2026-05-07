@@ -146,6 +146,7 @@ export function createScheduler(engine: Engine): Scheduler {
             timeSec: eventTimeSec,
             velocity: ev.value,
             lane: normalizeDrumLane(laneRoleFromPatternEvent(ev)),
+            laneIndex: typeof ev.targetLane === "number" && Number.isFinite(ev.targetLane) ? Math.round(ev.targetLane) : undefined,
           }
           : {
             kind: "note",

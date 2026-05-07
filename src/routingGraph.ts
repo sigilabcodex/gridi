@@ -16,6 +16,7 @@ export type PatchRouteMetadata = {
   midiGateMs?: number;
   midiOutputName?: string;
   midiVelocityScale?: number;
+  midiMapMode?: "melodic" | "drum";
 };
 
 export type PatchRoute = {
@@ -147,6 +148,7 @@ function fallbackRouteId(route: {
     route.metadata?.midiGateMs ?? "",
     route.metadata?.midiOutputName ?? "",
     route.metadata?.midiVelocityScale ?? "",
+    route.metadata?.midiMapMode ?? "",
   ].join("|");
 }
 
@@ -168,6 +170,7 @@ function normalizeRawRoute(raw: unknown): PatchRoute | null {
       midiGateMs: typeof route.metadata.midiGateMs === "number" && Number.isFinite(route.metadata.midiGateMs) ? Math.max(1, Math.min(10000, Math.round(route.metadata.midiGateMs))) : undefined,
       midiOutputName: typeof route.metadata.midiOutputName === "string" && route.metadata.midiOutputName.trim() ? route.metadata.midiOutputName : undefined,
       midiVelocityScale: typeof route.metadata.midiVelocityScale === "number" && Number.isFinite(route.metadata.midiVelocityScale) ? Math.max(0, Math.min(1, route.metadata.midiVelocityScale)) : undefined,
+      midiMapMode: route.metadata.midiMapMode === "drum" || route.metadata.midiMapMode === "melodic" ? route.metadata.midiMapMode : undefined,
     }
     : undefined;
 
@@ -214,7 +217,7 @@ function routeIdentity(route: PatchRoute) {
         : "master";
   const targetPort = "port" in route.target ? route.target.port ?? "" : "";
 
-  return `${route.domain}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiBaseNote ?? ""}|${route.metadata?.midiGateMs ?? ""}|${route.metadata?.midiOutputName ?? ""}|${route.metadata?.midiVelocityScale ?? ""}`;
+  return `${route.domain}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiBaseNote ?? ""}|${route.metadata?.midiGateMs ?? ""}|${route.metadata?.midiOutputName ?? ""}|${route.metadata?.midiVelocityScale ?? ""}|${route.metadata?.midiMapMode ?? ""}`;
 }
 
 function validateRoute(

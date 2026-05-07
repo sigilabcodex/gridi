@@ -11,6 +11,7 @@ import {
   midiOutRoutesForSource,
   normalizeMidiChannel,
   normalizeMidiGateMs,
+  normalizeMidiMapMode,
   normalizeMidiVelocity,
   normalizeMidiVelocityScale,
 } from '../src/engine/midiOut.ts';
@@ -60,10 +61,23 @@ test('MIDI test note messages use selected mapping values', () => {
   });
 });
 
-test('event-to-MIDI-note mapping uses tonal offsets, drum lanes, and fallback base note', () => {
+test('event-to-MIDI-note mapping keeps melodic mode on base-note behavior', () => {
   assert.equal(midiNoteFromGridiEvent({ kind: 'note', timeSec: 1, velocity: 0.8, notes: [7.2] }, 60), 67);
-  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, lane: 'low' }, 60), 36);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, lane: 'low' }, 60), 60);
   assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8 }, 64), 64);
+});
+
+test('drum map mode maps lanes to GM basic notes and falls back to base note', () => {
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 0 }, 60, 'drum'), 36);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 1 }, 60, 'drum'), 38);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 2 }, 60, 'drum'), 42);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 3 }, 60, 'drum'), 46);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 4 }, 60, 'drum'), 49);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 5 }, 60, 'drum'), 45);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 6 }, 60, 'drum'), 47);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 7 }, 60, 'drum'), 50);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, lane: 'accent' }, 60, 'drum'), 46);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8 }, 64, 'drum'), 64);
 });
 
 test('MIDI Out route filtering only returns enabled module-to-external MIDI routes for source', () => {
@@ -102,7 +116,8 @@ test('MIDI Out route filtering only returns enabled module-to-external MIDI rout
     baseNote: route.baseNote,
     gateMs: route.gateMs,
     velocityScale: route.velocityScale,
-  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240, velocityScale: 0.5 }]);
+    mapMode: route.mapMode,
+  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240, velocityScale: 0.5, mapMode: 'melodic' }]);
 });
 
 test('old MIDI routes without mapping metadata load with Phase 1.2 defaults', () => {
@@ -121,7 +136,8 @@ test('old MIDI routes without mapping metadata load with Phase 1.2 defaults', ()
     baseNote: route.baseNote,
     gateMs: route.gateMs,
     velocityScale: route.velocityScale,
-  })), [{ channel: 1, baseNote: 60, gateMs: 120, velocityScale: 1 }]);
+    mapMode: route.mapMode,
+  })), [{ channel: 1, baseNote: 60, gateMs: 120, velocityScale: 1, mapMode: 'melodic' }]);
 });
 
 test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values', () => {
@@ -133,7 +149,7 @@ test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values',
     source: { kind: 'module', moduleId: 'gen-clamped', port: 'trigger-out' },
     target: { kind: 'external', externalType: 'midi', portId: 'out-clamped', channel: 99 },
     enabled: true,
-    metadata: { midiBaseNote: 140, midiGateMs: -20, midiVelocityScale: 2 },
+    metadata: { midiBaseNote: 140, midiGateMs: -20, midiVelocityScale: 2, midiMapMode: 'drum' },
   }];
 
   const [route] = normalizePatchRoutes(patch);
@@ -141,16 +157,18 @@ test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values',
   assert.equal(route.metadata.midiBaseNote, 127);
   assert.equal(route.metadata.midiGateMs, 1);
   assert.equal(route.metadata.midiVelocityScale, 1);
+  assert.equal(route.metadata.midiMapMode, 'drum');
 
   assert.deepEqual(midiOutRoutesForSource({ ...patch, routes: [route] }, 'gen-clamped').map((midiRoute) => ({
     channel: midiRoute.channel,
     baseNote: midiRoute.baseNote,
     gateMs: midiRoute.gateMs,
     velocityScale: midiRoute.velocityScale,
-  })), [{ channel: 1, baseNote: 127, gateMs: 1, velocityScale: 1 }]);
+    mapMode: midiRoute.mapMode,
+  })), [{ channel: 1, baseNote: 127, gateMs: 1, velocityScale: 1, mapMode: 'drum' }]);
 });
 
-test('MIDI event mapping respects route channel, base note, gate, and velocity scale', () => {
+test('MIDI event mapping respects route channel, base note, gate, velocity scale, and map mode', () => {
   const trigger = makeTrigger({ id: 'gen-map' });
   const patch = makePatch([trigger]);
   patch.routes = [{
@@ -159,15 +177,23 @@ test('MIDI event mapping respects route channel, base note, gate, and velocity s
     source: { kind: 'module', moduleId: 'gen-map', port: 'trigger-out' },
     target: { kind: 'external', externalType: 'midi', portId: 'out-map', channel: 4 },
     enabled: true,
-    metadata: { midiBaseNote: 65, midiGateMs: 90, midiVelocityScale: 0.25 },
+    metadata: { midiBaseNote: 65, midiGateMs: 90, midiVelocityScale: 0.25, midiMapMode: 'drum' },
   }];
 
   const [route] = midiOutRoutesForSource(patch, 'gen-map');
   const event = { kind: 'note', timeSec: 1, velocity: 0.8, notes: [2] };
-  assert.equal(midiNoteFromGridiEvent(event, route.baseNote), 67);
+  assert.equal(midiNoteFromGridiEvent(event, route.baseNote, 'melodic'), 67);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 1 }, route.baseNote, route.mapMode), 38);
   assert.equal(normalizeMidiVelocity(event.velocity * route.velocityScale), 25);
   assert.equal(route.channel, 4);
   assert.equal(route.gateMs, 90);
+  assert.equal(route.mapMode, 'drum');
+});
+
+test('MIDI map mode normalization defaults old metadata to melodic', () => {
+  assert.equal(normalizeMidiMapMode(undefined), 'melodic');
+  assert.equal(normalizeMidiMapMode('drum'), 'drum');
+  assert.equal(normalizeMidiMapMode('other'), 'melodic');
 });
 
 import { createScheduler } from '../src/engine/scheduler.ts';

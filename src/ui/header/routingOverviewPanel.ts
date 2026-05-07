@@ -1,5 +1,5 @@
 import type { Patch } from "../../patch";
-import { clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiVelocityScale } from "../../engine/midiOut";
+import { GM_BASIC_DRUM_MAP_LABEL, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale } from "../../engine/midiOut";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
 import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
@@ -79,10 +79,10 @@ function filterRoutesByModule(routes: UIRoutingOverviewRoute[], moduleId: string
 function midiOutputStatusText(
   status: MidiOutputStatus,
   sourceName: string | null,
-  mapping: { channel: number; baseNote: number; gateMs: number; velocityScale: number } | null,
+  mapping: { channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: "melodic" | "drum" } | null,
 ) {
   const source = sourceName ? `Source: ${sourceName}` : "Source: Off";
-  const channelText = mapping ? ` · Ch ${mapping.channel} Base ${mapping.baseNote} Gate ${mapping.gateMs}ms Vel ${mapping.velocityScale}` : "";
+  const channelText = mapping ? ` · Mode ${mapping.mapMode === "drum" ? "Drum map" : "Melodic"} · Ch ${mapping.channel} Base ${mapping.baseNote} Gate ${mapping.gateMs}ms Vel ${mapping.velocityScale}${mapping.mapMode === "drum" ? ` · ${GM_BASIC_DRUM_MAP_LABEL}` : ""}` : "";
   if (!sourceName) return `MIDI Out off · ${source}`;
   if (status.kind === "unsupported") return `MIDI Out unavailable in this browser · ${source}`;
   if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;
@@ -341,6 +341,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
       baseNote: clampMidiNoteNumber(activeMidiOutPatchRoute.metadata?.midiBaseNote),
       gateMs: normalizeMidiGateMs(activeMidiOutPatchRoute.metadata?.midiGateMs),
       velocityScale: normalizeMidiVelocityScale(activeMidiOutPatchRoute.metadata?.midiVelocityScale),
+      mapMode: normalizeMidiMapMode(activeMidiOutPatchRoute.metadata?.midiMapMode),
     } : null;
 
     midiInputSelect.replaceChildren();
