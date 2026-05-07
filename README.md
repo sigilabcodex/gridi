@@ -127,8 +127,22 @@ npm run typecheck
 
 ### Tests
 
+Unit/model tests remain the default fast suite:
+
 ```bash
 npm test
+```
+
+Browser smoke/regression tests run headlessly against a local Vite server when a Chromium-compatible browser is installed:
+
+```bash
+npm run test:e2e
+```
+
+For local browser debugging, run:
+
+```bash
+npm run test:e2e:headed
 ```
 
 ## Documentation map

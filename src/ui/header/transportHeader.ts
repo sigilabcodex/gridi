@@ -464,10 +464,12 @@ export function createTransportHeader(params: HeaderParams) {
   selectionSummary.setAttribute("aria-label", "Open selected module actions");
   selectionSummary.setAttribute("aria-haspopup", "menu");
   selectionSummary.setAttribute("aria-expanded", "false");
+  selectionSummary.dataset.testid = "selection-actions-button";
 
   const selectionPanel = document.createElement("div");
   selectionPanel.className = "floatingPanel transportUtilityPanel hidden";
   selectionPanel.setAttribute("role", "menu");
+  selectionPanel.dataset.testid = "selection-actions-panel";
 
   const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
     const btn = document.createElement("button");

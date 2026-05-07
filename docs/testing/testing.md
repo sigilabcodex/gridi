@@ -41,6 +41,42 @@ npm run test:watch
 npm run test:step
 ```
 
+## Browser smoke/regression tests
+
+GRIDI also has a small browser-level smoke harness for DOM/focus/menu interactions that unit tests cannot reliably cover. The harness launches a local Vite dev server and drives a Chromium-compatible browser through the Chrome DevTools Protocol, so it does not require external services or audio hardware.
+
+Install a Chromium-compatible browser before running the browser smoke suite:
+
+- Linux: install `chromium` or `google-chrome-stable` with your OS package manager.
+- macOS/Windows: install Chrome or Chromium.
+- CI/custom paths: set `GRIDI_E2E_BROWSER=/absolute/path/to/chrome-or-chromium` when the browser is not in a common location.
+
+Run the headless browser smoke suite:
+
+```bash
+npm run test:e2e
+```
+
+Run in headed mode when debugging focus/menu failures locally:
+
+```bash
+npm run test:e2e:headed
+```
+
+The e2e suite starts from a clean temporary browser profile and seeds localStorage with test-safe settings before each test. It intentionally remains small and covers only high-risk interactive smoke paths:
+
+- module selection and Actions menu enablement
+- multi-select duplicate/delete with confirmation
+- shortcut suppression while typing in menu search
+- Add Module quick search for LFO/control and Scope/visual IA
+- Session Manager protected factory examples and local-session batch delete confirmation
+
+Unit/model tests remain the default fast regression suite:
+
+```bash
+npm test
+```
+
 ## Contributor notes
 
 - Keep tests deterministic (fixed seeds, fixed windows, explicit expected beats).

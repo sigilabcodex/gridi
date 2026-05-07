@@ -14,7 +14,9 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.mjs",
     "test:watch": "tsx --test --watch tests/*.test.mjs",
-    "test:step": "tsx --test tests/eventWindowAndDedupe.test.mjs"
+    "test:step": "tsx --test tests/eventWindowAndDedupe.test.mjs",
+    "test:e2e": "tsx --test tests/e2e/*.spec.ts",
+    "test:e2e:headed": "GRIDI_E2E_HEADLESS=0 tsx --test tests/e2e/*.spec.ts"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
