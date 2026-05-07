@@ -5,6 +5,7 @@ import type { GridiTriggerEvent } from "./events.ts";
 export const DEFAULT_MIDI_BASE_NOTE = 60;
 export const DEFAULT_MIDI_GATE_MS = 120;
 export const DEFAULT_MIDI_CHANNEL = 1;
+export const DEFAULT_MIDI_VELOCITY_SCALE = 1;
 
 const DRUM_LANE_NOTES = {
   low: 36,
@@ -28,6 +29,7 @@ export type MidiOutRouteConfig = {
   channel: number;
   baseNote: number;
   gateMs: number;
+  velocityScale: number;
 };
 
 export function normalizeMidiChannel(value: unknown, fallback = DEFAULT_MIDI_CHANNEL) {
@@ -51,6 +53,11 @@ export function normalizeMidiGateMs(value: unknown, fallback = DEFAULT_MIDI_GATE
   return Math.max(1, Math.min(10000, ms));
 }
 
+export function normalizeMidiVelocityScale(value: unknown, fallback = DEFAULT_MIDI_VELOCITY_SCALE) {
+  const scale = typeof value === "number" && Number.isFinite(value) ? value : fallback;
+  return Math.max(0, Math.min(1, scale));
+}
+
 export function makeNoteOnMessage(note: number, velocity: number, channel = DEFAULT_MIDI_CHANNEL): MidiOutMessage {
   return [0x90 + normalizeMidiChannel(channel) - 1, clampMidiNoteNumber(note), normalizeMidiVelocity(velocity)];
 }
@@ -61,6 +68,23 @@ export function makeNoteOffMessage(note: number, channel = DEFAULT_MIDI_CHANNEL)
 
 export function makeAllNotesOffMessage(channel = DEFAULT_MIDI_CHANNEL): MidiOutMessage {
   return [0xb0 + normalizeMidiChannel(channel) - 1, 123, 0];
+}
+
+export function makeMidiTestNoteMessages(params: {
+  baseNote?: number;
+  velocityScale?: number;
+  channel?: number;
+} = {}): { noteOn: MidiOutMessage; noteOff: MidiOutMessage; note: number; velocity: number; channel: number } {
+  const channel = normalizeMidiChannel(params.channel);
+  const note = clampMidiNoteNumber(params.baseNote);
+  const velocity = normalizeMidiVelocity(normalizeMidiVelocityScale(params.velocityScale) * 127);
+  return {
+    noteOn: makeNoteOnMessage(note, velocity, channel),
+    noteOff: makeNoteOffMessage(note, channel),
+    note,
+    velocity,
+    channel,
+  };
 }
 
 export function makeMidiPanicMessages(options: MidiOutPanicOptions = {}): MidiOutMessage[] {
@@ -102,6 +126,7 @@ export function midiOutRoutesForSource(patch: Patch, sourceModuleId: string): Mi
         channel: normalizeMidiChannel(target?.channel),
         baseNote: clampMidiNoteNumber(meta.midiBaseNote),
         gateMs: normalizeMidiGateMs(meta.midiGateMs),
+        velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale),
       };
     });
 }
