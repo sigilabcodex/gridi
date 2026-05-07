@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { makeSound, makeTrigger } from '../src/patch.ts';
+import { validatePatchRouting } from '../src/routingGraph.ts';
 import { deleteSelectedModules, duplicateSelectedModules } from '../src/ui/state/moduleBatchActions.ts';
 import { makePatch } from './helpers.mjs';
 
@@ -41,6 +42,7 @@ test('deleting selected generator clears affected voice triggerSource and typed 
   assert.equal(patch.modules[0].id, drum.id);
   assert.equal(patch.modules[0].triggerSource, null);
   assert.deepEqual(patch.routes, []);
+  assert.deepEqual(validatePatchRouting(patch).issues, []);
 });
 
 test('duplicate selected creates new ids, copies params, and selects duplicates', () => {
@@ -106,4 +108,29 @@ test('duplicate selected remaps selected-internal typed event routes', () => {
   assert.ok(duplicateRoute);
   assert.equal(duplicateRoute.source.moduleId, result.idMap.get(trigger.id));
   assert.equal(duplicateRoute.target.moduleId, result.idMap.get(drum.id));
+  assert.deepEqual(validatePatchRouting(patch).issues, []);
+});
+
+
+test('duplicate selected routed voice keeps external generator route valid', () => {
+  const trigger = makeTrigger(0, 'GEN');
+  const drum = makeSound('drum', 0, null);
+  const patch = makePatch([trigger, drum]);
+  patch.routes = [
+    {
+      id: 'evt-external-source',
+      domain: 'event',
+      source: { kind: 'module', moduleId: trigger.id, port: 'trigger-out' },
+      target: { kind: 'module', moduleId: drum.id, port: 'trigger-in' },
+      enabled: true,
+    },
+  ];
+
+  const result = duplicateSelectedModules(patch, [drum.id]);
+  const duplicateRoute = patch.routes.find((route) => route.id !== 'evt-external-source');
+
+  assert.ok(duplicateRoute);
+  assert.equal(duplicateRoute.source.moduleId, trigger.id);
+  assert.equal(duplicateRoute.target.moduleId, result.idMap.get(drum.id));
+  assert.deepEqual(validatePatchRouting(patch).issues, []);
 });

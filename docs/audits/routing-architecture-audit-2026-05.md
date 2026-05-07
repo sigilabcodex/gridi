@@ -716,6 +716,14 @@ A practical v0.4 scope should include:
 7. **Protect factory examples and patch compatibility**
    - Add fixtures/tests before changing route writes.
 
+## Phase 1 implementation note — Routing v0.4 consistency/visibility hardening
+
+Phase 1 added a conservative validation and visibility pass without changing the saved patch schema, route normalization policy, scheduler behavior, audio generation, or legacy routing fields. The new pure validation helper reports stale `triggerSource` links, typed route endpoints, legacy audio connection endpoints, and modulation source/parameter references so tests and development UI surfaces can inspect routing consistency before any future consolidation.
+
+Additional tests cover invalid/stale references after generator deletion, selected routed-module duplication, and older patch migration paths. Missing trigger-source labels now expose a compact state alongside the existing fallback label, while scary modal-style error flows remain out of scope.
+
+Deferred v0.4 tasks remain unchanged: no graphical patchbay, bus matrix, route editor, route-only migration, MIDI routing redesign, or module UI redesign was introduced in this pass.
+
 ## 16. Explicit deferrals
 
 Defer the following out of the initial v0.4 routing consolidation work:

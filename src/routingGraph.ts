@@ -33,6 +33,40 @@ export type CompiledRouting = {
   audioConnections: Connection[];
 };
 
+export type RoutingValidationIssueCode =
+  | "voice-missing-trigger-source"
+  | "voice-invalid-trigger-source"
+  | "route-invalid-record"
+  | "route-duplicate-id"
+  | "route-missing-source-module"
+  | "route-missing-target-module"
+  | "route-missing-source-bus"
+  | "route-missing-target-bus"
+  | "route-invalid-endpoint"
+  | "route-invalid-domain"
+  | "route-invalid-modulation-parameter"
+  | "connection-missing-source-module"
+  | "connection-missing-target-module"
+  | "connection-missing-target-bus"
+  | "modulation-missing-source-module"
+  | "modulation-invalid-source-module"
+  | "modulation-invalid-target-parameter";
+
+export type RoutingValidationIssue = {
+  code: RoutingValidationIssueCode;
+  message: string;
+  routeId?: string;
+  moduleId?: string;
+  connectionId?: string;
+  parameter?: string;
+  refId?: string;
+};
+
+export type RoutingValidationResult = {
+  issues: RoutingValidationIssue[];
+  warnings: string[];
+};
+
 type NormalizeRouteResult = {
   routes: PatchRoute[];
   warnings: string[];
@@ -226,6 +260,158 @@ function validateRoute(
   }
 
   return "invalid route domain";
+}
+
+
+function moduleHasNumericParameter(module: Module, parameter: string): boolean {
+  return Object.prototype.hasOwnProperty.call(module, parameter) && typeof (module as unknown as Record<string, unknown>)[parameter] === "number";
+}
+
+function routeValidationIssueFromError(route: PatchRoute, error: string): RoutingValidationIssue {
+  if (error.startsWith("duplicate route id:")) {
+    return { code: "route-duplicate-id", message: `Route ${route.id} has a duplicate id`, routeId: route.id };
+  }
+  if (error.startsWith("missing source module:")) {
+    const refId = error.slice("missing source module:".length).trim();
+    return { code: "route-missing-source-module", message: `Route ${route.id} references missing source module ${refId}`, routeId: route.id, refId };
+  }
+  if (error.startsWith("missing target module:")) {
+    const refId = error.slice("missing target module:".length).trim();
+    return { code: "route-missing-target-module", message: `Route ${route.id} references missing target module ${refId}`, routeId: route.id, refId };
+  }
+  if (error.startsWith("missing source bus:")) {
+    const refId = error.slice("missing source bus:".length).trim();
+    return { code: "route-missing-source-bus", message: `Route ${route.id} references missing source bus ${refId}`, routeId: route.id, refId };
+  }
+  if (error.startsWith("missing target bus:")) {
+    const refId = error.slice("missing target bus:".length).trim();
+    return { code: "route-missing-target-bus", message: `Route ${route.id} references missing target bus ${refId}`, routeId: route.id, refId };
+  }
+  if (error === "invalid route domain") {
+    return { code: "route-invalid-domain", message: `Route ${route.id} has an invalid domain`, routeId: route.id };
+  }
+  return { code: "route-invalid-endpoint", message: `Route ${route.id} is invalid: ${error}`, routeId: route.id };
+}
+
+export function validatePatchRouting(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): RoutingValidationResult {
+  const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
+  const busesById = new Set((patch.buses ?? []).map((bus) => bus.id));
+  const routeIds = new Set<string>();
+  const issues: RoutingValidationIssue[] = [];
+
+  const push = (issue: RoutingValidationIssue) => issues.push(issue);
+
+  for (const module of patch.modules) {
+    if (isSoundModule(module) && module.triggerSource) {
+      const source = modulesById.get(module.triggerSource);
+      if (!source) {
+        push({
+          code: "voice-missing-trigger-source",
+          message: `Voice ${module.id} references missing trigger source ${module.triggerSource}`,
+          moduleId: module.id,
+          refId: module.triggerSource,
+        });
+      } else if (source.type !== "trigger") {
+        push({
+          code: "voice-invalid-trigger-source",
+          message: `Voice ${module.id} trigger source ${module.triggerSource} is not a generator`,
+          moduleId: module.id,
+          refId: module.triggerSource,
+        });
+      }
+    }
+
+    const modulations = "modulations" in module && module.modulations && typeof module.modulations === "object"
+      ? module.modulations
+      : {};
+    for (const [parameter, sourceId] of Object.entries(modulations)) {
+      if (!sourceId || typeof sourceId !== "string") continue;
+      const source = modulesById.get(sourceId);
+      if (!source) {
+        push({
+          code: "modulation-missing-source-module",
+          message: `Module ${module.id} parameter ${parameter} references missing modulation source ${sourceId}`,
+          moduleId: module.id,
+          parameter,
+          refId: sourceId,
+        });
+      } else if (source.type !== "control") {
+        push({
+          code: "modulation-invalid-source-module",
+          message: `Module ${module.id} parameter ${parameter} modulation source ${sourceId} is not a controller`,
+          moduleId: module.id,
+          parameter,
+          refId: sourceId,
+        });
+      }
+      if (!moduleHasNumericParameter(module, parameter)) {
+        push({
+          code: "modulation-invalid-target-parameter",
+          message: `Module ${module.id} has unknown modulation target parameter ${parameter}`,
+          moduleId: module.id,
+          parameter,
+          refId: sourceId,
+        });
+      }
+    }
+  }
+
+  if (Array.isArray(patch.routes)) {
+    for (const raw of patch.routes) {
+      const route = normalizeRawRoute(raw);
+      if (!route) {
+        push({ code: "route-invalid-record", message: "Patch contains an invalid typed route record" });
+        continue;
+      }
+      const error = validateRoute(route, patch, routeIds);
+      if (error) {
+        push(routeValidationIssueFromError(route, error));
+        continue;
+      }
+      if (route.domain === "modulation") {
+        const target = route.target.kind === "module" ? modulesById.get(route.target.moduleId) : null;
+        const parameter = route.metadata?.parameter;
+        if (target && parameter && !moduleHasNumericParameter(target, parameter)) {
+          push({
+            code: "route-invalid-modulation-parameter",
+            message: `Route ${route.id} targets unknown modulation parameter ${parameter} on ${target.id}`,
+            routeId: route.id,
+            moduleId: target.id,
+            parameter,
+          });
+        }
+      }
+    }
+  }
+
+  for (const connection of patch.connections) {
+    if (!modulesById.has(connection.fromModuleId)) {
+      push({
+        code: "connection-missing-source-module",
+        message: `Connection ${connection.id} references missing source module ${connection.fromModuleId}`,
+        connectionId: connection.id,
+        refId: connection.fromModuleId,
+      });
+    }
+    if (connection.to.type === "module" && connection.to.id && !modulesById.has(connection.to.id)) {
+      push({
+        code: "connection-missing-target-module",
+        message: `Connection ${connection.id} references missing target module ${connection.to.id}`,
+        connectionId: connection.id,
+        refId: connection.to.id,
+      });
+    }
+    if (connection.to.type === "bus" && connection.to.id && !busesById.has(connection.to.id)) {
+      push({
+        code: "connection-missing-target-bus",
+        message: `Connection ${connection.id} references missing target bus ${connection.to.id}`,
+        connectionId: connection.id,
+        refId: connection.to.id,
+      });
+    }
+  }
+
+  return { issues, warnings: issues.map((issue) => issue.message) };
 }
 
 function makeLegacyEventRoute(sourceId: string, targetId: string): PatchRoute {

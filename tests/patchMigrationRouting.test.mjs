@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateConnections } from '../src/engine/routing.ts';
+import { validatePatchRouting } from '../src/routingGraph.ts';
 import { migratePatch } from '../src/patch.ts';
 import { makeLegacyVoice } from './helpers.mjs';
 
@@ -140,4 +141,34 @@ test('routing validation keeps enabled valid links and warns on invalid endpoint
   const validation = validateConnections(patch);
   assert.deepEqual(validation.validConnections.map((c) => c.id), ['ok-module']);
   assert.equal(validation.warnings.length, 3);
+});
+
+
+test('migration drops stale typed routes and clears legacy triggerSource references', () => {
+  const migrated = migratePatch({
+    version: '0.3',
+    bpm: 120,
+    macro: 0.5,
+    masterGain: 0.8,
+    masterMute: false,
+    modules: [
+      { id: 'drm-stale', type: 'drum', name: 'DRM', enabled: true, triggerSource: 'missing-trigger', amp: 0.2, pan: 0 },
+    ],
+    buses: [],
+    connections: [],
+    routes: [
+      {
+        id: 'evt-stale',
+        domain: 'event',
+        source: { kind: 'module', moduleId: 'missing-trigger', port: 'trigger-out' },
+        target: { kind: 'module', moduleId: 'drm-stale', port: 'trigger-in' },
+        enabled: true,
+      },
+    ],
+  });
+
+  const sound = migrated.modules.find((m) => m.id === 'drm-stale');
+  assert.equal(sound.triggerSource, null);
+  assert.deepEqual(migrated.routes, []);
+  assert.deepEqual(validatePatchRouting(migrated).issues, []);
 });

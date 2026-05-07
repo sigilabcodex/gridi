@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compileRoutingGraph } from '../src/routingGraph.ts';
+import { compileRoutingGraph, validatePatchRouting } from '../src/routingGraph.ts';
 import { makePatch, makeSound, makeTrigger } from './helpers.mjs';
 
 function makeControl(overrides = {}) {
@@ -213,4 +213,63 @@ test('self-modulation route is rejected', () => {
   const compiled = compileRoutingGraph(patch);
   assert.equal(compiled.modulationIncomingByTarget.has(control.id), false);
   assert.equal(compiled.warnings.some((warning) => warning.includes('self-modulation')), true);
+});
+
+
+test('routing validation reports stale legacy and typed references without mutating patch', () => {
+  const sound = makeSound({ id: 'drm-1', triggerSource: 'missing-trigger', modulations: { basePitch: 'missing-control', nope: 'missing-control' } });
+  const control = makeControl({ id: 'ctl-valid' });
+  const patch = makePatch([sound, control]);
+  patch.connections = [
+    { id: 'conn-src', fromModuleId: 'missing-audio', fromPort: 'main', to: { type: 'master' }, gain: 1, enabled: true },
+    { id: 'conn-dst', fromModuleId: sound.id, fromPort: 'main', to: { type: 'module', id: 'missing-fx' }, gain: 1, enabled: true },
+  ];
+  patch.routes = [
+    {
+      id: 'evt-missing-source',
+      domain: 'event',
+      source: { kind: 'module', moduleId: 'missing-route-trigger', port: 'trigger-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'trigger-in' },
+      enabled: true,
+    },
+    {
+      id: 'mod-bad-param',
+      domain: 'modulation',
+      source: { kind: 'module', moduleId: control.id, port: 'cv-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'cv-in' },
+      enabled: true,
+      metadata: { parameter: 'definitelyMissing' },
+    },
+  ];
+
+  const before = structuredClone(patch);
+  const validation = validatePatchRouting(patch);
+  const codes = validation.issues.map((issue) => issue.code);
+
+  assert.deepEqual(patch, before);
+  assert.ok(codes.includes('voice-missing-trigger-source'));
+  assert.ok(codes.includes('modulation-missing-source-module'));
+  assert.ok(codes.includes('modulation-invalid-target-parameter'));
+  assert.ok(codes.includes('route-missing-source-module'));
+  assert.ok(codes.includes('route-invalid-modulation-parameter'));
+  assert.ok(codes.includes('connection-missing-source-module'));
+  assert.ok(codes.includes('connection-missing-target-module'));
+  assert.equal(validation.warnings.length, validation.issues.length);
+});
+
+test('routing validation accepts duplicated selected-internal typed event routes', () => {
+  const trigger = makeTrigger({ id: 'trg-dup' });
+  const sound = makeSound({ id: 'drm-dup', triggerSource: trigger.id });
+  const patch = makePatch([trigger, sound]);
+  patch.routes = [
+    {
+      id: 'evt-dup-base',
+      domain: 'event',
+      source: { kind: 'module', moduleId: trigger.id, port: 'trigger-out' },
+      target: { kind: 'module', moduleId: sound.id, port: 'trigger-in' },
+      enabled: true,
+    },
+  ];
+
+  assert.deepEqual(validatePatchRouting(patch).issues, []);
 });
