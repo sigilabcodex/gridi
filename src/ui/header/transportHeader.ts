@@ -5,6 +5,7 @@ import { createRoutingOverviewPanel } from "./routingOverviewPanel";
 import { el } from "../modals/modal";
 import type { TooltipBinder } from "../tooltip";
 import type { MidiInputStatus } from "../midiInput";
+import type { MidiOutputStatus } from "../midiOutput";
 import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
 type HeaderParams = {
@@ -43,9 +44,12 @@ type HeaderParams = {
   onClearSelection: () => void;
   attachTooltip: TooltipBinder;
   midiStatus: () => MidiInputStatus;
+  midiOutStatus: () => MidiOutputStatus;
   midiTargetLabel: () => string | null;
   onSelectMidiInput: (inputId: string | null) => void;
+  onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
+  onSetMidiOutSourceModule: (moduleId: string | null) => void;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -725,8 +729,11 @@ export function createTransportHeader(params: HeaderParams) {
     attachTo: routingSummary,
     onInspectModule: params.onInspectRoutingModule,
     midiStatus: params.midiStatus,
+    midiOutStatus: params.midiOutStatus,
     onSelectMidiInput: params.onSelectMidiInput,
+    onSelectMidiOutput: params.onSelectMidiOutput,
     onSetMidiTargetModule: params.onSetMidiTargetModule,
+    onSetMidiOutSourceModule: params.onSetMidiOutSourceModule,
   });
 
   const closeSessionMenu = () => {

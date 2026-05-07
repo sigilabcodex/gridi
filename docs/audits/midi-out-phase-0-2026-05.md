@@ -559,3 +559,41 @@ Write/update tests around route visibility/model normalization if route persiste
 
 6. **What should be deferred?**
    - MIDI clock, MIDI input expansion, CC, MPE, per-lane drum maps, DAW transport sync, permission persistence, full MIDI routing matrix, multiple outputs, and a visible MIDI module family.
+
+## 14. Phase 1 implementation status — implemented 2026-05-07
+
+Phase 1 is now implemented as a minimal, note-only MIDI Out bridge. It does not implement MIDI clock, MIDI input changes, CC, MPE, MIDI learn, transport sync, a routing matrix, or a new MIDI module family.
+
+Implemented scope:
+
+- Pure MIDI helpers format note-on and note-off bytes, normalize channel/velocity/note/gate values, map scheduler events to MIDI notes, and filter typed MIDI Out routes.
+- A browser MIDI Output manager requests Web MIDI access with `sysex: false`, lists outputs, selects an explicit output or auto fallback, sends note-on/note-off pairs, and reports unsupported/permission/idle/connected/sending status.
+- The scheduler exposes a narrow scheduled-event observer setter. Existing `engine.triggerVoice(...)` remains the primary WebAudio path and is still called before the observer is notified.
+- The Routing Overview panel has a compact MIDI output section with source GEN selection, output selection, and status text.
+- MIDI Out route state uses typed `Patch.routes` with `domain: "midi"`, module source, external MIDI target, target channel, and minimal metadata (`lane: "midi-out"`, base note, gate ms, best-effort output name).
+
+### Phase 1 limitations
+
+- One selected GEN/source to one selected MIDI output is the intended UI/runtime shape.
+- MIDI messages are note-on plus scheduled note-off only.
+- Channel, base note, and gate are stored with safe defaults for now (`channel: 1`, base note `60`, gate `120 ms`); there is no full editing matrix yet.
+- Tonal events map the first tonal note offset around the base note.
+- Drum events map known lanes to simple General MIDI-style notes (`low`, `mid`, `high`, `accent`) and fall back to the base note when lane data is unavailable.
+- Persisted MIDI output IDs are best-effort preferences and may not resolve on another machine/browser profile.
+- Browser support is Chromium/Chrome-focused because Web MIDI support and permission behavior vary by browser and OS.
+
+### Manual testing notes: Linux / Ardour / Cardinal
+
+Suggested Linux validation path:
+
+1. Open GRIDI in Chromium or Chrome with Web MIDI support enabled/available.
+2. If no hardware output is available, create a virtual MIDI route (for example with ALSA/JACK/PipeWire tools such as `aconnect`, `jack_midi`, or a loopback MIDI utility appropriate to the system).
+3. In GRIDI, open Routing Overview → MIDI, select a source GEN in the MIDI output routing section, and select the desired MIDI output.
+4. Start transport. The MIDI Out status should move from permission/selected to sending when scheduled GEN events fire.
+5. In Ardour, create a MIDI track and select the virtual/hardware MIDI input that receives GRIDI's output. Arm or monitor the track and confirm incoming MIDI note activity.
+6. To test Cardinal, load Cardinal on the Ardour MIDI track or as a standalone/plugin target, route the track MIDI to Cardinal, and confirm a MIDI-to-CV or instrument module receives notes.
+7. If no notes arrive, verify Chromium/Chrome MIDI permission, output selection, ALSA/JACK/PipeWire routing, and that GRIDI transport is running with an enabled source GEN.
+
+### Deferred Phase 2+ items after implementation
+
+The deferrals from Section 11 still stand: MIDI clock input/output, DAW transport sync, CC/automation, pitch bend, aftertouch, program changes, MPE, per-lane drum-note maps, multiple outputs, per-route matrices, dedicated MIDI Out modules, MIDI learn, and richer browser permission/session handling remain out of scope for Phase 1.

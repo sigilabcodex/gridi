@@ -3,14 +3,18 @@ import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPane
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
 import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
 import type { MidiInputStatus } from "../midiInput";
+import type { MidiOutputStatus } from "../midiOutput";
 
 type RoutingOverviewPanelParams = {
   patch: () => Patch;
   attachTo: HTMLButtonElement;
   onInspectModule?: (moduleId: string | null) => void;
   midiStatus: () => MidiInputStatus;
+  midiOutStatus: () => MidiOutputStatus;
   onSelectMidiInput: (inputId: string | null) => void;
+  onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
+  onSetMidiOutSourceModule: (moduleId: string | null) => void;
 };
 
 function routeDomainLabel(route: UIRoutingOverviewRoute) {
@@ -199,6 +203,22 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   midiEditBody.append(midiInputSelect, midiTargetSelect);
   midiEditBlock.append(midiEditHead, midiEditBody);
 
+  const midiOutEditBlock = document.createElement("section");
+  midiOutEditBlock.className = "routingOverviewSection";
+  const midiOutEditHead = document.createElement("div");
+  midiOutEditHead.className = "small transportUtilitySectionLabel";
+  midiOutEditHead.textContent = "MIDI output routing";
+  const midiOutEditBody = document.createElement("div");
+  midiOutEditBody.className = "transportUtilitySection";
+  const midiOutStatusLine = document.createElement("div");
+  midiOutStatusLine.className = "routingOverviewEmpty";
+  const midiOutputSelect = document.createElement("select");
+  midiOutputSelect.className = "transportSessionFilter routingOverviewSelect";
+  const midiOutSourceSelect = document.createElement("select");
+  midiOutSourceSelect.className = "transportSessionFilter routingOverviewSelect";
+  midiOutEditBody.append(midiOutStatusLine, midiOutputSelect, midiOutSourceSelect);
+  midiOutEditBlock.append(midiOutEditHead, midiOutEditBody);
+
   const midiRoutesBlock = document.createElement("section");
   midiRoutesBlock.className = "routingOverviewSection";
   const midiRoutesHead = document.createElement("div");
@@ -208,7 +228,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   midiRoutesList.className = "routingOverviewList";
   midiRoutesBlock.append(midiRoutesHead, midiRoutesList);
 
-  panel.append(title, controls, healthBlock, inspectorBlock, midiEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
+  panel.append(title, controls, healthBlock, inspectorBlock, midiEditBlock, midiOutEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
 
   let cleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let latestSnapshot: RoutingSnapshot | null = null;
@@ -241,6 +261,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     latestSnapshot = snapshot;
     syncModuleOptions(patch);
     const midiStatus = params.midiStatus();
+    const midiOutStatus = params.midiOutStatus();
 
     const selectedModuleId = moduleFilter.value;
     const domain = domainFilter.value;
@@ -280,6 +301,16 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     const activeMidiInputId = activeMidiPatchRoute?.source.kind === "external" ? activeMidiPatchRoute.source.portId ?? null : null;
     const activeMidiTargetModuleId = activeMidiPatchRoute?.target.kind === "module" ? activeMidiPatchRoute.target.moduleId : null;
 
+    const activeMidiOutPatchRoute = (patch.routes ?? []).find((route) => (
+      route.enabled &&
+      route.domain === "midi" &&
+      route.source.kind === "module" &&
+      route.target.kind === "external" &&
+      route.target.externalType === "midi"
+    )) ?? null;
+    const activeMidiOutputId = activeMidiOutPatchRoute?.target.kind === "external" ? activeMidiOutPatchRoute.target.portId ?? null : null;
+    const activeMidiOutSourceModuleId = activeMidiOutPatchRoute?.source.kind === "module" ? activeMidiOutPatchRoute.source.moduleId : null;
+
     midiInputSelect.replaceChildren();
     const autoOption = document.createElement("option");
     autoOption.value = "";
@@ -312,12 +343,56 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     midiInputSelect.disabled = midiTargetSelect.value === "";
     midiEditBody.classList.toggle("isMuted", patch.modules.every((module) => module.type !== "tonal"));
 
+    midiOutputSelect.replaceChildren();
+    const outputAutoOption = document.createElement("option");
+    outputAutoOption.value = "";
+    outputAutoOption.textContent = "Output: Auto";
+    midiOutputSelect.appendChild(outputAutoOption);
+    const availableOutputs = midiOutStatus.kind === "connected" || midiOutStatus.kind === "sending" || midiOutStatus.kind === "idle" ? midiOutStatus.outputs : [];
+    for (const output of availableOutputs) {
+      const option = document.createElement("option");
+      option.value = output.id;
+      option.textContent = `Output: ${output.name}`;
+      midiOutputSelect.appendChild(option);
+    }
+    midiOutputSelect.value = activeMidiOutputId ?? "";
+
+    midiOutSourceSelect.replaceChildren();
+    const noneSource = document.createElement("option");
+    noneSource.value = "";
+    noneSource.textContent = "Source: Off";
+    midiOutSourceSelect.appendChild(noneSource);
+    patch.modules
+      .filter((module) => module.type === "trigger")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .forEach((module) => {
+        const option = document.createElement("option");
+        option.value = module.id;
+        option.textContent = `Source: ${module.name}`;
+        midiOutSourceSelect.appendChild(option);
+      });
+    midiOutSourceSelect.value = activeMidiOutSourceModuleId ?? "";
+    midiOutputSelect.disabled = midiOutSourceSelect.value === "";
+    midiOutEditBody.classList.toggle("isMuted", midiOutSourceSelect.value === "");
+    midiOutStatusLine.textContent = midiOutStatus.kind === "unsupported"
+      ? "MIDI Out unavailable in this browser"
+      : midiOutStatus.kind === "pending"
+        ? "MIDI Out permission needed"
+        : midiOutStatus.kind === "denied"
+          ? `MIDI Out denied: ${midiOutStatus.reason}`
+          : midiOutStatus.kind === "sending"
+            ? `MIDI Out sending → ${midiOutStatus.name}`
+            : midiOutStatus.kind === "connected"
+              ? `MIDI Out selected: ${midiOutStatus.name}`
+              : midiOutStatus.message;
+
     inspectorBlock.hidden = !(domain === "all" || domain === "event");
     eventBlock.hidden = !(domain === "all" || domain === "event");
     modBlock.hidden = !(domain === "all" || domain === "modulation");
     audioBlock.hidden = !(domain === "all" || domain === "audio");
     midiRoutesBlock.hidden = !(domain === "all" || domain === "midi");
     midiEditBlock.hidden = !(domain === "all" || domain === "midi");
+    midiOutEditBlock.hidden = !(domain === "all" || domain === "midi");
   };
 
   domainFilter.onchange = render;
@@ -332,6 +407,14 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   midiTargetSelect.onchange = () => {
     const targetModuleId = midiTargetSelect.value || null;
     params.onSetMidiTargetModule(targetModuleId);
+    render();
+  };
+  midiOutputSelect.onchange = () => {
+    params.onSelectMidiOutput(midiOutputSelect.value || null);
+    render();
+  };
+  midiOutSourceSelect.onchange = () => {
+    params.onSetMidiOutSourceModule(midiOutSourceSelect.value || null);
     render();
   };
 

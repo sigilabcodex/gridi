@@ -37,6 +37,8 @@ import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
+import { createMidiOutputManager, type MidiOutputStatus } from "./midiOutput";
+import { midiNoteFromGridiEvent, midiOutRoutesForSource, normalizeMidiVelocity } from "../engine/midiOut";
 import { formatDocumentTitle } from "../version";
 
 function randInt(min: number, max: number) {
@@ -184,7 +186,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   let savedSnapshot = JSON.stringify(patch);
   let midiTargetModuleId: string | null = patch.modules.find((module) => module.type === "tonal")?.id ?? null;
   let midiStatus: MidiInputStatus = { kind: "pending" };
+  let midiOutStatus: MidiOutputStatus = { kind: "pending" };
   let preferredMidiInputId: string | null = null;
+  let preferredMidiOutputId: string | null = null;
+  const recentMidiOutEvents = new Set<string>();
 
   const hasUnsavedChanges = () => JSON.stringify(patch) !== savedSnapshot;
 
@@ -659,6 +664,51 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     if (!route || route.source.kind !== "external") return null;
     return route.source.portId ?? null;
   };
+
+  const getMidiOutputRoute = () => {
+    const routes = patch.routes ?? [];
+    for (const route of routes) {
+      if (!route.enabled || route.domain !== "midi") continue;
+      if (route.source.kind !== "module") continue;
+      if (route.target.kind !== "external" || route.target.externalType !== "midi") continue;
+      const source = route.source;
+      if (!patch.modules.some((module) => module.id === source.moduleId && module.type === "trigger")) continue;
+      return route;
+    }
+    return null;
+  };
+  const getMidiRouteOutputId = () => {
+    const route = getMidiOutputRoute();
+    if (!route || route.target.kind !== "external") return null;
+    return route.target.portId ?? null;
+  };
+  const getMidiRouteSourceModuleId = () => {
+    const route = getMidiOutputRoute();
+    if (!route || route.source.kind !== "module") return null;
+    return route.source.moduleId;
+  };
+  const setMidiOutputRoute = (sourceModuleId: string | null, outputId: string | null, outputName?: string | null) => {
+    onPatchChange((draft) => {
+      const keptRoutes = (draft.routes ?? []).filter((route) => !(
+        route.domain === "midi" &&
+        route.source.kind === "module" &&
+        route.target.kind === "external" &&
+        route.target.externalType === "midi"
+      ));
+      if (sourceModuleId) {
+        keptRoutes.push({
+          id: `midi-out:${sourceModuleId}:${outputId ?? "auto"}`,
+          domain: "midi",
+          source: { kind: "module", moduleId: sourceModuleId, port: "trigger-out" },
+          target: { kind: "external", externalType: "midi", portId: outputId ?? undefined, channel: 1 },
+          enabled: true,
+          metadata: { createdFrom: "ui", lane: "midi-out", midiBaseNote: 60, midiGateMs: 120, midiOutputName: outputName ?? undefined },
+        });
+      }
+      draft.routes = keptRoutes;
+    }, { regen: false });
+  };
+
   const setMidiInputRoute = (targetModuleId: string | null, inputId: string | null) => {
     onPatchChange((draft) => {
       const keptRoutes = (draft.routes ?? []).filter((route) => !(
@@ -745,6 +795,31 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         timeSec: engine.ctx.currentTime,
       });
     },
+  });
+
+  const midiOutput = createMidiOutputManager({
+    onStatus: (status) => {
+      midiOutStatus = status;
+      header.updateRoutingOverview();
+    },
+  });
+
+  sched.setScheduledEventObserver(({ patch: eventPatch, source, triggerEvent, timeSec }) => {
+    const delayMs = Math.max(0, (timeSec - engine.ctx.currentTime) * 1000);
+    for (const route of midiOutRoutesForSource(eventPatch, source.id)) {
+      const note = midiNoteFromGridiEvent(triggerEvent, route.baseNote);
+      const key = `${source.id}:${timeSec.toFixed(6)}:${note}`;
+      if (recentMidiOutEvents.has(key)) continue;
+      recentMidiOutEvents.add(key);
+      window.setTimeout(() => recentMidiOutEvents.delete(key), Math.max(500, route.gateMs + 250));
+      midiOutput.sendNote({
+        note,
+        velocity: normalizeMidiVelocity(triggerEvent.velocity),
+        channel: route.channel,
+        gateMs: route.gateMs,
+        delayMs,
+      });
+    }
   });
 
   syncEngineFromPatch(patch, true);
@@ -947,6 +1022,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     onClearSelection: () => gridRenderer.clearSelection(),
     attachTooltip: tooltips.attachTooltip,
     midiStatus: () => midiStatus,
+    midiOutStatus: () => midiOutStatus,
     midiTargetLabel: () => {
       const routeTargetId = getMidiRouteTargetModuleId();
       const fallbackTargetId = routeTargetId ?? midiTargetModuleId;
@@ -959,6 +1035,24 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       const targetId = getMidiRouteTargetModuleId();
       if (targetId) setMidiInputRoute(targetId, inputId);
       header.updateMidiUI();
+      header.updateRoutingOverview();
+    },
+    onSelectMidiOutput: (outputId) => {
+      preferredMidiOutputId = outputId;
+      midiOutput.setPreferredOutput(outputId);
+      const sourceId = getMidiRouteSourceModuleId();
+      const selected = (midiOutStatus.kind === "connected" || midiOutStatus.kind === "sending" || midiOutStatus.kind === "idle")
+        ? midiOutStatus.outputs.find((output) => output.id === outputId)
+        : null;
+      if (sourceId) setMidiOutputRoute(sourceId, outputId, selected?.name ?? null);
+      header.updateRoutingOverview();
+    },
+    onSetMidiOutSourceModule: (moduleId) => {
+      const existingOutputId = getMidiRouteOutputId() ?? preferredMidiOutputId;
+      const selected = (midiOutStatus.kind === "connected" || midiOutStatus.kind === "sending" || midiOutStatus.kind === "idle")
+        ? midiOutStatus.outputs.find((output) => output.id === existingOutputId)
+        : null;
+      setMidiOutputRoute(moduleId, existingOutputId ?? null, selected?.name ?? null);
       header.updateRoutingOverview();
     },
     onSetMidiTargetModule: (moduleId) => {
@@ -1067,6 +1161,13 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     header.updateRoutingOverview();
   });
 
+  void midiOutput.init().then(() => {
+    const routeOutputId = getMidiRouteOutputId();
+    preferredMidiOutputId = routeOutputId;
+    midiOutput.setPreferredOutput(routeOutputId);
+    header.updateRoutingOverview();
+  });
+
   maybeShowWelcomeModal({
     settings,
     engine,
@@ -1085,6 +1186,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
 
   window.addEventListener("beforeunload", () => {
     midiInput.dispose();
+    midiOutput.dispose();
+    sched.setScheduledEventObserver(null);
     engine.stopAllMidiVoices();
   });
 }
