@@ -29,6 +29,7 @@ import {
   toggleModuleSelection,
   type ModuleSelectionState,
 } from "../state/moduleSelection";
+import { deleteSelectedModules, duplicateSelectedModules } from "../state/moduleBatchActions";
 
 type ModuleGridParams = {
   main: HTMLElement;
@@ -48,6 +49,7 @@ type ModuleGridParams = {
   onSaveModulePreset: (moduleId: string, name: string, overwritePresetId?: string | null) => void;
   onInspectModule?: (moduleId: string) => void;
   isMidiTargetModule?: (moduleId: string) => boolean;
+  onSelectionChange?: (summary: { selectedCount: number; copiedCount: number }) => void;
 };
 
 type Pick = AddModulePick;
@@ -247,6 +249,14 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   const triggerTabs = new Map<string, "MAIN" | "ROUTING" | "SETTINGS">();
   const controlTabs = new Map<string, "MAIN" | "ROUTING">();
   let selectionState: ModuleSelectionState = createModuleSelectionState();
+  let copiedModuleIds: string[] = [];
+
+  const syncSelectionActions = () => {
+    params.onSelectionChange?.({
+      selectedCount: selectionState.selectedModuleIds.length,
+      copiedCount: copiedModuleIds.length,
+    });
+  };
 
   const applySelectionStyles = () => {
     const selected = new Set(selectionState.selectedModuleIds);
@@ -255,6 +265,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.classList.toggle("moduleSelected", isSelected);
       surface.setAttribute("aria-selected", isSelected ? "true" : "false");
     }
+    syncSelectionActions();
   };
 
   const applyRoutingHighlight = () => {
@@ -329,27 +340,78 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     restoreRoutingScrollPositions(routingScrollSnapshot);
   };
 
-  const removeModule = (moduleId: string) => {
-    const prev = params.clonePatch(params.patch());
-    const nextPatch = params.patch();
-    nextPatch.modules = nextPatch.modules.filter((m) => m.id !== moduleId);
-    for (const m of nextPatch.modules) {
-      if ((m.type === "drum" || m.type === "tonal") && m.triggerSource === moduleId) m.triggerSource = null;
-      if (m.type === "drum" || m.type === "tonal" || m.type === "trigger") {
-        const entries = Object.entries(m.modulations ?? {});
-        for (const [key, sourceId] of entries) {
-          if (sourceId === moduleId) delete (m.modulations as Record<string, string>)[key];
-        }
-      }
-    }
-    if (inspectedModuleId === moduleId) inspectedModuleId = null;
-    selectionState = pruneModuleSelection(selectionState, nextPatch.modules.map((m) => m.id));
+  const commitPatchMutation = (prev: Patch, nextPatch: Patch, opts: { regen: boolean }) => {
     params.pushHistory(prev);
-    params.sched.setPatch(nextPatch, { regen: true });
-    params.sched.regenAll();
+    params.sched.setPatch(nextPatch, { regen: opts.regen });
+    if (opts.regen) params.sched.regenAll();
     params.engine.syncRouting(nextPatch);
     params.saveAndPersist();
     rerenderStable();
+  };
+
+  const removeModule = (moduleId: string) => {
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = deleteSelectedModules(nextPatch, [moduleId]);
+    if (!result.deletedCount) return;
+    if (inspectedModuleId === moduleId) inspectedModuleId = null;
+    selectionState = result.selection;
+    commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const clearCurrentSelection = () => {
+    if (!selectionState.selectedModuleIds.length) return;
+    selectionState = clearModuleSelection();
+    applyRoutingHighlight();
+  };
+
+  const copyCurrentSelection = () => {
+    copiedModuleIds = selectionState.selectedModuleIds.filter((moduleId) =>
+      params.patch().modules.some((module) => module.id === moduleId),
+    );
+    syncSelectionActions();
+    return copiedModuleIds.length;
+  };
+
+  const deleteCurrentSelection = () => {
+    const selectedIds = selectionState.selectedModuleIds;
+    if (!selectedIds.length) return;
+    if (selectedIds.length > 1) {
+      const confirmed = window.confirm(`Delete ${selectedIds.length} selected modules? This cannot be undone except with Undo.`);
+      if (!confirmed) return;
+    }
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = deleteSelectedModules(nextPatch, selectedIds);
+    if (!result.deletedCount) return;
+    if (inspectedModuleId && result.deletedIds.includes(inspectedModuleId)) inspectedModuleId = null;
+    selectionState = result.selection;
+    commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const duplicateModuleIds = (moduleIds: string[]) => {
+    const selectedIds = moduleIds.filter((moduleId) =>
+      params.patch().modules.some((module) => module.id === moduleId),
+    );
+    if (!selectedIds.length) return;
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const result = duplicateSelectedModules(nextPatch, selectedIds);
+    if (!result.duplicatedCount) return;
+    selectionState = result.selection;
+    inspectedModuleId = result.newIds[0] ?? inspectedModuleId;
+    if (result.skippedCount) window.alert(`${result.skippedCount} selected modules could not be duplicated because no grid slot was available.`);
+    commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const duplicateCurrentSelection = () => {
+    duplicateModuleIds(selectionState.selectedModuleIds);
+  };
+
+  const pasteCopiedModules = () => {
+    duplicateModuleIds(copiedModuleIds);
   };
 
   const moveModuleToCell = (moduleId: string, destination: GridPosition) => {
@@ -998,6 +1060,12 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
 
   return {
     rerender,
+    copySelection: copyCurrentSelection,
+    pasteCopiedModules,
+    duplicateSelection: duplicateCurrentSelection,
+    deleteSelection: deleteCurrentSelection,
+    clearSelection: clearCurrentSelection,
+    getSelectionSummary: () => ({ selectedCount: selectionState.selectedModuleIds.length, copiedCount: copiedModuleIds.length }),
     setRoutingInspect: (moduleId: string | null) => {
       inspectedModuleId = moduleId;
       applyRoutingHighlight();

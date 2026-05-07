@@ -3648,6 +3648,20 @@ button:focus-visible,
   border-color: rgba(209, 191, 255, 0.34);
 }
 
+.transportUtilitySummarySelection {
+  border-color: rgba(255, 210, 128, 0.34);
+}
+
+.transportUtilitySummarySelection:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.transportUtilitySummarySelection.isOn {
+  border-color: rgba(255, 210, 128, 0.58);
+  background: rgba(255, 190, 92, 0.13);
+}
+
 .transportUtilitySummaryIcon {
   width: 15px;
   height: 15px;
@@ -3677,6 +3691,10 @@ button:focus-visible,
 
 .transportUtilitySummaryRouting .transportUtilitySummaryIcon {
   color: rgba(217, 201, 255, 0.92);
+}
+
+.transportUtilitySummarySelection .transportUtilitySummaryIcon {
+  color: rgba(255, 214, 148, 0.94);
 }
 
 .transportUtilitySummary::after {
