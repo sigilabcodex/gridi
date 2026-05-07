@@ -69,9 +69,9 @@ function endpointLabel(endpoint: RouteEndpoint, modules: Map<string, RouteRef>) 
   if (endpoint.kind === "module") return modules.get(endpoint.moduleId)?.name ?? endpoint.moduleId;
   if (endpoint.kind === "bus") return `Bus ${endpoint.busId}`;
   if (endpoint.kind === "master") return "Master";
-  if (endpoint.portId) return `MIDI IN ${endpoint.portId}`;
+  if (endpoint.portId) return `MIDI ${endpoint.portId}`;
   const channel = endpoint.channel ? ` ch${endpoint.channel}` : "";
-  return `MIDI IN${channel}`;
+  return `MIDI${channel}`;
 }
 
 function includeByModule(map: UIRoutingOverview["byModule"], moduleId: string, route: UIRoutingOverviewRoute, direction: "incoming" | "outgoing") {

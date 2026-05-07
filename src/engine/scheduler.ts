@@ -7,6 +7,14 @@ import { sampleControl01 } from "./control.ts";
 import { compileRoutingGraph } from "../routingGraph.ts";
 import { drumLaneForChannelMode, laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
 
+export type ScheduledEventObserver = (event: {
+  patch: Patch;
+  source: TriggerModule;
+  target: SoundModule;
+  triggerEvent: GridiTriggerEvent;
+  timeSec: number;
+}) => void;
+
 export type Scheduler = {
   readonly running: boolean;
   setBpm(bpm: number): void;
@@ -14,6 +22,7 @@ export type Scheduler = {
   regenAll(): void;
   start(): void;
   stop(): void;
+  setScheduledEventObserver(observer: ScheduledEventObserver | null): void;
 };
 
 type SequenceState = { lastScheduledBeat: number };
@@ -30,6 +39,7 @@ export function createScheduler(engine: Engine): Scheduler {
   let transportStartTimeSec = 0;
   let transportStartBeatAbs = 0;
   const sequenceStates = new Map<string, SequenceState>();
+  let scheduledEventObserver: ScheduledEventObserver | null = null;
 
   const getSequenceState = (id: string) => {
     let st = sequenceStates.get(id);
@@ -159,6 +169,7 @@ export function createScheduler(engine: Engine): Scheduler {
           }
         }
         engine.triggerVoice(sound.id, patch, eventTimeSec, voiceEvent);
+        scheduledEventObserver?.({ patch, source: trigger, target: sound, triggerEvent: voiceEvent, timeSec: eventTimeSec });
         st.lastScheduledBeat = eventBeat;
       }
     }
@@ -185,5 +196,9 @@ export function createScheduler(engine: Engine): Scheduler {
     transportStartBeatAbs = 0;
   }
 
-  return { get running() { return running; }, setBpm, setPatch, regenAll, start, stop };
+  function setScheduledEventObserver(observer: ScheduledEventObserver | null) {
+    scheduledEventObserver = observer;
+  }
+
+  return { get running() { return running; }, setBpm, setPatch, regenAll, start, stop, setScheduledEventObserver };
 }
