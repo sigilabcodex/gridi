@@ -793,6 +793,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       gridRenderer.rerender();
     },
     isMidiTargetModule: (moduleId) => moduleId === midiTargetModuleId,
+    onSelectionChange: () => header.updateSelectionActions(),
   });
 
   const header = createTransportHeader({
@@ -935,6 +936,15 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     onInspectRoutingModule: (moduleId) => {
       gridRenderer.setRoutingInspect(moduleId);
     },
+    getSelectionSummary: () => gridRenderer.getSelectionSummary(),
+    onCopySelection: () => {
+      gridRenderer.copySelection();
+      header.updateSelectionActions();
+    },
+    onPasteModules: () => gridRenderer.pasteCopiedModules(),
+    onDuplicateSelection: () => gridRenderer.duplicateSelection(),
+    onDeleteSelection: () => gridRenderer.deleteSelection(),
+    onClearSelection: () => gridRenderer.clearSelection(),
     attachTooltip: tooltips.attachTooltip,
     midiStatus: () => midiStatus,
     midiTargetLabel: () => {
@@ -992,6 +1002,39 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       }
     }
 
+    if (!typing && mod) {
+      const key = e.key.toLowerCase();
+      if (key === "c") {
+        e.preventDefault();
+        gridRenderer.copySelection();
+        header.updateSelectionActions();
+        return;
+      }
+
+      if (key === "v") {
+        e.preventDefault();
+        gridRenderer.pasteCopiedModules();
+        return;
+      }
+
+      if (key === "d") {
+        e.preventDefault();
+        gridRenderer.duplicateSelection();
+        return;
+      }
+    }
+
+    if (!typing && (e.key === "Delete" || e.key === "Backspace")) {
+      e.preventDefault();
+      gridRenderer.deleteSelection();
+      return;
+    }
+
+    if (!typing && e.key === "Escape") {
+      gridRenderer.clearSelection();
+      return;
+    }
+
     if (!typing && e.code === "Space") {
       e.preventDefault();
       header.btnPlay.click();
@@ -1012,6 +1055,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   header.updatePlayBtn();
   header.updateStatus();
   header.updateMidiUI();
+  header.updateSelectionActions();
   updateDocumentTitle();
 
   void midiInput.init().then(() => {

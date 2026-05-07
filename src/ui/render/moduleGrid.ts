@@ -49,6 +49,7 @@ type ModuleGridParams = {
   onSaveModulePreset: (moduleId: string, name: string, overwritePresetId?: string | null) => void;
   onInspectModule?: (moduleId: string) => void;
   isMidiTargetModule?: (moduleId: string) => boolean;
+  onSelectionChange?: (summary: { selectedCount: number; copiedCount: number }) => void;
 };
 
 type Pick = AddModulePick;
@@ -248,15 +249,12 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
   const triggerTabs = new Map<string, "MAIN" | "ROUTING" | "SETTINGS">();
   const controlTabs = new Map<string, "MAIN" | "ROUTING">();
   let selectionState: ModuleSelectionState = createModuleSelectionState();
+  let copiedModuleIds: string[] = [];
 
-  const updateBatchActionToolbar = () => {
-    const toolbar = params.main.querySelector<HTMLElement>(".moduleBatchActionBar");
-    if (!toolbar) return;
-    const count = selectionState.selectedModuleIds.length;
-    toolbar.hidden = count === 0;
-    toolbar.querySelector<HTMLElement>(".moduleBatchActionSummary")!.textContent = `${count} module${count === 1 ? "" : "s"} selected`;
-    toolbar.querySelectorAll<HTMLButtonElement>("button").forEach((button) => {
-      button.disabled = count === 0;
+  const syncSelectionActions = () => {
+    params.onSelectionChange?.({
+      selectedCount: selectionState.selectedModuleIds.length,
+      copiedCount: copiedModuleIds.length,
     });
   };
 
@@ -267,7 +265,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
       surface.classList.toggle("moduleSelected", isSelected);
       surface.setAttribute("aria-selected", isSelected ? "true" : "false");
     }
-    updateBatchActionToolbar();
+    syncSelectionActions();
   };
 
   const applyRoutingHighlight = () => {
@@ -361,6 +359,20 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     commitPatchMutation(prev, nextPatch, { regen: true });
   };
 
+  const clearCurrentSelection = () => {
+    if (!selectionState.selectedModuleIds.length) return;
+    selectionState = clearModuleSelection();
+    applyRoutingHighlight();
+  };
+
+  const copyCurrentSelection = () => {
+    copiedModuleIds = selectionState.selectedModuleIds.filter((moduleId) =>
+      params.patch().modules.some((module) => module.id === moduleId),
+    );
+    syncSelectionActions();
+    return copiedModuleIds.length;
+  };
+
   const deleteCurrentSelection = () => {
     const selectedIds = selectionState.selectedModuleIds;
     if (!selectedIds.length) return;
@@ -378,8 +390,10 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     commitPatchMutation(prev, nextPatch, { regen: true });
   };
 
-  const duplicateCurrentSelection = () => {
-    const selectedIds = selectionState.selectedModuleIds;
+  const duplicateModuleIds = (moduleIds: string[]) => {
+    const selectedIds = moduleIds.filter((moduleId) =>
+      params.patch().modules.some((module) => module.id === moduleId),
+    );
     if (!selectedIds.length) return;
 
     const prev = params.clonePatch(params.patch());
@@ -390,6 +404,14 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     inspectedModuleId = result.newIds[0] ?? inspectedModuleId;
     if (result.skippedCount) window.alert(`${result.skippedCount} selected modules could not be duplicated because no grid slot was available.`);
     commitPatchMutation(prev, nextPatch, { regen: true });
+  };
+
+  const duplicateCurrentSelection = () => {
+    duplicateModuleIds(selectionState.selectedModuleIds);
+  };
+
+  const pasteCopiedModules = () => {
+    duplicateModuleIds(copiedModuleIds);
   };
 
   const moveModuleToCell = (moduleId: string, destination: GridPosition) => {
@@ -529,38 +551,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     latestRouting = routing;
     params.main.innerHTML = "";
 
-    const batchActionBar = document.createElement("div");
-    batchActionBar.className = "moduleBatchActionBar";
-    batchActionBar.hidden = selectionState.selectedModuleIds.length === 0;
-    batchActionBar.setAttribute("role", "toolbar");
-    batchActionBar.setAttribute("aria-label", "Selected module actions");
-
-    const batchSummary = document.createElement("span");
-    batchSummary.className = "small moduleBatchActionSummary";
-
-    const duplicateButton = document.createElement("button");
-    duplicateButton.type = "button";
-    duplicateButton.className = "primary";
-    duplicateButton.textContent = "Duplicate selected";
-    duplicateButton.addEventListener("click", duplicateCurrentSelection);
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "danger";
-    deleteButton.textContent = "Delete selected";
-    deleteButton.addEventListener("click", deleteCurrentSelection);
-
-    const clearButton = document.createElement("button");
-    clearButton.type = "button";
-    clearButton.textContent = "Clear selection";
-    clearButton.addEventListener("click", () => {
-      selectionState = clearModuleSelection();
-      applyRoutingHighlight();
-    });
-
-    batchActionBar.append(batchSummary, duplicateButton, deleteButton, clearButton);
-    params.main.appendChild(batchActionBar);
-
     const workspaceViewport = document.createElement("div");
     workspaceViewport.className = "workspaceViewport";
 
@@ -574,7 +564,6 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     workspaceViewport.appendChild(workspaceViewportInner);
     workspaceViewportInner.appendChild(workspaceGrid);
     params.main.appendChild(workspaceViewport);
-    updateBatchActionToolbar();
     updaters = [];
 
     const triggers = getTriggers(patch);
@@ -1071,6 +1060,12 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
 
   return {
     rerender,
+    copySelection: copyCurrentSelection,
+    pasteCopiedModules,
+    duplicateSelection: duplicateCurrentSelection,
+    deleteSelection: deleteCurrentSelection,
+    clearSelection: clearCurrentSelection,
+    getSelectionSummary: () => ({ selectedCount: selectionState.selectedModuleIds.length, copiedCount: copiedModuleIds.length }),
     setRoutingInspect: (moduleId: string | null) => {
       inspectedModuleId = moduleId;
       applyRoutingHighlight();
