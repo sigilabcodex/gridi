@@ -820,3 +820,23 @@ Before implementation PRs:
 8. How should bus serialization be explained while runtime bus routing remains unsupported?
 9. Can the Routing tabs satisfy the no-internal-scroll fixed-shell rule with current density, especially on mobile?
 10. What is the smallest global routing overlay that feels like instrument patching rather than a DAW graph editor?
+
+## Phase 2 implementation note — Routing Health / Inspector
+
+Routing v0.4 Phase 2 has been implemented as a compact, user-visible health and inspector layer on top of the Phase 1 validation helpers.
+
+- The existing transport/header `Routing` control now opens a compact overview that includes a routing health summary.
+- Healthy patches report `Routing OK` without alarming language.
+- Patches with validation issues report the total warning count plus compact counts for missing event sources, invalid typed routes, stale audio connections, and stale modulation references.
+- The overview also includes an event routing inspector list that shows current GEN/TRIGGER → voice relationships, including compact fallback rows for unassigned and missing trigger sources.
+- The health summary uses `validatePatchRouting()` as its source of truth; the UI does not duplicate routing validation rules.
+- No routing schema, patch migration behavior, scheduler behavior, audio behavior, MIDI semantics, module routing controls, or legacy fields were changed.
+- No graphical patchbay, drag-to-connect editor, bus matrix, or DAW-style routing editor was introduced.
+
+Cleanup action status: stale-reference cleanup is deferred to Phase 3. The Phase 2 surface is informational only so it cannot accidentally alter valid routing or sound behavior.
+
+Recommended Phase 3 follow-ups:
+
+1. Add a confirmed `Clean stale routing refs` action once cleanup rules are covered by focused tests for legacy `triggerSource`, legacy `modulations`, legacy `connections`, and typed route records.
+2. Consider exposing validation issue details behind a small disclosure inside the same routing overview, without modal errors.
+3. Keep graphical patchbay exploration separate from health/inspection so v0.4 remains compatibility-first.

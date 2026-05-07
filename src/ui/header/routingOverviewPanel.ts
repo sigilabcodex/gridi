@@ -1,6 +1,7 @@
 import type { Patch } from "../../patch";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
+import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
 import type { MidiInputStatus } from "../midiInput";
 
 type RoutingOverviewPanelParams = {
@@ -69,6 +70,44 @@ function filterRoutesByModule(routes: UIRoutingOverviewRoute[], moduleId: string
   return routes.filter((route) => route.source?.id === moduleId || route.target?.id === moduleId);
 }
 
+function createHealthCountChip(label: string, count: number) {
+  const chip = document.createElement("span");
+  chip.className = "routingOverviewHealthChip";
+  chip.textContent = `${label}: ${count}`;
+  return chip;
+}
+
+function createInspectorRows(rows: ReturnType<typeof buildEventRoutingInspectorRows>) {
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "routingOverviewEmpty";
+    empty.textContent = "No voices";
+    return [empty];
+  }
+
+  return rows.map((entry) => {
+    const row = document.createElement("div");
+    row.className = "routingOverviewInspectorRow";
+    row.classList.toggle("isMissing", entry.sourceStatus === "missing");
+    row.classList.toggle("isMuted", entry.sourceStatus === "none");
+
+    const source = document.createElement("span");
+    source.className = "routingOverviewInspectorSource";
+    source.textContent = entry.sourceLabel;
+
+    const arrow = document.createElement("span");
+    arrow.className = "routingOverviewInspectorArrow";
+    arrow.textContent = "→";
+
+    const target = document.createElement("span");
+    target.className = "routingOverviewInspectorTarget";
+    target.textContent = entry.voiceLabel;
+
+    row.append(source, arrow, target);
+    return row;
+  });
+}
+
 export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   const panel = document.createElement("div");
   panel.className = "floatingPanel transportUtilityPanel routingOverviewPanel hidden";
@@ -101,6 +140,23 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   moduleFilter.className = "transportSessionFilter routingOverviewSelect";
 
   controls.append(domainFilter, moduleFilter);
+
+  const healthBlock = document.createElement("section");
+  healthBlock.className = "routingOverviewSection routingOverviewHealth";
+  const healthStatus = document.createElement("div");
+  healthStatus.className = "routingOverviewHealthStatus";
+  const healthCounts = document.createElement("div");
+  healthCounts.className = "routingOverviewHealthCounts";
+  healthBlock.append(healthStatus, healthCounts);
+
+  const inspectorBlock = document.createElement("section");
+  inspectorBlock.className = "routingOverviewSection routingOverviewInspector";
+  const inspectorHead = document.createElement("div");
+  inspectorHead.className = "small transportUtilitySectionLabel";
+  inspectorHead.textContent = "Event inspector";
+  const inspectorList = document.createElement("div");
+  inspectorList.className = "routingOverviewList";
+  inspectorBlock.append(inspectorHead, inspectorList);
 
   const eventBlock = document.createElement("section");
   eventBlock.className = "routingOverviewSection";
@@ -152,7 +208,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   midiRoutesList.className = "routingOverviewList";
   midiRoutesBlock.append(midiRoutesHead, midiRoutesList);
 
-  panel.append(title, controls, midiEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
+  panel.append(title, controls, healthBlock, inspectorBlock, midiEditBlock, eventBlock, modBlock, audioBlock, midiRoutesBlock);
 
   let cleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let latestSnapshot: RoutingSnapshot | null = null;
@@ -188,6 +244,21 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
 
     const selectedModuleId = moduleFilter.value;
     const domain = domainFilter.value;
+    const health = buildRoutingHealthSummary(patch);
+    healthStatus.textContent = health.label;
+    healthBlock.classList.toggle("hasWarnings", health.warningCount > 0);
+    healthCounts.replaceChildren();
+    if (health.warningCount > 0) {
+      const { missingSources, invalidRoutes, staleConnections, staleModulations } = health.counts;
+      if (missingSources) healthCounts.appendChild(createHealthCountChip("missing sources", missingSources));
+      if (invalidRoutes) healthCounts.appendChild(createHealthCountChip("invalid routes", invalidRoutes));
+      if (staleConnections) healthCounts.appendChild(createHealthCountChip("stale connections", staleConnections));
+      if (staleModulations) healthCounts.appendChild(createHealthCountChip("stale modulations", staleModulations));
+    }
+
+    const eventRows = buildEventRoutingInspectorRows(patch)
+      .filter((row) => !selectedModuleId || row.voiceId === selectedModuleId || row.sourceId === selectedModuleId);
+    inspectorList.replaceChildren(...createInspectorRows(eventRows));
 
     const eventRoutes = filterRoutesByModule(snapshot.overview.eventRoutes, selectedModuleId);
     const modulationRoutes = filterRoutesByModule(snapshot.overview.modulationRoutes, selectedModuleId);
@@ -241,6 +312,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     midiInputSelect.disabled = midiTargetSelect.value === "";
     midiEditBody.classList.toggle("isMuted", patch.modules.every((module) => module.type !== "tonal"));
 
+    inspectorBlock.hidden = !(domain === "all" || domain === "event");
     eventBlock.hidden = !(domain === "all" || domain === "event");
     modBlock.hidden = !(domain === "all" || domain === "modulation");
     audioBlock.hidden = !(domain === "all" || domain === "audio");
