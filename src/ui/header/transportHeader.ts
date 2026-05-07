@@ -35,6 +35,12 @@ type HeaderParams = {
   onSetBpm: (v: number) => void;
   onSetMasterGain: (v: number) => void;
   onInspectRoutingModule?: (moduleId: string | null) => void;
+  getSelectionSummary: () => { selectedCount: number; copiedCount: number };
+  onCopySelection: () => void;
+  onPasteModules: () => void;
+  onDuplicateSelection: () => void;
+  onDeleteSelection: () => void;
+  onClearSelection: () => void;
   attachTooltip: TooltipBinder;
   midiStatus: () => MidiInputStatus;
   midiTargetLabel: () => string | null;
@@ -56,6 +62,7 @@ export function createTransportHeader(params: HeaderParams) {
       | "save"
       | "generator"
       | "routing"
+      | "selection"
       | "globalControls"
   ) => {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -142,6 +149,11 @@ export function createTransportHeader(params: HeaderParams) {
       stroke("M16 14h-8");
       stroke("M16 10l2 2-2 2");
       stroke("M8 14l-2-2 2-2");
+    }
+    if (name === "selection") {
+      stroke("M5 5h14v14H5z");
+      stroke("M8 12h8");
+      stroke("M12 8v8");
     }
     if (name === "globalControls") {
       stroke("M5 7h14");
@@ -435,6 +447,28 @@ export function createTransportHeader(params: HeaderParams) {
   routingSummary.setAttribute("aria-haspopup", "dialog");
   routingSummary.setAttribute("aria-expanded", "false");
 
+  const selectionMenu = document.createElement("div");
+  selectionMenu.className = "transportUtilityMenu transportSecondaryMenu";
+
+  const selectionSummary = document.createElement("button");
+  selectionSummary.type = "button";
+  selectionSummary.className = "transportGhostBtn transportUtilitySummary transportUtilitySummarySelection";
+  selectionSummary.disabled = true;
+  const selectionSummaryIcon = document.createElement("span");
+  selectionSummaryIcon.className = "transportUtilitySummaryIcon";
+  selectionSummaryIcon.append(makeIcon("selection"));
+  const selectionSummaryLabel = document.createElement("span");
+  selectionSummaryLabel.className = "transportUtilitySummaryLabel";
+  selectionSummaryLabel.textContent = "Actions";
+  selectionSummary.append(selectionSummaryIcon, selectionSummaryLabel);
+  selectionSummary.setAttribute("aria-label", "Open selected module actions");
+  selectionSummary.setAttribute("aria-haspopup", "menu");
+  selectionSummary.setAttribute("aria-expanded", "false");
+
+  const selectionPanel = document.createElement("div");
+  selectionPanel.className = "floatingPanel transportUtilityPanel hidden";
+  selectionPanel.setAttribute("role", "menu");
+
   const makeUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -449,6 +483,47 @@ export function createTransportHeader(params: HeaderParams) {
     params.attachTooltip(btn, { text: tooltip, ariaLabel });
     return btn;
   };
+
+  const makeSelectionUtilityBtn = (label: string, onClick: () => void, tooltip: string, ariaLabel: string) => {
+    const btn = makeUtilityBtn(label, onClick, tooltip, ariaLabel);
+    btn.onclick = () => {
+      onClick();
+      closeSelectionMenu();
+    };
+    return btn;
+  };
+
+  const btnCopySelection = makeSelectionUtilityBtn(
+    "Copy selected",
+    params.onCopySelection,
+    "Copy selected modules for duplicate-style paste while they remain in this patch. Shortcut: Ctrl or Cmd C.",
+    "Copy selected modules",
+  );
+  const btnPasteSelection = makeSelectionUtilityBtn(
+    "Paste copied",
+    params.onPasteModules,
+    "Duplicate copied modules into available grid slots. Shortcut: Ctrl or Cmd V.",
+    "Paste copied modules",
+  );
+  const btnDuplicateSelection = makeSelectionUtilityBtn(
+    "Duplicate selected",
+    params.onDuplicateSelection,
+    "Duplicate selected modules into available grid slots. Shortcut: Ctrl or Cmd D.",
+    "Duplicate selected modules",
+  );
+  const btnDeleteSelection = makeSelectionUtilityBtn(
+    "Delete selected",
+    params.onDeleteSelection,
+    "Delete selected modules. Multi-delete asks for confirmation. Shortcut: Delete or Backspace.",
+    "Delete selected modules",
+  );
+  const btnClearSelection = makeSelectionUtilityBtn(
+    "Clear selection",
+    params.onClearSelection,
+    "Clear selected modules. Shortcut: Escape.",
+    "Clear selected modules",
+  );
+  btnDeleteSelection.classList.add("danger");
 
   const btnReset = makeUtilityBtn(
     "Reset session patch",
@@ -566,11 +641,13 @@ export function createTransportHeader(params: HeaderParams) {
   sessionPanel.append(sessionPresetSectionLabel, sessionPresetFilter, sessionPresetSection);
   appendMenuSection(sessionPanel, "Session patch", [btnNewEmptySession, btnNewExampleSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
+  appendMenuSection(selectionPanel, "Selection actions", [btnCopySelection, btnPasteSelection, btnDuplicateSelection, btnDeleteSelection, btnClearSelection]);
   sessionMenu.append(sessionSummary);
   generatorMenu.append(generatorSummary);
+  selectionMenu.append(selectionSummary);
 
   routingMenu.append(routingSummary);
-  sessionActions.append(sessionMenu, generatorMenu, routingMenu);
+  sessionActions.append(sessionMenu, generatorMenu, routingMenu, selectionMenu);
   sessionBlock.append(sessionActions);
   sessionCluster.append(sessionBlock);
 
@@ -639,6 +716,7 @@ export function createTransportHeader(params: HeaderParams) {
 
   let sessionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let generatorPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
+  let selectionPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   let midiPanelCleanup: ReturnType<typeof bindFloatingPanelReposition> | null = null;
   const routingOverview = createRoutingOverviewPanel({
     patch: params.patch,
@@ -663,6 +741,14 @@ export function createTransportHeader(params: HeaderParams) {
     generatorSummary.setAttribute("aria-expanded", "false");
     generatorPanelCleanup?.destroy();
     generatorPanelCleanup = null;
+  };
+
+  const closeSelectionMenu = () => {
+    if (selectionPanel.classList.contains("hidden")) return;
+    selectionPanel.classList.add("hidden");
+    selectionSummary.setAttribute("aria-expanded", "false");
+    selectionPanelCleanup?.destroy();
+    selectionPanelCleanup = null;
   };
 
   const closeRoutingMenu = () => {
@@ -738,6 +824,7 @@ export function createTransportHeader(params: HeaderParams) {
     closeSessionMenu();
     closeGeneratorMenu();
     closeRoutingMenu();
+    closeSelectionMenu();
     placeFloatingPanel(midiPanel, midiChip.getBoundingClientRect(), {
       offset: 8,
       align: "end",
@@ -767,6 +854,7 @@ export function createTransportHeader(params: HeaderParams) {
     closeGeneratorMenu();
     closeMidiMenu();
     closeRoutingMenu();
+    closeSelectionMenu();
     placeFloatingPanel(sessionPanel, sessionSummary.getBoundingClientRect(), {
       offset: 8,
       align: "end",
@@ -796,6 +884,7 @@ export function createTransportHeader(params: HeaderParams) {
     closeSessionMenu();
     closeMidiMenu();
     closeRoutingMenu();
+    closeSelectionMenu();
     placeFloatingPanel(generatorPanel, generatorSummary.getBoundingClientRect(), {
       offset: 8,
       align: "end",
@@ -816,6 +905,36 @@ export function createTransportHeader(params: HeaderParams) {
     );
   };
 
+  const openSelectionMenu = () => {
+    if (selectionPanel.isConnected) selectionPanel.remove();
+    document.body.appendChild(selectionPanel);
+    selectionPanel.classList.remove("hidden");
+    selectionSummary.setAttribute("aria-expanded", "true");
+    updateSelectionActions();
+    closeSessionMenu();
+    closeGeneratorMenu();
+    closeMidiMenu();
+    closeRoutingMenu();
+    placeFloatingPanel(selectionPanel, selectionSummary.getBoundingClientRect(), {
+      offset: 8,
+      align: "end",
+      preferredSide: "bottom",
+      minWidth: 180,
+      maxWidth: 220,
+    });
+    selectionPanelCleanup = bindFloatingPanelReposition(
+      selectionPanel,
+      () => (selectionSummary.isConnected ? selectionSummary.getBoundingClientRect() : null),
+      {
+        offset: 8,
+        align: "end",
+        preferredSide: "bottom",
+        minWidth: 180,
+        maxWidth: 220,
+      }
+    );
+  };
+
   sessionSummary.onclick = () => {
     if (sessionPanel.classList.contains("hidden")) openSessionMenu();
     else closeSessionMenu();
@@ -826,10 +945,17 @@ export function createTransportHeader(params: HeaderParams) {
     else closeGeneratorMenu();
   };
 
+  selectionSummary.onclick = () => {
+    if (selectionSummary.disabled) return;
+    if (selectionPanel.classList.contains("hidden")) openSelectionMenu();
+    else closeSelectionMenu();
+  };
+
   routingSummary.onclick = () => {
     closeSessionMenu();
     closeGeneratorMenu();
     closeMidiMenu();
+    closeSelectionMenu();
     routingOverview.toggle();
   };
 
@@ -854,6 +980,14 @@ export function createTransportHeader(params: HeaderParams) {
     }
   });
 
+  selectionPanel.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeSelectionMenu();
+      selectionSummary.focus();
+    }
+  });
+
   document.addEventListener("pointerdown", (event) => {
     const target = event.target as Node | null;
     if (target && !sessionPanel.classList.contains("hidden")) {
@@ -865,6 +999,9 @@ export function createTransportHeader(params: HeaderParams) {
     if (target && !midiPanel.classList.contains("hidden")) {
       if (!midiPanel.contains(target) && !midiChip.contains(target)) closeMidiMenu();
     }
+    if (target && !selectionPanel.classList.contains("hidden")) {
+      if (!selectionPanel.contains(target) && !selectionSummary.contains(target)) closeSelectionMenu();
+    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -872,9 +1009,31 @@ export function createTransportHeader(params: HeaderParams) {
       closeSessionMenu();
       closeGeneratorMenu();
       closeMidiMenu();
+      closeSelectionMenu();
       closeRoutingMenu();
     }
   });
+
+  const updateSelectionActions = () => {
+    const { selectedCount, copiedCount } = params.getSelectionSummary();
+    const hasSelection = selectedCount > 0;
+    const hasCopied = copiedCount > 0;
+    selectionSummary.disabled = !hasSelection && !hasCopied;
+    selectionSummary.classList.toggle("isOn", hasSelection);
+    selectionSummaryLabel.textContent = hasSelection ? `Actions · ${selectedCount}` : "Actions";
+    selectionSummary.title = hasSelection
+      ? `${selectedCount} module${selectedCount === 1 ? "" : "s"} selected`
+      : hasCopied
+        ? `${copiedCount} copied module${copiedCount === 1 ? "" : "s"} ready to paste`
+        : "Select modules to enable actions";
+    selectionSummary.setAttribute("aria-label", `${selectionSummary.title}. Shortcuts: Ctrl or Cmd C/V/D, Delete, Escape.`);
+    btnCopySelection.disabled = !hasSelection;
+    btnDuplicateSelection.disabled = !hasSelection;
+    btnDeleteSelection.disabled = !hasSelection;
+    btnClearSelection.disabled = !hasSelection;
+    btnPasteSelection.disabled = !hasCopied;
+    if (!hasSelection && !hasCopied) closeSelectionMenu();
+  };
 
   const updateStatus = () => {
     const play = params.isPlaying() ? "playing" : "stopped";
@@ -1424,6 +1583,7 @@ export function createTransportHeader(params: HeaderParams) {
     updateBpmUI,
     updateOutputMeter,
     updateRoutingOverview: routingOverview.refresh,
+    updateSelectionActions,
     updateMidiUI,
   };
 }
