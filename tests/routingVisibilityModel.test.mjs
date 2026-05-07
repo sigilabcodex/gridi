@@ -100,3 +100,86 @@ test('missing and null triggerSource share fallback labels across surfaces', () 
   assert.equal(resolveVoiceRoutingLabel(patch.modules, drum), 'None');
   assert.equal(resolveTriggerFollowerLabel(patch.modules, drum), 'None');
 });
+
+import { factoryExamplePatches } from '../src/ui/persistence/presetStore.ts';
+import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from '../src/ui/routingInspector.ts';
+
+test('routing health summary returns OK for factory examples', () => {
+  for (const example of factoryExamplePatches()) {
+    const summary = buildRoutingHealthSummary(example.patch);
+    assert.equal(summary.label, 'Routing OK', example.name);
+    assert.equal(summary.warningCount, 0, example.name);
+  }
+});
+
+test('routing health summary counts missing trigger source and stale route families', () => {
+  const patch = seedPatch();
+  const drum = makeSound('drum', 0);
+  const control = makeControl('lfo', 0);
+  drum.triggerSource = 'missing-trigger';
+  drum.modulations = { basePitch: 'missing-control' };
+  patch.modules.push(drum, control);
+  patch.connections.push({
+    id: 'stale-conn',
+    fromModuleId: 'missing-audio',
+    fromPort: 'out',
+    to: { type: 'master', port: 'in' },
+    gain: 1,
+    enabled: true,
+  });
+  patch.routes = [{
+    id: 'stale-route',
+    domain: 'event',
+    source: { kind: 'module', moduleId: 'missing-typed-trigger', port: 'trigger-out' },
+    target: { kind: 'module', moduleId: drum.id, port: 'trigger-in' },
+    enabled: true,
+  }];
+
+  const summary = buildRoutingHealthSummary(patch);
+  assert.equal(summary.label, '4 routing warnings');
+  assert.deepEqual(summary.counts, {
+    missingSources: 1,
+    invalidRoutes: 1,
+    staleConnections: 1,
+    staleModulations: 1,
+  });
+});
+
+test('event routing inspector lists generator to voice relationships with typed precedence', () => {
+  const patch = seedPatch();
+  const triggerA = makeTrigger(0);
+  const triggerB = makeTrigger(1);
+  const drum = makeSound('drum', 0);
+  triggerA.name = 'Generator 1';
+  triggerB.name = 'Generator 2';
+  drum.name = 'Deep Kick';
+  drum.triggerSource = triggerA.id;
+  patch.modules.push(triggerA, triggerB, drum);
+  patch.routes = [{
+    id: 'typed-event',
+    domain: 'event',
+    source: { kind: 'module', moduleId: triggerB.id, port: 'trigger-out' },
+    target: { kind: 'module', moduleId: drum.id, port: 'trigger-in' },
+    enabled: true,
+  }];
+
+  assert.deepEqual(buildEventRoutingInspectorRows(patch).map((row) => row.text), [
+    'Generator 2 → Deep Kick',
+  ]);
+});
+
+test('event routing inspector uses compact fallback labels for unassigned and missing sources', () => {
+  const patch = seedPatch();
+  const unassigned = makeSound('drum', 0);
+  const missing = makeSound('tonal', 0);
+  unassigned.name = 'Closed Hat';
+  missing.name = 'Snare';
+  missing.triggerSource = 'missing_trigger_1234';
+  patch.modules.push(unassigned, missing);
+
+  const rows = buildEventRoutingInspectorRows(patch);
+  assert.deepEqual(rows.map((row) => ({ text: row.text, sourceStatus: row.sourceStatus })), [
+    { text: 'Unassigned → Closed Hat', sourceStatus: 'none' },
+    { text: 'Missing source → Snare', sourceStatus: 'missing' },
+  ]);
+});

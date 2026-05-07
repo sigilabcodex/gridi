@@ -3807,6 +3807,87 @@ button:focus-visible,
   gap: 4px;
 }
 
+.routingOverviewHealth {
+  padding: 7px 8px;
+  border-radius: 9px;
+  border: 1px solid rgba(117, 184, 139, 0.28);
+  background: rgba(24, 44, 32, 0.34);
+}
+
+.routingOverviewHealth.hasWarnings {
+  border-color: rgba(255, 204, 112, 0.34);
+  background: rgba(68, 48, 20, 0.36);
+}
+
+.routingOverviewHealthStatus {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.routingOverviewHealthCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.routingOverviewHealthCounts:empty {
+  display: none;
+}
+
+.routingOverviewHealthChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 204, 112, 0.28);
+  background: rgba(18, 27, 38, 0.52);
+  font-size: 10px;
+  opacity: 0.9;
+}
+
+.routingOverviewInspectorRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(207, 214, 221, 0.16);
+  background: rgba(14, 21, 30, 0.56);
+  font-size: 11px;
+}
+
+.routingOverviewInspectorRow.isMuted {
+  opacity: 0.66;
+}
+
+.routingOverviewInspectorRow.isMissing {
+  border-color: rgba(255, 204, 112, 0.3);
+}
+
+.routingOverviewInspectorSource,
+.routingOverviewInspectorTarget {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routingOverviewInspectorSource {
+  color: var(--accent);
+}
+
+.routingOverviewInspectorRow.isMissing .routingOverviewInspectorSource {
+  color: #ffd08a;
+}
+
+.routingOverviewInspectorArrow {
+  opacity: 0.62;
+}
+
 .routingOverviewList {
   display: grid;
   gap: 4px;
