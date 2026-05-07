@@ -8,6 +8,7 @@ import type { MidiInputStatus } from "../midiInput";
 import type { MidiOutputStatus } from "../midiOutput";
 import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
+import { DEFAULT_MIDI_BASE_NOTE, DEFAULT_MIDI_CHANNEL, DEFAULT_MIDI_GATE_MS, DEFAULT_MIDI_VELOCITY_SCALE, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiVelocityScale } from "../../engine/midiOut";
 import { formatMidiIoChipLabel, midiOutputCompactStatusText } from "./midiIoPanel";
 
 type HeaderParams = {
@@ -52,6 +53,8 @@ type HeaderParams = {
   onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
   onSetMidiOutSourceModule: (moduleId: string | null) => void;
+  onSetMidiOutMapping: (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number }>) => void;
+  onTestMidiOutNote: () => void;
 };
 
 export function createTransportHeader(params: HeaderParams) {
@@ -835,6 +838,25 @@ export function createTransportHeader(params: HeaderParams) {
     section.appendChild(label);
   };
 
+  const appendNumberLabel = (section: HTMLElement, text: string, input: HTMLInputElement) => {
+    const label = document.createElement("label");
+    label.className = "small transportUtilitySectionLabel";
+    label.textContent = text;
+    label.appendChild(input);
+    section.appendChild(label);
+  };
+
+  const getMidiOutMapping = () => {
+    const route = getMidiOutputRoute();
+    const meta = route?.metadata ?? {};
+    return {
+      channel: normalizeMidiChannel(route?.target.kind === "external" ? route.target.channel : undefined, DEFAULT_MIDI_CHANNEL),
+      baseNote: clampMidiNoteNumber(meta.midiBaseNote, DEFAULT_MIDI_BASE_NOTE),
+      gateMs: normalizeMidiGateMs(meta.midiGateMs, DEFAULT_MIDI_GATE_MS),
+      velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale, DEFAULT_MIDI_VELOCITY_SCALE),
+    };
+  };
+
   const renderMidiPanel = () => {
     midiPanel.replaceChildren();
     const status = params.midiStatus();
@@ -945,12 +967,84 @@ export function createTransportHeader(params: HeaderParams) {
       renderMidiPanel();
     };
 
+    const mapping = getMidiOutMapping();
+    const mappingDisabled = !midiSourceSelect.value;
+
+    const midiChannelInput = document.createElement("input");
+    midiChannelInput.type = "number";
+    midiChannelInput.min = "1";
+    midiChannelInput.max = "16";
+    midiChannelInput.step = "1";
+    midiChannelInput.className = "transportDialNumber transportChipInput";
+    midiChannelInput.value = String(mapping.channel);
+    midiChannelInput.disabled = mappingDisabled;
+    midiChannelInput.onchange = () => {
+      params.onSetMidiOutMapping({ channel: Number.parseInt(midiChannelInput.value, 10) });
+      renderMidiPanel();
+    };
+
+    const midiBaseInput = document.createElement("input");
+    midiBaseInput.type = "number";
+    midiBaseInput.min = "0";
+    midiBaseInput.max = "127";
+    midiBaseInput.step = "1";
+    midiBaseInput.className = "transportDialNumber transportChipInput";
+    midiBaseInput.value = String(mapping.baseNote);
+    midiBaseInput.disabled = mappingDisabled;
+    midiBaseInput.onchange = () => {
+      params.onSetMidiOutMapping({ baseNote: Number.parseInt(midiBaseInput.value, 10) });
+      renderMidiPanel();
+    };
+
+    const midiGateInput = document.createElement("input");
+    midiGateInput.type = "number";
+    midiGateInput.min = "1";
+    midiGateInput.max = "10000";
+    midiGateInput.step = "10";
+    midiGateInput.className = "transportDialNumber transportChipInput";
+    midiGateInput.value = String(mapping.gateMs);
+    midiGateInput.disabled = mappingDisabled;
+    midiGateInput.onchange = () => {
+      params.onSetMidiOutMapping({ gateMs: Number.parseInt(midiGateInput.value, 10) });
+      renderMidiPanel();
+    };
+
+    const midiVelocityInput = document.createElement("input");
+    midiVelocityInput.type = "number";
+    midiVelocityInput.min = "0";
+    midiVelocityInput.max = "1";
+    midiVelocityInput.step = "0.05";
+    midiVelocityInput.className = "transportDialNumber transportChipInput";
+    midiVelocityInput.value = String(mapping.velocityScale);
+    midiVelocityInput.disabled = mappingDisabled;
+    midiVelocityInput.onchange = () => {
+      params.onSetMidiOutMapping({ velocityScale: Number.parseFloat(midiVelocityInput.value) });
+      renderMidiPanel();
+    };
+
+    const testNoteButton = document.createElement("button");
+    testNoteButton.type = "button";
+    testNoteButton.className = "transportGhostBtn transportUtilityBtn";
+    testNoteButton.textContent = "Test note";
+    testNoteButton.onclick = () => {
+      params.onTestMidiOutNote();
+      renderMidiPanel();
+    };
+    params.attachTooltip(testNoteButton, {
+      text: "Send a short MIDI test note using this route channel, base note, gate, and velocity scale. Works while stopped.",
+      ariaLabel: "Send MIDI output test note",
+    });
+
     const outStatusLine = document.createElement("div");
     outStatusLine.className = "small transportSessionEmpty";
     outStatusLine.textContent = midiOutputCompactStatusText(outStatus, getMidiOutSourceLabel());
     appendSelectLabel(outputSection, "Output", midiOutputSelect);
     appendSelectLabel(outputSection, "Source GEN", midiSourceSelect);
-    outputSection.appendChild(outStatusLine);
+    appendNumberLabel(outputSection, "Ch", midiChannelInput);
+    appendNumberLabel(outputSection, "Base", midiBaseInput);
+    appendNumberLabel(outputSection, "Gate ms", midiGateInput);
+    appendNumberLabel(outputSection, "Vel", midiVelocityInput);
+    outputSection.append(testNoteButton, outStatusLine);
     if (!outputs.length) {
       const empty = document.createElement("div");
       empty.className = "small transportSessionEmpty";

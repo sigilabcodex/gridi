@@ -1,4 +1,5 @@
 import type { Patch } from "../../patch";
+import { clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiVelocityScale } from "../../engine/midiOut";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
 import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
@@ -75,9 +76,13 @@ function filterRoutesByModule(routes: UIRoutingOverviewRoute[], moduleId: string
 }
 
 
-function midiOutputStatusText(status: MidiOutputStatus, sourceName: string | null, channel: number | null) {
+function midiOutputStatusText(
+  status: MidiOutputStatus,
+  sourceName: string | null,
+  mapping: { channel: number; baseNote: number; gateMs: number; velocityScale: number } | null,
+) {
   const source = sourceName ? `Source: ${sourceName}` : "Source: Off";
-  const channelText = channel ? ` · Ch ${channel}` : "";
+  const channelText = mapping ? ` · Ch ${mapping.channel} Base ${mapping.baseNote} Gate ${mapping.gateMs}ms Vel ${mapping.velocityScale}` : "";
   if (!sourceName) return `MIDI Out off · ${source}`;
   if (status.kind === "unsupported") return `MIDI Out unavailable in this browser · ${source}`;
   if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;
@@ -331,7 +336,12 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     const activeMidiOutSourceName = activeMidiOutSourceModuleId
       ? patch.modules.find((module) => module.id === activeMidiOutSourceModuleId)?.name ?? activeMidiOutSourceModuleId
       : null;
-    const activeMidiOutChannel = activeMidiOutPatchRoute?.target.kind === "external" ? activeMidiOutPatchRoute.target.channel ?? 1 : null;
+    const activeMidiOutMapping = activeMidiOutPatchRoute ? {
+      channel: normalizeMidiChannel(activeMidiOutPatchRoute.target.kind === "external" ? activeMidiOutPatchRoute.target.channel : undefined),
+      baseNote: clampMidiNoteNumber(activeMidiOutPatchRoute.metadata?.midiBaseNote),
+      gateMs: normalizeMidiGateMs(activeMidiOutPatchRoute.metadata?.midiGateMs),
+      velocityScale: normalizeMidiVelocityScale(activeMidiOutPatchRoute.metadata?.midiVelocityScale),
+    } : null;
 
     midiInputSelect.replaceChildren();
     const autoOption = document.createElement("option");
@@ -396,7 +406,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
     midiOutSourceSelect.value = activeMidiOutSourceModuleId ?? "";
     midiOutputSelect.disabled = midiOutSourceSelect.value === "";
     midiOutEditBody.classList.toggle("isMuted", midiOutSourceSelect.value === "");
-    midiOutStatusLine.textContent = midiOutputStatusText(midiOutStatus, activeMidiOutSourceName, activeMidiOutChannel);
+    midiOutStatusLine.textContent = midiOutputStatusText(midiOutStatus, activeMidiOutSourceName, activeMidiOutMapping);
 
     inspectorBlock.hidden = !(domain === "all" || domain === "event");
     eventBlock.hidden = !(domain === "all" || domain === "event");

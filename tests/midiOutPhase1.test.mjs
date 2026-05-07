@@ -4,6 +4,7 @@ import {
   clampMidiNoteNumber,
   makeAllNotesOffMessage,
   makeMidiPanicMessages,
+  makeMidiTestNoteMessages,
   makeNoteOffMessage,
   makeNoteOnMessage,
   midiNoteFromGridiEvent,
@@ -11,7 +12,9 @@ import {
   normalizeMidiChannel,
   normalizeMidiGateMs,
   normalizeMidiVelocity,
+  normalizeMidiVelocityScale,
 } from '../src/engine/midiOut.ts';
+import { normalizePatchRoutes } from '../src/routingGraph.ts';
 import { makePatch, makeTrigger } from './helpers.mjs';
 
 test('MIDI note-on message bytes use normalized channel, note, and velocity', () => {
@@ -43,6 +46,18 @@ test('MIDI channel, note, velocity, and gate normalization clamp to safe ranges'
   assert.equal(normalizeMidiVelocity(999), 127);
   assert.equal(normalizeMidiGateMs(-10), 1);
   assert.equal(normalizeMidiGateMs(20000), 10000);
+  assert.equal(normalizeMidiVelocityScale(-0.5), 0);
+  assert.equal(normalizeMidiVelocityScale(2), 1);
+});
+
+test('MIDI test note messages use selected mapping values', () => {
+  assert.deepEqual(makeMidiTestNoteMessages({ baseNote: 64, velocityScale: 0.5, channel: 3 }), {
+    noteOn: [0x92, 64, 64],
+    noteOff: [0x82, 64, 0],
+    note: 64,
+    velocity: 64,
+    channel: 3,
+  });
 });
 
 test('event-to-MIDI-note mapping uses tonal offsets, drum lanes, and fallback base note', () => {
@@ -62,7 +77,7 @@ test('MIDI Out route filtering only returns enabled module-to-external MIDI rout
       source: { kind: 'module', moduleId: 'gen-a', port: 'trigger-out' },
       target: { kind: 'external', externalType: 'midi', portId: 'out-1', channel: 3 },
       enabled: true,
-      metadata: { midiBaseNote: 62, midiGateMs: 240, midiOutputName: 'Loopback' },
+      metadata: { midiBaseNote: 62, midiGateMs: 240, midiVelocityScale: 0.5, midiOutputName: 'Loopback' },
     },
     {
       id: 'midi-in-ignored',
@@ -86,7 +101,73 @@ test('MIDI Out route filtering only returns enabled module-to-external MIDI rout
     channel: route.channel,
     baseNote: route.baseNote,
     gateMs: route.gateMs,
-  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240 }]);
+    velocityScale: route.velocityScale,
+  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240, velocityScale: 0.5 }]);
+});
+
+test('old MIDI routes without mapping metadata load with Phase 1.2 defaults', () => {
+  const trigger = makeTrigger({ id: 'gen-defaults' });
+  const patch = makePatch([trigger]);
+  patch.routes = [{
+    id: 'old-midi-out',
+    domain: 'midi',
+    source: { kind: 'module', moduleId: 'gen-defaults', port: 'trigger-out' },
+    target: { kind: 'external', externalType: 'midi', portId: 'out-old' },
+    enabled: true,
+  }];
+
+  assert.deepEqual(midiOutRoutesForSource(patch, 'gen-defaults').map((route) => ({
+    channel: route.channel,
+    baseNote: route.baseNote,
+    gateMs: route.gateMs,
+    velocityScale: route.velocityScale,
+  })), [{ channel: 1, baseNote: 60, gateMs: 120, velocityScale: 1 }]);
+});
+
+test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values', () => {
+  const trigger = makeTrigger({ id: 'gen-clamped' });
+  const patch = makePatch([trigger]);
+  patch.routes = [{
+    id: 'clamped-midi-out',
+    domain: 'midi',
+    source: { kind: 'module', moduleId: 'gen-clamped', port: 'trigger-out' },
+    target: { kind: 'external', externalType: 'midi', portId: 'out-clamped', channel: 99 },
+    enabled: true,
+    metadata: { midiBaseNote: 140, midiGateMs: -20, midiVelocityScale: 2 },
+  }];
+
+  const [route] = normalizePatchRoutes(patch);
+  assert.equal(route.target.kind === 'external' ? route.target.channel : null, undefined);
+  assert.equal(route.metadata.midiBaseNote, 127);
+  assert.equal(route.metadata.midiGateMs, 1);
+  assert.equal(route.metadata.midiVelocityScale, 1);
+
+  assert.deepEqual(midiOutRoutesForSource({ ...patch, routes: [route] }, 'gen-clamped').map((midiRoute) => ({
+    channel: midiRoute.channel,
+    baseNote: midiRoute.baseNote,
+    gateMs: midiRoute.gateMs,
+    velocityScale: midiRoute.velocityScale,
+  })), [{ channel: 1, baseNote: 127, gateMs: 1, velocityScale: 1 }]);
+});
+
+test('MIDI event mapping respects route channel, base note, gate, and velocity scale', () => {
+  const trigger = makeTrigger({ id: 'gen-map' });
+  const patch = makePatch([trigger]);
+  patch.routes = [{
+    id: 'mapped-midi-out',
+    domain: 'midi',
+    source: { kind: 'module', moduleId: 'gen-map', port: 'trigger-out' },
+    target: { kind: 'external', externalType: 'midi', portId: 'out-map', channel: 4 },
+    enabled: true,
+    metadata: { midiBaseNote: 65, midiGateMs: 90, midiVelocityScale: 0.25 },
+  }];
+
+  const [route] = midiOutRoutesForSource(patch, 'gen-map');
+  const event = { kind: 'note', timeSec: 1, velocity: 0.8, notes: [2] };
+  assert.equal(midiNoteFromGridiEvent(event, route.baseNote), 67);
+  assert.equal(normalizeMidiVelocity(event.velocity * route.velocityScale), 25);
+  assert.equal(route.channel, 4);
+  assert.equal(route.gateMs, 90);
 });
 
 import { createScheduler } from '../src/engine/scheduler.ts';

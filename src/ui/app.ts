@@ -38,7 +38,7 @@ import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
 import { createMidiOutputManager, type MidiOutputStatus } from "./midiOutput";
-import { midiNoteFromGridiEvent, midiOutRoutesForSource, normalizeMidiVelocity } from "../engine/midiOut";
+import { clampMidiNoteNumber, midiNoteFromGridiEvent, midiOutRoutesForSource, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiVelocity, normalizeMidiVelocityScale } from "../engine/midiOut";
 import { formatDocumentTitle } from "../version";
 
 function randInt(min: number, max: number) {
@@ -687,16 +687,24 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     if (!route || route.source.kind !== "module") return null;
     return route.source.moduleId;
   };
-  const getMidiRouteChannel = () => {
+  const getMidiRouteMapping = () => {
     const route = getMidiOutputRoute();
-    if (!route || route.target.kind !== "external") return 1;
-    return route.target.channel ?? 1;
+    const meta = route?.metadata ?? {};
+    return {
+      channel: normalizeMidiChannel(route?.target.kind === "external" ? route.target.channel : undefined),
+      baseNote: clampMidiNoteNumber(meta.midiBaseNote),
+      gateMs: normalizeMidiGateMs(meta.midiGateMs),
+      velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale),
+    };
   };
+  const getMidiRouteChannel = () => getMidiRouteMapping().channel;
   const panicMidiOut = () => {
     midiOutput.panic({ channel: getMidiRouteChannel() });
   };
   const setMidiOutputRoute = (sourceModuleId: string | null, outputId: string | null, outputName?: string | null) => {
     onPatchChange((draft) => {
+      const existingRoute = getMidiOutputRoute();
+      const existingMeta = existingRoute?.metadata ?? {};
       const keptRoutes = (draft.routes ?? []).filter((route) => !(
         route.domain === "midi" &&
         route.source.kind === "module" &&
@@ -704,17 +712,63 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         route.target.externalType === "midi"
       ));
       if (sourceModuleId) {
+        const existingChannel = existingRoute?.target.kind === "external" ? existingRoute.target.channel : undefined;
         keptRoutes.push({
           id: `midi-out:${sourceModuleId}:${outputId ?? "auto"}`,
           domain: "midi",
           source: { kind: "module", moduleId: sourceModuleId, port: "trigger-out" },
-          target: { kind: "external", externalType: "midi", portId: outputId ?? undefined, channel: 1 },
+          target: { kind: "external", externalType: "midi", portId: outputId ?? undefined, channel: normalizeMidiChannel(existingChannel) },
           enabled: true,
-          metadata: { createdFrom: "ui", lane: "midi-out", midiBaseNote: 60, midiGateMs: 120, midiOutputName: outputName ?? undefined },
+          metadata: {
+            ...existingMeta,
+            createdFrom: existingMeta.createdFrom ?? "ui",
+            lane: "midi-out",
+            midiBaseNote: clampMidiNoteNumber(existingMeta.midiBaseNote),
+            midiGateMs: normalizeMidiGateMs(existingMeta.midiGateMs),
+            midiVelocityScale: normalizeMidiVelocityScale(existingMeta.midiVelocityScale),
+            midiOutputName: outputName ?? existingMeta.midiOutputName,
+          },
         });
       }
       draft.routes = keptRoutes;
     }, { regen: false });
+  };
+
+  const setMidiOutputMapping = (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number }>) => {
+    onPatchChange((draft) => {
+      const route = (draft.routes ?? []).find((candidate) => (
+        candidate.enabled &&
+        candidate.domain === "midi" &&
+        candidate.source.kind === "module" &&
+        candidate.target.kind === "external" &&
+        candidate.target.externalType === "midi"
+      ));
+      if (!route) return;
+      const current = {
+        channel: route.target.kind === "external" ? route.target.channel : undefined,
+        baseNote: route.metadata?.midiBaseNote,
+        gateMs: route.metadata?.midiGateMs,
+        velocityScale: route.metadata?.midiVelocityScale,
+      };
+      if (route.target.kind === "external") route.target.channel = normalizeMidiChannel(mapping.channel ?? current.channel);
+      route.metadata = {
+        ...(route.metadata ?? {}),
+        lane: "midi-out",
+        midiBaseNote: clampMidiNoteNumber(mapping.baseNote ?? current.baseNote),
+        midiGateMs: normalizeMidiGateMs(mapping.gateMs ?? current.gateMs),
+        midiVelocityScale: normalizeMidiVelocityScale(mapping.velocityScale ?? current.velocityScale),
+      };
+    }, { regen: false });
+  };
+
+  const sendMidiOutTestNote = () => {
+    const mapping = getMidiRouteMapping();
+    return midiOutput.sendNote({
+      note: mapping.baseNote,
+      velocity: normalizeMidiVelocity(mapping.velocityScale * 127),
+      channel: mapping.channel,
+      gateMs: mapping.gateMs,
+    });
   };
 
   const setMidiInputRoute = (targetModuleId: string | null, inputId: string | null) => {
@@ -823,7 +877,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       window.setTimeout(() => recentMidiOutEvents.delete(key), Math.max(500, route.gateMs + 250));
       midiOutput.sendNote({
         note,
-        velocity: normalizeMidiVelocity(triggerEvent.velocity),
+        velocity: normalizeMidiVelocity(triggerEvent.velocity * route.velocityScale),
         channel: route.channel,
         gateMs: route.gateMs,
         delayMs,
@@ -1057,6 +1111,16 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         ? midiOutStatus.outputs.find((output) => output.id === outputId)
         : null;
       if (sourceId) setMidiOutputRoute(sourceId, outputId, selected?.name ?? null);
+      header.updateMidiUI();
+      header.updateRoutingOverview();
+    },
+    onSetMidiOutMapping: (mapping) => {
+      setMidiOutputMapping(mapping);
+      header.updateMidiUI();
+      header.updateRoutingOverview();
+    },
+    onTestMidiOutNote: () => {
+      sendMidiOutTestNote();
       header.updateMidiUI();
       header.updateRoutingOverview();
     },
