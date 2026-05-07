@@ -12,11 +12,12 @@
     "preview": "vite preview",
     "build:gh": "vite build --mode gh",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/*.test.mjs",
-    "test:watch": "node --test --watch tests/*.test.mjs",
-    "test:step": "node --test tests/eventWindowAndDedupe.test.mjs"
+    "test": "tsx --test tests/*.test.mjs",
+    "test:watch": "tsx --test --watch tests/*.test.mjs",
+    "test:step": "tsx --test tests/eventWindowAndDedupe.test.mjs"
   },
   "devDependencies": {
+    "tsx": "^4.21.0",
     "typescript": "5.9.3",
     "vite": "7.3.1"
   }
