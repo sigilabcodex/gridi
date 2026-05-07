@@ -16,10 +16,15 @@ import { renderDrumModuleSurface, renderSynthModuleSurface } from "../voiceModul
 import { renderTriggerSurface } from "../triggerModule";
 import { renderControlSurface } from "../controlModule";
 import { renderVisualSurface } from "../visualModule";
-import { renderAddModuleSlot, type AddModulePick } from "../AddModuleSlot";
+import {
+  getAddModuleFamily,
+  getAddModuleFamilyForModulePreset,
+  renderAddModuleSlot,
+  type AddModulePick,
+} from "../AddModuleSlot";
 import { buildRoutingSnapshot, getConnectedModuleIds } from "../routingVisibility";
 import type { TooltipBinder } from "../tooltip";
-import type { ModulePresetRecord } from "../persistence/modulePresetStore";
+import { createModuleFromModulePreset, type ModulePresetRecord } from "../persistence/modulePresetStore";
 import { isModulationRuntimeActive, sampleControlValue01WhenActive } from "../modulationView";
 import {
   clearModuleSelection,
@@ -465,23 +470,9 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     rerenderStable();
   };
 
-  const createModuleAt = (what: Pick, destination: GridPosition) => {
-    const prev = params.clonePatch(params.patch());
-    const nextPatch = params.patch();
 
-    const indexForType = nextPatch.modules.filter((m) =>
-      what === "trigger"
-        ? m.type === "trigger"
-        : what.startsWith("control")
-          ? m.type === "control"
-          : what === "drum"
-            ? m.type === "drum"
-            : what === "tonal"
-              ? m.type === "tonal"
-              : m.type === "visual",
-    ).length;
-
-    const created = what === "drum" || what === "tonal"
+  const createModuleForPick = (what: Pick, indexForType: number) => {
+    return what === "drum" || what === "tonal"
       ? makeSound(what, indexForType)
       : what === "trigger"
         ? makeTrigger(indexForType)
@@ -492,6 +483,54 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
             : what === "control-stepped"
               ? makeControl("stepped", indexForType)
               : makeVisual(what, indexForType);
+  };
+
+  const moduleCountForPick = (patch: Patch, what: Pick) => {
+    return patch.modules.filter((m) =>
+      what === "trigger"
+        ? m.type === "trigger"
+        : what.startsWith("control")
+          ? m.type === "control"
+          : what === "drum"
+            ? m.type === "drum"
+            : what === "tonal"
+              ? m.type === "tonal"
+              : m.type === "visual",
+    ).length;
+  };
+
+  const createModuleAt = (what: Pick, destination: GridPosition) => {
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+
+    const indexForType = moduleCountForPick(nextPatch, what);
+    const created = createModuleForPick(what, indexForType);
+    setModuleGridPosition(created as Patch["modules"][number], destination);
+    nextPatch.modules.push(created as Patch["modules"][number]);
+
+    params.pushHistory(prev);
+    params.sched.setPatch(nextPatch, { regen: true });
+    params.sched.regenAll();
+    params.engine.syncRouting(nextPatch);
+    params.saveAndPersist();
+    rerenderStable();
+  };
+
+
+  const createModuleFromPresetAt = (presetId: string, destination: GridPosition) => {
+    const preset = params.modulePresetRecords.find((record) => record.id === presetId);
+    if (!preset || preset.source !== "factory") return;
+
+    const familyId = getAddModuleFamilyForModulePreset(preset);
+    if (!familyId) return;
+    const what = getAddModuleFamily(familyId).defaultPick;
+
+    const prev = params.clonePatch(params.patch());
+    const nextPatch = params.patch();
+    const indexForType = moduleCountForPick(nextPatch, what);
+    const created = createModuleFromModulePreset(preset, indexForType);
+    if (!created) return;
+
     setModuleGridPosition(created as Patch["modules"][number], destination);
     nextPatch.modules.push(created as Patch["modules"][number]);
 
@@ -957,6 +996,8 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
       const slot = renderAddModuleSlot({
         position: targetPosition,
         onPick: (what) => createModuleAt(what, targetPosition),
+        onPresetPick: (presetId) => createModuleFromPresetAt(presetId, targetPosition),
+        modulePresetRecords: params.modulePresetRecords,
         onDropModule: (moduleId) => moveModuleToCell(moduleId, targetPosition),
         attachTooltip: params.attachTooltip,
       });

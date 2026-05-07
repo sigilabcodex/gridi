@@ -13,6 +13,31 @@ import {
   makeTrigger,
   makeVisual,
 } from "../src/patch.ts";
+import {
+  createModuleFromModulePreset,
+  loadModulePresetLibrary,
+} from "../src/ui/persistence/modulePresetStore.ts";
+
+function withMockStorage(run) {
+  const original = globalThis.localStorage;
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => (store.has(key) ? store.get(key) : null),
+    setItem: (key, value) => store.set(key, String(value)),
+    removeItem: (key) => store.delete(key),
+    clear: () => store.clear(),
+  };
+  try {
+    return run();
+  } finally {
+    if (typeof original === "undefined") delete globalThis.localStorage;
+    else globalThis.localStorage = original;
+  }
+}
+
+function factoryRecords() {
+  return withMockStorage(() => loadModulePresetLibrary());
+}
 
 function createModuleForPick(pick, index = 0) {
   if (pick === "drum" || pick === "tonal") return makeSound(pick, index);
@@ -243,4 +268,75 @@ test("add-module quick search remains independent from visible keyboard metadata
       family.desc = desc;
     }
   }
+});
+
+test("add-module empty quick search does not dump factory presets", () => {
+  const results = getAddModuleSearchResults("", factoryRecords());
+
+  assert.deepEqual(
+    results.map((result) => [result.family.id, result.matchedFactoryPresets.length]),
+    [
+      ["gen", 0],
+      ["drum", 0],
+      ["synth", 0],
+      ["ctrl", 0],
+      ["vis", 0],
+    ],
+  );
+});
+
+test("add-module quick search finds factory preset by stable code", () => {
+  const results = getAddModuleSearchResults("DRUM014", factoryRecords());
+  const drumResult = results.find((result) => result.family.id === "drum");
+
+  assert.equal(drumResult?.family.code, "DRUM");
+  assert.deepEqual(
+    drumResult?.matchedFactoryPresets.map((record) => ({ code: record.code, name: record.name, source: record.source })),
+    [{ code: "DRUM014", name: "Closed Hat", source: "factory" }],
+  );
+});
+
+test("add-module quick search finds factory preset by descriptive name", () => {
+  const results = getAddModuleSearchResults("sub sine bass", factoryRecords());
+  const synthResult = results.find((result) => result.family.id === "synth");
+
+  assert.equal(synthResult?.family.code, "SYNTH");
+  assert.deepEqual(
+    synthResult?.matchedFactoryPresets.map((record) => ({ code: record.code, name: record.name, family: record.family })),
+    [{ code: "SYNTH013", name: "Sub Sine Bass", family: "tonal" }],
+  );
+});
+
+test("factory preset insertion creates a compatible module with preset metadata", () => {
+  const records = factoryRecords();
+  const closedHat = records.find((record) => record.code === "DRUM014");
+  assert.ok(closedHat);
+
+  const inserted = createModuleFromModulePreset(closedHat, 3);
+
+  assert.ok(inserted);
+  assert.equal(inserted.type, "drum");
+  assert.equal(inserted.engine, "drum");
+  assert.equal(inserted.name, "Drum 4");
+  assert.equal(inserted.presetName, "Closed Hat");
+  assert.equal(inserted.presetMeta.modulePresetId, closedHat.id);
+  assert.equal(inserted.presetMeta.modulePresetSource, "factory");
+  assert.equal(inserted.presetMeta.modulePresetCode, "DRUM014");
+  assert.equal(inserted.decay, closedHat.state.decay);
+});
+
+test("factory preset insertion rejects incompatible subtype records", () => {
+  const badVisualPreset = {
+    id: "factory-visual-bad",
+    code: "VIS999",
+    name: "Bad Visual",
+    family: "visual",
+    subtype: "not-a-visual",
+    state: { enabled: true, kind: "not-a-visual", fftSize: 2048 },
+    source: "factory",
+    createdAt: 1,
+    updatedAt: 1,
+  };
+
+  assert.equal(createModuleFromModulePreset(badVisualPreset), null);
 });
