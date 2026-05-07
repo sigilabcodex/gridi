@@ -28,11 +28,12 @@ aconnect <source> <destination>
 
 Typical workflow:
 
-1. Open GRIDI in Chrome/Chromium and enable/select MIDI Out from the routing overview.
-2. Run `aconnect -l` to list ALSA MIDI clients and ports.
-3. Use `aseqdump` or QMidiRoute to confirm incoming note-on/note-off messages from Chromium/GRIDI.
-4. Connect the Chromium/GRIDI source to a destination synth with `aconnect <source> <destination>` or your JACK/PipeWire patchbay.
-5. In the synth, explicitly enable/arm/monitor its MIDI input if the app requires it.
+1. Open GRIDI in Chrome/Chromium and use the compact header **MIDI I/O** pill for quick setup: choose the MIDI Output destination and the GEN source module that should emit notes.
+2. Open the **Routing** panel when you need the global inspector: it still shows routing health, event diagnostics, and the full MIDI input/output route rows.
+3. Run `aconnect -l` to list ALSA MIDI clients and ports.
+4. Use `aseqdump` or QMidiRoute to confirm incoming note-on/note-off messages from Chromium/GRIDI.
+5. Connect the Chromium/GRIDI source to a destination synth with `aconnect <source> <destination>` or your JACK/PipeWire patchbay.
+6. In the synth, explicitly enable/arm/monitor its MIDI input if the app requires it.
 
 ## QMidiRoute gotcha
 

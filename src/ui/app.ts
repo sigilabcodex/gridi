@@ -808,6 +808,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   const midiOutput = createMidiOutputManager({
     onStatus: (status) => {
       midiOutStatus = status;
+      header.updateMidiUI();
       header.updateRoutingOverview();
     },
   });
@@ -1056,6 +1057,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         ? midiOutStatus.outputs.find((output) => output.id === outputId)
         : null;
       if (sourceId) setMidiOutputRoute(sourceId, outputId, selected?.name ?? null);
+      header.updateMidiUI();
       header.updateRoutingOverview();
     },
     onSetMidiOutSourceModule: (moduleId) => {
@@ -1065,6 +1067,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         ? midiOutStatus.outputs.find((output) => output.id === existingOutputId)
         : null;
       setMidiOutputRoute(moduleId, existingOutputId ?? null, selected?.name ?? null);
+      header.updateMidiUI();
       header.updateRoutingOverview();
     },
     onSetMidiTargetModule: (moduleId) => {
