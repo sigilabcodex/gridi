@@ -18,6 +18,8 @@ The smallest useful Phase 2 scope should be an AddModuleSlot polish pass: replac
 
 Pass 1 implementation note (2026-05-06): the AddModuleSlot polish pass now uses explicit root-button keyboard descriptors for subtype navigation, removes roadmap-facing phase/search/preset hints from the menu, and adds focused IA metadata tests. Search, preset browsing, insertion policy, routing, patch schema, factory presets, and examples remain unchanged.
 
+Pass 2 implementation note (2026-05-07): AddModuleSlot now includes a compact local quick-search input for filtering family rows and matching subtype rows by family code, descriptive family label, subtype label, subtype description, and backing subtype value. Empty search still renders the default family-first list, GEN/DRUM/SYNTH defaults keep their one-action creation path, and CTRL/VIS quick-add defaults remain present. Preset insertion, insertion-policy changes, routing behavior, patch schema, and module creation semantics remain deferred and unchanged.
+
 ## 2. Sources reviewed
 
 Required project and direction sources:
@@ -223,26 +225,26 @@ Not urgently. With five families, three CTRL subtypes, and eight VIS subtypes, t
 
 The strongest argument for search is VIS growth: eight visual subtypes already form a long list. The strongest argument against search is that the root workflow remains small and fast.
 
-Recommendation: **defer full search**, but make Phase 2 implementation choices search-ready.
+Pass 2 update: **lightweight local quick search is now implemented**, while full search remains deferred. The implementation stays local to the Add Module menu, uses simple substring filtering, and intentionally avoids module presets, global commands, routing actions, examples, settings, and session content.
 
-### Smallest useful search, if implemented later
+### Implemented lightweight search scope
 
-If search becomes necessary, the smallest useful version should be local to the Add Module menu:
+The implemented Pass 2 version is local to the Add Module menu:
 
 - simple substring matching, not fuzzy search,
 - matches family code and label (`GEN`, `Generator`, etc.),
 - matches subtype labels and descriptions,
-- optionally matches factory module preset `code` and `name` only after presets are intentionally exposed,
+- does **not** match factory or user module presets yet,
 - does not search global commands, transport actions, settings, sessions, examples, routing actions, or hidden engine internals,
 - keyboard-first, but not a global command palette,
-- appears only after typing while the menu is open or behind a small `Filter` affordance, not as the first visual element.
+- appears as a compact local input inside the same floating menu so touch users have an obvious target without adding another activation step.
 
 ### Search coverage recommendation
 
 | Search target | Recommendation | Rationale |
 | --- | --- | --- |
-| Family names/codes | Later, yes | Cheap and useful if filtering exists. |
-| Subtypes | Later, yes | VIS length makes this useful. |
+| Family names/codes | Implemented in Pass 2 | Cheap and useful without changing creation behavior. |
+| Subtypes | Implemented in Pass 2 | VIS length makes this useful. |
 | Factory module presets | Later, only when preset creation is exposed | Avoid searching records that cannot be acted on. |
 | User module presets | Later, only after preset browser model is clear | User records can become numerous and need source/provenance clarity. |
 | Session presets/examples | No | That belongs to session management, not Add Module. |
@@ -250,7 +252,7 @@ If search becomes necessary, the smallest useful version should be local to the 
 
 ### Trigger model
 
-Search should not appear as a persistent input at the top of the root menu yet. A persistent input would make the first impression more app-like and consume vertical space on mobile. If added later, support type-to-filter after menu open and show the input/results only once the user starts typing or activates a small filter affordance.
+Pass 2 uses a small persistent local input in the floating menu. This is a deliberate lightweight exception to the earlier audit preference because it keeps mobile/touch discovery straightforward, avoids a second filter button, and remains compact. Empty search preserves the family-first root list, so the first action for GEN/DRUM/SYNTH defaults is unchanged.
 
 ## 7. Preset placeholder audit
 
@@ -508,9 +510,9 @@ Smallest useful Phase 2 implementation scope:
    - Remove or soften `Presets/search arrive in phase 2.` and `Preset browser deferred to phase 2.`
    - Keep copy user-facing, not roadmap-facing.
 
-3. **Search-ready internal structure only**
-   - Keep family/subtype data structured enough to index later.
-   - Do not expose a search UI yet unless menu growth happens first.
+3. **Lightweight local quick search**
+   - Implemented in Pass 2 for family codes/labels/descriptions and subtype labels/descriptions/values.
+   - Keep it compact and local; do not expand it into preset insertion or a command palette.
 
 4. **Preset-ready documentation and tests only**
    - Document optional family -> subtype -> preset path.
@@ -542,8 +544,7 @@ This scope improves the current Phase 1 browser without changing what users can 
 Do not do these in Add-module IA Phase 2:
 
 - full preset browser,
-- persistent search input,
-- global command palette,
+- full search/command palette behavior,
 - fuzzy search/scoring,
 - search across sessions/examples/settings/commands,
 - user preset browser inside Add Module,
@@ -573,7 +574,15 @@ Do not do these in Add-module IA Phase 2:
 - **Risks:** Accidentally changing focus order or menu button ordering.
 - **Do not touch:** patch schema, module factories, presets, routing, visual styling beyond what is necessary.
 
-### Pass 2 — Add Module placeholder copy polish
+### Pass 2 — Lightweight quick search (implemented 2026-05-07)
+
+- **Goal:** Add compact local filtering for families and subtypes without changing creation semantics.
+- **Files involved:** `src/ui/AddModuleSlot.ts`, `src/ui/style.css`, `tests/addModuleIa.test.mjs`, this audit.
+- **Expected behavior change:** Users can filter the existing family-first menu by family code/label/description or subtype label/description/value. Empty search keeps the default family list. Preset records are not listed.
+- **Tests added/updated:** Pure helper coverage for `gen`, `lfo`, `scope`, empty search, and keyboard metadata independence from visible copy.
+- **Deferred:** Preset insertion, insertion policy, routing, patch schema, factory preset data, and global command-palette behavior.
+
+### Pass 2a — Add Module placeholder copy polish
 
 - **Goal:** Remove development-phase wording from the menu or make it subtle and user-facing.
 - **Files likely involved:** `src/ui/AddModuleSlot.ts`, possibly `tests/addModuleIa.test.mjs` if copy is tested later.
@@ -591,14 +600,14 @@ Do not do these in Add-module IA Phase 2:
 - **Risks:** Node's built-in test environment has limited DOM support without a browser/JSDOM dependency. Do not add dependencies just for this pass.
 - **Do not touch:** runtime behavior, dependencies, Vite config unless a no-dependency route is already available.
 
-### Pass 4 — Search readiness only
+### Pass 4 — Search readiness only (superseded by Pass 2 quick search)
 
 - **Goal:** Add a pure data helper that can produce searchable Add Module entries without rendering search UI.
 - **Files likely involved:** `src/ui/AddModuleSlot.ts`, `tests/addModuleIa.test.mjs`.
-- **Expected behavior change:** None unless helper is only exported for tests/future use.
+- **Expected behavior change:** Superseded; helper is now wired to the compact local quick-search UI.
 - **Tests to add/update:** Verify family/subtype labels, codes, descriptions, and values are represented without including presets yet.
 - **Risks:** Premature abstraction. Keep helper tiny and do not wire UI.
-- **Do not touch:** DOM menu, CSS, module preset store, preset data.
+- **Do not touch:** Module preset store, preset data, routing, patch schema.
 
 ### Pass 5 — Future preset entry design note after Routing v0.4
 
