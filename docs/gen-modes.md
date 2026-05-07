@@ -169,3 +169,27 @@ Truthfulness status legend:
 - **Actual generator behavior:** smoothed stochastic trajectory with thresholded hit extraction and shared shaping controls.
 - **Display truthfulness:** **acceptable**.
 - **Major follow-up:** strengthen direct mapping between threshold dynamics and event output.
+
+## 8) Factory GEN preset bank
+
+The Core Factory module preset list now includes a compact GEN starter bank with one preset per implemented mode. The refresh intentionally keeps the bank small, deterministic, and beginner-safe: presets are mode-entry points rather than finished compositions or artist banks.
+
+Current GEN factory mapping:
+
+| Code | Name | Mode ID |
+| --- | --- | --- |
+| `GEN001` | Euclid Pulse | `euclidean` |
+| `GEN002` | Step Grid | `step-sequencer` |
+| `GEN003` | Cellular Seed | `cellular-automata` |
+| `GEN004` | Hybrid Blend | `hybrid` |
+| `GEN005` | Gear Phase | `gear` |
+| `GEN006` | Radar Scan | `radar` |
+| `GEN007` | Fractal Gate | `fractal` |
+| `GEN008` | Curved Space | `non-euclidean` |
+| `GEN009` | Markov Chain | `markov-chains` |
+| `GEN010` | L-System Path | `l-systems` |
+| `GEN011` | Xrono Fusion | `xronomorph` |
+| `GEN012` | Genetic Pool | `genetic-algorithms` |
+| `GEN013` | Pink Noise | `one-over-f-noise` |
+
+Continuity note: older local module-preset libraries may still contain `GEN001 · Sparse Euclid`. Those records are not migrated or deleted; the factory refresh only changes the current starter bank and appends missing factory codes where appropriate. This prevents GEN from being presented as only Euclidean while preserving local/user preset compatibility.

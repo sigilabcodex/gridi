@@ -582,3 +582,11 @@ All passes are intentionally small/reviewable and preserve flat mode IDs + patch
 
 - Legacy mode aliases remain normalized in generation path (`step` -> `step-sequencer`, `euclid` -> `euclidean`, `ca` -> `cellular-automata`).
 - Prior semantic mismatch `sonar` naming has been corrected in implemented mode naming to `radar`; SONAR remains roadmap/future distinct behavior.
+
+---
+
+## 2026-05 addendum: GEN factory preset bank refresh
+
+The factory module preset bank now includes one neutral GEN starter preset per implemented mode (`GEN001`–`GEN013`). This addresses the previous presentation problem where `GEN001 · Sparse Euclid` was the only visible GEN factory identity and could make users infer that GEN is primarily Euclidean.
+
+The refresh is factory-only: mode IDs, trigger parameter keys, generation algorithms, routing behavior, and user/local presets are unchanged. Existing local records named `Sparse Euclid` continue to normalize/load; missing factory GEN presets are appended without requiring localStorage migration. Artist/curator banks and richer bank metadata remain deferred follow-ups.
