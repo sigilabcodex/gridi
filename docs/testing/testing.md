@@ -2,10 +2,10 @@
 
 ## Strategy decision: lightweight Node tests (structured)
 
-We evaluated moving to Vitest, but for the current architecture the least disruptive path is to keep a **Node-native** test stack and formalize it with the built-in `node:test` runner.
+We evaluated moving to Vitest, but for the current architecture the least disruptive path is to keep a **Node-native** test stack using the built-in `node:test` runner, with `tsx` providing a lightweight TypeScript loader for tests that import source `.ts` files directly.
 
 Why this direction now:
-- no extra runtime tooling required
+- minimal test harness tooling (`tsx`) instead of a larger test-framework migration
 - deterministic and fast for sequencing/pattern logic
 - easy CI command (`npm test`)
 - future-compatible: tests can migrate to Vitest later with minimal rewrite if browser/component tests become important
