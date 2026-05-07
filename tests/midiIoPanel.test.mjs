@@ -57,3 +57,14 @@ test('MIDI output compact status reports selected source and last sent diagnosti
     lastSent: { note: 64, velocity: 96, channel: 3, outputName: 'Volca Bass' },
   }, 'GEN 1'), 'Last Ch 3 Note 64 Vel 96 → Volca Bass · Source GEN 1');
 });
+
+test('MIDI output compact status remains compatible with drum-map note diagnostics', () => {
+  assert.equal(midiOutputCompactStatusText({
+    kind: 'sending',
+    outputId: 'out-1',
+    name: 'Hydrogen',
+    outputCount: 1,
+    outputs: [],
+    lastSent: { note: 36, velocity: 100, channel: 10, outputName: 'Hydrogen' },
+  }, 'Drum GEN'), 'Last Ch 10 Note 36 Vel 100 → Hydrogen · Source Drum GEN');
+});

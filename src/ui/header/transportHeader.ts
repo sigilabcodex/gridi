@@ -8,7 +8,7 @@ import type { MidiInputStatus } from "../midiInput";
 import type { MidiOutputStatus } from "../midiOutput";
 import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
-import { DEFAULT_MIDI_BASE_NOTE, DEFAULT_MIDI_CHANNEL, DEFAULT_MIDI_GATE_MS, DEFAULT_MIDI_VELOCITY_SCALE, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiVelocityScale } from "../../engine/midiOut";
+import { DEFAULT_MIDI_BASE_NOTE, DEFAULT_MIDI_CHANNEL, DEFAULT_MIDI_GATE_MS, DEFAULT_MIDI_VELOCITY_SCALE, GM_BASIC_DRUM_MAP_LABEL, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale, type MidiMapMode } from "../../engine/midiOut";
 import { formatMidiIoChipLabel, midiOutputCompactStatusText } from "./midiIoPanel";
 
 type HeaderParams = {
@@ -53,7 +53,7 @@ type HeaderParams = {
   onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
   onSetMidiOutSourceModule: (moduleId: string | null) => void;
-  onSetMidiOutMapping: (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number }>) => void;
+  onSetMidiOutMapping: (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: MidiMapMode }>) => void;
   onTestMidiOutNote: () => void;
 };
 
@@ -854,6 +854,7 @@ export function createTransportHeader(params: HeaderParams) {
       baseNote: clampMidiNoteNumber(meta.midiBaseNote, DEFAULT_MIDI_BASE_NOTE),
       gateMs: normalizeMidiGateMs(meta.midiGateMs, DEFAULT_MIDI_GATE_MS),
       velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale, DEFAULT_MIDI_VELOCITY_SCALE),
+      mapMode: normalizeMidiMapMode(meta.midiMapMode),
     };
   };
 
@@ -970,6 +971,24 @@ export function createTransportHeader(params: HeaderParams) {
     const mapping = getMidiOutMapping();
     const mappingDisabled = !midiSourceSelect.value;
 
+    const midiModeSelect = document.createElement("select");
+    midiModeSelect.className = "transportSessionFilter routingOverviewSelect";
+    [
+      { value: "melodic", label: "Mode: Melodic" },
+      { value: "drum", label: "Mode: Drum map" },
+    ].forEach((entry) => {
+      const option = document.createElement("option");
+      option.value = entry.value;
+      option.textContent = entry.label;
+      midiModeSelect.appendChild(option);
+    });
+    midiModeSelect.value = mapping.mapMode;
+    midiModeSelect.disabled = mappingDisabled;
+    midiModeSelect.onchange = () => {
+      params.onSetMidiOutMapping({ mapMode: normalizeMidiMapMode(midiModeSelect.value) });
+      renderMidiPanel();
+    };
+
     const midiChannelInput = document.createElement("input");
     midiChannelInput.type = "number";
     midiChannelInput.min = "1";
@@ -1040,6 +1059,13 @@ export function createTransportHeader(params: HeaderParams) {
     outStatusLine.textContent = midiOutputCompactStatusText(outStatus, getMidiOutSourceLabel());
     appendSelectLabel(outputSection, "Output", midiOutputSelect);
     appendSelectLabel(outputSection, "Source GEN", midiSourceSelect);
+    appendSelectLabel(outputSection, "Mode", midiModeSelect);
+    if (mapping.mapMode === "drum") {
+      const drumMapLine = document.createElement("div");
+      drumMapLine.className = "small transportSessionEmpty";
+      drumMapLine.textContent = GM_BASIC_DRUM_MAP_LABEL;
+      outputSection.appendChild(drumMapLine);
+    }
     appendNumberLabel(outputSection, "Ch", midiChannelInput);
     appendNumberLabel(outputSection, "Base", midiBaseInput);
     appendNumberLabel(outputSection, "Gate ms", midiGateInput);

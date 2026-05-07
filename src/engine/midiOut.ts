@@ -6,15 +6,19 @@ export const DEFAULT_MIDI_BASE_NOTE = 60;
 export const DEFAULT_MIDI_GATE_MS = 120;
 export const DEFAULT_MIDI_CHANNEL = 1;
 export const DEFAULT_MIDI_VELOCITY_SCALE = 1;
+export const DEFAULT_MIDI_MAP_MODE = "melodic";
+export const DEFAULT_GM_BASIC_DRUM_MAP = [36, 38, 42, 46, 49, 45, 47, 50] as const;
+export const GM_BASIC_DRUM_MAP_LABEL = "GM basic: 36/38/42/46…";
 
-const DRUM_LANE_NOTES = {
-  low: 36,
-  mid: 38,
-  high: 42,
-  accent: 46,
+const DRUM_LANE_INDEX_BY_ROLE = {
+  low: 0,
+  mid: 1,
+  high: 2,
+  accent: 3,
 } as const;
 
 export type MidiOutMessage = [number, number, number];
+export type MidiMapMode = "melodic" | "drum";
 
 export type MidiOutPanicOptions = {
   channel?: number;
@@ -30,6 +34,7 @@ export type MidiOutRouteConfig = {
   baseNote: number;
   gateMs: number;
   velocityScale: number;
+  mapMode: MidiMapMode;
 };
 
 export function normalizeMidiChannel(value: unknown, fallback = DEFAULT_MIDI_CHANNEL) {
@@ -56,6 +61,10 @@ export function normalizeMidiGateMs(value: unknown, fallback = DEFAULT_MIDI_GATE
 export function normalizeMidiVelocityScale(value: unknown, fallback = DEFAULT_MIDI_VELOCITY_SCALE) {
   const scale = typeof value === "number" && Number.isFinite(value) ? value : fallback;
   return Math.max(0, Math.min(1, scale));
+}
+
+export function normalizeMidiMapMode(value: unknown, fallback: MidiMapMode = DEFAULT_MIDI_MAP_MODE): MidiMapMode {
+  return value === "drum" || value === "melodic" ? value : fallback;
 }
 
 export function makeNoteOnMessage(note: number, velocity: number, channel = DEFAULT_MIDI_CHANNEL): MidiOutMessage {
@@ -95,14 +104,26 @@ export function makeMidiPanicMessages(options: MidiOutPanicOptions = {}): MidiOu
   return messages;
 }
 
-export function midiNoteFromGridiEvent(event: GridiTriggerEvent, baseNote = DEFAULT_MIDI_BASE_NOTE) {
+export function midiDrumNoteFromGridiEvent(event: GridiTriggerEvent, baseNote = DEFAULT_MIDI_BASE_NOTE) {
   const base = clampMidiNoteNumber(baseNote);
+  if (event.kind !== "drum") return base;
+  const laneIndex = typeof event.laneIndex === "number" && Number.isFinite(event.laneIndex)
+    ? Math.round(event.laneIndex)
+    : event.lane === "low" || event.lane === "mid" || event.lane === "high" || event.lane === "accent"
+      ? DRUM_LANE_INDEX_BY_ROLE[event.lane]
+      : null;
+  if (laneIndex === null) return base;
+  return clampMidiNoteNumber(DEFAULT_GM_BASIC_DRUM_MAP[((laneIndex % DEFAULT_GM_BASIC_DRUM_MAP.length) + DEFAULT_GM_BASIC_DRUM_MAP.length) % DEFAULT_GM_BASIC_DRUM_MAP.length] ?? base);
+}
+
+export function midiNoteFromGridiEvent(event: GridiTriggerEvent, baseNote = DEFAULT_MIDI_BASE_NOTE, mapMode: MidiMapMode = DEFAULT_MIDI_MAP_MODE) {
+  const base = clampMidiNoteNumber(baseNote);
+  if (mapMode === "drum") return midiDrumNoteFromGridiEvent(event, base);
   if (event.kind === "note") {
     const offset = event.notes.find((note) => Number.isFinite(note)) ?? 0;
     return clampMidiNoteNumber(base + Math.round(offset));
   }
-  const lane = event.lane === "low" || event.lane === "mid" || event.lane === "high" || event.lane === "accent" ? event.lane : null;
-  return lane ? DRUM_LANE_NOTES[lane] : base;
+  return base;
 }
 
 export function midiOutRoutesForSource(patch: Patch, sourceModuleId: string): MidiOutRouteConfig[] {
@@ -127,6 +148,7 @@ export function midiOutRoutesForSource(patch: Patch, sourceModuleId: string): Mi
         baseNote: clampMidiNoteNumber(meta.midiBaseNote),
         gateMs: normalizeMidiGateMs(meta.midiGateMs),
         velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale),
+        mapMode: normalizeMidiMapMode(meta.midiMapMode),
       };
     });
 }
