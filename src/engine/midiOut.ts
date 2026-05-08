@@ -1,6 +1,7 @@
-import type { Patch } from "../patch.ts";
+import type { Patch, TriggerModule } from "../patch.ts";
 import type { PatchRoute } from "../routingGraph.ts";
-import type { GridiTriggerEvent } from "./events.ts";
+import { laneRoleFromPatternEvent, noteOffsetsFromPatternEvent, normalizeDrumLane, type GridiTriggerEvent } from "./events.ts";
+import type { PatternEvent } from "./pattern/module.ts";
 
 export const DEFAULT_MIDI_BASE_NOTE = 60;
 export const DEFAULT_MIDI_GATE_MS = 120;
@@ -193,6 +194,33 @@ export function resolveMidiNoteFromGridiEvent(event: GridiTriggerEvent, baseNote
 
 export function midiNoteFromGridiEvent(event: GridiTriggerEvent, baseNote = DEFAULT_MIDI_BASE_NOTE, mapMode: MidiMapMode = DEFAULT_MIDI_MAP_MODE, drumMapPreset: MidiDrumMapPreset = DEFAULT_MIDI_DRUM_MAP_PRESET) {
   return resolveMidiNoteFromGridiEvent(event, baseNote, mapMode, drumMapPreset).note;
+}
+
+
+export function gridiEventFromPatternEventForMidiRoute(params: {
+  patternEvent: PatternEvent;
+  trigger: TriggerModule;
+  timeSec: number;
+  mapMode?: MidiMapMode;
+}): GridiTriggerEvent {
+  const mode = normalizeMidiMapMode(params.mapMode);
+  if (mode === "drum") {
+    return {
+      kind: "drum",
+      timeSec: params.timeSec,
+      velocity: params.patternEvent.value,
+      lane: normalizeDrumLane(laneRoleFromPatternEvent(params.patternEvent)),
+      laneIndex: typeof params.patternEvent.targetLane === "number" && Number.isFinite(params.patternEvent.targetLane)
+        ? Math.round(params.patternEvent.targetLane)
+        : undefined,
+    };
+  }
+  return {
+    kind: "note",
+    timeSec: params.timeSec,
+    velocity: params.patternEvent.value,
+    notes: noteOffsetsFromPatternEvent(params.patternEvent, params.trigger),
+  };
 }
 
 export function midiOutRoutesForSource(patch: Patch, sourceModuleId: string): MidiOutRouteConfig[] {

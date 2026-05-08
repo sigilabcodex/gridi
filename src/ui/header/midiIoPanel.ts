@@ -43,7 +43,7 @@ function midiLastSentText(lastSent: NonNullable<Extract<MidiOutputStatus, { kind
 }
 
 export function midiOutputCompactStatusText(status: MidiOutputStatus, sourceLabel: string | null) {
-  const source = sourceLabel ? `Source ${sourceLabel}` : "Source off";
+  const source = sourceLabel ? `GEN stream ${sourceLabel}` : "Source off";
   if (!sourceLabel) return `MIDI Out off · ${source}`;
   if (status.kind === "unsupported") return `MIDI Out unsupported · ${source}`;
   if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;

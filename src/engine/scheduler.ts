@@ -2,7 +2,7 @@
 import type { ControlModule, Patch, SoundModule, TriggerModule } from "../patch.ts";
 import { clamp, getSoundModules, isControl, isTrigger, normalizeDrumChannelMode } from "../patch.ts";
 import type { Engine } from "./audio";
-import { createPatternModuleForTrigger } from "./pattern/module.ts";
+import { createPatternModuleForTrigger, type PatternEvent } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
 import { compileRoutingGraph } from "../routingGraph.ts";
 import { drumLaneForChannelMode, laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
@@ -15,6 +15,13 @@ export type ScheduledEventObserver = (event: {
   timeSec: number;
 }) => void;
 
+export type GeneratedEventObserver = (event: {
+  patch: Patch;
+  source: TriggerModule;
+  patternEvent: PatternEvent;
+  timeSec: number;
+}) => void;
+
 export type Scheduler = {
   readonly running: boolean;
   setBpm(bpm: number): void;
@@ -23,6 +30,7 @@ export type Scheduler = {
   start(): void;
   stop(): void;
   setScheduledEventObserver(observer: ScheduledEventObserver | null): void;
+  setGeneratedEventObserver(observer: GeneratedEventObserver | null): void;
 };
 
 type SequenceState = { lastScheduledBeat: number };
@@ -39,13 +47,25 @@ export function createScheduler(engine: Engine): Scheduler {
   let transportStartTimeSec = 0;
   let transportStartBeatAbs = 0;
   const sequenceStates = new Map<string, SequenceState>();
+  const generatedSequenceStates = new Map<string, SequenceState>();
   let scheduledEventObserver: ScheduledEventObserver | null = null;
+  let generatedEventObserver: GeneratedEventObserver | null = null;
 
   const getSequenceState = (id: string) => {
     let st = sequenceStates.get(id);
     if (!st) {
       st = { lastScheduledBeat: Number.NEGATIVE_INFINITY };
       sequenceStates.set(id, st);
+    }
+    return st;
+  };
+
+
+  const getGeneratedSequenceState = (id: string) => {
+    let st = generatedSequenceStates.get(id);
+    if (!st) {
+      st = { lastScheduledBeat: Number.NEGATIVE_INFINITY };
+      generatedSequenceStates.set(id, st);
     }
     return st;
   };
@@ -91,10 +111,18 @@ export function createScheduler(engine: Engine): Scheduler {
         const st = getSequenceState(sound.id);
         st.lastScheduledBeat = Math.max(st.lastScheduledBeat, currentBeat);
       }
+      for (const trigger of patch.modules) {
+        if (!isTrigger(trigger)) continue;
+        const st = getGeneratedSequenceState(trigger.id);
+        st.lastScheduledBeat = Math.max(st.lastScheduledBeat, currentBeat);
+      }
       return;
     }
     for (const sound of getSoundModules(patch)) {
       getSequenceState(sound.id).lastScheduledBeat = Number.NEGATIVE_INFINITY;
+    }
+    for (const trigger of patch.modules) {
+      if (isTrigger(trigger)) getGeneratedSequenceState(trigger.id).lastScheduledBeat = Number.NEGATIVE_INFINITY;
     }
   }
 
@@ -111,6 +139,28 @@ export function createScheduler(engine: Engine): Scheduler {
     const windowStartBeatAbs = getBeatAbs(now);
     const windowEndBeatAbs = getBeatAbs(now + lookaheadSec);
     const secPerBeat = secondsPerBeat();
+
+    if (generatedEventObserver) {
+      for (const trigger of patch.modules) {
+        if (!isTrigger(trigger) || !trigger.enabled) continue;
+        const st = getGeneratedSequenceState(trigger.id);
+        const effectiveTrigger = modulateTrigger(trigger, patch, now);
+        const window = createPatternModuleForTrigger(effectiveTrigger).renderWindow({
+          voiceId: trigger.id,
+          trigger: effectiveTrigger,
+          startBeat: windowStartBeatAbs,
+          endBeat: windowEndBeatAbs,
+        });
+        for (const ev of window.events) {
+          const eventBeat = window.startBeat + ev.beatOffset;
+          if (eventBeat <= st.lastScheduledBeat + 1e-9) continue;
+          const eventTimeSec = now + ev.beatOffset * secPerBeat;
+          generatedEventObserver({ patch, source: trigger, patternEvent: ev, timeSec: eventTimeSec });
+          st.lastScheduledBeat = eventBeat;
+        }
+      }
+    }
+
     const drumCountByTriggerId = new Map<string, number>();
     for (const sound of getSoundModules(patch)) {
       if (sound.type !== "drum") continue;
@@ -181,6 +231,7 @@ export function createScheduler(engine: Engine): Scheduler {
     running = true;
     engine.setTransportRunning?.(true);
     for (const st of sequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
+    for (const st of generatedSequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     transportStartTimeSec = engine.ctx.currentTime;
     transportStartBeatAbs = 0;
     timer = window.setInterval(scheduleLoop, intervalMs);
@@ -193,6 +244,7 @@ export function createScheduler(engine: Engine): Scheduler {
     if (timer !== null) window.clearInterval(timer);
     timer = null;
     for (const st of sequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
+    for (const st of generatedSequenceStates.values()) st.lastScheduledBeat = Number.NEGATIVE_INFINITY;
     transportStartTimeSec = 0;
     transportStartBeatAbs = 0;
   }
@@ -201,5 +253,9 @@ export function createScheduler(engine: Engine): Scheduler {
     scheduledEventObserver = observer;
   }
 
-  return { get running() { return running; }, setBpm, setPatch, regenAll, start, stop, setScheduledEventObserver };
+  function setGeneratedEventObserver(observer: GeneratedEventObserver | null) {
+    generatedEventObserver = observer;
+  }
+
+  return { get running() { return running; }, setBpm, setPatch, regenAll, start, stop, setScheduledEventObserver, setGeneratedEventObserver };
 }
