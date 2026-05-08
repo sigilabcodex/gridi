@@ -8,7 +8,7 @@ export type MidiOutputInfo = {
   connection?: string;
 };
 
-export type MidiOutputLastSent = { note: number; velocity: number; channel: number; outputName: string };
+export type MidiOutputLastSent = { note: number; velocity: number; channel: number; outputName: string; laneIndex?: number | null; laneRole?: string | null; source?: "melodic" | "drum-lane" | "fallback-base" };
 
 export type MidiOutputStatus =
   | { kind: "unsupported" }
@@ -24,7 +24,7 @@ export type MidiOutputManager = {
   getStatus(): MidiOutputStatus;
   setPreferredOutput(outputId: string | null): void;
   panic(params?: { channel?: number }): boolean;
-  sendNote(params: { note: number; velocity: number; channel?: number; gateMs?: number; delayMs?: number }): boolean;
+  sendNote(params: { note: number; velocity: number; channel?: number; gateMs?: number; delayMs?: number; laneIndex?: number | null; laneRole?: string | null; source?: "melodic" | "drum-lane" | "fallback-base" }): boolean;
 };
 
 function toOutputInfo(output: MIDIOutput): MidiOutputInfo {
@@ -169,7 +169,7 @@ export function createMidiOutputManager(params: {
     panic({ channel } = {}) {
       return sendPanic(channel);
     },
-    sendNote({ note, velocity, channel = 1, gateMs = 120, delayMs = 0 }) {
+    sendNote({ note, velocity, channel = 1, gateMs = 120, delayMs = 0, laneIndex, laneRole, source }) {
       if (!currentOutput) return false;
       const timestamp = typeof performance !== "undefined" ? performance.now() + Math.max(0, delayMs) : undefined;
       const midiChannel = normalizeMidiChannel(channel);
@@ -179,7 +179,7 @@ export function createMidiOutputManager(params: {
       sendRaw(makeNoteOffMessage(note, midiChannel), timestamp === undefined ? undefined : timestamp + Math.max(1, gateMs));
 
       const outputs = midiAccess ? Array.from(midiAccess.outputs.values()).map(toOutputInfo) : [];
-      lastSent = { note, velocity: midiVelocity, channel: midiChannel, outputName: currentOutput.name || "Unnamed MIDI output" };
+      lastSent = { note, velocity: midiVelocity, channel: midiChannel, outputName: currentOutput.name || "Unnamed MIDI output", laneIndex, laneRole, source };
       updateStatus({ kind: "sending", outputId: currentOutput.id, name: currentOutput.name || "Unnamed MIDI output", outputCount: outputs.length, outputs, lastSent });
       clearSendStatusTimer();
       sendStatusTimer = window.setTimeout(() => refreshOutputBinding(), 180);

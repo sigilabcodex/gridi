@@ -37,6 +37,11 @@ export function formatMidiIoChipLabel(params: {
   return `MIDI: ${midiInputChipPart(params.inputStatus, params.inputTargetLabel)} · ${midiOutputChipPart(params.outputStatus, params.outputSourceLabel)}`;
 }
 
+function midiLastSentText(lastSent: NonNullable<Extract<MidiOutputStatus, { kind: "sending" }>["lastSent"]>) {
+  const lane = typeof lastSent.laneIndex === "number" ? ` · lane ${lastSent.laneIndex}` : lastSent.source === "fallback-base" ? " · fallback base" : "";
+  return `Last: Ch ${lastSent.channel} Note ${lastSent.note}${lane} · Vel ${lastSent.velocity}`;
+}
+
 export function midiOutputCompactStatusText(status: MidiOutputStatus, sourceLabel: string | null) {
   const source = sourceLabel ? `Source ${sourceLabel}` : "Source off";
   if (!sourceLabel) return `MIDI Out off · ${source}`;
@@ -44,8 +49,8 @@ export function midiOutputCompactStatusText(status: MidiOutputStatus, sourceLabe
   if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;
   if (status.kind === "denied") return `MIDI Out denied · ${source}`;
   if (status.kind === "idle") return `${status.message} · ${source}`;
-  if (status.kind === "sending") return `Last Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity} → ${status.name} · ${source}`;
-  const last = status.lastSent ? ` · Last Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity}` : "";
+  if (status.kind === "sending") return `${midiLastSentText(status.lastSent)} → ${status.name} · ${source}`;
+  const last = status.lastSent ? ` · ${midiLastSentText(status.lastSent)}` : "";
   const warning = status.warning ? `${status.warning} · ` : "";
   return `${warning}Output ${status.name} · ${source}${last}`;
 }

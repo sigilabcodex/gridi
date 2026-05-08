@@ -38,7 +38,7 @@ import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
 import { createMidiOutputManager, type MidiOutputStatus } from "./midiOutput";
-import { clampMidiNoteNumber, midiNoteFromGridiEvent, midiOutRoutesForSource, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocity, normalizeMidiVelocityScale, type MidiMapMode } from "../engine/midiOut";
+import { clampMidiNoteNumber, midiOutRoutesForSource, normalizeMidiChannel, normalizeMidiDrumMapPreset, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocity, normalizeMidiVelocityScale, resolveMidiNoteFromGridiEvent, type MidiDrumMapPreset, type MidiMapMode } from "../engine/midiOut";
 import { formatDocumentTitle } from "../version";
 
 function randInt(min: number, max: number) {
@@ -115,7 +115,7 @@ function routeTopologySignature(patch: Patch) {
             : "master";
       const targetPort = "port" in route.target ? route.target.port ?? "" : "";
 
-      return `${route.domain}|${route.enabled ? 1 : 0}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiMapMode ?? ""}`;
+      return `${route.domain}|${route.enabled ? 1 : 0}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiMapMode ?? ""}|${route.metadata?.midiDrumMapPreset ?? ""}`;
     })
     .sort();
 }
@@ -696,6 +696,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       gateMs: normalizeMidiGateMs(meta.midiGateMs),
       velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale),
       mapMode: normalizeMidiMapMode(meta.midiMapMode),
+      drumMapPreset: normalizeMidiDrumMapPreset(meta.midiDrumMapPreset),
     };
   };
   const getMidiRouteChannel = () => getMidiRouteMapping().channel;
@@ -728,6 +729,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
             midiGateMs: normalizeMidiGateMs(existingMeta.midiGateMs),
             midiVelocityScale: normalizeMidiVelocityScale(existingMeta.midiVelocityScale),
             midiMapMode: normalizeMidiMapMode(existingMeta.midiMapMode),
+            midiDrumMapPreset: normalizeMidiDrumMapPreset(existingMeta.midiDrumMapPreset),
             midiOutputName: outputName ?? existingMeta.midiOutputName,
           },
         });
@@ -736,7 +738,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     }, { regen: false });
   };
 
-  const setMidiOutputMapping = (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: MidiMapMode }>) => {
+  const setMidiOutputMapping = (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: MidiMapMode; drumMapPreset: MidiDrumMapPreset }>) => {
     onPatchChange((draft) => {
       const route = (draft.routes ?? []).find((candidate) => (
         candidate.enabled &&
@@ -752,6 +754,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         gateMs: route.metadata?.midiGateMs,
         velocityScale: route.metadata?.midiVelocityScale,
         mapMode: route.metadata?.midiMapMode,
+        drumMapPreset: route.metadata?.midiDrumMapPreset,
       };
       if (route.target.kind === "external") route.target.channel = normalizeMidiChannel(mapping.channel ?? current.channel);
       route.metadata = {
@@ -761,6 +764,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         midiGateMs: normalizeMidiGateMs(mapping.gateMs ?? current.gateMs),
         midiVelocityScale: normalizeMidiVelocityScale(mapping.velocityScale ?? current.velocityScale),
         midiMapMode: normalizeMidiMapMode(mapping.mapMode ?? current.mapMode),
+        midiDrumMapPreset: normalizeMidiDrumMapPreset(mapping.drumMapPreset ?? current.drumMapPreset),
       };
     }, { regen: false });
   };
@@ -874,7 +878,8 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
   sched.setScheduledEventObserver(({ patch: eventPatch, source, triggerEvent, timeSec }) => {
     const delayMs = Math.max(0, (timeSec - engine.ctx.currentTime) * 1000);
     for (const route of midiOutRoutesForSource(eventPatch, source.id)) {
-      const note = midiNoteFromGridiEvent(triggerEvent, route.baseNote, route.mapMode);
+      const mapped = resolveMidiNoteFromGridiEvent(triggerEvent, route.baseNote, route.mapMode, route.drumMapPreset);
+      const note = mapped.note;
       const key = `${source.id}:${timeSec.toFixed(6)}:${note}`;
       if (recentMidiOutEvents.has(key)) continue;
       recentMidiOutEvents.add(key);
@@ -885,6 +890,9 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         channel: route.channel,
         gateMs: route.gateMs,
         delayMs,
+        laneIndex: mapped.laneIndex,
+        laneRole: mapped.laneRole,
+        source: mapped.source,
       });
     }
   });

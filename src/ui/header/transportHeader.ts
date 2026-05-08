@@ -8,7 +8,7 @@ import type { MidiInputStatus } from "../midiInput";
 import type { MidiOutputStatus } from "../midiOutput";
 import gridiWordmarkUrl from "../logo/gridi-wordmark.svg";
 
-import { DEFAULT_MIDI_BASE_NOTE, DEFAULT_MIDI_CHANNEL, DEFAULT_MIDI_GATE_MS, DEFAULT_MIDI_VELOCITY_SCALE, GM_BASIC_DRUM_MAP_LABEL, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale, type MidiMapMode } from "../../engine/midiOut";
+import { DEFAULT_MIDI_BASE_NOTE, DEFAULT_MIDI_CHANNEL, DEFAULT_MIDI_GATE_MS, DEFAULT_MIDI_VELOCITY_SCALE, MIDI_DRUM_MAP_PRESETS, clampMidiNoteNumber, midiDrumMapPresetSummary, normalizeMidiChannel, normalizeMidiDrumMapPreset, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale, type MidiDrumMapPreset, type MidiMapMode } from "../../engine/midiOut";
 import { formatMidiIoChipLabel, midiOutputCompactStatusText } from "./midiIoPanel";
 
 type HeaderParams = {
@@ -53,7 +53,7 @@ type HeaderParams = {
   onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
   onSetMidiOutSourceModule: (moduleId: string | null) => void;
-  onSetMidiOutMapping: (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: MidiMapMode }>) => void;
+  onSetMidiOutMapping: (mapping: Partial<{ channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: MidiMapMode; drumMapPreset: MidiDrumMapPreset }>) => void;
   onTestMidiOutNote: () => void;
 };
 
@@ -855,6 +855,7 @@ export function createTransportHeader(params: HeaderParams) {
       gateMs: normalizeMidiGateMs(meta.midiGateMs, DEFAULT_MIDI_GATE_MS),
       velocityScale: normalizeMidiVelocityScale(meta.midiVelocityScale, DEFAULT_MIDI_VELOCITY_SCALE),
       mapMode: normalizeMidiMapMode(meta.midiMapMode),
+      drumMapPreset: normalizeMidiDrumMapPreset(meta.midiDrumMapPreset),
     };
   };
 
@@ -989,6 +990,21 @@ export function createTransportHeader(params: HeaderParams) {
       renderMidiPanel();
     };
 
+    const midiDrumMapSelect = document.createElement("select");
+    midiDrumMapSelect.className = "transportSessionFilter routingOverviewSelect";
+    for (const entry of MIDI_DRUM_MAP_PRESETS) {
+      const option = document.createElement("option");
+      option.value = entry.value;
+      option.textContent = `Map: ${entry.label}`;
+      midiDrumMapSelect.appendChild(option);
+    }
+    midiDrumMapSelect.value = mapping.drumMapPreset;
+    midiDrumMapSelect.disabled = mappingDisabled;
+    midiDrumMapSelect.onchange = () => {
+      params.onSetMidiOutMapping({ drumMapPreset: normalizeMidiDrumMapPreset(midiDrumMapSelect.value) });
+      renderMidiPanel();
+    };
+
     const midiChannelInput = document.createElement("input");
     midiChannelInput.type = "number";
     midiChannelInput.min = "1";
@@ -1063,7 +1079,8 @@ export function createTransportHeader(params: HeaderParams) {
     if (mapping.mapMode === "drum") {
       const drumMapLine = document.createElement("div");
       drumMapLine.className = "small transportSessionEmpty";
-      drumMapLine.textContent = GM_BASIC_DRUM_MAP_LABEL;
+      drumMapLine.textContent = midiDrumMapPresetSummary(mapping.drumMapPreset);
+      appendSelectLabel(outputSection, "Map", midiDrumMapSelect);
       outputSection.appendChild(drumMapLine);
     }
     appendNumberLabel(outputSection, "Ch", midiChannelInput);
