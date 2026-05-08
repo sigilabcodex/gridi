@@ -38,7 +38,7 @@ import { createVoiceTabsState } from "./state/voiceTabs";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
 import { createMidiOutputManager, type MidiOutputStatus } from "./midiOutput";
-import { clampMidiNoteNumber, midiOutRoutesForSource, normalizeMidiChannel, normalizeMidiDrumMapPreset, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocity, normalizeMidiVelocityScale, resolveMidiNoteFromGridiEvent, type MidiDrumMapPreset, type MidiMapMode } from "../engine/midiOut";
+import { clampMidiNoteNumber, gridiEventFromPatternEventForMidiRoute, midiOutRoutesForSource, normalizeMidiChannel, normalizeMidiDrumMapPreset, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocity, normalizeMidiVelocityScale, resolveMidiNoteFromGridiEvent, type MidiDrumMapPreset, type MidiMapMode } from "../engine/midiOut";
 import { formatDocumentTitle } from "../version";
 
 function randInt(min: number, max: number) {
@@ -875,18 +875,19 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     },
   });
 
-  sched.setScheduledEventObserver(({ patch: eventPatch, source, triggerEvent, timeSec }) => {
+  sched.setGeneratedEventObserver(({ patch: eventPatch, source, patternEvent, timeSec }) => {
     const delayMs = Math.max(0, (timeSec - engine.ctx.currentTime) * 1000);
     for (const route of midiOutRoutesForSource(eventPatch, source.id)) {
-      const mapped = resolveMidiNoteFromGridiEvent(triggerEvent, route.baseNote, route.mapMode, route.drumMapPreset);
+      const midiEvent = gridiEventFromPatternEventForMidiRoute({ patternEvent, trigger: source, timeSec, mapMode: route.mapMode });
+      const mapped = resolveMidiNoteFromGridiEvent(midiEvent, route.baseNote, route.mapMode, route.drumMapPreset);
       const note = mapped.note;
-      const key = `${source.id}:${timeSec.toFixed(6)}:${note}`;
+      const key = `${route.route.id}:${source.id}:${timeSec.toFixed(6)}:${note}`;
       if (recentMidiOutEvents.has(key)) continue;
       recentMidiOutEvents.add(key);
       window.setTimeout(() => recentMidiOutEvents.delete(key), Math.max(500, route.gateMs + 250));
       midiOutput.sendNote({
         note,
-        velocity: normalizeMidiVelocity(triggerEvent.velocity * route.velocityScale),
+        velocity: normalizeMidiVelocity(midiEvent.velocity * route.velocityScale),
         channel: route.channel,
         gateMs: route.gateMs,
         delayMs,
@@ -1279,6 +1280,7 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     midiInput.dispose();
     midiOutput.dispose();
     sched.setScheduledEventObserver(null);
+    sched.setGeneratedEventObserver(null);
     engine.stopAllMidiVoices();
   });
 }

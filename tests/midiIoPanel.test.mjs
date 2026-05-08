@@ -55,7 +55,7 @@ test('MIDI output compact status reports selected source and last sent diagnosti
     outputCount: 1,
     outputs: [],
     lastSent: { note: 64, velocity: 96, channel: 3, outputName: 'Volca Bass' },
-  }, 'GEN 1'), 'Last: Ch 3 Note 64 · Vel 96 → Volca Bass · Source GEN 1');
+  }, 'GEN 1'), 'Last: Ch 3 Note 64 · Vel 96 → Volca Bass · GEN stream GEN 1');
 });
 
 test('MIDI output compact status remains compatible with drum-map note diagnostics', () => {
@@ -66,7 +66,7 @@ test('MIDI output compact status remains compatible with drum-map note diagnosti
     outputCount: 1,
     outputs: [],
     lastSent: { note: 36, velocity: 100, channel: 10, outputName: 'Hydrogen', laneIndex: 0, source: 'drum-lane' },
-  }, 'Drum GEN'), 'Last: Ch 10 Note 36 · lane 0 · Vel 100 → Hydrogen · Source Drum GEN');
+  }, 'Drum GEN'), 'Last: Ch 10 Note 36 · lane 0 · Vel 100 → Hydrogen · GEN stream Drum GEN');
 });
 
 
@@ -78,5 +78,5 @@ test('MIDI output compact status shows explicit fallback-base diagnostics', () =
     outputCount: 1,
     outputs: [],
     lastSent: { note: 60, velocity: 81, channel: 1, outputName: 'Hydrogen', source: 'fallback-base' },
-  }, 'Drum GEN'), 'Last: Ch 1 Note 60 · fallback base · Vel 81 → Hydrogen · Source Drum GEN');
+  }, 'Drum GEN'), 'Last: Ch 1 Note 60 · fallback base · Vel 81 → Hydrogen · GEN stream Drum GEN');
 });

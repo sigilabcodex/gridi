@@ -1075,7 +1075,11 @@ export function createTransportHeader(params: HeaderParams) {
     outStatusLine.textContent = midiOutputCompactStatusText(outStatus, getMidiOutSourceLabel());
     appendSelectLabel(outputSection, "Output", midiOutputSelect);
     appendSelectLabel(outputSection, "Source GEN", midiSourceSelect);
-    appendSelectLabel(outputSection, "Mode", midiModeSelect);
+    const genStreamLine = document.createElement("div");
+    genStreamLine.className = "small transportSessionEmpty";
+    genStreamLine.textContent = "Mode: GEN stream — local voice mute/off does not gate MIDI Out.";
+    outputSection.appendChild(genStreamLine);
+    appendSelectLabel(outputSection, "Map mode", midiModeSelect);
     if (mapping.mapMode === "drum") {
       const drumMapLine = document.createElement("div");
       drumMapLine.className = "small transportSessionEmpty";

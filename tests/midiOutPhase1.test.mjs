@@ -5,6 +5,7 @@ import {
   makeAllNotesOffMessage,
   makeMidiPanicMessages,
   makeMidiTestNoteMessages,
+  gridiEventFromPatternEventForMidiRoute,
   makeNoteOffMessage,
   makeNoteOnMessage,
   midiDrumNoteFromLaneIndex,
@@ -271,4 +272,87 @@ test('MIDI drum map preset normalization defaults old metadata safely', () => {
   assert.equal(normalizeMidiDrumMapPreset(undefined), 'gm-basic');
   assert.equal(normalizeMidiDrumMapPreset('chromatic-base'), 'chromatic-base');
   assert.equal(normalizeMidiDrumMapPreset('unknown'), 'gm-basic');
+});
+
+
+test('GEN stream observer emits when local voice target is disabled', () => {
+  const trigger = makeTrigger({ id: 'gen-independent', seed: 4, density: 1, drop: 0, subdiv: 4, length: 8, mode: 'step' });
+  const mutedSound = makeSound({ id: 'muted-local-voice', triggerSource: trigger.id, enabled: false });
+  const patch = makePatch([mutedSound, trigger]);
+  const triggered = [];
+  const generated = [];
+  const engine = { ctx: { currentTime: 0 }, triggerVoice: (id, _patch, when, event) => triggered.push({ id, when, event }) };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setGeneratedEventObserver((event) => generated.push(event));
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    engine.ctx.currentTime = 0;
+    tick();
+    scheduler.stop();
+  });
+
+  assert.equal(triggered.length, 0);
+  assert.ok(generated.length > 0);
+  assert.equal(generated[0].source.id, trigger.id);
+});
+
+test('multiple local voices on same GEN do not duplicate GEN-stream MIDI events', () => {
+  const trigger = makeTrigger({ id: 'gen-no-dup', seed: 4, density: 1, drop: 0, subdiv: 4, length: 8, mode: 'step' });
+  const soundA = makeSound({ id: 'voice-a', triggerSource: trigger.id });
+  const soundB = makeSound({ id: 'voice-b', triggerSource: trigger.id, basePitch: 0.75 });
+  const patch = makePatch([soundA, soundB, trigger]);
+  const generated = [];
+  const engine = { ctx: { currentTime: 0 }, triggerVoice: () => {} };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setGeneratedEventObserver((event) => generated.push(event));
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    engine.ctx.currentTime = 0;
+    tick();
+    scheduler.stop();
+  });
+
+  const keys = generated.map((event) => `${event.source.id}:${event.timeSec.toFixed(6)}:${event.patternEvent.targetLane ?? 'x'}`);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.ok(generated.length > 0);
+  assert.ok(generated.every((event) => event.source.id === trigger.id));
+});
+
+test('deleting local voices does not break GEN-stream MIDI output while GEN source exists', () => {
+  const trigger = makeTrigger({ id: 'gen-without-voices', seed: 4, density: 1, drop: 0, subdiv: 4, length: 8, mode: 'step' });
+  const patch = makePatch([trigger]);
+  const generated = [];
+  const engine = { ctx: { currentTime: 0 }, triggerVoice: () => { throw new Error('local voice should not be required'); } };
+
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setGeneratedEventObserver((event) => generated.push(event));
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    engine.ctx.currentTime = 0;
+    tick();
+    scheduler.stop();
+  });
+
+  assert.ok(generated.length > 0);
+  assert.equal(generated[0].source.id, trigger.id);
+});
+
+test('GEN-stream mapping does not imply post-voice mirror semantics', () => {
+  const trigger = makeTrigger({ id: 'gen-map-stream' });
+  const patternEvent = { voiceId: trigger.id, beatOffset: 0, value: 0.75, targetLane: 2 };
+  const melodic = gridiEventFromPatternEventForMidiRoute({ patternEvent, trigger, timeSec: 1, mapMode: 'melodic' });
+  const drum = gridiEventFromPatternEventForMidiRoute({ patternEvent, trigger, timeSec: 1, mapMode: 'drum' });
+
+  assert.equal(melodic.kind, 'note');
+  assert.equal(drum.kind, 'drum');
+  assert.equal(drum.laneIndex, 2);
+  assert.equal(midiNoteFromGridiEvent(melodic, 60, 'melodic') !== midiNoteFromGridiEvent(drum, 60, 'drum'), true);
 });

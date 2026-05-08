@@ -597,3 +597,19 @@ Suggested Linux validation path:
 ### Deferred Phase 2+ items after implementation
 
 The deferrals from Section 11 still stand: MIDI clock input/output, DAW transport sync, CC/automation, pitch bend, aftertouch, program changes, MPE, per-lane drum-note maps, multiple outputs, per-route matrices, dedicated MIDI Out modules, MIDI learn, and richer browser permission/session handling remain out of scope for Phase 1.
+
+## Phase 2.2 update — GEN-stream source semantics (2026-05)
+
+Phase 1 originally connected MIDI Out from the scheduler's `ScheduledEventObserver`, which fires after a generated event is resolved for a concrete local sound module and after local voice routing, enabled checks, drum channel/lane filtering, and `engine.triggerVoice(...)` dispatch. That placement made MIDI Out effectively post-voice: a selected GEN could be silenced by disabling or deleting the local DRUM/SYNTH voices that happened to receive that GEN, and multiple local voice receivers had to be defensively deduplicated.
+
+Phase 2.2 moves runtime MIDI Out to a scheduler-owned GEN-stream observer. The new observer renders each enabled trigger module once per lookahead window with the trigger id as the stream identity, before local sound-module enabled/mute/routing gates are applied. The existing WebAudio voice scheduling loop is left unchanged and still dispatches resolved voice events to local DRUM/SYNTH modules.
+
+Current semantics:
+
+- MIDI Out route source `Source: Generator N` means the external MIDI output follows that GEN stream directly.
+- Local GRIDI voice mute/off state does not gate external MIDI output for a GEN MIDI Out route.
+- A GEN connected to multiple local voices does not duplicate external MIDI notes; the GEN stream is rendered once for MIDI Out.
+- Deleting local voices does not stop external MIDI output while the selected GEN and MIDI Out route still exist.
+- Mapping controls are unchanged: channel, base note, gate, velocity scale, melodic mode, drum-map mode, and drum-map presets continue to apply to the GEN stream.
+
+Voice mirroring remains deferred. If added later, it should be an explicit separate source/mode such as `Mirror voices`, `Voice output`, or `Post-voice`, because those semantics intentionally depend on local voice routing, mute/off state, and per-voice dispatch.
