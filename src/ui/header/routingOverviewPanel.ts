@@ -1,5 +1,5 @@
 import type { Patch } from "../../patch";
-import { GM_BASIC_DRUM_MAP_LABEL, clampMidiNoteNumber, normalizeMidiChannel, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale } from "../../engine/midiOut";
+import { clampMidiNoteNumber, midiDrumMapPresetLabel, normalizeMidiChannel, normalizeMidiDrumMapPreset, normalizeMidiGateMs, normalizeMidiMapMode, normalizeMidiVelocityScale } from "../../engine/midiOut";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
 import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
@@ -79,17 +79,20 @@ function filterRoutesByModule(routes: UIRoutingOverviewRoute[], moduleId: string
 function midiOutputStatusText(
   status: MidiOutputStatus,
   sourceName: string | null,
-  mapping: { channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: "melodic" | "drum" } | null,
+  mapping: { channel: number; baseNote: number; gateMs: number; velocityScale: number; mapMode: "melodic" | "drum"; drumMapPreset: string } | null,
 ) {
   const source = sourceName ? `Source: ${sourceName}` : "Source: Off";
-  const channelText = mapping ? ` · Mode ${mapping.mapMode === "drum" ? "Drum map" : "Melodic"} · Ch ${mapping.channel} Base ${mapping.baseNote} Gate ${mapping.gateMs}ms Vel ${mapping.velocityScale}${mapping.mapMode === "drum" ? ` · ${GM_BASIC_DRUM_MAP_LABEL}` : ""}` : "";
+  const channelText = mapping ? ` · Mode ${mapping.mapMode === "drum" ? "Drum map" : "Melodic"} · Ch ${mapping.channel} Base ${mapping.baseNote} Gate ${mapping.gateMs}ms Vel ${mapping.velocityScale}${mapping.mapMode === "drum" ? ` · MIDI drum map: ${midiDrumMapPresetLabel(mapping.drumMapPreset)}` : ""}` : "";
   if (!sourceName) return `MIDI Out off · ${source}`;
   if (status.kind === "unsupported") return `MIDI Out unavailable in this browser · ${source}`;
   if (status.kind === "pending") return `MIDI Out permission needed · ${source}`;
   if (status.kind === "denied") return `MIDI Out denied: ${status.reason} · ${source}`;
   if (status.kind === "idle") return `${status.message} · ${source}${channelText}`;
-  if (status.kind === "sending") return `Sending Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity} → ${status.name} · ${source}`;
-  const last = status.lastSent ? ` · Last Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity}` : "";
+  if (status.kind === "sending") {
+    const lane = typeof status.lastSent.laneIndex === "number" ? ` from lane ${status.lastSent.laneIndex}` : status.lastSent.source === "fallback-base" ? " from fallback base" : "";
+    return `Sending Ch ${status.lastSent.channel} Note ${status.lastSent.note} Vel ${status.lastSent.velocity} → ${status.name} · ${source} · Last note: ${status.lastSent.note}${lane}`;
+  }
+  const last = status.lastSent ? ` · Last note: ${status.lastSent.note}${typeof status.lastSent.laneIndex === "number" ? ` from lane ${status.lastSent.laneIndex}` : status.lastSent.source === "fallback-base" ? " from fallback base" : ""}` : "";
   const warning = status.warning ? `${status.warning} · ` : "";
   return `${warning}Connected → ${status.name} · ${source}${channelText}${last}`;
 }
@@ -342,6 +345,7 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
       gateMs: normalizeMidiGateMs(activeMidiOutPatchRoute.metadata?.midiGateMs),
       velocityScale: normalizeMidiVelocityScale(activeMidiOutPatchRoute.metadata?.midiVelocityScale),
       mapMode: normalizeMidiMapMode(activeMidiOutPatchRoute.metadata?.midiMapMode),
+      drumMapPreset: normalizeMidiDrumMapPreset(activeMidiOutPatchRoute.metadata?.midiDrumMapPreset),
     } : null;
 
     midiInputSelect.replaceChildren();

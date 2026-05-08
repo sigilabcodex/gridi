@@ -17,6 +17,7 @@ export type PatchRouteMetadata = {
   midiOutputName?: string;
   midiVelocityScale?: number;
   midiMapMode?: "melodic" | "drum";
+  midiDrumMapPreset?: "gm-basic" | "chromatic-base" | "low-kit" | "cymbal-test" | "single-base";
 };
 
 export type PatchRoute = {
@@ -149,6 +150,7 @@ function fallbackRouteId(route: {
     route.metadata?.midiOutputName ?? "",
     route.metadata?.midiVelocityScale ?? "",
     route.metadata?.midiMapMode ?? "",
+    route.metadata?.midiDrumMapPreset ?? "",
   ].join("|");
 }
 
@@ -171,6 +173,7 @@ function normalizeRawRoute(raw: unknown): PatchRoute | null {
       midiOutputName: typeof route.metadata.midiOutputName === "string" && route.metadata.midiOutputName.trim() ? route.metadata.midiOutputName : undefined,
       midiVelocityScale: typeof route.metadata.midiVelocityScale === "number" && Number.isFinite(route.metadata.midiVelocityScale) ? Math.max(0, Math.min(1, route.metadata.midiVelocityScale)) : undefined,
       midiMapMode: route.metadata.midiMapMode === "drum" || route.metadata.midiMapMode === "melodic" ? route.metadata.midiMapMode : undefined,
+      midiDrumMapPreset: route.metadata.midiDrumMapPreset === "gm-basic" || route.metadata.midiDrumMapPreset === "chromatic-base" || route.metadata.midiDrumMapPreset === "low-kit" || route.metadata.midiDrumMapPreset === "cymbal-test" || route.metadata.midiDrumMapPreset === "single-base" ? route.metadata.midiDrumMapPreset : undefined,
     }
     : undefined;
 
@@ -217,7 +220,7 @@ function routeIdentity(route: PatchRoute) {
         : "master";
   const targetPort = "port" in route.target ? route.target.port ?? "" : "";
 
-  return `${route.domain}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiBaseNote ?? ""}|${route.metadata?.midiGateMs ?? ""}|${route.metadata?.midiOutputName ?? ""}|${route.metadata?.midiVelocityScale ?? ""}|${route.metadata?.midiMapMode ?? ""}`;
+  return `${route.domain}|${route.source.kind}|${sourceId}|${sourcePort}|${route.target.kind}|${targetId}|${targetPort}|${route.metadata?.parameter ?? ""}|${route.metadata?.lane ?? ""}|${route.metadata?.midiBaseNote ?? ""}|${route.metadata?.midiGateMs ?? ""}|${route.metadata?.midiOutputName ?? ""}|${route.metadata?.midiVelocityScale ?? ""}|${route.metadata?.midiMapMode ?? ""}|${route.metadata?.midiDrumMapPreset ?? ""}`;
 }
 
 function validateRoute(

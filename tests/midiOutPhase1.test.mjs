@@ -7,13 +7,16 @@ import {
   makeMidiTestNoteMessages,
   makeNoteOffMessage,
   makeNoteOnMessage,
+  midiDrumNoteFromLaneIndex,
   midiNoteFromGridiEvent,
   midiOutRoutesForSource,
   normalizeMidiChannel,
+  normalizeMidiDrumMapPreset,
   normalizeMidiGateMs,
   normalizeMidiMapMode,
   normalizeMidiVelocity,
   normalizeMidiVelocityScale,
+  resolveMidiNoteFromGridiEvent,
 } from '../src/engine/midiOut.ts';
 import { normalizePatchRoutes } from '../src/routingGraph.ts';
 import { makePatch, makeTrigger } from './helpers.mjs';
@@ -67,7 +70,7 @@ test('event-to-MIDI-note mapping keeps melodic mode on base-note behavior', () =
   assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8 }, 64), 64);
 });
 
-test('drum map mode maps lanes to GM basic notes and falls back to base note', () => {
+test('GM Basic drum map mode maps expected lanes to notes and falls back to base note', () => {
   assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 0 }, 60, 'drum'), 36);
   assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 1 }, 60, 'drum'), 38);
   assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 2 }, 60, 'drum'), 42);
@@ -117,7 +120,8 @@ test('MIDI Out route filtering only returns enabled module-to-external MIDI rout
     gateMs: route.gateMs,
     velocityScale: route.velocityScale,
     mapMode: route.mapMode,
-  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240, velocityScale: 0.5, mapMode: 'melodic' }]);
+    drumMapPreset: route.drumMapPreset,
+  })), [{ outputId: 'out-1', outputName: 'Loopback', channel: 3, baseNote: 62, gateMs: 240, velocityScale: 0.5, mapMode: 'melodic', drumMapPreset: 'gm-basic' }]);
 });
 
 test('old MIDI routes without mapping metadata load with Phase 1.2 defaults', () => {
@@ -137,7 +141,8 @@ test('old MIDI routes without mapping metadata load with Phase 1.2 defaults', ()
     gateMs: route.gateMs,
     velocityScale: route.velocityScale,
     mapMode: route.mapMode,
-  })), [{ channel: 1, baseNote: 60, gateMs: 120, velocityScale: 1, mapMode: 'melodic' }]);
+    drumMapPreset: route.drumMapPreset,
+  })), [{ channel: 1, baseNote: 60, gateMs: 120, velocityScale: 1, mapMode: 'melodic', drumMapPreset: 'gm-basic' }]);
 });
 
 test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values', () => {
@@ -165,7 +170,8 @@ test('MIDI route metadata normalization safely clamps Phase 1.2 mapping values',
     gateMs: midiRoute.gateMs,
     velocityScale: midiRoute.velocityScale,
     mapMode: midiRoute.mapMode,
-  })), [{ channel: 1, baseNote: 127, gateMs: 1, velocityScale: 1, mapMode: 'drum' }]);
+    drumMapPreset: midiRoute.drumMapPreset,
+  })), [{ channel: 1, baseNote: 127, gateMs: 1, velocityScale: 1, mapMode: 'drum', drumMapPreset: 'gm-basic' }]);
 });
 
 test('MIDI event mapping respects route channel, base note, gate, velocity scale, and map mode', () => {
@@ -231,4 +237,38 @@ test('scheduler observer receives scheduled events without changing triggerVoice
   assert.equal(observed[0].target.id, sound.id);
   assert.equal(observed[0].timeSec, triggered[0].when);
   assert.deepEqual(observed[0].triggerEvent, triggered[0].event);
+});
+
+
+test('Chromatic from Base maps lane to base plus lane', () => {
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 0 }, 60, 'drum', 'chromatic-base'), 60);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 7 }, 60, 'drum', 'chromatic-base'), 67);
+  assert.equal(midiDrumNoteFromLaneIndex(70, 80, 'chromatic-base'), 127);
+});
+
+test('Low-kit and cymbal-test drum maps return expected notes', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6, 7].map((lane) => midiDrumNoteFromLaneIndex(lane, 60, 'low-kit')), [35, 36, 38, 40, 41, 43, 42, 39]);
+  assert.deepEqual([0, 1, 2, 3, 4].map((lane) => midiDrumNoteFromLaneIndex(lane, 60, 'cymbal-test')), [42, 44, 46, 49, 51]);
+});
+
+test('Single-base drum map always returns base note', () => {
+  assert.equal(midiDrumNoteFromLaneIndex(0, 64, 'single-base'), 64);
+  assert.equal(midiDrumNoteFromLaneIndex(7, 64, 'single-base'), 64);
+  assert.equal(midiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8, laneIndex: 3 }, 64, 'drum', 'single-base'), 64);
+});
+
+test('Missing drum lane/index fallback is explicit in diagnostics', () => {
+  assert.deepEqual(resolveMidiNoteFromGridiEvent({ kind: 'drum', timeSec: 1, velocity: 0.8 }, 64, 'drum', 'gm-basic'), {
+    note: 64,
+    source: 'fallback-base',
+    laneIndex: null,
+    laneRole: null,
+    drumMapPreset: 'gm-basic',
+  });
+});
+
+test('MIDI drum map preset normalization defaults old metadata safely', () => {
+  assert.equal(normalizeMidiDrumMapPreset(undefined), 'gm-basic');
+  assert.equal(normalizeMidiDrumMapPreset('chromatic-base'), 'chromatic-base');
+  assert.equal(normalizeMidiDrumMapPreset('unknown'), 'gm-basic');
 });

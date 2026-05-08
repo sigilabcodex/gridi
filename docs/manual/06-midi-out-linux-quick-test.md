@@ -12,7 +12,7 @@ Good first destinations are melodic or modular hosts that make MIDI input easy t
 - Cardinal
 - Ardour with a MIDI/instrument track armed and monitoring enabled
 
-Hydrogen is useful for the drum-map test below. It usually expects GM drum notes such as 36 for kick, 38 for snare, 42 for closed hat, and 46 for open hat, so use **Mode: Drum map** instead of a normal melodic note stream around middle C.
+Hydrogen is useful for the drum-map test below. It often works with GM drum notes such as 36 for kick, 38 for snare, 42 for closed hat, and 46 for open hat, but Hydrogen kits, Ardour drum plugins, Cardinal patches, and hardware drum machines may not use identical note maps. Use **Mode: Drum map** and the compact **Map** selector instead of assuming a normal melodic note stream around middle C will hit useful drum voices.
 
 ## Quick header setup
 
@@ -22,9 +22,15 @@ Use the compact header **MIDI I/O** pill for Phase 1.x MIDI Out setup:
 2. Choose the **Source GEN** module. Only this generator is mirrored to MIDI Out.
 3. Set the compact mapping controls:
    - **Mode: Melodic**: current/base-note behavior. Tonal GEN note offsets are added to **Base**. Drum events without melodic note data fall back to **Base**.
-   - **Mode: Drum map**: maps available drum lane/index data to a small GM-style map: lane 0 → 36 kick, lane 1 → 38 snare, lane 2 → 42 closed hat, lane 3 → 46 open hat, then 49 crash, 45 low tom, 47 mid tom, and 50 high tom. The UI summarizes this as `GM basic: 36/38/42/46…`. If no lane/index is available, GRIDI falls back to **Base**.
+   - **Mode: Drum map**: maps available drum lane/index data through the selected **Map** preset. If no lane/index is available, GRIDI falls back to **Base** and reports that fallback in the last-sent diagnostics.
+   - **Map** (shown only in Drum map mode):
+     - **GM Basic**: lane 0 → 36 kick, lane 1 → 38 snare, lane 2 → 42 closed hat, lane 3 → 46 open hat, then 49 crash, 45 low tom, 47 mid tom, and 50 high tom.
+     - **Chromatic from Base**: lane/index becomes **Base + lane**. This is the best discovery mode when a plugin only responds to an unknown note range.
+     - **Low drum kit**: tries lower drum notes around 35–43.
+     - **Cymbal/hat test**: tries hat/cymbal notes around 42, 44, 46, 49, and 51.
+     - **Single base note**: every lane sends **Base**, useful for proving the external route/channel is correct before debugging per-lane drum maps.
    - **Ch**: MIDI channel 1–16. The default is channel 1. Channel 10 is common for drum instruments, but some hosts/plugins use any armed/selected channel.
-   - **Base**: base note 0–127. The default is 60 (middle C). In Drum map mode it is only the fallback when no lane/index is available.
+   - **Base**: base note 0–127. The default is 60 (middle C). In Drum map mode it is the fallback when no lane/index is available, the fixed note for **Single base note**, and the starting note for **Chromatic from Base**.
    - **Gate ms**: note length in milliseconds. The default is 120 ms.
    - **Vel**: velocity scale from 0–1. The default is 1.0.
 4. Press **Test note**. This sends a short note-on/note-off using the selected channel, base note, gate, and velocity scale. It works while transport is stopped and updates the last-sent diagnostics in the MIDI Output status line.
@@ -51,13 +57,14 @@ Use this test when you want GRIDI to drive a drum instrument instead of a melodi
 1. Open Hydrogen and load a kit. Confirm the kit/instrument list responds to GM-style notes such as 36 (kick), 38 (snare), 42 (closed hat), and 46 (open hat), or adjust Hydrogen's instrument MIDI note assignments to match.
 2. Open GRIDI in Chrome/Chromium and open the **MIDI I/O** pill.
 3. Select a MIDI **Output** and a **Source GEN**.
-4. Set **Mode: Drum map**. The compact label should show `GM basic: 36/38/42/46…`.
-5. Set **Ch** to the channel your target listens to. Channel 10 is common for drum workflows, but Hydrogen/hosts may also respond to the selected/omni input depending on configuration.
-6. Use `aconnect -l` or your patchbay to connect the Chromium/GRIDI MIDI source (often visible through **MIDI Through**) to Hydrogen's MIDI input. For example, connect MIDI Through/Chromium's output to Hydrogen's input in ALSA, JACK, or PipeWire.
-7. Start GRIDI transport. Drum lanes should trigger the GM basic notes: 36 kick, 38 snare, 42 closed hat, and 46 open hat for the first four lanes.
-8. If Hydrogen stays silent, verify both sides: use `aseqdump` to confirm GRIDI emits the expected note numbers, and verify Hydrogen's instrument mapping/input channel/monitor settings.
+4. Set **Mode: Drum map** and start with **Map: GM Basic** if the target claims GM compatibility.
+5. If you only hear one cymbal, one hat, or a limited subset of sounds, switch **Map** to **Chromatic from Base**. Start with **Base 35** or **Base 36**, run transport, then move **Base** upward in small steps until useful hits appear. The last-sent diagnostics should show text like `Last: Ch 10 Note 42 · lane 2 · Vel 100`, which confirms both the mapped note and the source lane.
+6. Set **Ch** to the channel your target listens to. Channel 10 is common for drum workflows, but Hydrogen/hosts may also respond to the selected/omni input depending on configuration.
+7. Use `aconnect -l` or your patchbay to connect the Chromium/GRIDI MIDI source (often visible through **MIDI Through**) to Hydrogen's MIDI input. For example, connect MIDI Through/Chromium's output to Hydrogen's input in ALSA, JACK, or PipeWire.
+8. Start GRIDI transport. With **GM Basic**, drum lanes should trigger 36 kick, 38 snare, 42 closed hat, and 46 open hat for the first four lanes. With **Chromatic from Base**, the same lanes send Base, Base+1, Base+2, and Base+3.
+9. If Hydrogen stays silent, verify both sides: use `aseqdump` to confirm GRIDI emits the expected note numbers, and verify Hydrogen's instrument mapping/input channel/monitor settings. Try **Single base note** to prove one known Hydrogen instrument note before returning to a multi-note map.
 
-The same **Mode: Drum map** setup is the practical starting point for Ardour drum tracks, Cardinal drum patches, and hardware drum machines. In Ardour, arm and monitor the MIDI/instrument track; in Cardinal, patch the host MIDI input into the drum voices/modules; on hardware, match the channel and note map expected by the device.
+The same **Mode: Drum map** setup is the practical starting point for Ardour drum tracks, Cardinal drum patches, and hardware drum machines. Do not assume these targets share the exact same drum layout: Ardour instrument plugins, Hydrogen kits, and Cardinal drum patches can all use different note numbers. In Ardour, arm and monitor the MIDI/instrument track; in Cardinal, patch the host MIDI input into the drum voices/modules; on hardware, match the channel and note map expected by the device. When in doubt, use **Chromatic from Base** to discover which note range produces useful hits, then return to **GM Basic**, **Low drum kit**, or **Cymbal/hat test** if one of those presets fits the target better.
 
 ## Verify messages before blaming the synth
 
@@ -84,7 +91,7 @@ Typical workflow:
 
 QMidiRoute can prove that GRIDI is sending events, but it can also swallow them. If **Discard unmatched events** is enabled, QMidiRoute will not forward any event that does not match a configured rule. Either disable that option while testing or add rules that forward the channel and notes you see in its log.
 
-Observed GRIDI MIDI Out messages in Melodic mode are usually channel 1 note-on/note-off events around base note 60 unless you change the **Ch** or **Base** mapping controls. In Drum map mode, expect the GM basic drum notes 36/38/42/46… when lane/index data is present. If those appear in QMidiRoute or `aseqdump`, GRIDI has emitted MIDI and the remaining issue is likely ALSA/JACK/PipeWire bridge routing, QMidiRoute forwarding rules, destination app input configuration, or channel/note mapping.
+Observed GRIDI MIDI Out messages in Melodic mode are usually channel 1 note-on/note-off events around base note 60 unless you change the **Ch** or **Base** mapping controls. In Drum map mode, expect note numbers from the selected **Map** preset when lane/index data is present: **GM Basic** starts 36/38/42/46…, while **Chromatic from Base** sends Base/Base+1/Base+2/Base+3…. If no lane/index is available, the MIDI Output status line says `fallback base`. If the expected notes appear in QMidiRoute or `aseqdump`, GRIDI has emitted MIDI and the remaining issue is likely ALSA/JACK/PipeWire bridge routing, QMidiRoute forwarding rules, destination app input configuration, or channel/note mapping.
 
 ## Stuck-note safety
 
