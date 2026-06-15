@@ -886,4 +886,3 @@ Intentional constraints preserved:
 - Multiple event inputs, partial typed-domain adoption policy, typed modulation runtime authority, and bus runtime support remain open policy/architecture decisions.
 
 Recommended next follow-up: add an event-domain read resolver that reports both compiler-canonical and scheduler-effective event sources. Use it first for tests and inspector clarity before changing scheduler behavior, patch writes, or schema ownership.
-
