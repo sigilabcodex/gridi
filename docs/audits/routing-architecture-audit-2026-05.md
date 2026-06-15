@@ -862,3 +862,28 @@ Intentional constraints preserved:
 - no graph editor, patchbay, route-only migration, or routing schema redesign was introduced.
 
 Recommended next follow-up: typed/legacy parity hardening, especially partial typed event route adoption, multiple event routes into one sound, and runtime modulation equivalence for typed routes versus legacy `modulations`.
+
+## Phase 4 implementation note — Typed/legacy parity characterization
+
+Routing v0.4 Phase 4 adds an executable compatibility matrix for the current hybrid routing model. The pass is documentation and tests only; it does not migrate routing ownership, change `Patch.version`, remove legacy fields, or make `Patch.routes` the sole runtime authority.
+
+Characterized behavior is recorded in [`../routing-compatibility-matrix.md`](../routing-compatibility-matrix.md) and covered by `tests/routingParityMatrix.test.mjs`.
+
+Important confirmed findings:
+
+- `compileRoutingGraph()` applies typed-route precedence per domain and remains the global routing overview's read model.
+- Scheduler event runtime resolves compiled event routes first, then still falls back to a sound module's legacy `triggerSource` per sound.
+- Partial typed event adoption can therefore hide legacy-only event links from the compiled graph/inspector while those sounds can still play through scheduler fallback.
+- Typed modulation routes are compiled and visible, but scheduler/audio modulation runtime still reads target-owned legacy `modulations` maps for currently implemented modulation behavior.
+- Typed audio routes compile into connection-like records and are then accepted or rejected by the existing legacy audio validator.
+- Existing bus endpoints can compile as audio routes, but bus audio routing remains unsupported at runtime; missing bus endpoints are rejected before runtime use.
+
+Intentional constraints preserved:
+
+- Legacy `triggerSource`, `modulations`, and `connections` remain supported.
+- Valid legacy routes are not migrated into typed routes.
+- Valid typed routes are not mirrored into legacy fields.
+- Multiple event inputs, partial typed-domain adoption policy, typed modulation runtime authority, and bus runtime support remain open policy/architecture decisions.
+
+Recommended next follow-up: add an event-domain read resolver that reports both compiler-canonical and scheduler-effective event sources. Use it first for tests and inspector clarity before changing scheduler behavior, patch writes, or schema ownership.
+

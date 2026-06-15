@@ -46,3 +46,9 @@ Phase 3 is visibility + canonical read-model migration, not patchbay editing.
 The Routing overview can now offer a confirmed cleanup action when validation finds references to modules or buses that no longer exist. The action removes only invalid references from legacy `triggerSource`, legacy `modulations`, legacy `connections`, and typed `Patch.routes` records. Opening the overview does not mutate state, and cancellation leaves the patch unchanged.
 
 This is not a routing ownership migration. Legacy routing remains supported, `Patch.routes` remains an optional typed overlay rather than the sole runtime authority, and typed-route parity/ownership consolidation remain future v0.4 work.
+
+## Typed/legacy parity characterization
+
+The next v0.4 routing pass added an executable compatibility matrix for typed and legacy route coexistence: [`routing-compatibility-matrix.md`](routing-compatibility-matrix.md).
+
+That pass did not change routing ownership. The global overview still follows `compileRoutingGraph()` output, which means it can intentionally differ from runtime fallback behavior in known hybrid cases, especially partial typed event adoption and typed modulation routes.

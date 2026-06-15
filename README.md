@@ -149,6 +149,7 @@ npm run test:e2e:headed
 
 - User Manual: [`docs/manual/index.md`](docs/manual/index.md)
 - Architecture: [`docs/architecture.md`](docs/architecture.md)
+- Routing compatibility matrix: [`docs/routing-compatibility-matrix.md`](docs/routing-compatibility-matrix.md)
 - Module families: [`docs/module-types.md`](docs/module-types.md)
 - GEN modes reference: [`docs/gen-modes.md`](docs/gen-modes.md)
 - UI principles: [`docs/ui-principles.md`](docs/ui-principles.md)
