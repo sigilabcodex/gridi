@@ -39,6 +39,7 @@ export type CompiledRouting = {
 export type RoutingValidationIssueCode =
   | "voice-missing-trigger-source"
   | "voice-invalid-trigger-source"
+  | "voice-ambiguous-primary-event-source"
   | "route-invalid-record"
   | "route-duplicate-id"
   | "route-missing-source-module"
@@ -79,6 +80,35 @@ export type StaleRoutingCleanupPlan = {
 };
 
 export type RoutingCleanupConfirm = (plan: StaleRoutingCleanupPlan) => boolean;
+
+export type VoiceEventRoutingState =
+  | "legacy-only"
+  | "typed-only"
+  | "matching-hybrid"
+  | "conflicting-hybrid"
+  | "missing"
+  | "stale"
+  | "ambiguous";
+
+export type VoiceEventRouteCandidate = {
+  routeIndex: number;
+  routeId: string;
+  sourceId: string | null;
+  enabled: boolean;
+  inputRole: string;
+  isPrimary: boolean;
+  sourceExists: boolean;
+  targetExists: boolean;
+};
+
+export type VoiceEventRoutingResolution = {
+  voiceId: string;
+  compiledCanonicalSourceId: string | null;
+  legacyTriggerSourceId: string | null;
+  schedulerEffectiveSourceId: string | null;
+  typedEventRouteCandidates: VoiceEventRouteCandidate[];
+  state: VoiceEventRoutingState;
+};
 
 type NormalizeRouteResult = {
   routes: PatchRoute[];
@@ -200,6 +230,132 @@ function normalizeRawRoute(raw: unknown): PatchRoute | null {
     gain,
     metadata,
   };
+}
+
+function eventRouteInputRole(route: PatchRoute) {
+  const metadata = route.metadata as (PatchRouteMetadata & { role?: unknown }) | undefined;
+  const role = typeof metadata?.role === "string" && metadata.role.trim() ? metadata.role.trim() : "primary";
+  return role;
+}
+
+function rawEventRouteInputRole(raw: unknown, route: PatchRoute) {
+  if (!raw || typeof raw !== "object") return eventRouteInputRole(route);
+  const rawMetadata = (raw as { metadata?: unknown }).metadata;
+  if (!rawMetadata || typeof rawMetadata !== "object") return eventRouteInputRole(route);
+  const role = (rawMetadata as { role?: unknown }).role;
+  return typeof role === "string" && role.trim() ? role.trim() : eventRouteInputRole(route);
+}
+
+
+function isRawPrimaryEventRoute(raw: unknown, route: PatchRoute) {
+  return route.domain === "event" && rawEventRouteInputRole(raw, route) === "primary";
+}
+
+function uniqueRouteId(base: string, routes: PatchRoute[]) {
+  const ids = new Set(routes.map((route) => route.id));
+  if (!ids.has(base)) return base;
+  for (let i = 2; ; i += 1) {
+    const candidate = `${base}:${i}`;
+    if (!ids.has(candidate)) return candidate;
+  }
+}
+
+function makePrimaryEventRoute(sourceId: string, voiceId: string, existingRoutes: PatchRoute[]): PatchRoute {
+  return {
+    id: uniqueRouteId(`event:primary:${sourceId}:${voiceId}`, existingRoutes),
+    domain: "event",
+    source: { kind: "module", moduleId: sourceId, port: "trigger-out" },
+    target: { kind: "module", moduleId: voiceId, port: "trigger-in" },
+    enabled: true,
+    metadata: { createdFrom: "ui" },
+  };
+}
+
+export function resolveVoiceEventRouting(
+  patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown },
+  voiceId: string,
+): VoiceEventRoutingResolution {
+  const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
+  const triggerIds = new Set(patch.modules.filter((module) => module.type === "trigger").map((module) => module.id));
+  const voice = modulesById.get(voiceId);
+  const legacyTriggerSourceId = voice && isSoundModule(voice) ? voice.triggerSource ?? null : null;
+  const typedEventRouteCandidates: VoiceEventRouteCandidate[] = [];
+
+  if (Array.isArray(patch.routes)) {
+    for (let routeIndex = 0; routeIndex < patch.routes.length; routeIndex += 1) {
+      const route = normalizeRawRoute(patch.routes[routeIndex]);
+      if (!route || route.domain !== "event") continue;
+      if (route.target.kind !== "module" || route.target.moduleId !== voiceId) continue;
+      const sourceId = route.source.kind === "module" ? route.source.moduleId : null;
+      typedEventRouteCandidates.push({
+        routeIndex,
+        routeId: route.id,
+        sourceId,
+        enabled: route.enabled !== false,
+        inputRole: rawEventRouteInputRole(patch.routes[routeIndex], route),
+        isPrimary: isRawPrimaryEventRoute(patch.routes[routeIndex], route),
+        sourceExists: !!sourceId && triggerIds.has(sourceId),
+        targetExists: modulesById.has(voiceId),
+      });
+    }
+  }
+
+  const compiled = compileRoutingGraph(patch);
+  const compiledCanonicalSourceId = compiled.eventSourceBySoundId.get(voiceId) ?? null;
+  const activePrimaryCandidates = typedEventRouteCandidates.filter((candidate) => (
+    candidate.enabled && candidate.isPrimary && candidate.sourceExists && candidate.targetExists
+  ));
+  const hasStaleReference = !!(legacyTriggerSourceId && !triggerIds.has(legacyTriggerSourceId))
+    || typedEventRouteCandidates.some((candidate) => candidate.enabled && candidate.isPrimary && (!candidate.sourceExists || !candidate.targetExists));
+  const legacyValid = !!(legacyTriggerSourceId && triggerIds.has(legacyTriggerSourceId));
+  const typedSourceId = activePrimaryCandidates.length === 1 ? activePrimaryCandidates[0].sourceId : null;
+  const schedulerCandidateId = compiledCanonicalSourceId ?? legacyTriggerSourceId;
+  const schedulerEffectiveSourceId = schedulerCandidateId && triggerIds.has(schedulerCandidateId) ? schedulerCandidateId : null;
+
+  let state: VoiceEventRoutingState;
+  if (activePrimaryCandidates.length > 1) state = "ambiguous";
+  else if (hasStaleReference) state = "stale";
+  else if (typedSourceId && legacyValid) state = typedSourceId === legacyTriggerSourceId ? "matching-hybrid" : "conflicting-hybrid";
+  else if (typedSourceId) state = "typed-only";
+  else if (legacyValid) state = "legacy-only";
+  else state = "missing";
+
+  return {
+    voiceId,
+    compiledCanonicalSourceId,
+    legacyTriggerSourceId,
+    schedulerEffectiveSourceId,
+    typedEventRouteCandidates,
+    state,
+  };
+}
+
+export function setVoicePrimaryEventSource(patch: Patch, voiceId: string, sourceId: string | null): VoiceEventRoutingResolution {
+  const voice = patch.modules.find((module): module is SoundModule => module.id === voiceId && isSoundModule(module));
+  if (!voice) return resolveVoiceEventRouting(patch, voiceId);
+
+  const source = sourceId
+    ? patch.modules.find((module) => module.id === sourceId && module.type === "trigger")
+    : null;
+  const nextSourceId = source ? source.id : null;
+  voice.triggerSource = nextSourceId;
+
+  const existingRoutes = Array.isArray(patch.routes) ? patch.routes : [];
+  const keptRoutes: PatchRoute[] = [];
+  for (const rawRoute of existingRoutes) {
+    const route = normalizeRawRoute(rawRoute);
+    const targetsVoicePrimary = route
+      && route.domain === "event"
+      && route.target.kind === "module"
+      && route.target.moduleId === voiceId
+      && isRawPrimaryEventRoute(rawRoute, route);
+    if (!targetsVoicePrimary) keptRoutes.push(rawRoute as PatchRoute);
+  }
+
+  if (nextSourceId) keptRoutes.push(makePrimaryEventRoute(nextSourceId, voiceId, keptRoutes));
+  if (Array.isArray(patch.routes) || keptRoutes.length > 0) patch.routes = keptRoutes;
+
+  return resolveVoiceEventRouting(patch, voiceId);
 }
 
 function routeIdentity(route: PatchRoute) {
@@ -400,6 +556,18 @@ export function validatePatchRouting(patch: Pick<Patch, "modules" | "connections
           });
         }
       }
+    }
+  }
+
+  for (const module of patch.modules) {
+    if (!isSoundModule(module)) continue;
+    const resolution = resolveVoiceEventRouting(patch, module.id);
+    if (resolution.state === "ambiguous") {
+      push({
+        code: "voice-ambiguous-primary-event-source",
+        message: `Voice ${module.id} has multiple primary event routes`,
+        moduleId: module.id,
+      });
     }
   }
 

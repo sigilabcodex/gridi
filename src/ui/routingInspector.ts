@@ -1,5 +1,5 @@
 import type { Module, Patch, SoundModule } from "../patch";
-import { compileRoutingGraph, planStaleRoutingCleanup, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode, type StaleRoutingCleanupPlan } from "../routingGraph.ts";
+import { planStaleRoutingCleanup, resolveVoiceEventRouting, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode, type StaleRoutingCleanupPlan } from "../routingGraph.ts";
 import { resolveTriggerSourceLabelState, type RoutingLabelStatus } from "./routingLabels";
 
 export type RoutingHealthCounts = {
@@ -46,6 +46,8 @@ function countIssues(issues: RoutingValidationIssue[]): RoutingHealthCounts {
   return issues.reduce<RoutingHealthCounts>((counts, issue) => {
     if (issue.code === "voice-missing-trigger-source" || issue.code === "voice-invalid-trigger-source") {
       counts.missingSources += 1;
+    } else if (issue.code === "voice-ambiguous-primary-event-source") {
+      counts.invalidRoutes += 1;
     } else if (INVALID_ROUTE_CODES.has(issue.code)) {
       counts.invalidRoutes += 1;
     } else if (issue.code.startsWith("connection-")) {
@@ -71,12 +73,24 @@ export function buildRoutingHealthSummary(patch: Pick<Patch, "modules" | "connec
 
 export function buildEventRoutingInspectorRows(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): EventRoutingInspectorRow[] {
   const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
-  const compiled = compileRoutingGraph(patch);
 
   return patch.modules
     .filter(isSoundModule)
     .map((voice) => {
-      const sourceId = compiled.eventSourceBySoundId.get(voice.id) ?? voice.triggerSource ?? null;
+      const resolution = resolveVoiceEventRouting(patch, voice.id);
+      if (resolution.state === "ambiguous") {
+        const sourceLabel = "Ambiguous source";
+        return {
+          voiceId: voice.id,
+          voiceLabel: voice.name,
+          sourceId: resolution.schedulerEffectiveSourceId,
+          sourceLabel,
+          sourceStatus: "ambiguous",
+          text: `${sourceLabel} → ${voice.name}`,
+        };
+      }
+
+      const sourceId = resolution.schedulerEffectiveSourceId ?? resolution.legacyTriggerSourceId ?? null;
       const state = resolveTriggerSourceLabelState(modulesById, sourceId);
       const sourceLabel = state.status === "none"
         ? "Unassigned"

@@ -52,3 +52,9 @@ This is not a routing ownership migration. Legacy routing remains supported, `Pa
 The next v0.4 routing pass added an executable compatibility matrix for typed and legacy route coexistence: [`routing-compatibility-matrix.md`](routing-compatibility-matrix.md).
 
 That pass did not change routing ownership. The global overview still follows `compileRoutingGraph()` output, which means it can intentionally differ from runtime fallback behavior in known hybrid cases, especially partial typed event adoption and typed modulation routes.
+
+## Primary event assignment rule
+
+Current voices have one effective event input role: `primary`. Existing typed event routes without explicit role metadata are treated as primary routes. New UI assignments replace the previous primary GEN for that voice, update legacy `triggerSource` for compatibility, and avoid creating competing primary typed event routes.
+
+Old patches that already contain multiple enabled primary event routes to one voice are reported as ambiguous. Opening the overview, inspector, or patch does not repair them automatically; explicit reassignment is the narrow repair path for this phase. Future role/lane event inputs remain planned extension work and are not implemented here.

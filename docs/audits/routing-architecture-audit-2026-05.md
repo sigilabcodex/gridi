@@ -886,3 +886,24 @@ Intentional constraints preserved:
 - Multiple event inputs, partial typed-domain adoption policy, typed modulation runtime authority, and bus runtime support remain open policy/architecture decisions.
 
 Recommended next follow-up: add an event-domain read resolver that reports both compiler-canonical and scheduler-effective event sources. Use it first for tests and inspector clarity before changing scheduler behavior, patch writes, or schema ownership.
+
+## Phase 5 implementation note — Primary event assignment consolidation
+
+Routing v0.4 Phase 5 formalizes the current product rule that each voice has one effective event input role: `primary`. Existing typed event routes without an explicit role are treated conceptually as primary routes, but no required role field, route-role migration, or patch schema version change was introduced.
+
+Implemented behavior:
+
+- `resolveVoiceEventRouting()` reports compiled/canonical source, legacy `triggerSource`, scheduler-effective source, typed event route candidates, and the voice event routing state.
+- Routing states include `legacy-only`, `typed-only`, `matching-hybrid`, `conflicting-hybrid`, `missing`, `stale`, and `ambiguous`.
+- New UI assignment paths use replacement semantics through `setVoicePrimaryEventSource()`: assigning a GEN to a voice updates legacy `triggerSource`, removes existing implicit-primary typed event routes targeting that voice, and writes one typed primary event route when assigned.
+- Repeated assignment is idempotent; disabled or stale previous primary routes do not block replacement; unrelated event routes to other voices are preserved.
+- Existing ambiguous patches with multiple enabled primary typed event routes to one voice are detected by the resolver and routing validation but are not silently rewritten on load or inspection.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`.
+- Legacy `triggerSource` remains supported for compatibility.
+- No multi-source event merge, first-wins product policy, last-wins product policy, role/lane event model, graph editor, audio routing change, or modulation routing change was introduced.
+
+Recommended next follow-up: draft a role-aware event routing RFC that keeps `primary` stable while defining future optional roles such as `accent`, `fill`, `reset`, or lane-specific inputs. In parallel, typed modulation runtime parity remains the next high-impact consolidation target.
+
