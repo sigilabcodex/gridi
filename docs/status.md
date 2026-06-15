@@ -74,6 +74,10 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 - Session factory examples are now a small onboarding set (`Example 01 · Basic Pulse`, `Example 02 · Dual Generators`, `Example 03 · Experimental Field`) that demonstrates simple GEN-to-DRUM/SYNTH routing without replacing local/user-created sessions. User sessions remain browser-local and persistent; broader curated artist/composer/engineer banks are a future preset-bank direction, not part of the current starter set.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
 - MIDI now appears as a first-class routing domain in the global Routing UI: users can assign `MIDI IN` input source + synth target explicitly, and MIDI routes are listed alongside event/modulation/audio routes.
+- Routing health now includes a confirmed stale-reference cleanup action for missing module/bus references across legacy `triggerSource`, legacy `modulations`, legacy audio `connections`, and typed `Patch.routes`. This does not change routing ownership, schema version, or legacy compatibility.
+- Typed/legacy routing parity is now characterized in [`routing-compatibility-matrix.md`](routing-compatibility-matrix.md) and covered by executable tests. The matrix documents current compiler/runtime/inspector differences without migrating routing ownership.
+- Event routing now formalizes one implicit `primary` event input per voice for new assignments. Assigning a GEN replaces the previous primary source across typed event routes and legacy `triggerSource`, while old ambiguous multi-route patches are detected rather than silently rewritten.
+- Modulation routing now has an effective-source resolver and executable capability matrix. New CTRL assignments replace the previous source for a target parameter across legacy `modulations` and typed modulation routes, while runtime behavior remains legacy-backed for `trigger.density`, `drum.basePitch`, and `tonal.cutoff`.
 
 ## Near-term next steps (active priority)
 

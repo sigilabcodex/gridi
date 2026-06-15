@@ -39,6 +39,7 @@ type HeaderParams = {
   onSetBpm: (v: number) => void;
   onSetMasterGain: (v: number) => void;
   onInspectRoutingModule?: (moduleId: string | null) => void;
+  onCleanStaleRoutingRefs?: () => void;
   getSelectionSummary: () => { selectedCount: number; copiedCount: number };
   onCopySelection: () => void;
   onPasteModules: () => void;
@@ -739,6 +740,7 @@ export function createTransportHeader(params: HeaderParams) {
     onSelectMidiOutput: params.onSelectMidiOutput,
     onSetMidiTargetModule: params.onSetMidiTargetModule,
     onSetMidiOutSourceModule: params.onSetMidiOutSourceModule,
+    onCleanStaleRoutingRefs: params.onCleanStaleRoutingRefs,
   });
 
   const closeSessionMenu = () => {

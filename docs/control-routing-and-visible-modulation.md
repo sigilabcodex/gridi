@@ -97,3 +97,30 @@ Still intentionally deferred:
 The modulation display/ownership pattern introduced here is compatible with later velocity/intensity-aware expansions:
 - event intensity can be layered on top of stable per-parameter control ownership,
 - future trigger/MIDI intensity mappings can reuse the same "single owner + temporary user override" interaction policy.
+
+## v0.4 modulation resolver and capability matrix
+
+The v0.4 routing consolidation pass adds a pure modulation resolver for each `(target module, parameter)` pair. It reports:
+
+- typed modulation source declared in `Patch.routes`;
+- legacy target-owned `module.modulations[parameter]` source;
+- effective runtime source;
+- whether typed and legacy sources match or conflict;
+- whether the parameter is currently consumed by runtime;
+- whether runtime is using the legacy compatibility fallback.
+
+Current runtime capability matrix:
+
+| Module family | Parameter | Assignable in UI | Typed route representation | Inspector visibility | Runtime consumer | Limitation |
+| --- | --- | --- | --- | --- | --- | --- |
+| GEN / trigger | `density` | Yes | Yes | Yes | Scheduler | Runtime reads legacy `trigger.modulations.density`; typed route is declaration until authority changes. |
+| DRUM | `basePitch` | Yes | Yes | Yes | Audio engine | Runtime reads legacy `drum.modulations.basePitch`; typed route is declaration until authority changes. |
+| SYNTH / tonal | `cutoff` | Yes | Yes | Yes | Audio engine | Runtime reads legacy `tonal.modulations.cutoff`; typed route is declaration until authority changes. |
+| GEN / trigger | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by scheduler. |
+| DRUM | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
+| SYNTH / tonal | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
+
+Playback behavior is intentionally preserved in this pass. Typed modulation routes are not runtime-authoritative yet, no schema version changed, and patches are not automatically migrated.
+
+New explicit modulation assignments use replacement semantics for one effective source per target parameter: assigning CTRL B to a parameter controlled by CTRL A updates the legacy map, removes competing typed modulation routes for that same target parameter, and writes one matching typed modulation route. Unrelated parameters remain unchanged.
+

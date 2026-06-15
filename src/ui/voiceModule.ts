@@ -1,4 +1,5 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
+import { setParameterModulationSource, setVoicePrimaryEventSource } from "../routingGraph.ts";
 import { normalizeDrumChannelMode } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
@@ -318,8 +319,7 @@ function createFaceTabs(
     selected: v.triggerSource,
     emptyLabel: "None",
     onChange: (value) => onRoutingChange((p) => {
-      const m = p.modules.find((x) => x.id === v.id);
-      if (m && (m.type === "drum" || m.type === "tonal")) m.triggerSource = value;
+      setVoicePrimaryEventSource(p, v.id, value);
     }, { regen: true }),
   });
   const routeMap = document.createElement("div");
@@ -361,9 +361,7 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
     onAssign: (parameter, source) => onRoutingChange((p) => {
       const m = p.modules.find((z) => z.id === v.id);
       if (m?.type !== v.type) return;
-      m.modulations = m.modulations ?? {};
-      if (source) m.modulations[parameter] = source;
-      else delete m.modulations[parameter];
+      setParameterModulationSource(p, m.id, parameter, source);
     }, { regen: false }),
   });
 }
@@ -680,11 +678,9 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     selected: d.triggerSource,
     emptyLabel: "None",
     onChange: (value) => onRoutingChange((p) => {
+      setVoicePrimaryEventSource(p, v.id, value);
       const m = p.modules.find((z) => z.id === v.id);
-      if (m?.type === "drum") {
-        m.triggerSource = value;
-        setReactive({ triggerSource: m.triggerSource });
-      }
+      if (m?.type === "drum") setReactive({ triggerSource: m.triggerSource });
     }, { regen: true }),
   });
   featureZone.routeField.wrap.replaceWith(triggerField.wrap);
@@ -1001,11 +997,9 @@ export function renderSynthModuleSurface(params: SurfaceParams) {
     selected: t.triggerSource,
     emptyLabel: "None",
     onChange: (value) => onRoutingChange((p) => {
+      setVoicePrimaryEventSource(p, v.id, value);
       const m = p.modules.find((x) => x.id === v.id);
-      if (m?.type === "tonal") {
-        m.triggerSource = value;
-        setReactive({ triggerSource: value });
-      }
+      if (m?.type === "tonal") setReactive({ triggerSource: m.triggerSource });
     }, { regen: true }),
   });
   const receptionModeField = createCompactSelectField({

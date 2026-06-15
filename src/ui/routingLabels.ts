@@ -3,7 +3,7 @@ import type { Module, Patch, SoundModule } from "../patch";
 const UNASSIGNED_LABEL = "None";
 const MISSING_PREFIX = "Missing";
 
-export type RoutingLabelStatus = "none" | "ok" | "missing";
+export type RoutingLabelStatus = "none" | "ok" | "missing" | "ambiguous";
 
 export type RoutingLabelState = {
   label: string;

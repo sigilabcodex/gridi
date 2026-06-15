@@ -840,3 +840,91 @@ Recommended Phase 3 follow-ups:
 1. Add a confirmed `Clean stale routing refs` action once cleanup rules are covered by focused tests for legacy `triggerSource`, legacy `modulations`, legacy `connections`, and typed route records.
 2. Consider exposing validation issue details behind a small disclosure inside the same routing overview, without modal errors.
 3. Keep graphical patchbay exploration separate from health/inspection so v0.4 remains compatibility-first.
+
+
+## Phase 3 implementation note — Confirmed stale-reference cleanup
+
+Routing v0.4 Phase 3 adds a narrow, user-confirmed cleanup action to the existing Routing health / inspector surface. The action is intentionally limited to stale references whose module or bus endpoint no longer exists. Opening the Routing overview remains read-only and never mutates the patch.
+
+Cleanup coverage:
+
+- legacy sound-module `triggerSource` values pointing at missing modules are cleared to `null`;
+- legacy `modulations` assignments pointing at missing control/module IDs are removed from their target module maps;
+- legacy `Patch.connections` entries are removed when their source module, target module, or target bus no longer exists;
+- typed `Patch.routes` entries are removed when a module or bus endpoint no longer exists.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`;
+- `Patch.routes` is still not the sole runtime routing authority;
+- valid legacy routing remains supported and is not migrated into typed routes;
+- invalid-but-existing references, duplicate route IDs, unknown modulation parameters, unsupported bus runtime behavior, and route-ownership questions remain validation/future-routing work rather than automatic cleanup targets;
+- no graph editor, patchbay, route-only migration, or routing schema redesign was introduced.
+
+Recommended next follow-up: typed/legacy parity hardening, especially partial typed event route adoption, multiple event routes into one sound, and runtime modulation equivalence for typed routes versus legacy `modulations`.
+
+## Phase 4 implementation note — Typed/legacy parity characterization
+
+Routing v0.4 Phase 4 adds an executable compatibility matrix for the current hybrid routing model. The pass is documentation and tests only; it does not migrate routing ownership, change `Patch.version`, remove legacy fields, or make `Patch.routes` the sole runtime authority.
+
+Characterized behavior is recorded in [`../routing-compatibility-matrix.md`](../routing-compatibility-matrix.md) and covered by `tests/routingParityMatrix.test.mjs`.
+
+Important confirmed findings:
+
+- `compileRoutingGraph()` applies typed-route precedence per domain and remains the global routing overview's read model.
+- Scheduler event runtime resolves compiled event routes first, then still falls back to a sound module's legacy `triggerSource` per sound.
+- Partial typed event adoption can therefore hide legacy-only event links from the compiled graph/inspector while those sounds can still play through scheduler fallback.
+- Typed modulation routes are compiled and visible, but scheduler/audio modulation runtime still reads target-owned legacy `modulations` maps for currently implemented modulation behavior.
+- Typed audio routes compile into connection-like records and are then accepted or rejected by the existing legacy audio validator.
+- Existing bus endpoints can compile as audio routes, but bus audio routing remains unsupported at runtime; missing bus endpoints are rejected before runtime use.
+
+Intentional constraints preserved:
+
+- Legacy `triggerSource`, `modulations`, and `connections` remain supported.
+- Valid legacy routes are not migrated into typed routes.
+- Valid typed routes are not mirrored into legacy fields.
+- Multiple event inputs, partial typed-domain adoption policy, typed modulation runtime authority, and bus runtime support remain open policy/architecture decisions.
+
+Recommended next follow-up: add an event-domain read resolver that reports both compiler-canonical and scheduler-effective event sources. Use it first for tests and inspector clarity before changing scheduler behavior, patch writes, or schema ownership.
+
+## Phase 5 implementation note — Primary event assignment consolidation
+
+Routing v0.4 Phase 5 formalizes the current product rule that each voice has one effective event input role: `primary`. Existing typed event routes without an explicit role are treated conceptually as primary routes, but no required role field, route-role migration, or patch schema version change was introduced.
+
+Implemented behavior:
+
+- `resolveVoiceEventRouting()` reports compiled/canonical source, legacy `triggerSource`, scheduler-effective source, typed event route candidates, and the voice event routing state.
+- Routing states include `legacy-only`, `typed-only`, `matching-hybrid`, `conflicting-hybrid`, `missing`, `stale`, and `ambiguous`.
+- New UI assignment paths use replacement semantics through `setVoicePrimaryEventSource()`: assigning a GEN to a voice updates legacy `triggerSource`, removes existing implicit-primary typed event routes targeting that voice, and writes one typed primary event route when assigned.
+- Repeated assignment is idempotent; disabled or stale previous primary routes do not block replacement; unrelated event routes to other voices are preserved.
+- Existing ambiguous patches with multiple enabled primary typed event routes to one voice are detected by the resolver and routing validation but are not silently rewritten on load or inspection.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`.
+- Legacy `triggerSource` remains supported for compatibility.
+- No multi-source event merge, first-wins product policy, last-wins product policy, role/lane event model, graph editor, audio routing change, or modulation routing change was introduced.
+
+Recommended next follow-up: draft a role-aware event routing RFC that keeps `primary` stable while defining future optional roles such as `accent`, `fill`, `reset`, or lane-specific inputs. In parallel, typed modulation runtime parity remains the next high-impact consolidation target.
+
+## Phase 6 implementation note — Modulation effective-source characterization
+
+Routing v0.4 Phase 6 adds a pure modulation resolver and capability matrix without changing playback authority. Runtime modulation remains legacy-map-backed in this pass: scheduler density reads `trigger.modulations.density`, DRUM pitch reads `drum.modulations.basePitch`, and SYNTH cutoff reads `tonal.modulations.cutoff`. Typed modulation routes remain declarations until a future authority change.
+
+Implemented behavior:
+
+- `resolveParameterModulation()` reports typed source, legacy source, effective runtime source, match/conflict state, runtime support, runtime owner, fallback usage, and typed candidates for a target parameter.
+- `getModulationCapabilityMatrix()` documents assignable/typed/visible/runtime-consumed modulation support.
+- `buildModulationRoutingInspectorRows()` exposes typed declaration, legacy declaration, effective runtime source, unsupported parameters, stale references, and conflicts.
+- New explicit CTRL assignments use `setParameterModulationSource()` replacement semantics: one source per target parameter, matching legacy + typed declarations, unrelated parameters preserved.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`.
+- Legacy `modulations` remain supported and are still runtime-critical.
+- Existing patches are not automatically migrated.
+- Typed modulation routes are not made runtime-authoritative yet.
+- No modulation merging, depth/amount schema, audio routing change, or event role/lane work was introduced.
+
+Recommended next follow-up: make the runtime consume the modulation resolver for one supported parameter at a time, starting with `trigger.density`, while keeping legacy-map fallback and tests proving typed-only, legacy-only, matching hybrid, and conflicting hybrid behavior.
+
