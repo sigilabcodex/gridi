@@ -1,5 +1,5 @@
 import type { Module, Patch, SoundModule } from "../patch";
-import { compileRoutingGraph, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode } from "../routingGraph.ts";
+import { compileRoutingGraph, planStaleRoutingCleanup, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode, type StaleRoutingCleanupPlan } from "../routingGraph.ts";
 import { resolveTriggerSourceLabelState, type RoutingLabelStatus } from "./routingLabels";
 
 export type RoutingHealthCounts = {
@@ -92,4 +92,29 @@ export function buildEventRoutingInspectorRows(patch: Pick<Patch, "modules" | "c
         text: `${sourceLabel} → ${voice.name}`,
       };
     });
+}
+
+
+function cleanupLine(label: string, count: number) {
+  return count > 0 ? `- ${label}: ${count}` : null;
+}
+
+export function buildStaleRoutingCleanupSummary(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): StaleRoutingCleanupPlan {
+  return planStaleRoutingCleanup(patch);
+}
+
+export function formatStaleRoutingCleanupConfirmation(plan: StaleRoutingCleanupPlan) {
+  if (plan.totalRemovals === 0) return "No stale routing references were found.";
+  const lines = [
+    "Clean stale routing refs?",
+    "",
+    "This will remove only references whose module or bus no longer exists:",
+    cleanupLine("legacy triggerSource refs", plan.legacyTriggerSources.length),
+    cleanupLine("legacy modulation assignments", plan.legacyModulations.length),
+    cleanupLine("legacy audio connections", plan.legacyConnections.length),
+    cleanupLine("typed Patch.routes entries", plan.typedRoutes.length),
+    "",
+    "Valid legacy and typed routes will be preserved.",
+  ].filter((line): line is string => Boolean(line));
+  return lines.join("\n");
 }

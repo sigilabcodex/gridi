@@ -22,6 +22,8 @@ Current capabilities:
 - Domain filter (all/event/modulation/audio)
 - Module filter (focus routes touching one module)
 - Hover/click inspection signal that highlights related modules in the workspace
+- Routing health summary with compact warning counts
+- Confirmed `Clean stale routing refs` action for missing module/bus references only
 - Compact empty state when a section has no routes
 
 ## Intentional constraints in this phase
@@ -38,3 +40,9 @@ Not included yet:
 - Audio bus runtime expansion
 
 Phase 3 is visibility + canonical read-model migration, not patchbay editing.
+
+## Stale-reference cleanup
+
+The Routing overview can now offer a confirmed cleanup action when validation finds references to modules or buses that no longer exist. The action removes only invalid references from legacy `triggerSource`, legacy `modulations`, legacy `connections`, and typed `Patch.routes` records. Opening the overview does not mutate state, and cancellation leaves the patch unchanged.
+
+This is not a routing ownership migration. Legacy routing remains supported, `Patch.routes` remains an optional typed overlay rather than the sole runtime authority, and typed-route parity/ownership consolidation remain future v0.4 work.

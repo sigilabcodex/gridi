@@ -74,6 +74,7 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 - Session factory examples are now a small onboarding set (`Example 01 · Basic Pulse`, `Example 02 · Dual Generators`, `Example 03 · Experimental Field`) that demonstrates simple GEN-to-DRUM/SYNTH routing without replacing local/user-created sessions. User sessions remain browser-local and persistent; broader curated artist/composer/engineer banks are a future preset-bank direction, not part of the current starter set.
 - First live Web MIDI keyboard input foundation is now active for synth modules (single target, note on/off, mono/poly-aware reception, compact input selector with hardware-first auto preference).
 - MIDI now appears as a first-class routing domain in the global Routing UI: users can assign `MIDI IN` input source + synth target explicitly, and MIDI routes are listed alongside event/modulation/audio routes.
+- Routing health now includes a confirmed stale-reference cleanup action for missing module/bus references across legacy `triggerSource`, legacy `modulations`, legacy audio `connections`, and typed `Patch.routes`. This does not change routing ownership, schema version, or legacy compatibility.
 
 ## Near-term next steps (active priority)
 

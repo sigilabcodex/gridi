@@ -840,3 +840,25 @@ Recommended Phase 3 follow-ups:
 1. Add a confirmed `Clean stale routing refs` action once cleanup rules are covered by focused tests for legacy `triggerSource`, legacy `modulations`, legacy `connections`, and typed route records.
 2. Consider exposing validation issue details behind a small disclosure inside the same routing overview, without modal errors.
 3. Keep graphical patchbay exploration separate from health/inspection so v0.4 remains compatibility-first.
+
+
+## Phase 3 implementation note — Confirmed stale-reference cleanup
+
+Routing v0.4 Phase 3 adds a narrow, user-confirmed cleanup action to the existing Routing health / inspector surface. The action is intentionally limited to stale references whose module or bus endpoint no longer exists. Opening the Routing overview remains read-only and never mutates the patch.
+
+Cleanup coverage:
+
+- legacy sound-module `triggerSource` values pointing at missing modules are cleared to `null`;
+- legacy `modulations` assignments pointing at missing control/module IDs are removed from their target module maps;
+- legacy `Patch.connections` entries are removed when their source module, target module, or target bus no longer exists;
+- typed `Patch.routes` entries are removed when a module or bus endpoint no longer exists.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`;
+- `Patch.routes` is still not the sole runtime routing authority;
+- valid legacy routing remains supported and is not migrated into typed routes;
+- invalid-but-existing references, duplicate route IDs, unknown modulation parameters, unsupported bus runtime behavior, and route-ownership questions remain validation/future-routing work rather than automatic cleanup targets;
+- no graph editor, patchbay, route-only migration, or routing schema redesign was introduced.
+
+Recommended next follow-up: typed/legacy parity hardening, especially partial typed event route adoption, multiple event routes into one sound, and runtime modulation equivalence for typed routes versus legacy `modulations`.

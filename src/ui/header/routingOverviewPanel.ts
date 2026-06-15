@@ -1,7 +1,7 @@
 import type { Patch } from "../../patch";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { buildRoutingSnapshot, type RoutingSnapshot, type UIRoutingOverviewRoute } from "../routingVisibility";
-import { buildEventRoutingInspectorRows, buildRoutingHealthSummary } from "../routingInspector";
+import { buildEventRoutingInspectorRows, buildRoutingHealthSummary, buildStaleRoutingCleanupSummary, formatStaleRoutingCleanupConfirmation } from "../routingInspector";
 import type { MidiInputStatus } from "../midiInput";
 import type { MidiOutputStatus } from "../midiOutput";
 
@@ -15,6 +15,7 @@ type RoutingOverviewPanelParams = {
   onSelectMidiOutput: (outputId: string | null) => void;
   onSetMidiTargetModule: (moduleId: string | null) => void;
   onSetMidiOutSourceModule: (moduleId: string | null) => void;
+  onCleanStaleRoutingRefs?: () => void;
 };
 
 function routeDomainLabel(route: UIRoutingOverviewRoute) {
@@ -166,7 +167,16 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   healthStatus.className = "routingOverviewHealthStatus";
   const healthCounts = document.createElement("div");
   healthCounts.className = "routingOverviewHealthCounts";
-  healthBlock.append(healthStatus, healthCounts);
+  const cleanupBlock = document.createElement("div");
+  cleanupBlock.className = "routingOverviewCleanup";
+  const cleanupSummary = document.createElement("div");
+  cleanupSummary.className = "routingOverviewCleanupSummary";
+  const cleanupButton = document.createElement("button");
+  cleanupButton.type = "button";
+  cleanupButton.className = "routingOverviewCleanupButton";
+  cleanupButton.textContent = "Clean stale routing refs";
+  cleanupBlock.append(cleanupSummary, cleanupButton);
+  healthBlock.append(healthStatus, healthCounts, cleanupBlock);
 
   const inspectorBlock = document.createElement("section");
   inspectorBlock.className = "routingOverviewSection routingOverviewInspector";
@@ -291,6 +301,13 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
       if (staleConnections) healthCounts.appendChild(createHealthCountChip("stale connections", staleConnections));
       if (staleModulations) healthCounts.appendChild(createHealthCountChip("stale modulations", staleModulations));
     }
+
+    const cleanupPlan = buildStaleRoutingCleanupSummary(patch);
+    cleanupBlock.hidden = cleanupPlan.totalRemovals === 0;
+    cleanupSummary.textContent = cleanupPlan.totalRemovals === 0
+      ? "No stale references to clean."
+      : `${cleanupPlan.totalRemovals} removable stale ref${cleanupPlan.totalRemovals === 1 ? "" : "s"}`;
+    cleanupButton.disabled = cleanupPlan.totalRemovals === 0;
 
     const eventRows = buildEventRoutingInspectorRows(patch)
       .filter((row) => !selectedModuleId || row.voiceId === selectedModuleId || row.sourceId === selectedModuleId);
@@ -424,6 +441,16 @@ export function createRoutingOverviewPanel(params: RoutingOverviewPanelParams) {
   };
   midiOutSourceSelect.onchange = () => {
     params.onSetMidiOutSourceModule(midiOutSourceSelect.value || null);
+    render();
+  };
+  cleanupButton.onclick = () => {
+    const cleanupPlan = buildStaleRoutingCleanupSummary(params.patch());
+    if (cleanupPlan.totalRemovals === 0) {
+      render();
+      return;
+    }
+    if (!window.confirm(formatStaleRoutingCleanupConfirmation(cleanupPlan))) return;
+    params.onCleanStaleRoutingRefs?.();
     render();
   };
 

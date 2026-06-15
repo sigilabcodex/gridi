@@ -1,4 +1,5 @@
 import type { Module, Patch } from "../patch";
+import { applyStaleRoutingCleanup } from "../routingGraph";
 import { clamp, defaultPatch, emptyPatch, getSoundModules, getTriggers, isEffect } from "../patch";
 import type { Engine } from "../engine/audio";
 import type { Scheduler } from "../engine/scheduler";
@@ -1017,6 +1018,13 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       engine.setMasterGain(patch.masterGain);
       header.updateMasterGainUI();
       maybeAutosaveCurrentPreset();
+    },
+    onCleanStaleRoutingRefs: () => {
+      onPatchChange((draft) => {
+        applyStaleRoutingCleanup(draft);
+      }, { regen: false });
+      gridRenderer.rerender();
+      header.updateRoutingOverview();
     },
     onInspectRoutingModule: (moduleId) => {
       gridRenderer.setRoutingInspect(moduleId);

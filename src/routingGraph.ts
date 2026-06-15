@@ -70,6 +70,16 @@ export type RoutingValidationResult = {
   warnings: string[];
 };
 
+export type StaleRoutingCleanupPlan = {
+  legacyTriggerSources: Array<{ moduleId: string; refId: string }>;
+  legacyModulations: Array<{ moduleId: string; parameter: string; refId: string }>;
+  legacyConnections: Array<{ connectionId: string; refId: string; reason: "missing-source-module" | "missing-target-module" | "missing-target-bus" }>;
+  typedRoutes: Array<{ routeIndex: number; routeId: string; refId: string; reason: "missing-source-module" | "missing-target-module" | "missing-source-bus" | "missing-target-bus" }>;
+  totalRemovals: number;
+};
+
+export type RoutingCleanupConfirm = (plan: StaleRoutingCleanupPlan) => boolean;
+
 type NormalizeRouteResult = {
   routes: PatchRoute[];
   warnings: string[];
@@ -421,6 +431,127 @@ export function validatePatchRouting(patch: Pick<Patch, "modules" | "connections
   }
 
   return { issues, warnings: issues.map((issue) => issue.message) };
+}
+
+function emptyStaleRoutingCleanupPlan(): StaleRoutingCleanupPlan {
+  return {
+    legacyTriggerSources: [],
+    legacyModulations: [],
+    legacyConnections: [],
+    typedRoutes: [],
+    totalRemovals: 0,
+  };
+}
+
+function routeMissingEndpoint(
+  route: PatchRoute,
+  modulesById: Set<string>,
+  busesById: Set<string>,
+): Omit<StaleRoutingCleanupPlan["typedRoutes"][number], "routeIndex"> | null {
+  if (route.source.kind === "module" && !modulesById.has(route.source.moduleId)) {
+    return { routeId: route.id, refId: route.source.moduleId, reason: "missing-source-module" };
+  }
+  if (route.target.kind === "module" && !modulesById.has(route.target.moduleId)) {
+    return { routeId: route.id, refId: route.target.moduleId, reason: "missing-target-module" };
+  }
+  if (route.source.kind === "bus" && !busesById.has(route.source.busId)) {
+    return { routeId: route.id, refId: route.source.busId, reason: "missing-source-bus" };
+  }
+  if (route.target.kind === "bus" && !busesById.has(route.target.busId)) {
+    return { routeId: route.id, refId: route.target.busId, reason: "missing-target-bus" };
+  }
+  return null;
+}
+
+export function planStaleRoutingCleanup(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): StaleRoutingCleanupPlan {
+  const plan = emptyStaleRoutingCleanupPlan();
+  const modulesById = new Set(patch.modules.map((module) => module.id));
+  const busesById = new Set((patch.buses ?? []).map((bus) => bus.id));
+
+  for (const module of patch.modules) {
+    if (isSoundModule(module) && module.triggerSource && !modulesById.has(module.triggerSource)) {
+      plan.legacyTriggerSources.push({ moduleId: module.id, refId: module.triggerSource });
+    }
+
+    const modulations = "modulations" in module && module.modulations && typeof module.modulations === "object"
+      ? module.modulations
+      : {};
+    for (const [parameter, sourceId] of Object.entries(modulations)) {
+      if (!sourceId || typeof sourceId !== "string") continue;
+      if (!modulesById.has(sourceId)) {
+        plan.legacyModulations.push({ moduleId: module.id, parameter, refId: sourceId });
+      }
+    }
+  }
+
+  for (const connection of patch.connections) {
+    if (!modulesById.has(connection.fromModuleId)) {
+      plan.legacyConnections.push({ connectionId: connection.id, refId: connection.fromModuleId, reason: "missing-source-module" });
+      continue;
+    }
+    if (connection.to.type === "module" && connection.to.id && !modulesById.has(connection.to.id)) {
+      plan.legacyConnections.push({ connectionId: connection.id, refId: connection.to.id, reason: "missing-target-module" });
+      continue;
+    }
+    if (connection.to.type === "bus" && connection.to.id && !busesById.has(connection.to.id)) {
+      plan.legacyConnections.push({ connectionId: connection.id, refId: connection.to.id, reason: "missing-target-bus" });
+    }
+  }
+
+  if (Array.isArray(patch.routes)) {
+    for (let routeIndex = 0; routeIndex < patch.routes.length; routeIndex += 1) {
+      const route = normalizeRawRoute(patch.routes[routeIndex]);
+      if (!route) continue;
+      const staleEndpoint = routeMissingEndpoint(route, modulesById, busesById);
+      if (staleEndpoint) plan.typedRoutes.push({ routeIndex, ...staleEndpoint });
+    }
+  }
+
+  plan.totalRemovals = plan.legacyTriggerSources.length
+    + plan.legacyModulations.length
+    + plan.legacyConnections.length
+    + plan.typedRoutes.length;
+  return plan;
+}
+
+export function applyStaleRoutingCleanup(patch: Patch): StaleRoutingCleanupPlan {
+  const plan = planStaleRoutingCleanup(patch);
+  if (plan.totalRemovals === 0) return plan;
+
+  const triggerCleanupByModule = new Set(plan.legacyTriggerSources.map((item) => item.moduleId));
+  const modulationCleanup = new Set(plan.legacyModulations.map((item) => `${item.moduleId}\u0000${item.parameter}`));
+  const connectionCleanup = new Set(plan.legacyConnections.map((item) => item.connectionId));
+  const routeCleanup = new Set(plan.typedRoutes.map((item) => item.routeIndex));
+
+  for (const module of patch.modules) {
+    if (isSoundModule(module) && triggerCleanupByModule.has(module.id)) {
+      module.triggerSource = null;
+    }
+
+    if (!("modulations" in module) || !module.modulations || typeof module.modulations !== "object") continue;
+    for (const parameter of Object.keys(module.modulations)) {
+      if (modulationCleanup.has(`${module.id}\u0000${parameter}`)) {
+        delete module.modulations[parameter];
+      }
+    }
+  }
+
+  if (connectionCleanup.size > 0) {
+    patch.connections = patch.connections.filter((connection) => !connectionCleanup.has(connection.id));
+  }
+
+  if (Array.isArray(patch.routes) && routeCleanup.size > 0) {
+    patch.routes = patch.routes.filter((_, routeIndex) => !routeCleanup.has(routeIndex));
+  }
+
+  return plan;
+}
+
+export function cleanStaleRoutingRefsIfConfirmed(patch: Patch, confirmCleanup: RoutingCleanupConfirm): StaleRoutingCleanupPlan {
+  const plan = planStaleRoutingCleanup(patch);
+  if (plan.totalRemovals === 0) return plan;
+  if (!confirmCleanup(plan)) return emptyStaleRoutingCleanupPlan();
+  return applyStaleRoutingCleanup(patch);
 }
 
 function makeLegacyEventRoute(sourceId: string, targetId: string): PatchRoute {
