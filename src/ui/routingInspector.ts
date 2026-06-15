@@ -1,5 +1,5 @@
 import type { Module, Patch, SoundModule } from "../patch";
-import { planStaleRoutingCleanup, resolveVoiceEventRouting, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode, type StaleRoutingCleanupPlan } from "../routingGraph.ts";
+import { planStaleRoutingCleanup, getModulationCapability, resolveParameterModulation, resolveVoiceEventRouting, validatePatchRouting, type RoutingValidationIssue, type RoutingValidationIssueCode, type StaleRoutingCleanupPlan } from "../routingGraph.ts";
 import { resolveTriggerSourceLabelState, type RoutingLabelStatus } from "./routingLabels";
 
 export type RoutingHealthCounts = {
@@ -26,6 +26,23 @@ export type EventRoutingInspectorRow = {
   text: string;
 };
 
+export type ModulationRoutingInspectorRow = {
+  targetId: string;
+  targetLabel: string;
+  parameter: string;
+  parameterLabel: string;
+  typedSourceId: string | null;
+  typedSourceLabel: string;
+  legacySourceId: string | null;
+  legacySourceLabel: string;
+  effectiveRuntimeSourceId: string | null;
+  effectiveRuntimeSourceLabel: string;
+  runtimeSupported: boolean;
+  fallbackUsed: boolean;
+  status: "none" | "typed-declaration" | "legacy-runtime" | "matching" | "conflict" | "unsupported" | "stale";
+  text: string;
+};
+
 const INVALID_ROUTE_CODES = new Set<RoutingValidationIssueCode>([
   "route-invalid-record",
   "route-duplicate-id",
@@ -41,6 +58,36 @@ const INVALID_ROUTE_CODES = new Set<RoutingValidationIssueCode>([
 function isSoundModule(module: Module): module is SoundModule {
   return module.type === "drum" || module.type === "tonal";
 }
+
+function isModulationTarget(module: Module) {
+  return module.type === "trigger" || module.type === "drum" || module.type === "tonal";
+}
+
+function modulationSourceLabel(modulesById: Map<string, Module>, sourceId: string | null) {
+  if (!sourceId) return "None";
+  const source = modulesById.get(sourceId);
+  return source ? source.name : `Missing ${sourceId.slice(-4).toUpperCase()}`;
+}
+
+function modulationParametersForTarget(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }, target: Module) {
+  const parameters = new Set<string>();
+  if ("modulations" in target && target.modulations && typeof target.modulations === "object") {
+    Object.keys(target.modulations).forEach((parameter) => parameters.add(parameter));
+  }
+  if (Array.isArray(patch.routes)) {
+    for (const route of patch.routes) {
+      if (!route || typeof route !== "object") continue;
+      const candidate = route as { domain?: unknown; target?: unknown; metadata?: { parameter?: unknown } };
+      if (candidate.domain !== "modulation") continue;
+      const endpoint = candidate.target as { kind?: unknown; moduleId?: unknown } | undefined;
+      if (endpoint?.kind !== "module" || endpoint.moduleId !== target.id) continue;
+      const parameter = candidate.metadata?.parameter;
+      if (typeof parameter === "string" && parameter.trim()) parameters.add(parameter);
+    }
+  }
+  return [...parameters].sort();
+}
+
 
 function countIssues(issues: RoutingValidationIssue[]): RoutingHealthCounts {
   return issues.reduce<RoutingHealthCounts>((counts, issue) => {
@@ -131,4 +178,55 @@ export function formatStaleRoutingCleanupConfirmation(plan: StaleRoutingCleanupP
     "Valid legacy and typed routes will be preserved.",
   ].filter((line): line is string => Boolean(line));
   return lines.join("\n");
+}
+
+
+export function buildModulationRoutingInspectorRows(patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown }): ModulationRoutingInspectorRow[] {
+  const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
+  const rows: ModulationRoutingInspectorRow[] = [];
+
+  for (const target of patch.modules) {
+    if (!isModulationTarget(target)) continue;
+    for (const parameter of modulationParametersForTarget(patch, target)) {
+      const resolution = resolveParameterModulation(patch, target.id, parameter);
+      const capability = getModulationCapability(target.type, parameter);
+      const typedSourceLabel = modulationSourceLabel(modulesById, resolution.typedSourceId);
+      const legacySourceLabel = modulationSourceLabel(modulesById, resolution.legacySourceId);
+      const effectiveRuntimeSourceLabel = modulationSourceLabel(modulesById, resolution.effectiveRuntimeSourceId);
+      const stale = resolution.state === "stale-typed" || resolution.state === "stale-legacy";
+      const status: ModulationRoutingInspectorRow["status"] = stale
+        ? "stale"
+        : !resolution.runtimeSupported && (resolution.typedSourceId || resolution.legacySourceId)
+          ? "unsupported"
+          : resolution.typedAndLegacyConflict
+            ? "conflict"
+            : resolution.typedAndLegacyMatch
+              ? "matching"
+              : resolution.effectiveRuntimeSourceId
+                ? "legacy-runtime"
+                : resolution.typedSourceId
+                  ? "typed-declaration"
+                  : "none";
+      const targetLabel = modulesById.get(target.id)?.name ?? target.id;
+      const parameterLabel = capability?.parameter ?? parameter;
+      rows.push({
+        targetId: target.id,
+        targetLabel,
+        parameter,
+        parameterLabel,
+        typedSourceId: resolution.typedSourceId,
+        typedSourceLabel,
+        legacySourceId: resolution.legacySourceId,
+        legacySourceLabel,
+        effectiveRuntimeSourceId: resolution.effectiveRuntimeSourceId,
+        effectiveRuntimeSourceLabel,
+        runtimeSupported: resolution.runtimeSupported,
+        fallbackUsed: resolution.fallbackUsed,
+        status,
+        text: `${targetLabel} · ${parameter}: typed ${typedSourceLabel}, legacy ${legacySourceLabel}, runtime ${effectiveRuntimeSourceLabel}${resolution.runtimeSupported ? "" : " (unsupported)"}`,
+      });
+    }
+  }
+
+  return rows;
 }

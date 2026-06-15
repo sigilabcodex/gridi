@@ -907,3 +907,24 @@ Intentional constraints preserved:
 
 Recommended next follow-up: draft a role-aware event routing RFC that keeps `primary` stable while defining future optional roles such as `accent`, `fill`, `reset`, or lane-specific inputs. In parallel, typed modulation runtime parity remains the next high-impact consolidation target.
 
+## Phase 6 implementation note — Modulation effective-source characterization
+
+Routing v0.4 Phase 6 adds a pure modulation resolver and capability matrix without changing playback authority. Runtime modulation remains legacy-map-backed in this pass: scheduler density reads `trigger.modulations.density`, DRUM pitch reads `drum.modulations.basePitch`, and SYNTH cutoff reads `tonal.modulations.cutoff`. Typed modulation routes remain declarations until a future authority change.
+
+Implemented behavior:
+
+- `resolveParameterModulation()` reports typed source, legacy source, effective runtime source, match/conflict state, runtime support, runtime owner, fallback usage, and typed candidates for a target parameter.
+- `getModulationCapabilityMatrix()` documents assignable/typed/visible/runtime-consumed modulation support.
+- `buildModulationRoutingInspectorRows()` exposes typed declaration, legacy declaration, effective runtime source, unsupported parameters, stale references, and conflicts.
+- New explicit CTRL assignments use `setParameterModulationSource()` replacement semantics: one source per target parameter, matching legacy + typed declarations, unrelated parameters preserved.
+
+Intentional constraints preserved:
+
+- `Patch.version` remains `0.3`.
+- Legacy `modulations` remain supported and are still runtime-critical.
+- Existing patches are not automatically migrated.
+- Typed modulation routes are not made runtime-authoritative yet.
+- No modulation merging, depth/amount schema, audio routing change, or event role/lane work was introduced.
+
+Recommended next follow-up: make the runtime consume the modulation resolver for one supported parameter at a time, starting with `trigger.density`, while keeping legacy-map fallback and tests proving typed-only, legacy-only, matching hybrid, and conflicting hybrid behavior.
+

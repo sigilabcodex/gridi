@@ -1,5 +1,6 @@
 import type { ControlKind, LfoWaveform, Patch, ControlModule } from "../patch";
 import { sampleControl01 } from "../engine/control";
+import { resolveParameterModulation, setParameterModulationSource } from "../routingGraph.ts";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
@@ -243,9 +244,14 @@ export function renderControlSurface(
         onRoutingChange((p) => {
           const targetModule = p.modules.find((module) => module.id === selectedTargetId);
           if (!targetModule || !(targetModule.type === "trigger" || targetModule.type === "drum" || targetModule.type === "tonal")) return;
-          targetModule.modulations = targetModule.modulations ?? {};
-          if (checkbox.checked) targetModule.modulations[param.key] = mod.id;
-          else if (targetModule.modulations[param.key] === mod.id) delete targetModule.modulations[param.key];
+          if (checkbox.checked) {
+            setParameterModulationSource(p, targetModule.id, param.key, mod.id);
+          } else {
+            const resolution = resolveParameterModulation(p, targetModule.id, param.key);
+            if (resolution.typedSourceId === mod.id || resolution.legacySourceId === mod.id) {
+              setParameterModulationSource(p, targetModule.id, param.key, null);
+            }
+          }
         }, { regen: false });
       });
 

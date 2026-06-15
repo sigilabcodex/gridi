@@ -110,6 +110,53 @@ export type VoiceEventRoutingResolution = {
   state: VoiceEventRoutingState;
 };
 
+export type ModulationRuntimeOwner = "scheduler" | "audio" | null;
+
+export type ModulationRoutingState =
+  | "none"
+  | "legacy-only"
+  | "typed-only"
+  | "matching-hybrid"
+  | "conflicting-hybrid"
+  | "stale-typed"
+  | "stale-legacy"
+  | "unsupported";
+
+export type ModulationRouteCandidate = {
+  routeIndex: number;
+  routeId: string;
+  sourceId: string | null;
+  enabled: boolean;
+  sourceExists: boolean;
+  targetExists: boolean;
+};
+
+export type ModulationRoutingResolution = {
+  targetId: string;
+  parameter: string;
+  typedSourceId: string | null;
+  legacySourceId: string | null;
+  effectiveRuntimeSourceId: string | null;
+  typedAndLegacyMatch: boolean;
+  typedAndLegacyConflict: boolean;
+  runtimeSupported: boolean;
+  runtimeOwner: ModulationRuntimeOwner;
+  fallbackUsed: boolean;
+  typedCandidates: ModulationRouteCandidate[];
+  state: ModulationRoutingState;
+};
+
+export type ModulationCapability = {
+  moduleType: "trigger" | "drum" | "tonal";
+  parameter: string;
+  assignableInUi: boolean;
+  representedInTypedRouting: boolean;
+  visibleInInspector: boolean;
+  consumedByRuntime: ModulationRuntimeOwner;
+  knownLimitations: string;
+};
+
+
 type NormalizeRouteResult = {
   routes: PatchRoute[];
   warnings: string[];
@@ -328,6 +375,160 @@ export function resolveVoiceEventRouting(
     typedEventRouteCandidates,
     state,
   };
+}
+
+const MODULATION_UI_PARAMETERS: Record<"trigger" | "drum" | "tonal", string[]> = {
+  trigger: ["density", "length", "subdiv", "drop", "determinism", "gravity", "weird", "accent", "euclidRot", "caRule", "caInit"],
+  drum: ["attack", "decay", "amp", "basePitch", "tone", "bodyTone", "noise", "snap", "pitchEnvAmt", "pan", "stereoWidth", "panBias", "comp", "compThreshold", "compRatio", "boost"],
+  tonal: ["attack", "decay", "sustain", "release", "amp", "cutoff", "resonance", "waveform", "modDepth", "modRate", "coarseTune", "fineTune", "glide", "pan"],
+};
+
+function modulationRuntimeOwner(module: Module | null | undefined, parameter: string): ModulationRuntimeOwner {
+  if (!module) return null;
+  if (module.type === "trigger" && parameter === "density") return "scheduler";
+  if (module.type === "drum" && parameter === "basePitch") return "audio";
+  if (module.type === "tonal" && parameter === "cutoff") return "audio";
+  return null;
+}
+
+function typedModulationRouteTargets(route: PatchRoute, targetId: string, parameter: string) {
+  return route.domain === "modulation"
+    && route.target.kind === "module"
+    && route.target.moduleId === targetId
+    && route.metadata?.parameter === parameter;
+}
+
+function makeModulationRoute(sourceId: string, targetId: string, parameter: string, existingRoutes: PatchRoute[]): PatchRoute {
+  return {
+    id: uniqueRouteId(`mod:${sourceId}:${targetId}:${parameter}`, existingRoutes),
+    domain: "modulation",
+    source: { kind: "module", moduleId: sourceId, port: "cv-out" },
+    target: { kind: "module", moduleId: targetId, port: "cv-in" },
+    enabled: true,
+    metadata: { createdFrom: "ui", parameter },
+  };
+}
+
+export function getModulationCapability(moduleType: Module["type"], parameter: string): ModulationCapability | null {
+  if (moduleType !== "trigger" && moduleType !== "drum" && moduleType !== "tonal") return null;
+  const consumedByRuntime = moduleType === "trigger" && parameter === "density"
+    ? "scheduler"
+    : moduleType === "drum" && parameter === "basePitch"
+      ? "audio"
+      : moduleType === "tonal" && parameter === "cutoff"
+        ? "audio"
+        : null;
+  const assignableInUi = MODULATION_UI_PARAMETERS[moduleType].includes(parameter);
+  return {
+    moduleType,
+    parameter,
+    assignableInUi,
+    representedInTypedRouting: true,
+    visibleInInspector: true,
+    consumedByRuntime,
+    knownLimitations: consumedByRuntime
+      ? "Runtime currently consumes the legacy target-owned modulations map; typed routes are declarations until authority changes."
+      : "Assignable/representable, but not currently consumed by scheduler or audio runtime.",
+  };
+}
+
+export function getModulationCapabilityMatrix(): ModulationCapability[] {
+  return (Object.entries(MODULATION_UI_PARAMETERS) as Array<["trigger" | "drum" | "tonal", string[]]>).flatMap(([moduleType, parameters]) => (
+    parameters.map((parameter) => getModulationCapability(moduleType, parameter) as ModulationCapability)
+  ));
+}
+
+export function resolveParameterModulation(
+  patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown },
+  targetId: string,
+  parameter: string,
+): ModulationRoutingResolution {
+  const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
+  const target = modulesById.get(targetId);
+  const controlIds = new Set(patch.modules.filter((module) => module.type === "control").map((module) => module.id));
+  const legacySourceId = target && "modulations" in target && target.modulations && typeof target.modulations === "object"
+    ? target.modulations[parameter] ?? null
+    : null;
+  const typedCandidates: ModulationRouteCandidate[] = [];
+
+  if (Array.isArray(patch.routes)) {
+    for (let routeIndex = 0; routeIndex < patch.routes.length; routeIndex += 1) {
+      const route = normalizeRawRoute(patch.routes[routeIndex]);
+      if (!route || !typedModulationRouteTargets(route, targetId, parameter)) continue;
+      const sourceId = route.source.kind === "module" ? route.source.moduleId : null;
+      typedCandidates.push({
+        routeIndex,
+        routeId: route.id,
+        sourceId,
+        enabled: route.enabled !== false,
+        sourceExists: !!sourceId && controlIds.has(sourceId),
+        targetExists: modulesById.has(targetId),
+      });
+    }
+  }
+
+  const activeTypedCandidates = typedCandidates.filter((candidate) => candidate.enabled && candidate.sourceExists && candidate.targetExists);
+  const typedSourceId = activeTypedCandidates[0]?.sourceId ?? null;
+  const legacySourceValid = !!(legacySourceId && controlIds.has(legacySourceId));
+  const typedHasStale = typedCandidates.some((candidate) => candidate.enabled && (!candidate.sourceExists || !candidate.targetExists));
+  const runtimeOwner = modulationRuntimeOwner(target, parameter);
+  const runtimeSupported = runtimeOwner !== null;
+  const effectiveRuntimeSourceId = runtimeSupported && legacySourceValid ? legacySourceId : null;
+  const typedAndLegacyMatch = !!(typedSourceId && legacySourceId && typedSourceId === legacySourceId);
+  const typedAndLegacyConflict = !!(typedSourceId && legacySourceId && typedSourceId !== legacySourceId);
+  const fallbackUsed = !!(typedSourceId && legacySourceId && runtimeSupported);
+
+  let state: ModulationRoutingState;
+  if (typedHasStale) state = "stale-typed";
+  else if (legacySourceId && !legacySourceValid) state = "stale-legacy";
+  else if (!runtimeSupported && (typedSourceId || legacySourceId)) state = "unsupported";
+  else if (typedAndLegacyConflict) state = "conflicting-hybrid";
+  else if (typedAndLegacyMatch) state = "matching-hybrid";
+  else if (typedSourceId) state = "typed-only";
+  else if (legacySourceValid) state = "legacy-only";
+  else state = "none";
+
+  return {
+    targetId,
+    parameter,
+    typedSourceId,
+    legacySourceId,
+    effectiveRuntimeSourceId,
+    typedAndLegacyMatch,
+    typedAndLegacyConflict,
+    runtimeSupported,
+    runtimeOwner,
+    fallbackUsed,
+    typedCandidates,
+    state,
+  };
+}
+
+export function setParameterModulationSource(patch: Patch, targetId: string, parameter: string, sourceId: string | null): ModulationRoutingResolution {
+  const target = patch.modules.find((module) => module.id === targetId);
+  if (!target || !("modulations" in target)) return resolveParameterModulation(patch, targetId, parameter);
+
+  const source = sourceId
+    ? patch.modules.find((module) => module.id === sourceId && module.type === "control")
+    : null;
+  const nextSourceId = source ? source.id : null;
+
+  target.modulations = target.modulations ?? {};
+  if (nextSourceId) target.modulations[parameter] = nextSourceId;
+  else delete target.modulations[parameter];
+
+  const existingRoutes = Array.isArray(patch.routes) ? patch.routes : [];
+  const keptRoutes: PatchRoute[] = [];
+  for (const rawRoute of existingRoutes) {
+    const route = normalizeRawRoute(rawRoute);
+    if (route && typedModulationRouteTargets(route, targetId, parameter)) continue;
+    keptRoutes.push(rawRoute as PatchRoute);
+  }
+
+  if (nextSourceId) keptRoutes.push(makeModulationRoute(nextSourceId, targetId, parameter, keptRoutes));
+  if (Array.isArray(patch.routes) || keptRoutes.length > 0) patch.routes = keptRoutes;
+
+  return resolveParameterModulation(patch, targetId, parameter);
 }
 
 export function setVoicePrimaryEventSource(patch: Patch, voiceId: string, sourceId: string | null): VoiceEventRoutingResolution {

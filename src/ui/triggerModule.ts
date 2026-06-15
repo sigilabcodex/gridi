@@ -1,5 +1,5 @@
 import type { Mode, Patch, TriggerModule } from "../patch";
-import { setVoicePrimaryEventSource } from "../routingGraph.ts";
+import { setParameterModulationSource, setVoicePrimaryEventSource } from "../routingGraph.ts";
 import { getPatternPreview } from "../engine/pattern/module";
 import { GEN_MODES, getGenModeMeta } from "../engine/pattern/genModeRegistry";
 import { ctlFloat, type CtlFloatElement } from "./ctl";
@@ -1397,9 +1397,7 @@ export function renderTriggerSurface(
     onAssign: (parameter, value) => onRoutingChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
       if (m?.type !== "trigger") return;
-      m.modulations = m.modulations ?? {};
-      if (value) m.modulations[parameter] = value;
-      else delete m.modulations[parameter];
+      setParameterModulationSource(p, m.id, parameter, value);
     }, { regen: false }),
   });
   const modList = document.createElement("div");

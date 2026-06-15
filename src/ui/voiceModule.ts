@@ -1,5 +1,5 @@
 import type { DrumModule, Patch, SoundModule, TonalModule } from "../patch";
-import { setVoicePrimaryEventSource } from "../routingGraph.ts";
+import { setParameterModulationSource, setVoicePrimaryEventSource } from "../routingGraph.ts";
 import { normalizeDrumChannelMode } from "../patch";
 import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
@@ -361,9 +361,7 @@ function createVoiceRoutingSelectors(v: SoundModule, controlOptions: ControlOpti
     onAssign: (parameter, source) => onRoutingChange((p) => {
       const m = p.modules.find((z) => z.id === v.id);
       if (m?.type !== v.type) return;
-      m.modulations = m.modulations ?? {};
-      if (source) m.modulations[parameter] = source;
-      else delete m.modulations[parameter];
+      setParameterModulationSource(p, m.id, parameter, source);
     }, { regen: false }),
   });
 }
