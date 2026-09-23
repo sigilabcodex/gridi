@@ -3,7 +3,8 @@ import { makeControl, makeSound, makeTrigger, makeVisual, uid } from "../../patc
 
 export const MODULE_PRESET_STORAGE_KEY = "gridi.module-presets.v1";
 
-type ModulePresetFamily = "trigger" | "drum" | "tonal" | "control" | "visual";
+export type ModulePresetFamily = "trigger" | "drum" | "tonal" | "control" | "visual";
+const LEGACY_TRIGGER_PRESET_ACCENT = 0.5;
 
 type TriggerPresetState = Pick<TriggerModule,
   | "enabled"
@@ -11,6 +12,7 @@ type TriggerPresetState = Pick<TriggerModule,
   | "seed"
   | "determinism"
   | "gravity"
+  | "accent"
   | "density"
   | "subdiv"
   | "length"
@@ -98,6 +100,12 @@ export type ModulePresetRecord = {
   updatedAt: number;
 };
 
+export type ModuleSettingsPayload = {
+  family: ModulePresetFamily;
+  subtype: string;
+  state: ModulePresetState;
+};
+
 export function formatModulePresetDisplayName(record: Pick<ModulePresetRecord, "name" | "code">) {
   const code = typeof record.code === "string" ? record.code.trim() : "";
   return code ? `${code} · ${record.name}` : record.name;
@@ -167,6 +175,7 @@ function snapshotModulePresetState(module: Module): ModulePresetState | null {
       seed: module.seed,
       determinism: module.determinism,
       gravity: module.gravity,
+      accent: module.accent,
       density: module.density,
       subdiv: module.subdiv,
       length: module.length,
@@ -257,6 +266,57 @@ function snapshotModulePresetState(module: Module): ModulePresetState | null {
   return null;
 }
 
+function getModuleSettingsSubtype(module: Module) {
+  if (module.type === "trigger") return module.mode;
+  return getModulePresetSubtype(module);
+}
+
+export function copyModuleSettings(module: Module): ModuleSettingsPayload | null {
+  const family = getModulePresetFamily(module);
+  const state = snapshotModulePresetState(module);
+  if (!family || !state) return null;
+
+  return {
+    family,
+    subtype: getModuleSettingsSubtype(module),
+    state: structuredClone(state),
+  };
+}
+
+export function canPasteModuleSettings(payload: ModuleSettingsPayload | null | undefined, module: Module) {
+  if (!payload || payload.family !== getModulePresetFamily(module)) return false;
+  if (module.type === "trigger") return payload.subtype === module.mode;
+  if (module.type === "control" || module.type === "visual") return payload.subtype === module.kind;
+  return true;
+}
+
+export function applyModuleLocalState(module: Module, source: Pick<ModuleSettingsPayload, "family" | "state">) {
+  if (module.type === "trigger" && source.family === "trigger") {
+    Object.assign(module, source.state);
+  } else if (module.type === "drum" && source.family === "drum") {
+    Object.assign(module, source.state);
+  } else if (module.type === "tonal" && source.family === "tonal") {
+    Object.assign(module, source.state);
+  } else if (module.type === "control" && source.family === "control") {
+    Object.assign(module, source.state);
+  } else if (module.type === "visual" && source.family === "visual") {
+    Object.assign(module, source.state);
+  } else {
+    return false;
+  }
+
+  return true;
+}
+
+export function pasteModuleSettings(module: Module, payload: ModuleSettingsPayload | null | undefined) {
+  if (!payload || !canPasteModuleSettings(payload, module)) return false;
+
+  const state = structuredClone(payload.state) as Record<string, unknown>;
+  if (module.type === "trigger") delete state.mode;
+  if (module.type === "control" || module.type === "visual") delete state.kind;
+  return applyModuleLocalState(module, { family: payload.family, state: state as ModulePresetState });
+}
+
 function buildPresetRecord(module: Module, name: string, now = Date.now()): ModulePresetRecord | null {
   const family = getModulePresetFamily(module);
   const state = snapshotModulePresetState(module);
@@ -282,6 +342,9 @@ function normalizePresetRecord(input: any, index: number): ModulePresetRecord | 
 
   const now = Date.now();
   const state = structuredClone(input.state);
+  if (family === "trigger" && typeof (state as Partial<TriggerPresetState>).accent !== "number") {
+    (state as Partial<TriggerPresetState>).accent = LEGACY_TRIGGER_PRESET_ACCENT;
+  }
   const normalizedSubtype = typeof input.subtype === "string" && input.subtype.trim()
     ? input.subtype
     : family === "control" || family === "visual"
@@ -490,19 +553,7 @@ export function applyModulePreset(module: Module, preset: ModulePresetRecord) {
   const allowed = listModulePresetsForModule([preset], module).length > 0;
   if (!allowed) return false;
 
-  if (module.type === "trigger" && preset.family === "trigger") {
-    Object.assign(module, preset.state);
-  } else if (module.type === "drum" && preset.family === "drum") {
-    Object.assign(module, preset.state);
-  } else if (module.type === "tonal" && preset.family === "tonal") {
-    Object.assign(module, preset.state);
-  } else if (module.type === "control" && preset.family === "control") {
-    Object.assign(module, preset.state);
-  } else if (module.type === "visual" && preset.family === "visual") {
-    Object.assign(module, preset.state);
-  } else {
-    return false;
-  }
+  if (!applyModuleLocalState(module, preset)) return false;
 
   module.presetName = preset.name;
   module.presetMeta = {

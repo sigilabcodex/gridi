@@ -307,6 +307,27 @@ test("add-module quick search finds factory preset by descriptive name", () => {
   );
 });
 
+test("add-module only exposes factory preset entries for DRUM and SYNTH", () => {
+  const records = factoryRecords();
+  const beforeSearch = structuredClone(records);
+
+  for (const query of ["sparse euclid", "lfo default", "scope default"]) {
+    const results = getAddModuleSearchResults(query, records);
+    for (const result of results) {
+      assert.ok(
+        ["drum", "synth"].includes(result.family.id) || result.matchedFactoryPresets.length === 0,
+        `${result.family.id} must not expose factory preset entries for ${query}`,
+      );
+    }
+  }
+
+  assert.deepEqual(
+    getAddModuleSearchResults("sparse euclid", records).flatMap((result) => result.matchedFactoryPresets),
+    [],
+  );
+  assert.deepEqual(records, beforeSearch, "filtering Add Module must not migrate or alter legacy preset records");
+});
+
 test("factory preset insertion creates a compatible module with preset metadata", () => {
   const records = factoryRecords();
   const closedHat = records.find((record) => record.code === "DRUM014");

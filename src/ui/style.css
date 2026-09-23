@@ -238,6 +238,21 @@ main { margin-top: 8px; }
 .name { font-weight: 700; letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rightControls { display: flex; gap: 8px; align-items: center; }
 
+.moduleSettingsActionsPanel {
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(8, 13, 18, 0.98);
+  border: 1px solid rgba(207, 214, 221, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.38);
+}
+
+.moduleSettingsActionsPanel > button {
+  min-width: 150px;
+  text-align: left;
+}
+
 .led {
   width: 10px; height: 10px;
   border-radius: 999px;

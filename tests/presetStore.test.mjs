@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { emptyPatch, getTriggers, isSound, makeControl, makeSound, makeTrigger, migratePatch } from '../src/patch.ts';
+import { emptyPatch, getTriggers, isSound, makeControl, makeSound, makeTrigger, makeVisual, migratePatch } from '../src/patch.ts';
 import {
   defaultPresetSession,
   deleteSelectedUserPresets,
@@ -331,6 +331,138 @@ test('saving and loading a module preset preserves module identity while updatin
   assert.equal(drum.triggerSource, 'keep-this-routing');
 });
 
+test('module preset snapshots include the complete local state contract for each family', () => {
+  const trigger = makeTrigger(0);
+  trigger.mode = 'radar';
+  trigger.accent = 0.83;
+  const drum = makeSound('drum', 0);
+  const tonal = makeSound('tonal', 0);
+  const control = makeControl('lfo', 0);
+  const visual = makeVisual('scope', 0);
+  const library = [];
+
+  const records = [
+    saveModulePresetFromModule(library, trigger, { name: 'GEN contract' })?.preset,
+    saveModulePresetFromModule(library, drum, { name: 'DRUM contract' })?.preset,
+    saveModulePresetFromModule(library, tonal, { name: 'SYNTH contract' })?.preset,
+    saveModulePresetFromModule(library, control, { name: 'CTRL contract' })?.preset,
+    saveModulePresetFromModule(library, visual, { name: 'VIS contract' })?.preset,
+  ];
+
+  assert.deepEqual(records.map((record) => Object.keys(record.state).sort()), [
+    ['accent', 'caInit', 'caRule', 'density', 'determinism', 'drop', 'enabled', 'euclidRot', 'gravity', 'length', 'mode', 'seed', 'subdiv', 'weird'],
+    ['amp', 'attack', 'basePitch', 'bendDecay', 'bodyTone', 'boost', 'boostTarget', 'comp', 'compAttack', 'compRatio', 'compRelease', 'compThreshold', 'decay', 'driveColor', 'enabled', 'noise', 'pan', 'panBias', 'pitchEnvAmt', 'pitchEnvDecay', 'snap', 'stereoWidth', 'tone', 'transient'],
+    ['amp', 'attack', 'coarseTune', 'cutoff', 'decay', 'enabled', 'fineTune', 'glide', 'modDepth', 'modRate', 'pan', 'release', 'resonance', 'sustain', 'waveform'],
+    ['amount', 'drift', 'enabled', 'kind', 'phase', 'randomness', 'rate', 'speed', 'waveform'],
+    ['enabled', 'fftSize', 'kind'],
+  ]);
+  assert.equal(records[0].state.accent, 0.83);
+});
+
+test('module preset loading restores local state without changing session or execution context', () => {
+  const sourceTrigger = makeTrigger(0);
+  sourceTrigger.accent = 0.88;
+  sourceTrigger.density = 0.71;
+  const targetTrigger = makeTrigger(1, 'Live GEN');
+  targetTrigger.accent = 0.1;
+  targetTrigger.density = 0.2;
+  targetTrigger.x = 7;
+  targetTrigger.y = 3;
+  targetTrigger.modulations = { density: 'control-routing' };
+
+  const sourceDrum = makeSound('drum', 0, 'source-routing');
+  sourceDrum.basePitch = 0.76;
+  sourceDrum.drumChannel = '04';
+  const targetDrum = makeSound('drum', 1, 'target-routing');
+  targetDrum.basePitch = 0.12;
+  targetDrum.drumChannel = '07';
+  targetDrum.name = 'Live drum';
+  targetDrum.x = 5;
+  targetDrum.y = 2;
+
+  const sourceTonal = makeSound('tonal', 0, 'source-routing');
+  sourceTonal.cutoff = 0.81;
+  sourceTonal.reception = 'poly';
+  const targetTonal = makeSound('tonal', 1, 'target-routing');
+  targetTonal.cutoff = 0.14;
+  targetTonal.reception = 'mono';
+  targetTonal.name = 'Live synth';
+  targetTonal.x = 6;
+  targetTonal.y = 4;
+
+  const sourceControl = makeControl('lfo', 0);
+  sourceControl.amount = 0.91;
+  const targetControl = makeControl('lfo', 1);
+  targetControl.amount = 0.12;
+  targetControl.name = 'Live LFO';
+  targetControl.x = 8;
+  targetControl.y = 1;
+
+  const sourceVisual = makeVisual('scope', 0);
+  sourceVisual.fftSize = 512;
+  const targetVisual = makeVisual('scope', 1);
+  targetVisual.fftSize = 4096;
+  targetVisual.name = 'Live scope';
+  targetVisual.x = 9;
+  targetVisual.y = 2;
+
+  const library = [];
+  const presets = [sourceTrigger, sourceDrum, sourceTonal, sourceControl, sourceVisual]
+    .map((module, index) => saveModulePresetFromModule(library, module, { name: `Contract ${index}` })?.preset);
+
+  assert.ok(presets.every(Boolean));
+  assert.equal(applyModulePreset(targetTrigger, presets[0]), true);
+  assert.equal(applyModulePreset(targetDrum, presets[1]), true);
+  assert.equal(applyModulePreset(targetTonal, presets[2]), true);
+  assert.equal(applyModulePreset(targetControl, presets[3]), true);
+  assert.equal(applyModulePreset(targetVisual, presets[4]), true);
+
+  assert.equal(targetTrigger.accent, 0.88);
+  assert.equal(targetTrigger.density, 0.71);
+  assert.equal(targetTrigger.name, 'Live GEN');
+  assert.deepEqual([targetTrigger.x, targetTrigger.y], [7, 3]);
+  assert.deepEqual(targetTrigger.modulations, { density: 'control-routing' });
+
+  assert.equal(targetDrum.basePitch, 0.76);
+  assert.equal(targetDrum.triggerSource, 'target-routing');
+  assert.equal(targetDrum.drumChannel, '07');
+  assert.equal(targetDrum.name, 'Live drum');
+  assert.deepEqual([targetDrum.x, targetDrum.y], [5, 2]);
+
+  assert.equal(targetTonal.cutoff, 0.81);
+  assert.equal(targetTonal.triggerSource, 'target-routing');
+  assert.equal(targetTonal.reception, 'mono');
+  assert.equal(targetTonal.name, 'Live synth');
+  assert.deepEqual([targetTonal.x, targetTonal.y], [6, 4]);
+
+  assert.equal(targetControl.amount, 0.91);
+  assert.equal(targetControl.kind, 'lfo');
+  assert.equal(targetControl.name, 'Live LFO');
+  assert.deepEqual([targetControl.x, targetControl.y], [8, 1]);
+
+  assert.equal(targetVisual.fftSize, 512);
+  assert.equal(targetVisual.kind, 'scope');
+  assert.equal(targetVisual.name, 'Live scope');
+  assert.deepEqual([targetVisual.x, targetVisual.y], [9, 2]);
+});
+
+test('control and visual module presets reject a different subtype instead of changing kind', () => {
+  const lfo = makeControl('lfo', 0);
+  const drift = makeControl('drift', 0);
+  const scope = makeVisual('scope', 0);
+  const spectrum = makeVisual('spectrum', 0);
+  const library = [];
+  const lfoPreset = saveModulePresetFromModule(library, lfo, { name: 'LFO contract' })?.preset;
+  const scopePreset = saveModulePresetFromModule(library, scope, { name: 'Scope contract' })?.preset;
+
+  assert.ok(lfoPreset);
+  assert.ok(scopePreset);
+  assert.equal(applyModulePreset(drift, lfoPreset), false);
+  assert.equal(drift.kind, 'drift');
+  assert.equal(applyModulePreset(spectrum, scopePreset), false);
+  assert.equal(spectrum.kind, 'spectrum');
+});
+
 test('formatModulePresetDisplayName uses code when present', () => {
   assert.equal(formatModulePresetDisplayName({ code: 'GEN001', name: 'Sparse Euclid' }), 'GEN001 · Sparse Euclid');
   assert.equal(formatModulePresetDisplayName({ name: 'User Kick' }), 'User Kick');
@@ -411,6 +543,38 @@ test('module preset normalization keeps optional code and tolerates missing code
     const legacy = records.find((record) => record.id === 'user-b');
     assert.equal(coded?.code, 'DRUM099');
     assert.equal(legacy?.code, undefined);
+  });
+});
+
+test('legacy trigger module presets receive the historical accent default on load', () => {
+  const payload = [{
+    id: 'legacy-gen',
+    name: 'Legacy GEN',
+    family: 'trigger',
+    subtype: 'trigger',
+    state: {
+      enabled: true,
+      mode: 'euclidean',
+      seed: 1000,
+      determinism: 0.8,
+      gravity: 0.6,
+      density: 0.35,
+      subdiv: 4,
+      length: 16,
+      drop: 0.12,
+      weird: 0.5,
+      euclidRot: 0,
+      caRule: 90,
+      caInit: 0.25,
+    },
+    createdAt: 1,
+    updatedAt: 2,
+  }];
+
+  withMockStorage(() => {
+    localStorage.setItem('gridi.module-presets.v1', JSON.stringify(payload));
+    const legacy = loadModulePresetLibrary().find((record) => record.id === 'legacy-gen');
+    assert.equal(legacy?.state.accent, 0.5);
   });
 });
 

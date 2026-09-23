@@ -6,8 +6,8 @@ import { ctlFloat, type CtlFloatElement } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
-import { createModulePresetControl } from "./modulePresetControl";
-import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import { createModuleSettingsActions } from "./moduleSettingsActions";
+import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
 import {
   createModuleRefChip,
   createRoutingCard,
@@ -892,9 +892,6 @@ export function renderTriggerSurface(
     setTab: () => {},
   },
   attachTooltip?: TooltipBinder,
-  modulePresetRecords: ModulePresetRecord[] = [],
-  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
-  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   onRemove?: () => void,
 ) {
   const surface = document.createElement("section");
@@ -904,21 +901,13 @@ export function renderTriggerSurface(
   const header = document.createElement("div");
   header.className = "surfaceHeader";
 
-  const presetControl = createModulePresetControl({
-    module: t,
-    records: modulePresetRecords,
-    onLoadPreset: (presetId) => onLoadModulePreset?.(t.id, presetId),
-    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(t.id, name, overwritePresetId),
-    attachTooltip,
-  });
-
   const identity = document.createElement("div");
   identity.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
 
   const badge = document.createElement("div");
   badge.className = "surfaceBadge surfaceBadge--triggerFamily";
   badge.textContent = "GEN";
-  identity.append(badge, presetControl.button);
+  identity.append(badge);
 
   const right = document.createElement("div");
   right.className = "rightControls";
@@ -947,7 +936,19 @@ export function renderTriggerSurface(
     text: "Remove this generator module from the grid.",
     ariaLabel: `Remove ${t.name}`,
   });
-  right.append(toggle, btnX);
+  const settingsActions = createModuleSettingsActions({
+    module: t,
+    onPasteSettings: () => {
+      let pasted = false;
+      onPatchChange((patch) => {
+        const target = patch.modules.find((module) => module.id === t.id);
+        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
+      }, { regen: true });
+      return pasted;
+    },
+    attachTooltip,
+  });
+  right.append(toggle, settingsActions.button, btnX);
   header.append(identity, right);
 
   const panelMain = createFaceplateMainPanel();

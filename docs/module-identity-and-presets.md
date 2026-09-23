@@ -44,6 +44,30 @@ Examples:
 
 A module preset answers: **“What local instrument state should this module recall?”**
 
+### Current snapshot contract
+
+Module presets deliberately snapshot **local sound/behavior state only**. They do
+not move a module into a different session context.
+
+- **GEN / Trigger:** enabled state, mode, seed, timing/generation controls, and
+  musical accent (`accent`) are recalled.
+- **DRUM:** enabled state and local voice/shaping controls are recalled.
+- **SYNTH / Tonal:** enabled state and local oscillator, envelope, filter, and
+  modulation controls are recalled.
+- **CONTROL:** enabled state and its local generator controls are recalled only
+  by the current control subtype.
+- **VISUAL:** enabled state and local display settings are recalled only by the
+  current visual subtype.
+
+The following are intentionally not stored or changed by loading a module
+preset: module id, instance name, grid position, routing and modulation
+assignments, MIDI device/target state, DRUM channel assignment, and SYNTH
+reception mode. CTRL and VIS compatibility is subtype-restricted: loading a
+preset never changes a module from one `kind` to another.
+
+Legacy saved GEN presets that predate the accent field are normalized with the
+historical default accent value (`0.5`) when their local library is loaded.
+
 ## 4) Session (whole instrument state)
 
 **Session preset/session state** stores the broader whole-patch instrument configuration.

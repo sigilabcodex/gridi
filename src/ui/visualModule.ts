@@ -5,8 +5,8 @@ import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createModuleTabShell } from "./moduleShell";
-import { createModulePresetControl } from "./modulePresetControl";
-import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import { createModuleSettingsActions } from "./moduleSettingsActions";
+import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
 import type { TooltipBinder } from "./tooltip";
 import {
   createModuleRefChip,
@@ -491,27 +491,16 @@ export function renderVisualSurface(
   isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRemove: () => void,
-  modulePresetRecords: ModulePresetRecord[] = [],
-  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
-  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   attachTooltip?: TooltipBinder,
 ) {
   const surface = el("section", "moduleSurface moduleSurface--withStatus visualSurface");
   surface.dataset.type = "visual";
 
   const header = el("div", "surfaceHeader");
-  const presetControl = createModulePresetControl({
-    module: vm,
-    records: modulePresetRecords,
-    onLoadPreset: (presetId) => onLoadModulePreset?.(vm.id, presetId),
-    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(vm.id, name, overwritePresetId),
-    attachTooltip,
-  });
-
   const identity = el("div", "surfaceIdentity surfaceIdentity--canonical drumIdentity");
   const badge = el("div", "surfaceBadge surfaceBadge--visualFamily");
   badge.textContent = "VIS";
-  identity.append(badge, presetControl.button);
+  identity.append(badge);
 
   const right = el("div", "rightControls");
   const btnOn = el("button");
@@ -532,7 +521,19 @@ export function renderVisualSurface(
   const btnX = el("button", "danger surfaceHeaderAction");
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, onRemove);
-  right.append(btnOn, btnX);
+  const settingsActions = createModuleSettingsActions({
+    module: vm,
+    onPasteSettings: () => {
+      let pasted = false;
+      onPatchChange((patch) => {
+        const target = patch.modules.find((module) => module.id === vm.id);
+        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
+      }, { regen: false });
+      return pasted;
+    },
+    attachTooltip,
+  });
+  right.append(btnOn, settingsActions.button, btnX);
   header.append(identity, right);
 
   const visualSource = routing.visualSources.get(vm.id);

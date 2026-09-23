@@ -160,6 +160,65 @@ describe("GRIDI browser smoke", () => {
     assert.equal(await moduleCount(p), initialCount + 1);
   });
 
+  it("uses presets only for DRUM/SYNTH and exposes compatible settings actions from module headers", async (t) => {
+    if (!page) return t.skip(missingBrowserMessage());
+    const p = activePage();
+    await p.waitForSelector(".triggerSurface");
+    await p.waitForSelector(".drumSurface");
+    await p.waitForSelector(".synthSurface");
+
+    await p.click(".addModuleSlot");
+    await p.click("button:text('CTRL · Control')");
+    await p.click("button:text('Default Control')");
+    await p.waitForSelector(".controlSurface");
+    await p.click(".addModuleSlot");
+    await p.click("button:text('VIS · Visual')");
+    await p.click("button:text('Default Visual')");
+    await p.waitForSelector(".visualSurface");
+
+    const identity = await p.eval(`(() => ({
+      drumPreset: Boolean(document.querySelector('.drumSurface .modulePresetChip')),
+      synthPreset: Boolean(document.querySelector('.synthSurface .modulePresetChip')),
+      genPreset: Boolean(document.querySelector('.triggerSurface .modulePresetChip')),
+      genMode: Boolean(document.querySelector('.triggerSurface .triggerModeButton')),
+      controlPreset: Boolean(document.querySelector('.controlSurface .modulePresetChip')),
+      controlType: Array.from(document.querySelectorAll('.controlSurface label')).some((label) => label.textContent?.includes('Type')),
+      visualPreset: Boolean(document.querySelector('.visualSurface .modulePresetChip')),
+      visualMode: Boolean(document.querySelector('.visualSurface [aria-label="Visual mode"]')),
+    }))()`);
+    assert.deepEqual(identity, {
+      drumPreset: true,
+      synthPreset: true,
+      genPreset: false,
+      genMode: true,
+      controlPreset: false,
+      controlType: true,
+      visualPreset: false,
+      visualMode: true,
+    });
+
+    await p.click(".triggerSurface .moduleSettingsActionsButton");
+    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
+    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? false`), true);
+    await p.click("button:text('Copy settings')");
+
+    await p.click(".drumSurface .moduleSettingsActionsButton");
+    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
+    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? false`), true);
+
+    await p.click("button:text('Copy settings')");
+    const openedSecondDrum = await p.eval(`(() => {
+      const button = document.querySelectorAll('.drumSurface .moduleSettingsActionsButton')[1];
+      if (!(button instanceof HTMLElement)) return false;
+      button.click();
+      return true;
+    })()`);
+    assert.equal(openedSecondDrum, true, "default workspace should provide a compatible drum destination");
+    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
+    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? true`), false);
+    await p.click("button:text('Paste settings')");
+  });
+
   it("shows protected factory examples and guarded local-session batch deletion in Session Manager", async (t) => {
     if (!page) return t.skip(missingBrowserMessage());
     const p = activePage();

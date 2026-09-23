@@ -522,7 +522,7 @@ export function createModuleGridRenderer(params: ModuleGridParams) {
     if (!preset || preset.source !== "factory") return;
 
     const familyId = getAddModuleFamilyForModulePreset(preset);
-    if (!familyId) return;
+    if (familyId !== "drum" && familyId !== "synth") return;
     const what = getAddModuleFamily(familyId).defaultPick;
 
     const prev = params.clonePatch(params.patch());
@@ -840,9 +840,6 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
               setTab: (tab) => triggerTabs.set(module.id, tab),
             },
             params.attachTooltip,
-            params.modulePresetRecords,
-            params.onLoadModulePreset,
-            params.onSaveModulePreset,
             () => removeModule(module.id),
           );
           const surface = resolveRenderedSurface(surfaceRoot, "trigger", module.id);
@@ -910,9 +907,6 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
             () => params.sched.running,
             params.onPatchChange,
             onRoutingChange,
-            params.modulePresetRecords,
-            params.onLoadModulePreset,
-            params.onSaveModulePreset,
             params.attachTooltip,
             {
               tab: controlTabs.get(module.id) ?? "MAIN",
@@ -936,9 +930,6 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
             () => params.sched.running,
             params.onPatchChange,
             () => removeModule(module.id),
-            params.modulePresetRecords,
-            params.onLoadModulePreset,
-            params.onSaveModulePreset,
             params.attachTooltip,
           );
           const surface = resolveRenderedSurface(surfaceRoot, module.kind, module.id);

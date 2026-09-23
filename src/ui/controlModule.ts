@@ -5,8 +5,8 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
-import { createModulePresetControl } from "./modulePresetControl";
-import type { ModulePresetRecord } from "./persistence/modulePresetStore";
+import { createModuleSettingsActions } from "./moduleSettingsActions";
+import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
 import type { TooltipBinder } from "./tooltip";
 import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import {
@@ -38,9 +38,6 @@ export function renderControlSurface(
   isTransportPlaying: () => boolean,
   onPatchChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
   onRoutingChange: (fn: (p: Patch) => void, opts?: { regen?: boolean }) => void,
-  modulePresetRecords: ModulePresetRecord[] = [],
-  onLoadModulePreset?: (moduleId: string, presetId: string) => void,
-  onSaveModulePreset?: (moduleId: string, name: string, overwritePresetId?: string | null) => void,
   attachTooltip?: TooltipBinder,
   ui: { tab: "MAIN" | "ROUTING"; setTab: (tab: "MAIN" | "ROUTING") => void } = {
     tab: "MAIN",
@@ -54,14 +51,6 @@ export function renderControlSurface(
 
   const header = document.createElement("div");
   header.className = "surfaceHeader";
-  const presetControl = createModulePresetControl({
-    module: mod,
-    records: modulePresetRecords,
-    onLoadPreset: (presetId) => onLoadModulePreset?.(mod.id, presetId),
-    onSavePreset: (name, overwritePresetId) => onSaveModulePreset?.(mod.id, name, overwritePresetId),
-    attachTooltip,
-  });
-
   const idWrap = document.createElement("div");
   idWrap.className = "surfaceIdentity surfaceIdentity--canonical drumIdentity";
 
@@ -89,15 +78,27 @@ export function renderControlSurface(
   btnX.className = "danger surfaceHeaderAction";
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
-  idWrap.append(familyBadge, presetControl.button);
-  right.append(toggle, btnX);
+  idWrap.append(familyBadge);
+  const settingsActions = createModuleSettingsActions({
+    module: mod,
+    onPasteSettings: () => {
+      let pasted = false;
+      onPatchChange((patch) => {
+        const target = patch.modules.find((module) => module.id === mod.id);
+        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
+      }, { regen: false });
+      return pasted;
+    },
+    attachTooltip,
+  });
+  right.append(toggle, settingsActions.button, btnX);
   header.append(idWrap, right);
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("controlBody");
 
   const kindField = createCompactSelectField({
-    label: "Mode",
+    label: "Type",
     className: "compactSelectField--chip",
     includeEmptyOption: false,
     options: KINDS.map((kind) => ({ value: kind, label: kind.toUpperCase() })),

@@ -232,6 +232,9 @@ function factoryPresetsForAddModuleFamily(
   records: ModulePresetRecord[],
   familyId: AddModuleFamilyId,
 ) {
+  // Factory preset insertion is intentionally a voice workflow. GEN/CTRL/VIS
+  // are inserted by their primary mode/type selectors instead.
+  if (familyId !== "drum" && familyId !== "synth") return [];
   const presetFamily = modulePresetFamilyForAddModuleFamily(familyId);
   return records.filter(
     (record) => record.source === "factory" && record.family === presetFamily,
