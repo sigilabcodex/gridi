@@ -40,6 +40,15 @@ export function clearModuleSelection(): ModuleSelectionState {
   return createModuleSelectionState();
 }
 
+export function selectAllModules(existingModuleIds: string[]): ModuleSelectionState {
+  const selectedModuleIds = uniqueIds(existingModuleIds);
+  return {
+    selectedModuleIds,
+    selectionAnchorId: null,
+    selectionMode: "replace",
+  };
+}
+
 export function pruneModuleSelection(state: ModuleSelectionState, existingModuleIds: string[]): ModuleSelectionState {
   const existing = new Set(existingModuleIds);
   const selectedModuleIds = state.selectedModuleIds.filter((id) => existing.has(id));

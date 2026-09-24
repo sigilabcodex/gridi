@@ -1,4 +1,4 @@
-import type { Patch } from "../../patch";
+import type { Module, Patch } from "../../patch";
 import { APP_NAME, getVersionTooltipText } from "../../version";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "../floatingPanel";
 import { createRoutingOverviewPanel } from "./routingOverviewPanel";
@@ -38,6 +38,10 @@ type HeaderParams = {
   onInspectRoutingModule?: (moduleId: string | null) => void;
   onCleanStaleRoutingRefs?: () => void;
   getSelectionSummary: () => { selectedCount: number; copiedCount: number };
+  getSelectedModule: () => Module | null;
+  canPasteSettings: () => boolean;
+  onCopySettings: () => void;
+  onPasteSettings: () => void;
   onCopySelection: () => void;
   onPasteModules: () => void;
   onDuplicateSelection: () => void;
@@ -501,12 +505,24 @@ export function createTransportHeader(params: HeaderParams) {
   };
 
   const btnCopySelection = makeSelectionUtilityBtn(
+    "Copy Settings",
+    params.onCopySettings,
+    "Copy local settings from the selected module. Shortcut: Ctrl or Cmd Shift C.",
+    "Copy Settings",
+  );
+  const btnPasteSelection = makeSelectionUtilityBtn(
+    "Paste Settings",
+    params.onPasteSettings,
+    "Paste compatible local settings to the selected module. Shortcut: Ctrl or Cmd Shift V.",
+    "Paste Settings",
+  );
+  const btnCopyModules = makeSelectionUtilityBtn(
     "Copy selected",
     params.onCopySelection,
     "Copy selected modules for duplicate-style paste while they remain in this patch. Shortcut: Ctrl or Cmd C.",
     "Copy selected modules",
   );
-  const btnPasteSelection = makeSelectionUtilityBtn(
+  const btnPasteModules = makeSelectionUtilityBtn(
     "Paste copied",
     params.onPasteModules,
     "Duplicate copied modules into available grid slots. Shortcut: Ctrl or Cmd V.",
@@ -648,7 +664,7 @@ export function createTransportHeader(params: HeaderParams) {
   sessionPanel.append(sessionPresetSectionLabel, sessionPresetFilter, sessionPresetSection);
   appendMenuSection(sessionPanel, "Session patch", [btnNewEmptySession, btnNewExampleSession, btnSaveSession, btnSaveAs, btnSessionManagerMenu, btnReset]);
   appendMenuSection(generatorPanel, "Generator tools", [btnRegen, btnReseed, btnRandom]);
-  appendMenuSection(selectionPanel, "Selection actions", [btnCopySelection, btnPasteSelection, btnDuplicateSelection, btnDeleteSelection, btnClearSelection]);
+  appendMenuSection(selectionPanel, "Selection actions", [btnCopySelection, btnPasteSelection, btnDuplicateSelection, btnDeleteSelection, btnCopyModules, btnPasteModules, btnClearSelection]);
   sessionMenu.append(sessionSummary);
   generatorMenu.append(generatorSummary);
   selectionMenu.append(selectionSummary);
@@ -1037,12 +1053,20 @@ export function createTransportHeader(params: HeaderParams) {
       : hasCopied
         ? `${copiedCount} copied module${copiedCount === 1 ? "" : "s"} ready to paste`
         : "Select modules to enable actions";
-    selectionSummary.setAttribute("aria-label", `${selectionSummary.title}. Shortcuts: Ctrl or Cmd C/V/D, Delete, Escape.`);
-    btnCopySelection.disabled = !hasSelection;
+    selectionSummary.setAttribute("aria-label", `${selectionSummary.title}. Shortcuts: Ctrl or Cmd A, Shift C/V, D, Delete, Escape.`);
+    const hasSingleSelection = selectedCount === 1 && !!params.getSelectedModule();
+    btnCopySelection.disabled = !hasSingleSelection;
+    btnPasteSelection.disabled = !hasSingleSelection || !params.canPasteSettings();
+    btnDuplicateSelection.textContent = selectedCount === 1 ? "Duplicate" : "Duplicate selection";
+    btnDeleteSelection.textContent = selectedCount === 1 ? "Delete" : "Delete selection";
+    btnCopyModules.hidden = selectedCount === 1;
+    btnPasteModules.hidden = selectedCount === 1;
+    btnClearSelection.hidden = selectedCount === 1;
+    btnCopyModules.disabled = !hasSelection;
     btnDuplicateSelection.disabled = !hasSelection;
     btnDeleteSelection.disabled = !hasSelection;
     btnClearSelection.disabled = !hasSelection;
-    btnPasteSelection.disabled = !hasCopied;
+    btnPasteModules.disabled = !hasCopied;
     if (!hasSelection && !hasCopied) closeSelectionMenu();
   };
 

@@ -5,10 +5,8 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
-import { createModuleSettingsActions } from "./moduleSettingsActions";
 import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
-import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
 import type { TooltipBinder } from "./tooltip";
 import { applyCenteredModulation } from "./modulationView";
 import {
@@ -102,19 +100,7 @@ function makeHeader(
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
 
-  const settingsActions = createModuleSettingsActions({
-    module: v,
-    onPasteSettings: () => {
-      let pasted = false;
-      params.onPatchChange((patch) => {
-        const target = patch.modules.find((module) => module.id === v.id);
-        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
-      }, { regen: false });
-      return pasted;
-    },
-    attachTooltip: params.attachTooltip,
-  });
-  right.append(ledA, ledHit, toggle, settingsActions.button, btnX);
+  right.append(ledA, ledHit, toggle, btnX);
   header.append(left, right);
   return { header, ledA, ledHit, syncToggle };
 }

@@ -5,8 +5,7 @@ import { ctlFloat } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
-import { createModuleSettingsActions } from "./moduleSettingsActions";
-import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
+import { createModuleIdentitySelector } from "./moduleIdentitySelector";
 import type { TooltipBinder } from "./tooltip";
 import { isRuntimeActive, runtimeStateLabel } from "./runtimeActivity";
 import {
@@ -79,34 +78,26 @@ export function renderControlSurface(
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, () => onRemove?.());
   idWrap.append(familyBadge);
-  const settingsActions = createModuleSettingsActions({
-    module: mod,
-    onPasteSettings: () => {
-      let pasted = false;
-      onPatchChange((patch) => {
-        const target = patch.modules.find((module) => module.id === mod.id);
-        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
-      }, { regen: false });
-      return pasted;
-    },
-    attachTooltip,
-  });
-  right.append(toggle, settingsActions.button, btnX);
+  right.append(toggle, btnX);
   header.append(idWrap, right);
 
   const panelMain = createFaceplateMainPanel();
   panelMain.classList.add("controlBody");
 
-  const kindField = createCompactSelectField({
+  const kindSelector = createModuleIdentitySelector({
     label: "Type",
-    className: "compactSelectField--chip",
-    includeEmptyOption: false,
-    options: KINDS.map((kind) => ({ value: kind, label: kind.toUpperCase() })),
-    selected: mod.kind,
+    value: mod.kind,
+    options: KINDS.map((kind) => ({ value: kind, label: kind === "stepped" ? "Stepped" : kind === "drift" ? "Drift" : "LFO" })),
     onChange: (value) => onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === mod.id);
-      if (m?.type === "control" && value) m.kind = value as ControlKind;
+      if (m?.type === "control") m.kind = value;
     }, { regen: false }),
+    accent: "control",
+    ariaLabel: `${mod.name} control type`,
+    tooltip: `${mod.name} control type`,
+    attachTooltip,
+    minWidth: 150,
+    maxWidth: 190,
   });
 
   const waveField = createCompactSelectField({
@@ -126,7 +117,8 @@ export function renderControlSurface(
     `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`,
     controlTargets.length ? "connected" : "muted",
   );
-  chipRow.append(kindField.wrap, waveField.wrap, routeChip);
+  idWrap.append(kindSelector.button);
+  chipRow.append(waveField.wrap, routeChip);
 
   const featureRack = createFaceplateSection("feature", "controlFeatureRack");
   featureRack.classList.add("surfaceMainFeature");
@@ -386,6 +378,7 @@ export function renderControlSurface(
     if (active) animationSeconds += deltaMs / 1000;
 
     syncToggle();
+    kindSelector.setValue(mod.kind);
     const val = sampleControl01(mod, animationSeconds);
     routeChip.textContent = `${controlTargets.length} target${controlTargets.length === 1 ? "" : "s"}`;
     const pct = Math.round(val * 100);

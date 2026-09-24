@@ -66,12 +66,26 @@ describe("GRIDI browser smoke", () => {
 
     await p.click("[data-testid='selection-actions-button']");
     await p.waitForSelector("[data-testid='selection-actions-panel']:not(.hidden)");
-    assert.equal(await p.eval(`buttonNamed('Duplicate selected')?.disabled ?? true`), false);
-    assert.equal(await p.eval(`buttonNamed('Delete selected')?.disabled ?? true`), false);
+    assert.equal(await p.eval(`buttonNamed('Copy Settings')?.disabled ?? true`), false);
+    assert.equal(await p.eval(`buttonNamed('Paste Settings')?.disabled ?? true`), true);
+    assert.equal(await p.eval(`buttonNamed('Duplicate')?.disabled ?? buttonNamed('Duplicate selection')?.disabled ?? true`), false);
+    assert.equal(await p.eval(`buttonNamed('Delete')?.disabled ?? buttonNamed('Delete selection')?.disabled ?? true`), false);
+    assert.equal(await p.eval(`buttonNamed('Copy selected')?.hidden ?? false`), true);
+    assert.equal(await p.eval(`buttonNamed('Paste copied')?.hidden ?? false`), true);
 
     await p.key("Escape");
     await p.waitForFunction(() => document.querySelectorAll('.moduleSurface[aria-selected="true"]').length === 0);
     assert.equal(await p.eval(`document.querySelector('[data-testid="selection-actions-button"]')?.disabled`), true);
+  });
+
+  it("selects all modules with Ctrl+A and reflects the selection count", async (t) => {
+    if (!page) return t.skip(missingBrowserMessage());
+    const p = activePage();
+    await p.waitForSelector(moduleSelector());
+    const count = await moduleCount(p);
+    await p.key("a", { ctrlKey: true });
+    await p.waitForFunction((expected) => document.querySelectorAll('.moduleSurface[aria-selected="true"]').length === Number(expected), String(count));
+    assert.equal(await p.text("[data-testid='selection-actions-button'] .transportUtilitySummaryLabel"), `Actions · ${count}`);
   });
 
   it("multi-selects modules, duplicates them, then deletes the duplicated selection with confirmation", async (t) => {
@@ -117,6 +131,10 @@ describe("GRIDI browser smoke", () => {
 
     await p.key("c", { ctrlKey: true });
     await p.key("v", { ctrlKey: true });
+    await p.key("c", { ctrlKey: true, shiftKey: true });
+    await p.key("v", { ctrlKey: true, shiftKey: true });
+    await p.key("a", { ctrlKey: true });
+    await p.key("d", { ctrlKey: true });
     await p.key("Delete");
     await p.key("Escape");
 
@@ -160,7 +178,7 @@ describe("GRIDI browser smoke", () => {
     assert.equal(await moduleCount(p), initialCount + 1);
   });
 
-  it("uses presets only for DRUM/SYNTH and exposes compatible settings actions from module headers", async (t) => {
+  it("normalizes module headers and exposes compatible settings actions in global Actions", async (t) => {
     if (!page) return t.skip(missingBrowserMessage());
     const p = activePage();
     await p.waitForSelector(".triggerSurface");
@@ -177,46 +195,121 @@ describe("GRIDI browser smoke", () => {
     await p.waitForSelector(".visualSurface");
 
     const identity = await p.eval(`(() => ({
-      drumPreset: Boolean(document.querySelector('.drumSurface .modulePresetChip')),
-      synthPreset: Boolean(document.querySelector('.synthSurface .modulePresetChip')),
+      drumPreset: Boolean(document.querySelector('.drumSurface .surfaceIdentity .modulePresetChip')),
+      synthPreset: Boolean(document.querySelector('.synthSurface .surfaceIdentity .modulePresetChip')),
+      drumSlotCount: document.querySelector('.drumSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length,
+      synthSlotCount: document.querySelector('.synthSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length,
+      drumLabel: document.querySelector('.drumSurface .moduleIdentitySlotLabel')?.textContent,
+      drumValue: document.querySelector('.drumSurface .moduleIdentitySlotValue')?.textContent,
+      synthLabel: document.querySelector('.synthSurface .moduleIdentitySlotLabel')?.textContent,
+      synthValue: document.querySelector('.synthSurface .moduleIdentitySlotValue')?.textContent,
       genPreset: Boolean(document.querySelector('.triggerSurface .modulePresetChip')),
-      genMode: Boolean(document.querySelector('.triggerSurface .triggerModeButton')),
+      genMode: Boolean(document.querySelector('.triggerSurface .surfaceIdentity .moduleIdentitySelector--gen')),
+      genLabel: document.querySelector('.triggerSurface .moduleIdentitySlotLabel')?.textContent,
+      genValue: document.querySelector('.triggerSurface .moduleIdentitySelector--gen .moduleIdentitySelectorValue')?.textContent,
+      genSelectorCount: document.querySelector('.triggerSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length,
       controlPreset: Boolean(document.querySelector('.controlSurface .modulePresetChip')),
-      controlType: Array.from(document.querySelectorAll('.controlSurface label')).some((label) => label.textContent?.includes('Type')),
+      controlType: Boolean(document.querySelector('.controlSurface .surfaceIdentity .moduleIdentitySelector--control')),
+      controlLabel: document.querySelector('.controlSurface .moduleIdentitySlotLabel')?.textContent,
+      controlValue: document.querySelector('.controlSurface .moduleIdentitySelector--control .moduleIdentitySelectorValue')?.textContent,
+      controlSelectorCount: document.querySelector('.controlSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length,
       visualPreset: Boolean(document.querySelector('.visualSurface .modulePresetChip')),
-      visualMode: Boolean(document.querySelector('.visualSurface [aria-label="Visual mode"]')),
+      visualMode: Boolean(document.querySelector('.visualSurface .surfaceIdentity .moduleIdentitySelector--visual')),
+      visualLabel: document.querySelector('.visualSurface .moduleIdentitySlotLabel')?.textContent,
+      visualValue: document.querySelector('.visualSurface .moduleIdentitySelector--visual .moduleIdentitySelectorValue')?.textContent,
+      visualSelectorCount: document.querySelector('.visualSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length,
+      perModuleActions: document.querySelectorAll('.moduleSettingsActionsButton').length,
+      ellipsisActions: Array.from(document.querySelectorAll('.surfaceHeader button')).some((button) => button.textContent?.trim() === '⋯'),
     }))()`);
-    assert.deepEqual(identity, {
+    const { drumLabel, drumValue, synthLabel, synthValue, genLabel, genValue, controlLabel, controlValue, visualLabel, visualValue, ...structure } = identity;
+    assert.deepEqual(structure, {
       drumPreset: true,
       synthPreset: true,
+      drumSlotCount: 1,
+      synthSlotCount: 1,
       genPreset: false,
       genMode: true,
+      genSelectorCount: 1,
       controlPreset: false,
       controlType: true,
+      controlSelectorCount: 1,
       visualPreset: false,
       visualMode: true,
+      visualSelectorCount: 1,
+      perModuleActions: 0,
+      ellipsisActions: false,
     });
+    assert.deepEqual([drumLabel, synthLabel, genLabel, controlLabel, visualLabel], ["PRESET", "PRESET", "MODE", "TYPE", "MODE"]);
+    assert.equal((drumValue ?? "").replace(/ \*$/, ""), "Deep Kick");
+    assert.equal((synthValue ?? "").replace(/ \*$/, ""), "Rubber Bass");
+    assert.match(genValue ?? "", /\S/, "GEN selector should show its current mode value");
+    assert.equal(controlValue, "LFO");
+    assert.equal(visualValue, "Scope");
 
-    await p.click(".triggerSurface .moduleSettingsActionsButton");
-    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
-    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? false`), true);
-    await p.click("button:text('Copy settings')");
+    await p.click(".drumSurface .modulePresetChip");
+    await p.waitForSelector(".modulePresetPanel");
+    await p.key("Escape");
+    await p.click(".synthSurface .modulePresetChip");
+    await p.waitForSelector(".modulePresetPanel");
+    await p.key("Escape");
 
-    await p.click(".drumSurface .moduleSettingsActionsButton");
-    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
-    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? false`), true);
+    await p.click(".triggerSurface .moduleIdentitySelector--gen");
+    await p.waitForSelector(".moduleIdentitySelectorPanel--gen");
+    assert.equal(await p.eval(`document.querySelectorAll('.moduleIdentitySelectorPanel--gen .moduleIdentitySelectorOption').length`), 13);
+    assert(Number(await p.eval(`document.querySelector('.moduleIdentitySelectorPanel--gen')?.getBoundingClientRect().height`)) <= 320, "GEN selector panel should have a bounded height");
+    await p.click(".moduleIdentitySelectorPanel--gen button:text('Hybrid')");
+    await p.waitForFunction(() => document.querySelector('.triggerSurface .moduleIdentitySelector--gen')?.getAttribute('data-value') === 'hybrid');
 
-    await p.click("button:text('Copy settings')");
-    const openedSecondDrum = await p.eval(`(() => {
-      const button = document.querySelectorAll('.drumSurface .moduleSettingsActionsButton')[1];
-      if (!(button instanceof HTMLElement)) return false;
-      button.click();
-      return true;
-    })()`);
-    assert.equal(openedSecondDrum, true, "default workspace should provide a compatible drum destination");
-    await p.waitForSelector("[data-testid='module-settings-actions-panel']");
-    assert.equal(await p.eval(`buttonNamed('Paste settings')?.disabled ?? true`), false);
-    await p.click("button:text('Paste settings')");
+    await p.click(".controlSurface .moduleIdentitySelector--control");
+    await p.click(".moduleIdentitySelectorPanel--control button:text('Drift')");
+    await p.waitForFunction(() => document.querySelector('.controlSurface .moduleIdentitySelector--control')?.getAttribute('data-value') === 'drift');
+
+    await p.click(".visualSurface .moduleIdentitySelector--visual");
+    await p.click(".moduleIdentitySelectorPanel--visual button:text('Spectrum')");
+    await p.waitForFunction(() => document.querySelector('.visualSurface .moduleIdentitySelector--visual')?.getAttribute('data-value') === 'spectrum');
+
+    for (const [label, value] of [["Cellular Automata", "cellular-automata"], ["Genetic Algorithms", "genetic-algorithms"], ["Non-Euclidean", "non-euclidean"]]) {
+      await p.click(".triggerSurface .moduleIdentitySelector--gen");
+      await p.click(`.moduleIdentitySelectorPanel--gen button:text('${label}')`);
+      await p.waitForFunction((expected) => document.querySelector('.triggerSurface .moduleIdentitySelector--gen')?.getAttribute('data-value') === expected, value);
+      assert.equal(await p.eval(`document.querySelector('.triggerSurface .surfaceIdentity')?.querySelectorAll('.moduleIdentitySlot').length`), 1);
+    }
+    await p.click(".visualSurface .moduleIdentitySelector--visual");
+    await p.click(".moduleIdentitySelectorPanel--visual button:text('Spectral Depth')");
+    await p.waitForFunction(() => document.querySelector('.visualSurface .moduleIdentitySelector--visual')?.getAttribute('data-value') === 'spectral-depth');
+
+    await p.click(".drumSurface .modulePresetChip");
+    await p.waitForSelector(".modulePresetPanel");
+    const loadedLongDrum = await p.eval(`(() => { const row = Array.from(document.querySelectorAll('.modulePresetPanel .modulePresetListRow')).find((item) => item.textContent?.includes('Distorted Perc')); if (!(row instanceof HTMLElement)) return false; row.click(); return true; })()`);
+    assert.equal(loadedLongDrum, true);
+    await p.waitForFunction(() => document.querySelector('.drumSurface .moduleIdentitySlotValue')?.textContent?.includes('Distorted Perc'));
+
+    await p.click(".synthSurface .modulePresetChip");
+    await p.waitForSelector(".modulePresetPanel");
+    const loadedLongSynth = await p.eval(`(() => { const row = Array.from(document.querySelectorAll('.modulePresetPanel .modulePresetListRow')).find((item) => item.textContent?.includes('Wide Stereo Tone')); if (!(row instanceof HTMLElement)) return false; row.click(); return true; })()`);
+    assert.equal(loadedLongSynth, true);
+    await p.waitForFunction(() => document.querySelector('.synthSurface .moduleIdentitySlotValue')?.textContent?.includes('Wide Stereo Tone'));
+
+    const slotGeometry = await p.eval(`(() => ['drumSurface', 'synthSurface', 'triggerSurface', 'controlSurface', 'visualSurface'].map((family) => { const surface = document.querySelector('.' + family); const slot = surface?.querySelector('.surfaceIdentity .moduleIdentitySlot'); const right = surface?.querySelector('.rightControls'); if (!slot || !right) return null; const slotRect = slot.getBoundingClientRect(); const style = getComputedStyle(slot); const label = slot.querySelector('.moduleIdentitySlotLabel'); const value = slot.querySelector('.moduleIdentitySlotValue'); return { height: slotRect.height, fits: slotRect.right <= right.getBoundingClientRect().left + 1, count: surface.querySelectorAll('.surfaceIdentity .moduleIdentitySlot').length, fullValueAccessible: (slot.getAttribute('aria-label') ?? '').includes(value?.textContent?.trim() ?? ''), metrics: { padding: style.padding, radius: style.borderRadius, fontSize: style.fontSize, fontWeight: style.fontWeight, gap: style.gap, align: style.alignItems, labelSize: label && getComputedStyle(label).fontSize, labelWeight: label && getComputedStyle(label).fontWeight, valueSize: value && getComputedStyle(value).fontSize, valueWeight: value && getComputedStyle(value).fontWeight } }; }))()`);
+    assert(slotGeometry.every((item) => item?.height === 24 && item.fits && item.count === 1 && item.fullValueAccessible), "all five header identity slots should align, fit, and expose their full value");
+    assert(slotGeometry.every((item) => JSON.stringify(item?.metrics) === JSON.stringify(slotGeometry[0]?.metrics)), "all five identity slots should share the same visual geometry");
+
+    await p.click(".drumSurface");
+    await p.click("[data-testid='selection-actions-button']");
+    await p.waitForSelector("[data-testid='selection-actions-panel']:not(.hidden)");
+    assert.equal(await p.eval(`buttonNamed('Paste Settings')?.disabled ?? false`), true);
+    await p.click("button:text('Copy Settings')");
+    await p.key("c", { ctrlKey: true, shiftKey: true });
+    await p.click(".triggerSurface");
+    await p.key("v", { ctrlKey: true, shiftKey: true });
+    await p.click("[data-testid='selection-actions-button']");
+    assert.equal(await p.eval(`buttonNamed('Paste Settings')?.disabled ?? true`), true, "incompatible GEN destination should disable settings paste");
+    await p.key("Escape");
+    const clickedOtherDrum = await p.eval(`(() => { const drums = document.querySelectorAll('.drumSurface'); if (!(drums[1] instanceof HTMLElement)) return false; drums[1].click(); return true; })()`);
+    assert.equal(clickedOtherDrum, true, "default patch should provide a second drum destination");
+    await p.click("[data-testid='selection-actions-button']");
+    assert.equal(await p.eval(`buttonNamed('Paste Settings')?.disabled ?? true`), false);
+    await p.click("button:text('Paste Settings')");
   });
 
   it("shows protected factory examples and guarded local-session batch deletion in Session Manager", async (t) => {

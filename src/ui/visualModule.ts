@@ -5,8 +5,7 @@ import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateStackPanel } from "./faceplateSections";
 import { bindFloatingPanelReposition, placeFloatingPanel } from "./floatingPanel";
 import { createModuleTabShell } from "./moduleShell";
-import { createModuleSettingsActions } from "./moduleSettingsActions";
-import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
+import { createModuleIdentitySelector } from "./moduleIdentitySelector";
 import type { TooltipBinder } from "./tooltip";
 import {
   createModuleRefChip,
@@ -521,19 +520,7 @@ export function renderVisualSurface(
   const btnX = el("button", "danger surfaceHeaderAction");
   btnX.textContent = "×";
   wireSafeDeleteButton(btnX, onRemove);
-  const settingsActions = createModuleSettingsActions({
-    module: vm,
-    onPasteSettings: () => {
-      let pasted = false;
-      onPatchChange((patch) => {
-        const target = patch.modules.find((module) => module.id === vm.id);
-        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
-      }, { regen: false });
-      return pasted;
-    },
-    attachTooltip,
-  });
-  right.append(btnOn, settingsActions.button, btnX);
+  right.append(btnOn, btnX);
   header.append(identity, right);
 
   const visualSource = routing.visualSources.get(vm.id);
@@ -542,11 +529,25 @@ export function renderVisualSurface(
   panelMain.classList.add("visualSurfaceBody", "visualMainLayout");
 
   const chipRow = createFaceplateSection("io", "visualMetaRow visualChipRow");
-  const modeChip = document.createElement("button");
-  modeChip.type = "button";
-  modeChip.className = "routingChip routingChip-muted visualChipButton";
-  modeChip.setAttribute("aria-label", "Visual mode");
-  modeChip.setAttribute("aria-haspopup", "dialog");
+  let closeChipPanel = () => {};
+  const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "vectorscope", "spectral-depth", "flow", "ritual", "glitch", "cymat"];
+  const modeSelector = createModuleIdentitySelector({
+    label: "Mode",
+    value: vm.kind,
+    options: visualModes.map((kind) => ({ value: kind, label: VISUAL_MODE_SPECS[kind].label })),
+    onChange: (kind) => onPatchChange((patch) => {
+      const module = patch.modules.find((item) => item.id === vm.id);
+      if (module?.type === "visual") module.kind = kind;
+    }, { regen: false }),
+    accent: "visual",
+    ariaLabel: "Visual mode",
+    tooltip: `${vm.name} visual mode`,
+    attachTooltip,
+    minWidth: 170,
+    maxWidth: 220,
+    onOpen: () => closeChipPanel(),
+  });
+  const modeChip = modeSelector.button;
 
   const sourceChip = document.createElement("button");
   sourceChip.type = "button";
@@ -559,16 +560,16 @@ export function renderVisualSurface(
   fftChip.className = "routingChip routingChip-muted visualChipButton";
   fftChip.setAttribute("aria-label", "FFT size");
   fftChip.setAttribute("aria-haspopup", "dialog");
-  chipRow.append(modeChip, sourceChip, fftChip);
+  identity.append(modeChip);
+  chipRow.append(sourceChip, fftChip);
 
-  const visualModes: VisualModule["kind"][] = ["scope", "spectrum", "vectorscope", "spectral-depth", "flow", "ritual", "glitch", "cymat"];
   const fftSizes: Array<NonNullable<VisualModule["fftSize"]>> = [512, 1024, 2048, 4096];
   const sourceOptions = [{ value: "master", label: visualSource?.sourceLabel ?? "Master mix" }];
 
   let openPanelCleanup: { destroy: () => void } | null = null;
   let openPanel: HTMLElement | null = null;
   let openTrigger: HTMLElement | null = null;
-  const closeChipPanel = () => {
+  closeChipPanel = () => {
     if (openPanelCleanup) {
       openPanelCleanup.destroy();
       openPanelCleanup = null;
@@ -596,6 +597,7 @@ export function renderVisualSurface(
       closeChipPanel();
       return;
     }
+    modeSelector.close();
     closeChipPanel();
 
     const panel = document.createElement("div");
@@ -674,22 +676,6 @@ export function renderVisualSurface(
     params.trigger.setAttribute("aria-expanded", "true");
   };
 
-  modeChip.onclick = () => {
-    openChipPanel<VisualModule["kind"]>({
-      trigger: modeChip,
-      label: `${vm.name} visual mode`,
-      align: "start",
-      minWidth: 170,
-      maxWidth: 220,
-      options: visualModes.map((kind) => ({ value: kind, label: VISUAL_MODE_SPECS[kind].label })),
-      selected: () => vm.kind,
-      onSelect: (value) => onPatchChange((patch) => {
-        const module = patch.modules.find((item) => item.id === vm.id);
-        if (module?.type === "visual") module.kind = value;
-      }, { regen: false }),
-    });
-  };
-
   sourceChip.onclick = () => {
     openChipPanel({
       trigger: sourceChip,
@@ -766,7 +752,7 @@ export function renderVisualSurface(
     stateToken.textContent = runtimeStateLabel(isTransportPlaying() || hasSignal, vm.enabled);
     modeToken.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
     metaToken.textContent = `FFT ${vm.fftSize ?? 2048}`;
-    modeChip.textContent = `MODE ${modeSpec.label.toUpperCase()}`;
+    modeSelector.setValue(vm.kind);
     sourceChip.textContent = `SRC ${visualSource?.sourceLabel ?? "MASTER"}`;
     fftChip.textContent = `FFT ${vm.fftSize ?? 2048}`;
   };

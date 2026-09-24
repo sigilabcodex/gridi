@@ -31,6 +31,7 @@ import {
   createModuleSelectionState,
   pruneModuleSelection,
   replaceModuleSelection,
+  selectAllModules,
   toggleModuleSelection,
   type ModuleSelectionState,
 } from "../state/moduleSelection";
@@ -1097,7 +1098,9 @@ const registerModuleSurface = (moduleId: string, moduleKind: string, surface: HT
     duplicateSelection: duplicateCurrentSelection,
     deleteSelection: deleteCurrentSelection,
     clearSelection: clearCurrentSelection,
+    selectAll: () => { selectionState = selectAllModules(params.patch().modules.map((module) => module.id)); applyRoutingHighlight(); },
     getSelectionSummary: () => ({ selectedCount: selectionState.selectedModuleIds.length, copiedCount: copiedModuleIds.length }),
+    getSelectedModuleIds: () => [...selectionState.selectedModuleIds],
     setRoutingInspect: (moduleId: string | null) => {
       inspectedModuleId = moduleId;
       applyRoutingHighlight();

@@ -27,8 +27,19 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
   const presetButton = document.createElement("button");
   presetButton.type = "button";
-  presetButton.className = "modulePresetChip";
+  presetButton.className = `modulePresetChip moduleIdentitySlot moduleIdentitySlot--${params.module.type === "drum" ? "drum" : "synth"}`;
   presetButton.setAttribute("aria-haspopup", "dialog");
+
+  const label = document.createElement("span");
+  label.className = "moduleIdentitySlotLabel";
+  label.textContent = "PRESET";
+  const value = document.createElement("span");
+  value.className = "moduleIdentitySlotValue";
+  const caret = document.createElement("span");
+  caret.className = "moduleIdentitySlotCaret";
+  caret.setAttribute("aria-hidden", "true");
+  caret.textContent = "▾";
+  presetButton.append(label, value, caret);
 
   const linkedPreset = findLinkedModulePreset(params.records, params.module);
   const provenance = getModulePresetProvenance(params.records, params.module);
@@ -47,14 +58,15 @@ export function createModulePresetControl(params: ModulePresetControlParams) {
 
   const syncButton = () => {
     const base = params.module.presetName ?? `${getModulePresetFamilyLabel(params.module)} Preset`;
-    presetButton.textContent = provenance.isStateModified ? `${base} *` : base;
-    presetButton.setAttribute("aria-label", `${params.module.name} preset ${presetButton.textContent}`);
+    const displayName = provenance.isStateModified ? `${base} *` : base;
+    value.textContent = displayName;
+    presetButton.title = `PRESET ${displayName}`;
+    presetButton.setAttribute("aria-label", `${params.module.name} preset ${displayName}`);
   };
   syncButton();
 
   params.attachTooltip?.(presetButton, {
     text: `Open ${getModulePresetFamilyLabel(params.module).toLowerCase()} preset actions. Load or save presets for this module only.`,
-    ariaLabel: `${params.module.name} preset menu`,
   });
 
   let panel: HTMLElement | null = null;

@@ -6,8 +6,7 @@ import { ctlFloat, type CtlFloatElement } from "./ctl";
 import { wireSafeDeleteButton } from "./deleteButton";
 import { createFaceplateMainPanel, createFaceplateSection, createFaceplateSpacer, createFaceplateStackPanel } from "./faceplateSections";
 import { createModuleTabShell } from "./moduleShell";
-import { createModuleSettingsActions } from "./moduleSettingsActions";
-import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
+import { createModuleIdentitySelector } from "./moduleIdentitySelector";
 import {
   createModuleRefChip,
   createRoutingCard,
@@ -927,7 +926,6 @@ export function renderTriggerSurface(
     text: "Enable or bypass this generator module.",
     ariaLabel: `${t.name} power`,
   });
-
   const btnX = document.createElement("button");
   btnX.textContent = "×";
   btnX.className = "danger surfaceHeaderAction";
@@ -936,19 +934,7 @@ export function renderTriggerSurface(
     text: "Remove this generator module from the grid.",
     ariaLabel: `Remove ${t.name}`,
   });
-  const settingsActions = createModuleSettingsActions({
-    module: t,
-    onPasteSettings: () => {
-      let pasted = false;
-      onPatchChange((patch) => {
-        const target = patch.modules.find((module) => module.id === t.id);
-        if (target) pasted = moduleSettingsClipboard.pasteSettingsToModule(target);
-      }, { regen: true });
-      return pasted;
-    },
-    attachTooltip,
-  });
-  right.append(toggle, settingsActions.button, btnX);
+  right.append(toggle, btnX);
   header.append(identity, right);
 
   const panelMain = createFaceplateMainPanel();
@@ -960,28 +946,6 @@ export function renderTriggerSurface(
   };
 
   const metaRow = createFaceplateSection("io", "triggerMetaRow");
-
-  const generatorChip = document.createElement("div");
-  generatorChip.className = "triggerMetaChip triggerMetaChip--gen";
-
-  const generatorLabel = document.createElement("span");
-  generatorLabel.className = "triggerMetaChipLabel";
-  generatorLabel.textContent = "MODE";
-
-  const generatorButton = document.createElement("button");
-  generatorButton.type = "button";
-  generatorButton.className = "triggerModeButton";
-  generatorButton.setAttribute("aria-label", `${t.name} generator mode`);
-  generatorButton.setAttribute("aria-haspopup", "dialog");
-  generatorButton.setAttribute("aria-expanded", "false");
-  attachTooltip?.(generatorButton, {
-    text: "Select the active generator mode for this module.",
-    ariaLabel: `${t.name} generator mode`,
-  });
-  const generatorValue = document.createElement("span");
-  generatorValue.className = "triggerModeValue";
-
-  generatorChip.append(generatorLabel, generatorValue, generatorButton);
 
   const seedGroup = document.createElement("div");
   seedGroup.className = "triggerSeedGroup";
@@ -1085,8 +1049,6 @@ export function renderTriggerSurface(
   });
   let routingPanel: HTMLElement | null = null;
   let routingPanelCleanup: { destroy: () => void } | null = null;
-  let modePanel: HTMLElement | null = null;
-  let modePanelCleanup: { destroy: () => void } | null = null;
   const setMode = (nextMode: Mode) => {
     onPatchChange((p) => {
       const m = p.modules.find((x) => x.id === t.id);
@@ -1095,16 +1057,6 @@ export function renderTriggerSurface(
         delete m.liveState;
       }
     }, { regen: true });
-  };
-  const closeModePanel = () => {
-    if (modePanelCleanup) {
-      modePanelCleanup.destroy();
-      modePanelCleanup = null;
-    }
-    modePanel?.remove();
-    modePanel = null;
-    generatorChip.classList.remove("isOpen");
-    generatorButton.setAttribute("aria-expanded", "false");
   };
   const closeRoutingPanel = () => {
     if (routingPanelCleanup) {
@@ -1117,78 +1069,21 @@ export function renderTriggerSurface(
     routingChip.setAttribute("aria-expanded", "false");
   };
 
-  const openModePanel = () => {
-    if (modePanel) {
-      closeModePanel();
-      return;
-    }
-    closeRoutingPanel();
-
-    const panel = document.createElement("div");
-    panel.className = "floatingPanel triggerModeSelectorPanel";
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-label", `${t.name} generator mode`);
-    const list = document.createElement("div");
-    list.className = "triggerModeSelectorList";
-
-    GENERATOR_MODES.forEach((mode) => {
-      const row = document.createElement("button");
-      row.type = "button";
-      row.dataset.mode = mode.value;
-      row.className = `triggerModeSelectorRow${t.mode === mode.value ? " isSelected" : ""}`;
-      row.textContent = mode.label;
-      row.onclick = () => {
-        closeModePanel();
-        if (mode.value !== t.mode) setMode(mode.value);
-      };
-      list.appendChild(row);
-    });
-
-    panel.appendChild(list);
-    document.body.appendChild(panel);
-
-    const position = () => (generatorChip.isConnected ? generatorChip.getBoundingClientRect() : null);
-    placeFloatingPanel(panel, generatorChip.getBoundingClientRect(), {
-      preferredSide: "bottom",
-      align: "start",
-      offset: 8,
-      minWidth: 150,
-      maxWidth: 210,
-    });
-    const reposition = bindFloatingPanelReposition(panel, position, {
-      preferredSide: "bottom",
-      align: "start",
-      offset: 8,
-      minWidth: 150,
-      maxWidth: 210,
-    });
-
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (panel.contains(target) || generatorChip.contains(target)) return;
-      closeModePanel();
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeModePanel();
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("keydown", onKeyDown, true);
-    modePanelCleanup = {
-      destroy() {
-        reposition.destroy();
-        document.removeEventListener("pointerdown", onPointerDown, true);
-        document.removeEventListener("keydown", onKeyDown, true);
-      },
-    };
-
-    modePanel = panel;
-    generatorChip.classList.add("isOpen");
-    generatorButton.setAttribute("aria-expanded", "true");
-  };
-  generatorButton.onclick = openModePanel;
+  const modeSelector = createModuleIdentitySelector({
+    label: "Mode",
+    value: t.mode,
+    options: GENERATOR_MODES,
+    onChange: setMode,
+    accent: "gen",
+    ariaLabel: `${t.name} generator mode`,
+    tooltip: "Select the active generator mode for this module.",
+    attachTooltip,
+    minWidth: 190,
+    maxWidth: 250,
+    onOpen: closeRoutingPanel,
+  });
+  const generatorButton = modeSelector.button;
+  identity.append(generatorButton);
 
   const buildRoutingRows = (panelList: HTMLElement) => {
     panelList.replaceChildren();
@@ -1236,7 +1131,7 @@ export function renderTriggerSurface(
       closeRoutingPanel();
       return;
     }
-    closeModePanel();
+    modeSelector.close();
 
     const panel = document.createElement("div");
     panel.className = "floatingPanel triggerRoutingSelectorPanel";
@@ -1291,7 +1186,7 @@ export function renderTriggerSurface(
   };
   routingChip.onclick = openRoutingPanel;
 
-  metaRow.append(generatorChip, seedGroup, routingChip);
+  metaRow.append(seedGroup, routingChip);
 
   const display = createTriggerDisplaySurface({
     module: t,
@@ -1463,7 +1358,7 @@ export function renderTriggerSurface(
   function syncTriggerFace() {
     if (!surface.isConnected) {
       closeRoutingPanel();
-      closeModePanel();
+      modeSelector.close();
     }
     syncModeControlValues();
     const densityControl = renderedModeControls.find((control) => control.spec.key === "density")?.el;
@@ -1478,14 +1373,7 @@ export function renderTriggerSurface(
       }
     }
     badge.textContent = "GEN";
-    generatorLabel.textContent = "MODE";
-    generatorValue.textContent = getGenModeMeta(t.mode).shortLabel;
-    if (modePanel) {
-      const rows = modePanel.querySelectorAll<HTMLElement>(".triggerModeSelectorRow");
-      rows.forEach((row) => {
-        row.classList.toggle("isSelected", row.dataset.mode === t.mode);
-      });
-    }
+    modeSelector.setValue(t.mode);
     if (routingPanel) {
       const panelList = routingPanel.querySelector<HTMLElement>(".triggerRoutingSelectorList");
       if (panelList) buildRoutingRows(panelList);

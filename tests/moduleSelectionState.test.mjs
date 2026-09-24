@@ -4,6 +4,7 @@ import {
   createModuleSelectionState,
   pruneModuleSelection,
   replaceModuleSelection,
+  selectAllModules,
   toggleModuleSelection,
 } from '../src/ui/state/moduleSelection.ts';
 
@@ -24,6 +25,13 @@ test('toggle selection adds and removes module ids', () => {
 
   const removed = toggleModuleSelection(added, 'mod-a');
   assert.deepEqual(removed.selectedModuleIds, ['mod-b']);
+});
+
+test('select all returns every unique module id as the active selection', () => {
+  const selected = selectAllModules(['mod-a', 'mod-b', 'mod-a']);
+  assert.deepEqual(selected.selectedModuleIds, ['mod-a', 'mod-b']);
+  assert.equal(selected.selectionAnchorId, null);
+  assert.equal(selected.selectionMode, 'replace');
 });
 
 test('prune removes deleted modules from selection and anchor', () => {

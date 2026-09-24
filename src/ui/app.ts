@@ -36,6 +36,8 @@ import {
 } from "./persistence/modulePresetStore";
 import { createModuleGridRenderer } from "./render/moduleGrid";
 import { createVoiceTabsState } from "./state/voiceTabs";
+import { moduleSettingsClipboard } from "./state/moduleSettingsClipboard";
+import { isEditableShortcutTarget } from "./state/keyboardShortcuts";
 import { createTooltipController } from "./tooltip";
 import { createMidiInputManager, type MidiInputStatus } from "./midiInput";
 import { createMidiOutputManager, type MidiOutputStatus } from "./midiOutput";
@@ -1030,6 +1032,31 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
       gridRenderer.setRoutingInspect(moduleId);
     },
     getSelectionSummary: () => gridRenderer.getSelectionSummary(),
+    getSelectedModule: () => {
+      const ids = gridRenderer.getSelectedModuleIds();
+      return ids.length === 1 ? patch.modules.find((module) => module.id === ids[0]) ?? null : null;
+    },
+    canPasteSettings: () => {
+      const ids = gridRenderer.getSelectedModuleIds();
+      const target = ids.length === 1 ? patch.modules.find((module) => module.id === ids[0]) : null;
+      return !!target && moduleSettingsClipboard.canPasteSettingsToModule(target);
+    },
+    onCopySettings: () => {
+      const ids = gridRenderer.getSelectedModuleIds();
+      const source = ids.length === 1 ? patch.modules.find((module) => module.id === ids[0]) : null;
+      if (source) moduleSettingsClipboard.copySettingsFromModule(source);
+      header.updateSelectionActions();
+    },
+    onPasteSettings: () => {
+      const ids = gridRenderer.getSelectedModuleIds();
+      const id = ids.length === 1 ? ids[0] : null;
+      if (!id) return;
+      onPatchChange((draft) => {
+        const target = draft.modules.find((module) => module.id === id);
+        if (target) moduleSettingsClipboard.pasteSettingsToModule(target);
+      }, { regen: true });
+      header.updateSelectionActions();
+    },
     onCopySelection: () => {
       gridRenderer.copySelection();
       header.updateSelectionActions();
@@ -1092,11 +1119,10 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
     const mod = isMac ? e.metaKey : e.ctrlKey;
 
     const t = e.target as HTMLElement | null;
-    const tag = t?.tagName?.toLowerCase();
-    const typing =
-      tag === "input" || tag === "textarea" || tag === "select" || (t as any)?.isContentEditable;
+    const typing = isEditableShortcutTarget(t);
 
     if (mod && !typing) {
+      if (e.key.toLowerCase() === "a") { e.preventDefault(); gridRenderer.selectAll(); return; }
       if (e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault();
         history.doUndo();
@@ -1114,6 +1140,17 @@ export function mountApp(root: HTMLElement, engine: Engine, sched: Scheduler) {
         saveCurrentPreset();
         return;
       }
+    }
+
+    if (!typing && mod && e.shiftKey && (e.key.toLowerCase() === "c" || e.key.toLowerCase() === "v")) {
+      e.preventDefault();
+      const selected = patch.modules.filter((module) => gridRenderer.getSelectedModuleIds().includes(module.id));
+      if (e.key.toLowerCase() === "c") { if (selected.length === 1) moduleSettingsClipboard.copySettingsFromModule(selected[0]); header.updateSelectionActions(); }
+      else if (selected.length === 1 && moduleSettingsClipboard.canPasteSettingsToModule(selected[0])) {
+        onPatchChange((draft) => { const target = draft.modules.find((module) => module.id === selected[0].id); if (target) moduleSettingsClipboard.pasteSettingsToModule(target); }, { regen: true });
+        header.updateSelectionActions();
+      }
+      return;
     }
 
     if (!typing && mod) {
