@@ -81,6 +81,8 @@ Reference: [`docs/gen-mode-design-principles.md`](gen-mode-design-principles.md)
 
 ## Near-term next steps (active priority)
 
+Las auditorías de septiembre de 2026 identifican estos próximos frentes: (1) alineación semántica UI ↔ DSP de DRUM/SYNTH; (2) corrección de invariantes y problemas de runtime de las voces; (3) expresividad/velocity y modulación continua; (4) desacoplamiento de eventos GEN del destino Web Audio; (5) MIDI destination/channel por ruta; (6) posteriormente, OSC y nuevos voice engines. El orden definitivo entre los frentes de voice-engine y external-control aún no está congelado. Véanse [`auditoría DRUM/SYNTH`](audits/drum-synth-engine-audit-2026-09.md) y [`auditoría MIDI/external control`](audits/midi-external-control-audit-2026-09.md).
+
 1. Keep Drum/GEN/SYNTH quality high while improving CONTROL and VISUAL parity.
 2. Continue clarifying module-kind / mode / preset / session semantics across docs and UI text.
 3. Expand module preset banks from starter seeds toward curated instrument-grade defaults.
