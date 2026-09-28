@@ -267,7 +267,7 @@ test('parity matrix: legacy modulation only is compiled and visible from target-
   assert.equal(snapshot.voiceIncoming.get(sound.id).modulations[0].source.id, control.id);
 });
 
-test('parity matrix: typed modulation only is compiled and visible but scheduler density modulation remains legacy-owned', () => {
+test('parity matrix: typed density modulation is compiled, visible, and consumed by scheduler', () => {
   const trigger = makeTrigger({ id: 'trg-1', density: 0, drop: 0, length: 8, modulations: {} });
   const control = makeControl({ id: 'ctl-typed', waveform: 'square', amount: 1, phase: 0 });
   const sound = makeSound({ id: 'drm-1', triggerSource: trigger.id });
@@ -280,10 +280,10 @@ test('parity matrix: typed modulation only is compiled and visible but scheduler
 
   assert.deepEqual(compiled.modulationIncomingByTarget.get(trigger.id), [{ parameter: 'density', sourceId: control.id }]);
   assert.equal(snapshot.triggerIncoming.get(trigger.id)[0].source.id, control.id);
-  assert.deepEqual(triggered, []);
+  assert.ok(triggered.some((ev) => ev.id === sound.id));
 });
 
-test('parity matrix: simultaneous legacy and typed modulation shows typed route while runtime still reads legacy modulations', () => {
+test('parity matrix: typed density wins a legacy conflict in scheduler playback', () => {
   const trigger = makeTrigger({ id: 'trg-1', density: 0, drop: 0, length: 8, modulations: { density: 'ctl-legacy' } });
   const legacyControl = makeControl({ id: 'ctl-legacy', waveform: 'square', amount: 1, phase: 0 });
   const typedControl = makeControl({ id: 'ctl-typed', waveform: 'sine', amount: 0, phase: 0 });
@@ -297,7 +297,7 @@ test('parity matrix: simultaneous legacy and typed modulation shows typed route 
 
   assert.deepEqual(compiled.modulationIncomingByTarget.get(trigger.id), [{ parameter: 'density', sourceId: typedControl.id }]);
   assert.equal(snapshot.triggerIncoming.get(trigger.id)[0].source.id, typedControl.id);
-  assert.ok(triggered.some((ev) => ev.id === sound.id));
+  assert.deepEqual(triggered, []);
 });
 
 test('parity matrix: legacy audio connections only are compiled to legacy audio routes and accepted by runtime validation', () => {

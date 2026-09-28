@@ -4,6 +4,7 @@ import { createPatternModuleForTrigger } from '../src/engine/pattern/module.ts';
 import { createScheduler } from '../src/engine/scheduler.ts';
 import { laneRoleFromPatternEvent } from '../src/engine/events.ts';
 import { makePatch, makeSound, makeTrigger } from './helpers.mjs';
+import { resolveParameterModulation } from '../src/routingGraph.ts';
 
 function withWindowTimer(fn) {
   const prevWindow = globalThis.window;
@@ -11,6 +12,63 @@ function withWindowTimer(fn) {
   globalThis.window = { setInterval: (cb) => (intervalFn = cb, 1), clearInterval: () => {} };
   try { return fn(() => intervalFn && intervalFn()); } finally { globalThis.window = prevWindow; }
 }
+
+function modulationRoute(id, sourceId, targetId, parameter = 'density') {
+  return { id, domain: 'modulation', source: { kind: 'module', moduleId: sourceId, port: 'cv-out' }, target: { kind: 'module', moduleId: targetId, port: 'cv-in' }, enabled: true, metadata: { parameter } };
+}
+
+function scheduledCount(patch) {
+  const trigger = patch.modules.find((m) => m.type === 'trigger');
+  const sound = patch.modules.find((m) => m.type === 'drum');
+  const engine = { ctx: { currentTime: 0, state: 'running' }, triggerVoice() {} };
+  let count = 0;
+  withWindowTimer((tick) => {
+    const scheduler = createScheduler(engine);
+    scheduler.setScheduledEventObserver(() => { count += 1; });
+    scheduler.setBpm(120);
+    scheduler.setPatch(patch);
+    scheduler.start();
+    for (const t of [0, 0.025, 0.05, 0.075]) { engine.ctx.currentTime = t; tick(); }
+    scheduler.stop();
+  });
+  return count;
+}
+
+function densityPatch({ legacyId = null, typedId = null } = {}) {
+  const trigger = makeTrigger({ id: 'trg-density', mode: 'euclid', seed: 1, density: 0.5, length: 16, drop: 0, modulations: legacyId ? { density: legacyId } : {} });
+  const sound = makeSound({ id: 'drm-density', triggerSource: trigger.id });
+  const controls = ['ctl-a', 'ctl-b'].map((id) => ({ id, type: 'control', name: id, enabled: true, kind: 'lfo', waveform: 'square', speed: 0.1, amount: 1, phase: id === 'ctl-a' ? 0 : 0.5, rate: 0.4, drift: 0, randomness: 0 }));
+  const patch = makePatch([sound, trigger, ...controls]);
+  if (typedId) patch.routes = [modulationRoute('mod-density', typedId, trigger.id)];
+  return patch;
+}
+
+test('scheduler density modulation preserves legacy, adopts typed, and prefers valid typed on conflict', () => {
+  const baseline = densityPatch();
+  const legacy = densityPatch({ legacyId: 'ctl-a' });
+  const typed = densityPatch({ typedId: 'ctl-a' });
+  const matching = densityPatch({ legacyId: 'ctl-a', typedId: 'ctl-a' });
+  const conflict = densityPatch({ legacyId: 'ctl-b', typedId: 'ctl-a' });
+  assert.notEqual(scheduledCount(legacy), scheduledCount(baseline), 'legacy density remains effective');
+  assert.notEqual(scheduledCount(typed), scheduledCount(baseline), 'typed density becomes effective');
+  assert.equal(scheduledCount(matching), scheduledCount(legacy), 'matching declarations produce the same playback');
+  assert.equal(scheduledCount(conflict), scheduledCount(typed), 'typed source wins a valid conflict');
+  assert.equal(resolveParameterModulation(conflict, 'trg-density', 'density', { typedSourcePrecedence: true }).effectiveRuntimeSourceId, 'ctl-a');
+});
+
+test('stale typed density safely falls back to legacy and unsupported parameters keep legacy resolver behavior', () => {
+  const patch = densityPatch({ legacyId: 'ctl-a' });
+  const originalVersion = patch.version;
+  patch.routes = [modulationRoute('mod-stale', 'missing-ctl', 'trg-density')];
+  assert.equal(resolveParameterModulation(patch, 'trg-density', 'density', { typedSourcePrecedence: true }).effectiveRuntimeSourceId, 'ctl-a');
+  assert.equal(scheduledCount(patch), scheduledCount(densityPatch({ legacyId: 'ctl-a' })));
+
+  const sound = patch.modules.find((m) => m.type === 'drum');
+  sound.modulations = { decay: 'ctl-a' };
+  patch.routes = [modulationRoute('mod-unsupported', 'ctl-b', sound.id, 'decay')];
+  assert.equal(resolveParameterModulation(patch, sound.id, 'decay', { typedSourcePrecedence: true }).effectiveRuntimeSourceId, null);
+  assert.equal(patch.version, originalVersion, 'routing adoption does not migrate the patch schema');
+});
 
 test('scheduler dedupes overlaps for linked trigger/sound pair', () => {
   const trigger = makeTrigger({ id: 'trg-1', seed: 1, density: 1, drop: 0, subdiv: 4, length: 8, mode: 'step' });

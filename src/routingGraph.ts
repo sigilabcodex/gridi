@@ -442,6 +442,7 @@ export function resolveParameterModulation(
   patch: Pick<Patch, "modules" | "connections" | "buses"> & { routes?: unknown },
   targetId: string,
   parameter: string,
+  options: { typedSourcePrecedence?: boolean } = {},
 ): ModulationRoutingResolution {
   const modulesById = new Map(patch.modules.map((module) => [module.id, module]));
   const target = modulesById.get(targetId);
@@ -473,7 +474,9 @@ export function resolveParameterModulation(
   const typedHasStale = typedCandidates.some((candidate) => candidate.enabled && (!candidate.sourceExists || !candidate.targetExists));
   const runtimeOwner = modulationRuntimeOwner(target, parameter);
   const runtimeSupported = runtimeOwner !== null;
-  const effectiveRuntimeSourceId = runtimeSupported && legacySourceValid ? legacySourceId : null;
+  const effectiveRuntimeSourceId = runtimeSupported
+    ? (options.typedSourcePrecedence && typedSourceId ? typedSourceId : legacySourceValid ? legacySourceId : null)
+    : null;
   const typedAndLegacyMatch = !!(typedSourceId && legacySourceId && typedSourceId === legacySourceId);
   const typedAndLegacyConflict = !!(typedSourceId && legacySourceId && typedSourceId !== legacySourceId);
   const fallbackUsed = !!(typedSourceId && legacySourceId && runtimeSupported);

@@ -5,6 +5,7 @@ import type { Engine } from "./audio";
 import { createPatternModuleForTrigger } from "./pattern/module.ts";
 import { sampleControl01 } from "./control.ts";
 import { compileRoutingGraph } from "../routingGraph.ts";
+import { resolveParameterModulation } from "../routingGraph.ts";
 import { drumLaneForChannelMode, laneRoleFromPatternEvent, normalizeDrumLane, noteOffsetsFromPatternEvent, preferredLaneForDrumModule, type GridiTriggerEvent } from "./events.ts";
 
 export type ScheduledEventObserver = (event: {
@@ -65,7 +66,7 @@ export function createScheduler(engine: Engine): Scheduler {
   function modulateTrigger(trigger: TriggerModule, activePatch: Patch, nowSec: number): TriggerModule {
     const ctxRunning = typeof engine.ctx.state === "string" ? engine.ctx.state === "running" : true;
     if (!running || !ctxRunning) return trigger;
-    const controlId = trigger.modulations?.density;
+    const controlId = resolveParameterModulation(activePatch, trigger.id, "density", { typedSourcePrecedence: true }).effectiveRuntimeSourceId;
     if (!controlId) return trigger;
     const control = activePatch.modules.find((m): m is ControlModule => m.id === controlId && isControl(m));
     if (!control || !control.enabled) return trigger;
