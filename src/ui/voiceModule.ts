@@ -9,6 +9,7 @@ import { createModulePresetControl } from "./modulePresetControl";
 import type { ModulePresetRecord } from "./persistence/modulePresetStore";
 import type { TooltipBinder } from "./tooltip";
 import { applyCenteredModulation } from "./modulationView";
+import { drumPitchModulationSemitones } from "../engine/drumPitchModulation.ts";
 import {
   createCompactSelectField,
   createModuleRefChip,
@@ -909,10 +910,14 @@ export function renderDrumModuleSurface(params: SurfaceParams) {
     const pitchSource = incomingModSourceByParameter.get("basePitch") ?? d.modulations?.basePitch;
     const pitchSample = sampleModulationValue(pitchSource);
     const isPitchModulated = Boolean(pitchSource && pitchSample != null);
+    const typedPitchSource = routing.typedModulationSources.get(v.id)?.get("basePitch");
+    const typedPitchSelected = !!typedPitchSource && pitchSource === typedPitchSource;
     pitchCtl.classList.toggle("ctlModulated", isPitchModulated);
     pitchCtl.title = isPitchModulated ? `CTRL ${pitchSource}` : "";
     if (isPitchModulated && !activeInteractionKeys.has("basePitch")) {
-      const modulated = applyCenteredModulation(d.basePitch, pitchSample, 0.9, 0, 1);
+      const modulated = typedPitchSelected
+        ? clamp01(d.basePitch + drumPitchModulationSemitones(d.basePitch, pitchSample ?? 0.5) / DRUM_PITCH_SPAN)
+        : applyCenteredModulation(d.basePitch, pitchSample, 0.9, 0, 1);
       pitchCtl.syncValue?.(pitchNormToMidi(modulated));
     }
   };

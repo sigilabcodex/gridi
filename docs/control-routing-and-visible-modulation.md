@@ -114,13 +114,13 @@ Current runtime capability matrix (the inspector lists a row when a target is as
 | Module family | Parameter | Assignable in UI | Typed route representation | Inspector visibility | Runtime consumer | Limitation |
 | --- | --- | --- | --- | --- | --- | --- |
 | GEN / trigger | `density` | Yes | Yes | Yes | Scheduler | Resolver-backed: valid typed source wins, legacy map is fallback. |
-| DRUM | `basePitch` | Yes | Yes | Yes | Audio engine | Legacy map only; typed route remains declaration. |
+| DRUM | `basePitch` | Yes | Yes | Yes | Audio engine | Resolver-backed: valid typed source wins; stale/absent typed source falls back to legacy. Typed routes use safe ±7-semitone scaling; legacy-only playback retains its old curve. Sampled at voice creation. |
 | SYNTH / tonal | `cutoff` | Yes | Yes | Yes | Audio engine | Legacy map only; typed route remains declaration. |
 | GEN / trigger | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by scheduler. |
 | DRUM | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
 | SYNTH / tonal | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
 
-Audio modulation remains legacy-map-backed in this pass. Density is the exception: scheduler runtime uses the resolver with valid typed-source precedence and legacy fallback. No schema version changed and patches are not automatically migrated. None of these paths updates active audio voices continuously; audio targets are sampled at voice creation.
+Synth audio modulation remains legacy-map-backed in this pass. Density and DRUM pitch use the resolver with valid typed-source precedence and legacy fallback. No schema version changed and patches are not automatically migrated. Audio targets are sampled at voice creation; active voices are not continuously retuned.
 
 New explicit modulation assignments use replacement semantics for one effective source per target parameter: assigning CTRL B to a parameter controlled by CTRL A updates the legacy map, removes competing typed modulation routes for that same target parameter, and writes one matching typed modulation route. Unrelated parameters remain unchanged.
 

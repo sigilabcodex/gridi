@@ -8,6 +8,7 @@ import {
   setParameterModulationSource,
 } from '../src/routingGraph.ts';
 import { buildModulationRoutingInspectorRows } from '../src/ui/routingInspector.ts';
+import { DRUM_PITCH_SAFE_RANGE_SEMITONES, drumPitchModulationSemitones, isTypedDrumPitchSourceSelected, modulatedDrumBaseFrequency } from '../src/engine/drumPitchModulation.ts';
 import { makePatch, makeSound, makeTrigger } from './helpers.mjs';
 
 function makeControl(overrides = {}) {
@@ -53,6 +54,82 @@ test('modulation resolver reports legacy modulation only as runtime-effective wh
   assert.equal(resolution.typedSourceId, null);
   assert.equal(resolution.effectiveRuntimeSourceId, control.id);
   assert.equal(resolution.runtimeOwner, 'scheduler');
+});
+
+test('DRUM basePitch preserves the legacy frequency curve for legacy-only patches', () => {
+  const basePitch = 0.5;
+  const controlValue = 1;
+  const expected = 45 + (basePitch + (controlValue - 0.5) * 0.9) * 180 + 12;
+  assert.equal(modulatedDrumBaseFrequency(basePitch, 12, controlValue, false), expected);
+  const sound = makeSound({ id: 'drm-pitch', modulations: { basePitch: 'ctl-a' } });
+  const patch = makePatch([sound, makeControl({ id: 'ctl-a' })]);
+  const resolution = resolveParameterModulation(patch, sound.id, 'basePitch', { typedSourcePrecedence: true });
+  assert.equal(resolution.effectiveRuntimeSourceId, 'ctl-a');
+  assert.equal(isTypedDrumPitchSourceSelected(resolution.typedSourceId, resolution.effectiveRuntimeSourceId), false);
+});
+
+test('DRUM basePitch typed-only routes use the safe seven-semitone range', () => {
+  const sound = makeSound({ id: 'drm-pitch', modulations: {} });
+  const patch = makePatch([sound, makeControl({ id: 'ctl-a' })]);
+  patch.routes = [modulationRoute('mod-typed-pitch', 'ctl-a', sound.id, 'basePitch')];
+  const resolution = resolveParameterModulation(patch, sound.id, 'basePitch', { typedSourcePrecedence: true });
+  assert.equal(resolution.effectiveRuntimeSourceId, 'ctl-a');
+  assert.equal(isTypedDrumPitchSourceSelected(resolution.typedSourceId, resolution.effectiveRuntimeSourceId), true);
+  assert.equal(DRUM_PITCH_SAFE_RANGE_SEMITONES, 7);
+  assert.equal(drumPitchModulationSemitones(0.5, 0), -7);
+  assert.equal(drumPitchModulationSemitones(0.5, 1), 7);
+  const base = modulatedDrumBaseFrequency(0.5, 0, null, false);
+  const typed = modulatedDrumBaseFrequency(0.5, 0, 1, true);
+  assert.ok(Math.abs(typed / base - Math.pow(2, 7 / 12)) < 1e-12);
+});
+
+test('DRUM basePitch matching typed and legacy routes use the valid typed source', () => {
+  const sound = makeSound({ id: 'drm-pitch', modulations: { basePitch: 'ctl-a' } });
+  const control = makeControl({ id: 'ctl-a' });
+  const patch = makePatch([sound, control]);
+  patch.routes = [modulationRoute('mod-match-pitch', control.id, sound.id, 'basePitch')];
+  const resolution = resolveParameterModulation(patch, sound.id, 'basePitch', { typedSourcePrecedence: true });
+  assert.equal(resolution.effectiveRuntimeSourceId, control.id);
+  assert.equal(resolution.typedAndLegacyMatch, true);
+  assert.equal(isTypedDrumPitchSourceSelected(resolution.typedSourceId, resolution.effectiveRuntimeSourceId), true);
+  assert.notEqual(modulatedDrumBaseFrequency(0.5, 0, 1, true), modulatedDrumBaseFrequency(0.5, 0, 1, false));
+});
+
+test('DRUM basePitch conflicting typed and legacy routes follow typed precedence', () => {
+  const sound = makeSound({ id: 'drm-pitch', modulations: { basePitch: 'ctl-a' } });
+  const controlA = makeControl({ id: 'ctl-a' });
+  const controlB = makeControl({ id: 'ctl-b' });
+  const patch = makePatch([sound, controlA, controlB]);
+  patch.routes = [modulationRoute('mod-conflict-pitch', controlB.id, sound.id, 'basePitch')];
+  const resolution = resolveParameterModulation(patch, sound.id, 'basePitch', { typedSourcePrecedence: true });
+  assert.equal(resolution.effectiveRuntimeSourceId, controlB.id);
+  assert.equal(resolution.typedAndLegacyConflict, true);
+  assert.equal(isTypedDrumPitchSourceSelected(resolution.typedSourceId, resolution.effectiveRuntimeSourceId), true);
+});
+
+test('DRUM basePitch stale typed routes fall back to the valid legacy source', () => {
+  const sound = makeSound({ id: 'drm-pitch', modulations: { basePitch: 'ctl-a' } });
+  const control = makeControl({ id: 'ctl-a' });
+  const patch = makePatch([sound, control]);
+  patch.routes = [modulationRoute('mod-stale-pitch', 'missing-ctl', sound.id, 'basePitch')];
+  const resolution = resolveParameterModulation(patch, sound.id, 'basePitch', { typedSourcePrecedence: true });
+  assert.equal(resolution.state, 'stale-typed');
+  assert.equal(resolution.effectiveRuntimeSourceId, control.id);
+  assert.equal(isTypedDrumPitchSourceSelected(resolution.typedSourceId, resolution.effectiveRuntimeSourceId), false);
+  const fallbackFrequency = modulatedDrumBaseFrequency(0.5, 0, 1, false);
+  assert.equal(fallbackFrequency, 45 + (0.5 + 0.45) * 180);
+});
+
+test('unsupported DRUM modulation parameters remain without a runtime source and keep schema version', () => {
+  const sound = makeSound({ id: 'drm-pitch', modulations: { decay: 'ctl-a' } });
+  const control = makeControl({ id: 'ctl-a' });
+  const patch = makePatch([sound, control]);
+  patch.routes = [modulationRoute('mod-decay', control.id, sound.id, 'decay')];
+  const resolution = resolveParameterModulation(patch, sound.id, 'decay', { typedSourcePrecedence: true });
+  assert.equal(resolution.runtimeSupported, false);
+  assert.equal(resolution.effectiveRuntimeSourceId, null);
+  assert.equal(modulatedDrumBaseFrequency(0.5, 0, null, false), 135);
+  assert.equal(patch.version, '0.3');
 });
 
 test('modulation resolver reports typed modulation only as declaration without runtime authority', () => {
@@ -148,6 +225,7 @@ test('modulation resolver reports unsupported assigned parameter', () => {
 test('modulation capability matrix identifies scheduler and audio-owned runtime parameters', () => {
   assert.equal(getModulationCapability('trigger', 'density').consumedByRuntime, 'scheduler');
   assert.equal(getModulationCapability('drum', 'basePitch').consumedByRuntime, 'audio');
+  assert.match(getModulationCapability('drum', 'basePitch').knownLimitations, /resolver precedence with legacy fallback/);
   assert.equal(getModulationCapability('tonal', 'cutoff').consumedByRuntime, 'audio');
   assert.equal(getModulationCapability('drum', 'decay').consumedByRuntime, null);
 

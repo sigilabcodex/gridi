@@ -45,6 +45,7 @@ export type RoutingSnapshot = {
   triggerTargets: Map<string, RouteRef[]>;
   controlTargets: Map<string, ControlTargetRef[]>;
   voiceIncoming: Map<string, { trigger: RouteRef | null; modulations: Array<{ parameter: string; parameterLabel: string; source: RouteRef }> }>;
+  typedModulationSources: Map<string, Map<string, string>>;
   triggerIncoming: Map<string, Array<{ parameter: string; parameterLabel: string; source: RouteRef }>>;
   visualSources: Map<string, { sourceLabel: string; contributors: RouteRef[] }>;
 };
@@ -144,11 +145,20 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
   const triggerTargets = new Map<string, RouteRef[]>();
   const controlTargets = new Map<string, ControlTargetRef[]>();
   const voiceIncoming = new Map<string, { trigger: RouteRef | null; modulations: Array<{ parameter: string; parameterLabel: string; source: RouteRef }> }>();
+  const typedModulationSources = new Map<string, Map<string, string>>();
   const triggerIncoming = new Map<string, Array<{ parameter: string; parameterLabel: string; source: RouteRef }>>();
   const visualSources = new Map<string, { sourceLabel: string; contributors: RouteRef[] }>();
 
   for (const module of patch.modules) {
     modules.set(module.id, makeRouteRef(module));
+  }
+
+  for (const route of compiled.routes) {
+    if (route.domain !== "modulation" || route.metadata?.createdFrom === "legacy-modulations") continue;
+    if (route.source.kind !== "module" || route.target.kind !== "module" || !route.metadata?.parameter) continue;
+    const targetSources = typedModulationSources.get(route.target.moduleId) ?? new Map<string, string>();
+    if (!targetSources.has(route.metadata.parameter)) targetSources.set(route.metadata.parameter, route.source.moduleId);
+    typedModulationSources.set(route.target.moduleId, targetSources);
   }
 
   const overview = buildUIRoutingOverview(compiled, modules);
@@ -229,6 +239,7 @@ export function buildRoutingSnapshot(patch: Patch): RoutingSnapshot {
     triggerTargets,
     controlTargets,
     voiceIncoming,
+    typedModulationSources,
     triggerIncoming,
     visualSources,
   };

@@ -426,8 +426,10 @@ export function getModulationCapability(moduleType: Module["type"], parameter: s
     representedInTypedRouting: true,
     visibleInInspector: true,
     consumedByRuntime,
-    knownLimitations: consumedByRuntime
-      ? "Runtime currently consumes the legacy target-owned modulations map; typed routes are declarations until authority changes."
+    knownLimitations: consumedByRuntime === "scheduler" || (moduleType === "drum" && parameter === "basePitch")
+      ? "Runtime uses resolver precedence with legacy fallback; audio modulation is sampled when a new voice starts."
+      : consumedByRuntime
+        ? "Runtime currently consumes the legacy target-owned modulations map; typed routes are declarations until authority changes."
       : "Assignable/representable, but not currently consumed by scheduler or audio runtime.",
   };
 }

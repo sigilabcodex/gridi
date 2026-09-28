@@ -5,7 +5,8 @@ import type { AudioModuleInstance } from "./audioModule";
 import { createEffectInstance } from "./effects";
 import { collectVoiceRoutes, validateConnections } from "./routing";
 import { sampleControl01 } from "./control";
-import { compileRoutingGraph } from "../routingGraph.ts";
+import { compileRoutingGraph, resolveParameterModulation } from "../routingGraph.ts";
+import { isTypedDrumPitchSourceSelected, modulatedDrumBaseFrequency } from "./drumPitchModulation.ts";
 import { selectNotesForReception, type GridiTriggerEvent } from "./events.ts";
 import { createLiveMidiVoiceTracker } from "./liveMidiNotes.ts";
 
@@ -407,10 +408,18 @@ export function createEngine(): Engine {
       const boost = clamp01(safe(v.boost, 0.24));
       const boostTarget = v.boostTarget === "attack" || v.boostTarget === "air" ? v.boostTarget : "body";
       const modulationActive = transportRunning && ctx.state === "running";
-      const modBasePitch = modulate(clamp01(safe(v.basePitch, 0.5)), patch, v, "basePitch", now, 0.9, modulationActive);
+      const basePitch = clamp01(safe(v.basePitch, 0.5));
+      const basePitchResolution = resolveParameterModulation(patch, v.id, "basePitch", { typedSourcePrecedence: true });
+      const typedBasePitchSelected = isTypedDrumPitchSourceSelected(
+        basePitchResolution.typedSourceId,
+        basePitchResolution.effectiveRuntimeSourceId,
+      );
+      const basePitchValue = modulationValue(patch, basePitchResolution.effectiveRuntimeSourceId ?? undefined, now, modulationActive);
 
       bodyOsc.type = bodyTone < 0.55 ? "sine" : "triangle";
-      const baseFreq = 45 + modBasePitch * 180 + i * 4 + clamp01(safe(patch.macro, 0.5)) * 24;
+      const pitchContextHz = i * 4 + clamp01(safe(patch.macro, 0.5)) * 24;
+      // Pitch CTRL is sampled at voice creation; existing drum oscillators are not retuned later.
+      const baseFreq = modulatedDrumBaseFrequency(basePitch, pitchContextHz, basePitchValue, typedBasePitchSelected);
       bodyOsc.frequency.setValueAtTime(baseFreq * (1 + pitchEnvAmt * 2.2), now);
       bodyOsc.frequency.exponentialRampToValueAtTime(Math.max(30, baseFreq), now + pitchEnvDecay);
 

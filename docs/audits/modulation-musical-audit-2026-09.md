@@ -10,15 +10,15 @@ Scope: modulation target choice and musical scaling only. This audit does not ch
 - **Runtime** means the audio engine or scheduler samples that value from CTRL. It describes current behavior, which is sampled when an event/voice is created; CTRL does not continuously update active audio voices.
 - **Safe musical** and **extended** are proposed future modulation depths around the saved parameter value, not current ranges. Clamp the final value to its legal parameter range. Ranges below are suggestions for a future normalized bipolar modulation amount.
 
-Current runtime consumption is narrow: `trigger.density` in the scheduler, `drum.basePitch` in the drum voice start path, and `tonal.cutoff` in the synth voice start path. Density now resolves valid typed routes before legacy fallback. The two audio targets still read legacy target-owned maps. Every other catalog target is assignable and inspectable but has no DSP/scheduler modulation consumer.
+Current runtime consumption is narrow: `trigger.density` in the scheduler, `drum.basePitch` in the drum voice start path, and `tonal.cutoff` in the synth voice start path. Density and Drum pitch resolve valid typed routes before legacy fallback. Synth cutoff still reads the legacy target-owned map. Every other catalog target is assignable and inspectable but has no DSP/scheduler modulation consumer.
 
 ## DRUM
 
-All named rows below are assignable and inspector-visible when routed, except channel/lane selection. Only `basePitch` is currently consumed by runtime, from the legacy map at voice start. “UI key” identifies the actual stored field because some faceplate labels are aliases.
+All named rows below are assignable and inspector-visible when routed, except channel/lane selection. Only `basePitch` is currently consumed by runtime, sampled at voice start. “UI key” identifies the actual stored field because some faceplate labels are aliases.
 
 | Target / UI key | Current runtime | Should become modulable | Safe musical range | Extended range | Suggested mapping | Musical risk / priority |
 | --- | --- | --- | --- | --- | --- | --- |
-| Pitch / `basePitch` | Yes, legacy only; new drum voice | Yes, next after density | ±7 semitones around saved pitch | ±24 semitones, clamped | Convert normalized control to semitone offset in log-frequency/MIDI space; optionally quantize safe mode to semitones | Low–medium; large jumps change drum identity. **P1: next resolver-backed target** |
+| Pitch / `basePitch` | Yes; resolver-backed typed precedence with legacy fallback, sampled for new drum voices | Implemented | Typed route: ±7 semitones around saved pitch; legacy-only curve remains compatible | Future extended mode: ±24 semitones, clamped | Typed route converts normalized control to semitone offset in log-frequency/MIDI space | Low–medium; large jumps change drum identity. Extended range remains unimplemented. |
 | Decay / `decay` | No CTRL consumer | Yes | 0.75–1.35× saved decay | 0.25–3×, with sensible time floor/ceiling | Multiplicative/log-time scaling; sample per hit | Low; changes tail and overlap. **P2** |
 | Attack / `attack` | No | Later | ±5 ms around saved value, clamped to 1–51 ms | Full existing 1–51 ms span | Additive milliseconds, with floor and ceiling | Medium; large attack softens or removes the transient. **P3** |
 | Tone / `tone` | No | Yes | About ±1 octave of filter frequency around saved tone | About ±3 octaves, bounded by Nyquist | Map to log frequency, not linear knob position | Low–medium; extreme values can thin or darken the hit. **P2** |
@@ -66,11 +66,15 @@ Current modulation UI assignment and inspector visibility follow the GEN catalog
 
 ## Recommendation and implementation order
 
-1. **Next runtime target: `drum.basePitch`, resolver-backed.** The DSP modulation path already exists and samples once per hit, the target has a clear musical meaning, and typed/legacy precedence can be consolidated without inventing a new DSP consumer. Replace the current broad normalized ±0.9 offset with semitone-space safe scaling (default ±7 semitones); expose a deliberate extended setting up to ±24 semitones. Preserve legacy-only playback with the same mapping until an explicit range/version policy is agreed.
+1. **Implemented in this pass: `drum.basePitch`, resolver-backed.** Valid typed routes win conflicts and use safe ±7-semitone scaling. Stale or absent typed routes fall back to legacy. Legacy-only patches retain the previous broad normalized mapping exactly so their playback does not change.
 2. **Then `drum.decay`.** It is a high-value one-shot articulation control with predictable per-hit behavior. Use bounded multiplicative time scaling and test repeated-hit tails.
 3. **Then `tonal.cutoff` resolver parity and log-frequency scaling.** The consumer already exists but current normalized linear offset sweeps a very broad frequency range.
 4. Add resonance and selected envelope controls after voice lifecycle tests cover pattern notes and MIDI note-off behavior.
 5. Treat oscillator shape, structural routing, mixer/level, compression, and unsupported GEN structural controls as visible-only or experimental until they have an explicit musical interaction model.
+
+The future extended range belongs at the typed-source scaling point in `src/engine/drumPitchModulation.ts`: keep the resolver and source precedence unchanged, then select the semitone span (safe ±7 by default; extended up to ±24) before converting to a frequency ratio. This is where a future range preference should plug in, without changing serialized routing fields. Legacy-only mapping must remain on its compatibility branch until a deliberate migration/range policy exists.
+
+DRUM pitch CTRL affects newly triggered voices only. The engine samples the CTRL value when it creates the oscillator and does not retune active Drum voices afterward. Continuous active-voice pitch movement requires a separate AudioParam tracking/smoothing design.
 
 One source per parameter remains the rule. Safe behavior should be the default; an explicit extended/experimental mode may increase depth, but must keep bounds, headroom, and voice lifetime under control. No source blending or multi-source merge is recommended.
 
@@ -87,8 +91,7 @@ One source per parameter remains the rule. Safe behavior should be the default; 
 ## Test coverage gaps found
 
 - Existing tests cover resolver states, single-owner replacement, schema-version stability, scheduler density playback, and sound module defaults/channel normalization.
-- There are no audio-runtime assertions proving the numeric response curve/range for DRUM `basePitch` or SYNTH `cutoff`; tests currently establish routing metadata more strongly than sound behavior.
+- Audio-runtime helper assertions now prove DRUM `basePitch` legacy compatibility and typed semitone range. There are still no numeric response-curve assertions for SYNTH `cutoff`.
 - No regression tests cover current legacy-only audio modulation playback, disabled/missing CTRL behavior, CTRL sampling only at voice creation, or typed audio routes remaining inactive in DSP.
 - There are no modulation tests for decay, tone, noise/body balance, synth resonance/envelopes/pitch, range clamping, active MIDI note lifecycle, headroom, or repeated-hit/retrigger behavior.
 - The catalog contains controls whose UI labels overstate or alias the underlying field. Add catalog-to-DSP semantic tests before expanding runtime targets.
-
