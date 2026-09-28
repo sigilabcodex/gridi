@@ -34,6 +34,8 @@ This document describes module families in terms of purpose and behavior.
 - Pitch/body, decay, tone/noise, level, pan.
 - Trigger source selection and routing/settings in tabs.
 
+CTRL modulation assignment is broader than current DSP consumption. For live modulation targets, musical ranges, and runtime gaps, see the [musical modulation audit](audits/modulation-musical-audit-2026-09.md).
+
 ## Synth
 
 **Purpose**
@@ -46,6 +48,8 @@ This document describes module families in terms of purpose and behavior.
 **Typical controls**
 - Waveform, filter (cutoff/resonance), envelope, level/pan.
 - Trigger source/routing and additional settings in tabs.
+
+Only cutoff currently consumes CTRL modulation in the audio engine, sampled when a voice starts. Other assignable synth targets are routing-visible but do not yet modulate DSP. See the [musical modulation audit](audits/modulation-musical-audit-2026-09.md).
 
 ## Visual
 

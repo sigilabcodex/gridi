@@ -109,18 +109,19 @@ The v0.4 routing consolidation pass adds a pure modulation resolver for each `(t
 - whether the parameter is currently consumed by runtime;
 - whether runtime is using the legacy compatibility fallback.
 
-Current runtime capability matrix:
+Current runtime capability matrix (the inspector lists a row when a target is assigned):
 
 | Module family | Parameter | Assignable in UI | Typed route representation | Inspector visibility | Runtime consumer | Limitation |
 | --- | --- | --- | --- | --- | --- | --- |
-| GEN / trigger | `density` | Yes | Yes | Yes | Scheduler | Runtime reads legacy `trigger.modulations.density`; typed route is declaration until authority changes. |
-| DRUM | `basePitch` | Yes | Yes | Yes | Audio engine | Runtime reads legacy `drum.modulations.basePitch`; typed route is declaration until authority changes. |
-| SYNTH / tonal | `cutoff` | Yes | Yes | Yes | Audio engine | Runtime reads legacy `tonal.modulations.cutoff`; typed route is declaration until authority changes. |
+| GEN / trigger | `density` | Yes | Yes | Yes | Scheduler | Resolver-backed: valid typed source wins, legacy map is fallback. |
+| DRUM | `basePitch` | Yes | Yes | Yes | Audio engine | Legacy map only; typed route remains declaration. |
+| SYNTH / tonal | `cutoff` | Yes | Yes | Yes | Audio engine | Legacy map only; typed route remains declaration. |
 | GEN / trigger | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by scheduler. |
 | DRUM | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
 | SYNTH / tonal | other catalog parameters | Yes | Yes | Yes | None | Assignable and visible, but not currently consumed by audio runtime. |
 
-Playback behavior is intentionally preserved in this pass. Typed modulation routes are not runtime-authoritative yet, no schema version changed, and patches are not automatically migrated.
+Audio modulation remains legacy-map-backed in this pass. Density is the exception: scheduler runtime uses the resolver with valid typed-source precedence and legacy fallback. No schema version changed and patches are not automatically migrated. None of these paths updates active audio voices continuously; audio targets are sampled at voice creation.
 
 New explicit modulation assignments use replacement semantics for one effective source per target parameter: assigning CTRL B to a parameter controlled by CTRL A updates the legacy map, removes competing typed modulation routes for that same target parameter, and writes one matching typed modulation route. Unrelated parameters remain unchanged.
 
+For musical range, priority, and target-by-target DSP recommendations, see [`docs/audits/modulation-musical-audit-2026-09.md`](audits/modulation-musical-audit-2026-09.md).
